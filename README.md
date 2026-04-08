@@ -44,7 +44,7 @@ bun install
 bun tsc        # typecheck
 bun lint       # lint
 bun run format # prettier
-bun test       # vitest
+bun run test   # vitest  (NOT `bun test` — that's Bun's built-in runner)
 bun run build  # build to dist/ (esm + cjs + .d.ts)
 ```
 

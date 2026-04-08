@@ -126,10 +126,14 @@ bun install   # if deps changed
 bun tsc
 bun lint
 bun run format
-bun test
+bun run test   # NOT `bun test` — that runs Bun's built-in runner and bypasses vitest
 ```
 
 All four must pass cleanly. No warnings, no skipped checks.
+
+> **Trap**: `bun test` (without `run`) invokes Bun's built-in test runner,
+> which ignores `vitest.config.ts` and `tests/setup.ts`, so MSW never
+> starts and every HTTP test silently fails. Always use `bun run test`.
 
 ## What lives where
 

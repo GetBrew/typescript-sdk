@@ -233,7 +233,7 @@ Run all four on every phase boundary before committing:
 bun tsc
 bun lint
 bun run format
-bun test
+bun run test   # NOT `bun test` — Bun's built-in runner bypasses vitest
 ```
 
 All four must pass cleanly. No warnings, no skipped checks.
