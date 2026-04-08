@@ -26,7 +26,6 @@ export default defineConfig([
       ],
       'no-await-in-loop': 'error',
       'no-nested-ternary': 'error',
-      '@typescript-eslint/no-misused-promises': 'off',
       '@typescript-eslint/array-type': ['error', { default: 'generic' }],
       '@typescript-eslint/consistent-type-imports': [
         'error',

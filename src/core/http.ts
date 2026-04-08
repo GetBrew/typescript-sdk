@@ -93,6 +93,19 @@ export function createHttpClient(
       ? JSON.stringify(input.body)
       : null
 
+    /* eslint-disable no-await-in-loop --
+     * Sequential awaits inside the retry loop are intentional and the
+     * entire reason the loop exists. Each iteration must:
+     *   1. Wait for the current fetch to settle before deciding whether
+     *      to retry (we cannot decide on a Promise we have not awaited).
+     *   2. Wait for the backoff sleep to complete before the next attempt
+     *      (parallel sleeps would defeat the point of backoff).
+     *   3. Wait for the response body parse before throwing the mapped
+     *      error (the error envelope lives inside the body).
+     * Parallelizing any of these would break correctness, so the
+     * `no-await-in-loop` rule is disabled for the duration of this loop
+     * with a real explanation rather than four scattered line-disables.
+     */
     let attempt = 0
     while (attempt <= maxRetries) {
       const { signal, cleanup } = createRequestSignal({
@@ -104,7 +117,6 @@ export function createHttpClient(
       let networkError: Error | undefined
 
       try {
-        // eslint-disable-next-line no-await-in-loop
         response = await config.fetch(url, {
           method: input.method,
           headers,
@@ -125,7 +137,6 @@ export function createHttpClient(
       }
 
       if (response && response.ok) {
-        // eslint-disable-next-line no-await-in-loop
         const data = await parseJsonBody<T>(response)
         return {
           data,
@@ -147,7 +158,6 @@ export function createHttpClient(
 
       if (!isRetryable) {
         if (response) {
-          // eslint-disable-next-line no-await-in-loop
           const body = await safeParseJsonBody(response)
           throw BrewApiError.fromResponse({
             status: response.status,
@@ -170,10 +180,10 @@ export function createHttpClient(
         random,
       })
 
-      // eslint-disable-next-line no-await-in-loop
       await sleep(delayMs)
       attempt++
     }
+    /* eslint-enable no-await-in-loop */
 
     // Unreachable: every iteration of the loop either returns or throws.
     throw new Error('http: retry loop exited without a result')
