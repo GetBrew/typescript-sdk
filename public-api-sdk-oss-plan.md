@@ -225,7 +225,7 @@ Use its own repo or package.
 
 Example package name.
 
-- `@brew/api`
+- `@brew.new/sdk`
 
 Use Bun and TypeScript.
 
@@ -685,7 +685,7 @@ Keep these simple.
 ## Example SDK Usage
 
 ```ts
-import { createBrewClient } from '@brew/api'
+import { createBrewClient } from '@brew.new/sdk'
 
 const brew = createBrewClient({
   apiKey: process.env.BREW_API_KEY!,

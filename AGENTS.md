@@ -1,6 +1,6 @@
 # Agents
 
-Guidelines for any agent (human or AI) working inside `@brew/api`, the
+Guidelines for any agent (human or AI) working inside `@brew.new/sdk`, the
 official TypeScript SDK for the Brew public API.
 
 ## What this package is

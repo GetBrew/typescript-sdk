@@ -1,5 +1,5 @@
 /**
- * @brew/api — Official TypeScript SDK for the Brew public API.
+ * @brew.new/sdk — Official TypeScript SDK for the Brew public API.
  *
  * This is the only file consumers should import from. Anything not
  * re-exported here is private and may change without a major version

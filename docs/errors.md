@@ -8,7 +8,7 @@ failure mode.
 ## The error shape
 
 ```ts
-import { BrewApiError } from '@brew/api'
+import { BrewApiError } from '@brew.new/sdk'
 
 class BrewApiError extends Error {
   readonly status: number // HTTP status (404, 500, …)
@@ -28,7 +28,7 @@ class BrewApiError extends Error {
 ## The catch pattern
 
 ```ts
-import { BrewApiError, createBrewClient } from '@brew/api'
+import { BrewApiError, createBrewClient } from '@brew.new/sdk'
 
 const brew = createBrewClient({ apiKey: process.env.BREW_API_KEY! })
 

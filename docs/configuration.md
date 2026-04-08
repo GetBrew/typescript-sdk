@@ -1,13 +1,13 @@
 # Configuration
 
-Every `@brew/api` client is built with `createBrewClient(config)`. Only
+Every `@brew.new/sdk` client is built with `createBrewClient(config)`. Only
 `apiKey` is required; everything else has a sensible default and can be
 overridden per-client.
 
 ## Full shape
 
 ```ts
-import { createBrewClient } from '@brew/api'
+import { createBrewClient } from '@brew.new/sdk'
 
 const brew = createBrewClient({
   apiKey: process.env.BREW_API_KEY!,

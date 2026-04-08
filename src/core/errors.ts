@@ -30,7 +30,7 @@ type FromResponseInput = {
 }
 
 /**
- * The single public error class thrown by `@brew/api`. Every non-2xx
+ * The single public error class thrown by `@brew.new/sdk`. Every non-2xx
  * response and every transport-level failure becomes a `BrewApiError` with
  * the same shape, so consumers only need one `catch` branch.
  */

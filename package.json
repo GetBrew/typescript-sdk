@@ -1,8 +1,26 @@
 {
-  "name": "@brew/api",
+  "name": "@brew.new/sdk",
   "version": "0.1.0-alpha.0",
   "description": "Official TypeScript SDK for the Brew public API.",
   "license": "MIT",
+  "author": "Brew",
+  "homepage": "https://github.com/GetBrew/brew-typescript-sdk#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/GetBrew/brew-typescript-sdk.git"
+  },
+  "bugs": {
+    "url": "https://github.com/GetBrew/brew-typescript-sdk/issues"
+  },
+  "keywords": [
+    "brew",
+    "brew.new",
+    "sdk",
+    "typescript",
+    "api",
+    "contacts",
+    "marketing"
+  ],
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -35,7 +53,8 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "prepublishOnly": "bun run clean && bun tsc && bun lint && bun run test && bun run build"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

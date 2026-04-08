@@ -1,5 +1,5 @@
 /**
- * Public type surface for @brew/api.
+ * Public type surface for @brew.new/sdk.
  *
  * This is the single source of truth every core/ module and every resource
  * imports from. Keep it small and boring.

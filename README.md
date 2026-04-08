@@ -1,4 +1,4 @@
-# @brew/api
+# @brew.new/sdk
 
 Official TypeScript SDK for the [Brew](https://brew.new) public API.
 
@@ -11,15 +11,15 @@ Official TypeScript SDK for the [Brew](https://brew.new) public API.
 ## Install
 
 ```bash
-bun add @brew/api
+bun add @brew.new/sdk
 # or
-npm install @brew/api
+npm install @brew.new/sdk
 ```
 
 ## Quick start
 
 ```ts
-import { createBrewClient } from '@brew/api'
+import { createBrewClient } from '@brew.new/sdk'
 
 const brew = createBrewClient({
   apiKey: process.env.BREW_API_KEY!,
