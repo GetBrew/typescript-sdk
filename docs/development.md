@@ -71,6 +71,26 @@ all the way to "it ships on npm". Every step says **which repo /
 which directory** you should be in. Read it once, follow it the next
 time, you're done.
 
+> **Heads up: the foundation is done.** Adding an endpoint never
+> touches `src/core/*` (the transport, retries, error mapping,
+> idempotency, abort handling, header construction, URL building,
+> config resolution are all stable and tested) and never touches
+> `src/types.ts` or `src/client.ts` (the public client surface and
+> shared types are stable). You only touch:
+>
+> - `openapi/public-api-v1.yaml` (vendored copy, refreshed via `cp`)
+> - `src/generated/openapi-types.ts` (regenerated, never hand-edited)
+> - `src/resources/<resource>/<method>.ts` (new file)
+> - `src/resources/<resource>/resource.ts` (3-line wire-up)
+> - `src/index.ts` (re-export the new types)
+> - `tests/resources/<resource>/<method>.test.ts` (new file)
+> - `docs/<resource>.md` (new method section)
+> - `package.json` + `src/version.ts` (version bump)
+>
+> If you find yourself editing anything under `src/core/`, stop —
+> that's almost certainly a bug fix or a foundation improvement, not
+> "adding an endpoint". Different review path, different scope.
+
 ### Step 1 — Make the API change in the app repo
 
 ```bash
