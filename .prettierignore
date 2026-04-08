@@ -1,0 +1,7 @@
+dist
+node_modules
+coverage
+src/generated
+bun.lock
+bun.lockb
+LICENSE
