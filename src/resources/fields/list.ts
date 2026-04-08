@@ -1,13 +1,11 @@
+import type { components } from '../../generated/openapi-types'
 import type { HttpClient } from '../../core/http'
 
-import type { ContactField } from './types'
-
-export type ListFieldsResponse = {
-  readonly fields: ReadonlyArray<ContactField>
-}
+export type ListFieldsResponse = components['schemas']['FieldsGetResponse']
 
 /**
- * List every custom field defined on the contacts schema.
+ * List every contact field definition (both core fields and
+ * organization-specific custom fields).
  *
  * Returns the full envelope (not just the array) so the API can grow
  * metadata like pagination or field counts later without a breaking

@@ -5,6 +5,8 @@
  * imports from. Keep it small and boring.
  */
 
+import type { components } from './generated/openapi-types'
+
 export type BrewHttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
 
 export type BrewFetch = typeof globalThis.fetch
@@ -50,18 +52,27 @@ export type RequestOptions = {
 
 /**
  * Shape of the error body returned by the Brew public API inside a non-2xx
- * response. This maps 1:1 to the public contract's error envelope.
+ * response. The wire format wraps the actual error in an `error` envelope:
  *
- * TODO: replace with the generated OpenAPI type once `src/generated/` is
- * populated from the app repo spec.
+ *   { "error": { "code": "...", "type": "...", "message": "...", ... } }
+ *
+ * `BrewErrorEnvelope` is the INNER object — the SDK strips the wrapper in
+ * `BrewApiError.fromResponse` so consumers never have to think about it.
+ *
+ * Sourced directly from the generated OpenAPI types so the shape stays
+ * locked to the real API contract — adding or removing a field upstream
+ * surfaces here as a tsc error on the next `bun run generate:types`.
  */
-export type BrewErrorEnvelope = {
-  readonly code: string
-  readonly type: string
-  readonly message: string
-  readonly suggestion?: string
-  readonly docs?: string
-}
+export type BrewErrorEnvelope =
+  components['schemas']['ApiErrorEnvelope']['error']
+
+/**
+ * The error `type` field is a closed enum on the wire. Re-exporting it as
+ * its own union so consumers can branch on it with full type safety:
+ *
+ *   if (error.type === 'rate_limit') { ... }
+ */
+export type BrewErrorType = BrewErrorEnvelope['type']
 
 /**
  * Return shape when a caller opts into `{ raw: true }`. Gives them the

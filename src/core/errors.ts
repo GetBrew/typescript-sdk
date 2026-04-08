@@ -1,20 +1,20 @@
-import type { BrewErrorEnvelope } from '../types'
+import type { BrewErrorEnvelope, BrewErrorType } from '../types'
 
 /**
- * Input shape for the `BrewApiError` constructor. Every field is required
- * and explicit — callers are expected to supply `undefined` for any field
- * they don't have. This keeps the constructor honest and avoids surprises
- * when `exactOptionalPropertyTypes` is enabled.
+ * Input shape for the `BrewApiError` constructor. Mirrors the public
+ * surface of the class — every field is required and explicit, callers
+ * supply `undefined` for any field they don't have.
  */
 type BrewApiErrorInit = {
   readonly message: string
   readonly status: number
   readonly code: string
-  readonly type: string
+  readonly type: BrewErrorType
+  readonly param: string | undefined
+  readonly suggestion: string
+  readonly docs: string
   readonly requestId: string | undefined
   readonly retryAfter: number | undefined
-  readonly suggestion: string | undefined
-  readonly docs: string | undefined
 }
 
 /**
@@ -37,11 +37,12 @@ type FromResponseInput = {
 export class BrewApiError extends Error {
   readonly status: number
   readonly code: string
-  readonly type: string
+  readonly type: BrewErrorType
+  readonly param: string | undefined
+  readonly suggestion: string
+  readonly docs: string
   readonly requestId: string | undefined
   readonly retryAfter: number | undefined
-  readonly suggestion: string | undefined
-  readonly docs: string | undefined
 
   constructor(init: BrewApiErrorInit) {
     super(init.message)
@@ -49,17 +50,24 @@ export class BrewApiError extends Error {
     this.status = init.status
     this.code = init.code
     this.type = init.type
-    this.requestId = init.requestId
-    this.retryAfter = init.retryAfter
+    this.param = init.param
     this.suggestion = init.suggestion
     this.docs = init.docs
+    this.requestId = init.requestId
+    this.retryAfter = init.retryAfter
   }
 
   /**
-   * Build a `BrewApiError` from a parsed HTTP response. Falls back to a
-   * generic envelope if the body does not match the Brew error shape — we
-   * would rather return a readable error than throw from the error
-   * constructor itself.
+   * Build a `BrewApiError` from a parsed HTTP response.
+   *
+   * The Brew API wraps every error in `{ error: { code, type, ... } }`, so
+   * this method unwraps the envelope before mapping. Falls back to a
+   * generic envelope when the body is not a valid Brew error shape — we
+   * would rather return a readable error than throw from the error path.
+   *
+   * `retryAfter` can come from two places: the body envelope or the
+   * `Retry-After` header. The body wins when present (it's specific to
+   * the exact error), the header is the fallback.
    */
   static fromResponse({
     status,
@@ -68,7 +76,7 @@ export class BrewApiError extends Error {
   }: FromResponseInput): BrewApiError {
     const envelope = parseErrorEnvelope(body)
     const requestId = headers.get('x-request-id') ?? undefined
-    const retryAfter = parseRetryAfter(headers.get('retry-after'))
+    const headerRetryAfter = parseRetryAfter(headers.get('retry-after'))
 
     if (envelope) {
       return new BrewApiError({
@@ -76,10 +84,11 @@ export class BrewApiError extends Error {
         status,
         code: envelope.code,
         type: envelope.type,
-        requestId,
-        retryAfter,
+        param: envelope.param,
         suggestion: envelope.suggestion,
         docs: envelope.docs,
+        requestId,
+        retryAfter: envelope.retryAfter ?? headerRetryAfter,
       })
     }
 
@@ -87,50 +96,86 @@ export class BrewApiError extends Error {
       message: `Request failed with status ${String(status)}`,
       status,
       code: 'unknown_error',
-      type: 'unknown',
+      type: 'internal_error',
+      param: undefined,
+      suggestion: 'Retry the request. If it keeps failing, contact support.',
+      docs: 'https://docs.getbrew.io/api',
       requestId,
-      retryAfter,
-      suggestion: undefined,
-      docs: undefined,
+      retryAfter: headerRetryAfter,
     })
   }
 }
 
 /**
+ * Closed enum of error types the Brew API may emit. Pinned to the
+ * generated OpenAPI types via `BrewErrorType`. Used to safely narrow the
+ * unknown body shape into the typed envelope.
+ */
+const VALID_ERROR_TYPES: ReadonlySet<BrewErrorType> = new Set<BrewErrorType>([
+  'authentication_error',
+  'authorization_error',
+  'invalid_request',
+  'not_found',
+  'not_implemented',
+  'conflict',
+  'rate_limit',
+  'internal_error',
+])
+
+/**
  * Narrow an unknown response body into `BrewErrorEnvelope`, returning
- * `undefined` if the shape does not match. All three required fields must
- * be strings — anything else means the server returned something we can't
- * interpret (HTML error page, empty body, etc.).
+ * `undefined` if the shape does not match. The Brew wire format is
+ * `{ error: { code, type, message, suggestion, docs, ... } }` — the inner
+ * fields `code`, `type`, `message`, `suggestion`, and `docs` are all
+ * required per the OpenAPI contract; `param` and `retryAfter` are
+ * optional.
  */
 function parseErrorEnvelope(body: unknown): BrewErrorEnvelope | undefined {
   if (body === null || typeof body !== 'object') return undefined
 
-  const candidate = body as Record<string, unknown>
+  const wrapper = body as { error?: unknown }
+  if (wrapper.error === null || typeof wrapper.error !== 'object') {
+    return undefined
+  }
+
+  const inner = wrapper.error as Record<string, unknown>
 
   const hasRequiredFields =
-    typeof candidate.code === 'string' &&
-    typeof candidate.type === 'string' &&
-    typeof candidate.message === 'string'
+    typeof inner.code === 'string' &&
+    typeof inner.type === 'string' &&
+    typeof inner.message === 'string' &&
+    typeof inner.suggestion === 'string' &&
+    typeof inner.docs === 'string'
 
   if (!hasRequiredFields) return undefined
 
+  const innerType = inner.type as string
+  if (!VALID_ERROR_TYPES.has(innerType as BrewErrorType)) return undefined
+
   const envelope: {
     code: string
-    type: string
+    type: BrewErrorType
     message: string
-    suggestion?: string
-    docs?: string
+    suggestion: string
+    docs: string
+    param?: string
+    retryAfter?: number
   } = {
-    code: candidate.code as string,
-    type: candidate.type as string,
-    message: candidate.message as string,
+    code: inner.code as string,
+    type: innerType as BrewErrorType,
+    message: inner.message as string,
+    suggestion: inner.suggestion as string,
+    docs: inner.docs as string,
   }
 
-  if (typeof candidate.suggestion === 'string') {
-    envelope.suggestion = candidate.suggestion
+  if (typeof inner.param === 'string') {
+    envelope.param = inner.param
   }
-  if (typeof candidate.docs === 'string') {
-    envelope.docs = candidate.docs
+  if (
+    typeof inner.retryAfter === 'number' &&
+    Number.isFinite(inner.retryAfter)
+  ) {
+    envelope.retryAfter = inner.retryAfter
   }
 
   return envelope

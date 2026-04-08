@@ -1,0 +1,2387 @@
+openapi: 3.1.0
+info:
+  title: Brew Public API v1
+  version: 1.0.0
+  description: Generated from the Brew app Zod contracts for the current `/api/v1/contacts` and `/api/v1/fields` endpoints. This file is the source of truth for the public contacts API documentation.
+  contact:
+    name: Brew Support
+    url: https://docs.getbrew.io
+    email: support@brew.new
+servers:
+  - url: https://brew.new/api
+    description: Production
+  - url: http://localhost:3000/api
+    description: Local development
+security:
+  - bearerAuth: []
+  - apiKeyAuth: []
+tags:
+  - name: Contacts
+    description: Create, query, patch, and delete contacts.
+  - name: Contact Fields
+    description: List, create, and delete custom contact field definitions.
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: API key
+      description: 'Send your Brew API key as `Authorization: Bearer brew_xxx`.'
+      x-default: brew_your_api_key
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: 'Send your Brew API key as `X-API-Key: brew_xxx`.'
+      x-default: brew_your_api_key
+  schemas:
+    ContactsGetSuccessResponse:
+      anyOf:
+        - $ref: '#/components/schemas/ContactsCountResponse'
+        - $ref: '#/components/schemas/ContactsLookupResponse'
+        - $ref: '#/components/schemas/ContactsListResponse'
+    ContactsCountResponse:
+      type: object
+      properties:
+        count:
+          type: integer
+          minimum: 0
+      required:
+        - count
+      additionalProperties: false
+    ContactsLookupResponse:
+      type: object
+      properties:
+        contact:
+          type: object
+          properties:
+            email:
+              type: string
+              format: email
+            firstName:
+              type: string
+            lastName:
+              type: string
+            subscribed:
+              type: boolean
+              default: true
+            verificationStatus:
+              type: string
+              enum:
+                - valid
+                - risky
+                - invalid
+            suppressed:
+              type: boolean
+              default: false
+            suppressedReason:
+              type:
+                - string
+                - 'null'
+            createdAt:
+              type: number
+            updatedAt:
+              type: number
+            importId:
+              type:
+                - string
+                - 'null'
+            customFields:
+              type: object
+              additionalProperties: {}
+              default: {}
+          required:
+            - email
+            - createdAt
+            - updatedAt
+          additionalProperties: false
+      required:
+        - contact
+      additionalProperties: false
+    ContactsListResponse:
+      type: object
+      properties:
+        contacts:
+          type: array
+          items:
+            type: object
+            properties:
+              email:
+                type: string
+                format: email
+              firstName:
+                type: string
+              lastName:
+                type: string
+              subscribed:
+                type: boolean
+                default: true
+              verificationStatus:
+                type: string
+                enum:
+                  - valid
+                  - risky
+                  - invalid
+              suppressed:
+                type: boolean
+                default: false
+              suppressedReason:
+                type:
+                  - string
+                  - 'null'
+              createdAt:
+                type: number
+              updatedAt:
+                type: number
+              importId:
+                type:
+                  - string
+                  - 'null'
+              customFields:
+                type: object
+                additionalProperties: {}
+                default: {}
+            required:
+              - email
+              - createdAt
+              - updatedAt
+            additionalProperties: false
+        pagination:
+          type: object
+          properties:
+            limit:
+              type: integer
+              minimum: 1
+              maximum: 100
+            cursor:
+              type:
+                - string
+                - 'null'
+            hasMore:
+              type: boolean
+          required:
+            - limit
+            - cursor
+            - hasMore
+          additionalProperties: false
+      required:
+        - contacts
+        - pagination
+      additionalProperties: false
+    ApiErrorEnvelope:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              minLength: 1
+            type:
+              type: string
+              enum:
+                - authentication_error
+                - authorization_error
+                - invalid_request
+                - not_found
+                - not_implemented
+                - conflict
+                - rate_limit
+                - internal_error
+            message:
+              type: string
+              minLength: 1
+            param:
+              type: string
+              minLength: 1
+            suggestion:
+              type: string
+              minLength: 1
+            docs:
+              type: string
+              format: uri
+            retryAfter:
+              type: integer
+              minimum: 0
+          required:
+            - code
+            - type
+            - message
+            - suggestion
+            - docs
+      required:
+        - error
+    ContactsPostSuccessResponse:
+      anyOf:
+        - $ref: '#/components/schemas/ContactsPostSingleResponse'
+        - $ref: '#/components/schemas/ContactsPostBatchResponse'
+    ContactsPostSingleResponse:
+      type: object
+      properties:
+        contact:
+          type: object
+          properties:
+            email:
+              type: string
+              format: email
+            firstName:
+              type: string
+            lastName:
+              type: string
+            subscribed:
+              type: boolean
+              default: true
+            verificationStatus:
+              type: string
+              enum:
+                - valid
+                - risky
+                - invalid
+            suppressed:
+              type: boolean
+              default: false
+            suppressedReason:
+              type:
+                - string
+                - 'null'
+            createdAt:
+              type: number
+            updatedAt:
+              type: number
+            importId:
+              type:
+                - string
+                - 'null'
+            customFields:
+              type: object
+              additionalProperties: {}
+              default: {}
+          required:
+            - email
+            - createdAt
+            - updatedAt
+          additionalProperties: false
+        created:
+          type: boolean
+        fieldsCreated:
+          type: array
+          items:
+            type: string
+        warnings:
+          type: array
+          items:
+            type: object
+            properties:
+              code:
+                type: string
+                minLength: 1
+              field:
+                type: string
+                minLength: 1
+              message:
+                type: string
+                minLength: 1
+              from:
+                type: string
+                minLength: 1
+              to:
+                type: string
+                minLength: 1
+              original:
+                type: string
+                minLength: 1
+              normalized:
+                type: string
+                minLength: 1
+            required:
+              - code
+              - message
+            additionalProperties: false
+      required:
+        - contact
+        - created
+        - fieldsCreated
+        - warnings
+      additionalProperties: false
+    ContactsPostBatchResponse:
+      type: object
+      properties:
+        summary:
+          type: object
+          properties:
+            inserted:
+              type: integer
+              minimum: 0
+            updated:
+              type: integer
+              minimum: 0
+            failed:
+              type: integer
+              minimum: 0
+          required:
+            - inserted
+            - updated
+            - failed
+          additionalProperties: false
+        fieldsCreated:
+          type: array
+          items:
+            type: string
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              email:
+                type: string
+              code:
+                type: string
+              message:
+                type: string
+            required:
+              - email
+              - code
+              - message
+            additionalProperties: false
+        warnings:
+          type: array
+          items:
+            type: object
+            properties:
+              code:
+                type: string
+                minLength: 1
+              field:
+                type: string
+                minLength: 1
+              message:
+                type: string
+                minLength: 1
+              from:
+                type: string
+                minLength: 1
+              to:
+                type: string
+                minLength: 1
+              original:
+                type: string
+                minLength: 1
+              normalized:
+                type: string
+                minLength: 1
+            required:
+              - code
+              - message
+            additionalProperties: false
+      required:
+        - summary
+        - fieldsCreated
+        - errors
+        - warnings
+      additionalProperties: false
+    ContactsPostRequest:
+      anyOf:
+        - type: object
+          properties:
+            email:
+              type: string
+            firstName:
+              type: string
+            lastName:
+              type: string
+            subscribed:
+              type: boolean
+            customFields:
+              type: object
+              additionalProperties: {}
+          additionalProperties: false
+        - type: object
+          properties:
+            contacts:
+              type: array
+              items:
+                type: object
+                properties:
+                  email:
+                    type: string
+                  firstName:
+                    type: string
+                  lastName:
+                    type: string
+                  subscribed:
+                    type: boolean
+                  customFields:
+                    type: object
+                    additionalProperties: {}
+                additionalProperties: false
+              minItems: 1
+              maxItems: 1000
+          required:
+            - contacts
+          additionalProperties: false
+    ContactsPatchResponse:
+      type: object
+      properties:
+        contact:
+          type: object
+          properties:
+            email:
+              type: string
+              format: email
+            firstName:
+              type: string
+            lastName:
+              type: string
+            subscribed:
+              type: boolean
+              default: true
+            verificationStatus:
+              type: string
+              enum:
+                - valid
+                - risky
+                - invalid
+            suppressed:
+              type: boolean
+              default: false
+            suppressedReason:
+              type:
+                - string
+                - 'null'
+            createdAt:
+              type: number
+            updatedAt:
+              type: number
+            importId:
+              type:
+                - string
+                - 'null'
+            customFields:
+              type: object
+              additionalProperties: {}
+              default: {}
+          required:
+            - email
+            - createdAt
+            - updatedAt
+          additionalProperties: false
+        updated:
+          type: array
+          items:
+            type: string
+            minLength: 1
+          minItems: 1
+      required:
+        - contact
+        - updated
+      additionalProperties: false
+    ContactsPatchRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        fields:
+          type: object
+          additionalProperties: {}
+      required:
+        - email
+        - fields
+      additionalProperties: false
+    ContactsDeleteResponse:
+      type: object
+      properties:
+        deleted:
+          type: integer
+          minimum: 0
+      required:
+        - deleted
+      additionalProperties: false
+    ContactsDeleteRequest:
+      anyOf:
+        - type: object
+          properties:
+            email:
+              type: string
+              format: email
+          required:
+            - email
+          additionalProperties: false
+        - type: object
+          properties:
+            emails:
+              type: array
+              items:
+                type: string
+                format: email
+              minItems: 1
+          required:
+            - emails
+          additionalProperties: false
+    FieldsGetResponse:
+      type: object
+      properties:
+        fields:
+          type: array
+          items:
+            type: object
+            properties:
+              fieldName:
+                type: string
+                minLength: 1
+              fieldType:
+                type: string
+                enum:
+                  - string
+                  - number
+                  - date
+                  - bool
+              label:
+                type: string
+              isCore:
+                type: boolean
+              isFilterable:
+                type: boolean
+              isSortable:
+                type: boolean
+              isSearchable:
+                type: boolean
+            required:
+              - fieldName
+              - fieldType
+            additionalProperties: false
+      required:
+        - fields
+      additionalProperties: false
+    FieldsSuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+      required:
+        - success
+      additionalProperties: false
+    FieldsPostRequest:
+      type: object
+      properties:
+        fieldName:
+          type: string
+          minLength: 1
+        fieldType:
+          type: string
+          enum:
+            - string
+            - number
+            - date
+            - bool
+      required:
+        - fieldName
+        - fieldType
+      additionalProperties: false
+    FieldsDeleteRequest:
+      type: object
+      properties:
+        fieldName:
+          type: string
+          minLength: 1
+      required:
+        - fieldName
+      additionalProperties: false
+  parameters: {}
+paths:
+  /v1/contacts:
+    get:
+      operationId: getContacts
+      tags:
+        - Contacts
+      summary: List contacts, count contacts, or look up one contact by email
+      description: This endpoint supports three modes. Use `email` for single contact lookup. Use `count=true` to return only the count. Without either, Brew returns a paginated contact list.
+      parameters:
+        - name: email
+          in: query
+          required: false
+          description: Look up a single contact by email address.
+          schema:
+            type: string
+            format: email
+          example: jane@example.com
+        - name: count
+          in: query
+          required: false
+          description: Return only the number of matching contacts.
+          schema:
+            type: boolean
+            default: false
+        - name: search
+          in: query
+          required: false
+          description: Case insensitive search across email, first name, and last name.
+          schema:
+            type: string
+            minLength: 1
+          example: jane
+        - name: limit
+          in: query
+          required: false
+          description: Page size between 1 and 100.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: cursor
+          in: query
+          required: false
+          description: Opaque pagination cursor returned from the previous list response.
+          schema:
+            type: string
+        - name: sort
+          in: query
+          required: false
+          description: Sort field. Use a core field or a custom field path like `customFields.plan`.
+          schema:
+            type: string
+            default: createdAt
+          example: createdAt
+        - name: order
+          in: query
+          required: false
+          description: Sort direction.
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+            default: desc
+        - name: filter
+          in: query
+          required: false
+          style: deepObject
+          explode: true
+          description: Deep object filters. Use shorthand `filter[subscribed]=true` or explicit operators like `filter[customFields.plan][eq]=enterprise`. Use `filter[_logic]=and|or|none` to control filter combination.
+          schema:
+            type: object
+            properties:
+              _logic:
+                type: string
+                enum:
+                  - and
+                  - or
+                  - none
+                default: and
+            additionalProperties:
+              oneOf:
+                - type: string
+                - type: object
+                  additionalProperties:
+                    oneOf:
+                      - type: string
+                      - type: number
+                      - type: boolean
+          example:
+            _logic: and
+            subscribed: 'true'
+            customFields.plan:
+              eq: enterprise
+      responses:
+        '200':
+          description: Lookup mode returns a single contact. Count mode returns a count. List mode returns contacts plus pagination.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContactsGetSuccessResponse'
+              examples:
+                lookup:
+                  summary: Lookup by email
+                  value:
+                    contact: &a1
+                      email: jane@example.com
+                      firstName: Jane
+                      lastName: Doe
+                      subscribed: true
+                      verificationStatus: valid
+                      suppressed: false
+                      suppressedReason: null
+                      createdAt: 1712592000000
+                      updatedAt: 1712592300000
+                      importId: null
+                      customFields:
+                        plan: enterprise
+                        revenue: 4200
+                count:
+                  summary: Count mode
+                  value:
+                    count: 42
+                list:
+                  summary: Paginated list
+                  value:
+                    contacts:
+                      - *a1
+                      - email: john@example.com
+                        firstName: John
+                        lastName: Smith
+                        subscribed: true
+                        verificationStatus: valid
+                        suppressed: false
+                        suppressedReason: null
+                        createdAt: 1712592000000
+                        updatedAt: 1712592300000
+                        importId: null
+                        customFields:
+                          plan: starter
+                    pagination:
+                      limit: 50
+                      cursor: eyJsYXN0SWQiOiIxMjMiLCJsYXN0U29ydCI6MTcxMjU5MjAwMDAwMH0=
+                      hasMore: true
+        '400':
+          description: The query parameters were invalid.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INVALID_REQUEST
+                  type: invalid_request
+                  message: Unsupported sort field 'doesNotExist'.
+                  suggestion: Fix the request payload and retry.
+                  docs: https://docs.getbrew.io/api/contacts#errors
+                  param: sort
+        '401':
+          description: The API key was missing, invalid, or revoked.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              examples:
+                invalidApiKey:
+                  summary: Invalid API key
+                  value:
+                    error:
+                      code: INVALID_API_KEY
+                      type: authentication_error
+                      message: The provided API key is invalid.
+                      suggestion: Check the API key format and retry with a valid active key.
+                      docs: https://docs.getbrew.io/api/authentication
+                revokedApiKey:
+                  summary: Revoked API key
+                  value:
+                    error:
+                      code: API_KEY_REVOKED
+                      type: authentication_error
+                      message: The provided API key has been revoked.
+                      suggestion: Create a new active API key and retry.
+                      docs: https://docs.getbrew.io/api/authentication
+        '403':
+          description: The caller does not have the required contacts permission.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INSUFFICIENT_PERMISSIONS
+                  type: authorization_error
+                  message: The caller does not have the required permission.
+                  suggestion: Use an API key or session with the required contacts permission.
+                  docs: https://docs.getbrew.io/api/authentication
+                  param: contacts
+        '404':
+          description: The requested contact was not found.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: CONTACT_NOT_FOUND
+                  type: not_found
+                  message: No contact exists with email 'missing-contact@example.com'.
+                  suggestion: Use POST /api/v1/contacts to create a new contact first.
+                  docs: https://docs.getbrew.io/api/contacts#errors
+                  param: email
+        '429':
+          description: The request hit the rolling rate limit window.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+            Retry-After:
+              schema:
+                type: integer
+                description: Seconds to wait before retrying the request.
+                example: 42
+              required: true
+              description: Seconds to wait before retrying the request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: RATE_LIMITED
+                  type: rate_limit
+                  message: Too many requests.
+                  suggestion: Wait for the retry window before sending another request.
+                  docs: https://docs.getbrew.io/api/rate-limiting
+                  retryAfter: 42
+        '500':
+          description: Unexpected internal error.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INTERNAL_ERROR
+                  type: internal_error
+                  message: An unexpected error occurred.
+                  suggestion: Retry the request. If it keeps failing, contact support.
+                  docs: https://docs.getbrew.io/api/contacts#errors
+    post:
+      operationId: upsertContacts
+      tags:
+        - Contacts
+      summary: Create or upsert one contact or a batch of contacts
+      description: 'Send either one contact object or a `{ contacts: [...] }` batch payload. Brew auto creates missing custom field definitions, supports idempotency, and returns `207` for batch partial failures.'
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: false
+          description: Optional idempotency key for safe retries. Reusing the same key with the same request body returns the original response for 24 hours.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+          example: contacts-import-2026-04-08-001
+      requestBody:
+        required: true
+        description: Single contact payload or batch contact payload.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContactsPostRequest'
+            examples:
+              single:
+                summary: Single contact
+                value:
+                  email: jane@example.com
+                  firstName: Jane
+                  lastName: Doe
+                  customFields:
+                    plan: enterprise
+              batch:
+                summary: Batch contacts
+                value:
+                  contacts:
+                    - email: jane@example.com
+                      firstName: Jane
+                      customFields:
+                        plan: enterprise
+                    - email: john@example.com
+                      firstName: John
+      responses:
+        '200':
+          description: Single requests return one contact result. Batch requests return a summary when every contact succeeded.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContactsPostSuccessResponse'
+              examples:
+                single:
+                  summary: Single contact result
+                  value:
+                    contact: *a1
+                    created: true
+                    fieldsCreated:
+                      - plan
+                    warnings: []
+                batch:
+                  summary: Batch success result
+                  value:
+                    summary:
+                      inserted: 1
+                      updated: 1
+                      failed: 0
+                    fieldsCreated:
+                      - plan
+                    errors: []
+                    warnings: []
+        '207':
+          description: Batch request completed with partial failures.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContactsPostBatchResponse'
+              example:
+                summary:
+                  inserted: 1
+                  updated: 0
+                  failed: 2
+                fieldsCreated:
+                  - plan
+                errors:
+                  - email: not-an-email
+                    code: INVALID_EMAIL
+                    message: "'not-an-email' is not a valid email address."
+                  - email: duplicate@example.com
+                    code: DUPLICATE_EMAILS_IN_BATCH
+                    message: Email 'duplicate@example.com' appears 2 times in batch.
+                warnings: []
+        '400':
+          description: The JSON body shape was invalid.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INVALID_REQUEST
+                  type: invalid_request
+                  message: The `contacts` array must contain at least one contact.
+                  suggestion: Send at least one contact in the batch request.
+                  docs: https://docs.getbrew.io/api/contacts#errors
+                  param: contacts
+        '401':
+          description: The API key was missing, invalid, or revoked.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INVALID_API_KEY
+                  type: authentication_error
+                  message: The provided API key is invalid.
+                  suggestion: Check the API key format and retry with a valid active key.
+                  docs: https://docs.getbrew.io/api/authentication
+        '403':
+          description: The caller does not have the required contacts permission.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INSUFFICIENT_PERMISSIONS
+                  type: authorization_error
+                  message: The caller does not have the required permission.
+                  suggestion: Use an API key or session with the required contacts permission.
+                  docs: https://docs.getbrew.io/api/authentication
+                  param: contacts
+        '409':
+          description: The request conflicted with existing field definitions or idempotency expectations.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              examples:
+                idempotencyConflict:
+                  summary: Idempotency conflict
+                  value:
+                    error:
+                      code: IDEMPOTENCY_CONFLICT
+                      type: conflict
+                      message: The same idempotency key was reused with a different request payload.
+                      suggestion: Reuse the original payload or send a new idempotency key.
+                      docs: https://docs.getbrew.io/api/idempotency
+                fieldTypeMismatch:
+                  summary: Field type mismatch
+                  value:
+                    error:
+                      code: FIELD_TYPE_MISMATCH
+                      type: conflict
+                      message: Field 'customFields.revenue' is type 'number' but received 'string'.
+                      suggestion: Send a value that matches the field definition, or update the field definition first.
+                      docs: https://docs.getbrew.io/api/contacts#errors
+                      param: customFields.revenue
+        '422':
+          description: The request was well formed but the contact payload failed semantic validation.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              examples:
+                missingEmail:
+                  summary: Missing email
+                  value:
+                    error:
+                      code: MISSING_EMAIL
+                      type: invalid_request
+                      message: The `email` field is required.
+                      suggestion: Provide an email address for every contact in the request body.
+                      docs: https://docs.getbrew.io/api/contacts#errors
+                      param: email
+                invalidEmail:
+                  summary: Invalid email
+                  value:
+                    error:
+                      code: INVALID_EMAIL
+                      type: invalid_request
+                      message: "'not-an-email' is not a valid email address."
+                      suggestion: Fix the email address and retry the request.
+                      docs: https://docs.getbrew.io/api/contacts#errors
+                      param: email
+                batchTooLarge:
+                  summary: Batch too large
+                  value:
+                    error:
+                      code: BATCH_TOO_LARGE
+                      type: invalid_request
+                      message: Batch is limited to 1000 contacts. You sent 1001. Split into multiple requests.
+                      suggestion: Split the request into smaller batches and retry.
+                      docs: https://docs.getbrew.io/api/contacts#errors
+                      param: contacts
+        '429':
+          description: The request hit the rolling rate limit window.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+            Retry-After:
+              schema:
+                type: integer
+                description: Seconds to wait before retrying the request.
+                example: 42
+              required: true
+              description: Seconds to wait before retrying the request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: RATE_LIMITED
+                  type: rate_limit
+                  message: Too many requests.
+                  suggestion: Wait for the retry window before sending another request.
+                  docs: https://docs.getbrew.io/api/rate-limiting
+                  retryAfter: 42
+        '500':
+          description: Unexpected internal error.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INTERNAL_ERROR
+                  type: internal_error
+                  message: An unexpected error occurred.
+                  suggestion: Retry the request. If it keeps failing, contact support.
+                  docs: https://docs.getbrew.io/api/contacts#errors
+    patch:
+      operationId: patchContact
+      tags:
+        - Contacts
+      summary: Patch an existing contact
+      description: Update writable core fields or existing custom fields on one contact. PATCH does not create new contacts or new fields.
+      requestBody:
+        required: true
+        description: Email of the contact to update plus a map of fields to patch.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContactsPatchRequest'
+            example:
+              email: jane@example.com
+              fields:
+                firstName: Janet
+                customFields.plan: null
+      responses:
+        '200':
+          description: The contact was updated.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContactsPatchResponse'
+              example:
+                contact:
+                  email: jane@example.com
+                  firstName: Janet
+                  lastName: Doe
+                  subscribed: true
+                  verificationStatus: valid
+                  suppressed: false
+                  suppressedReason: null
+                  createdAt: 1712592000000
+                  updatedAt: 1712592300000
+                  importId: null
+                  customFields:
+                    plan: null
+                    revenue: 4200
+                updated:
+                  - firstName
+                  - customFields.plan
+        '400':
+          description: The JSON body shape was invalid.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INVALID_REQUEST
+                  type: invalid_request
+                  message: The `fields` object is required for PATCH requests.
+                  suggestion: Provide at least one field to update and retry.
+                  docs: https://docs.getbrew.io/api/contacts#errors
+                  param: fields
+        '401':
+          description: The API key was missing, invalid, or revoked.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INVALID_API_KEY
+                  type: authentication_error
+                  message: The provided API key is invalid.
+                  suggestion: Check the API key format and retry with a valid active key.
+                  docs: https://docs.getbrew.io/api/authentication
+        '403':
+          description: The caller does not have the required contacts permission.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INSUFFICIENT_PERMISSIONS
+                  type: authorization_error
+                  message: The caller does not have the required permission.
+                  suggestion: Use an API key or session with the required contacts permission.
+                  docs: https://docs.getbrew.io/api/authentication
+                  param: contacts
+        '404':
+          description: The requested contact was not found.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: CONTACT_NOT_FOUND
+                  type: not_found
+                  message: No contact exists with email 'missing-contact@example.com'.
+                  suggestion: Use POST /api/v1/contacts to create a new contact first.
+                  docs: https://docs.getbrew.io/api/contacts#errors
+                  param: email
+        '409':
+          description: The patch value did not match the field definition.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: FIELD_TYPE_MISMATCH
+                  type: conflict
+                  message: Field 'customFields.revenue' is type 'number' but received 'string'.
+                  suggestion: Send a value that matches the field definition, or update the field definition first.
+                  docs: https://docs.getbrew.io/api/contacts#errors
+                  param: customFields.revenue
+        '422':
+          description: The field was not found or was not writable.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              examples:
+                fieldNotFound:
+                  summary: Field not found
+                  value:
+                    error:
+                      code: FIELD_NOT_FOUND
+                      type: invalid_request
+                      message: Field 'customFields.unknownField' does not exist.
+                      suggestion: Create the field first with POST /api/v1/fields or use a field that already exists.
+                      docs: https://docs.getbrew.io/api/contacts#errors
+                      param: customFields.unknownField
+                coreFieldImmutable:
+                  summary: Read only field
+                  value:
+                    error:
+                      code: CORE_FIELD_IMMUTABLE
+                      type: invalid_request
+                      message: Field 'email' is read-only and cannot be updated.
+                      suggestion: Use only writable contact fields in PATCH requests.
+                      docs: https://docs.getbrew.io/api/contacts#errors
+                      param: email
+        '429':
+          description: The request hit the rolling rate limit window.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+            Retry-After:
+              schema:
+                type: integer
+                description: Seconds to wait before retrying the request.
+                example: 42
+              required: true
+              description: Seconds to wait before retrying the request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: RATE_LIMITED
+                  type: rate_limit
+                  message: Too many requests.
+                  suggestion: Wait for the retry window before sending another request.
+                  docs: https://docs.getbrew.io/api/rate-limiting
+                  retryAfter: 42
+        '500':
+          description: Unexpected internal error.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INTERNAL_ERROR
+                  type: internal_error
+                  message: An unexpected error occurred.
+                  suggestion: Retry the request. If it keeps failing, contact support.
+                  docs: https://docs.getbrew.io/api/contacts#errors
+    delete:
+      operationId: deleteContacts
+      tags:
+        - Contacts
+      summary: Delete one contact or a batch of contacts
+      description: Send either one email or an `emails` array. Single delete returns `404` when the contact does not exist. Batch delete returns the delete count.
+      requestBody:
+        required: true
+        description: Single delete or batch delete payload.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContactsDeleteRequest'
+            examples:
+              single:
+                summary: Single delete
+                value:
+                  email: jane@example.com
+              batch:
+                summary: Batch delete
+                value:
+                  emails:
+                    - one@example.com
+                    - two@example.com
+      responses:
+        '200':
+          description: The contact or contacts were deleted.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContactsDeleteResponse'
+              example:
+                deleted: 2
+        '400':
+          description: The JSON body shape was invalid.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INVALID_REQUEST
+                  type: invalid_request
+                  message: Provide either `email` for a single delete or `emails` for a batch delete.
+                  suggestion: Send a valid delete request body and retry.
+                  docs: https://docs.getbrew.io/api/contacts#errors
+        '401':
+          description: The API key was missing, invalid, or revoked.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INVALID_API_KEY
+                  type: authentication_error
+                  message: The provided API key is invalid.
+                  suggestion: Check the API key format and retry with a valid active key.
+                  docs: https://docs.getbrew.io/api/authentication
+        '403':
+          description: The caller does not have the required contacts permission.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INSUFFICIENT_PERMISSIONS
+                  type: authorization_error
+                  message: The caller does not have the required permission.
+                  suggestion: Use an API key or session with the required contacts permission.
+                  docs: https://docs.getbrew.io/api/authentication
+                  param: contacts
+        '404':
+          description: The requested single contact was not found.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: CONTACT_NOT_FOUND
+                  type: not_found
+                  message: No contact exists with email 'missing-contact@example.com'.
+                  suggestion: Use POST /api/v1/contacts to create a new contact first.
+                  docs: https://docs.getbrew.io/api/contacts#errors
+                  param: email
+        '429':
+          description: The request hit the rolling rate limit window.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+            Retry-After:
+              schema:
+                type: integer
+                description: Seconds to wait before retrying the request.
+                example: 42
+              required: true
+              description: Seconds to wait before retrying the request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: RATE_LIMITED
+                  type: rate_limit
+                  message: Too many requests.
+                  suggestion: Wait for the retry window before sending another request.
+                  docs: https://docs.getbrew.io/api/rate-limiting
+                  retryAfter: 42
+        '500':
+          description: Unexpected internal error.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INTERNAL_ERROR
+                  type: internal_error
+                  message: An unexpected error occurred.
+                  suggestion: Retry the request. If it keeps failing, contact support.
+                  docs: https://docs.getbrew.io/api/contacts#errors
+  /v1/fields:
+    get:
+      operationId: listContactFields
+      tags:
+        - Contact Fields
+      summary: List contact field definitions
+      description: Returns both core contact fields and custom field definitions available for the current organization.
+      responses:
+        '200':
+          description: Field definitions for this organization.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FieldsGetResponse'
+              example:
+                fields:
+                  - fieldName: email
+                    fieldType: string
+                    label: Email
+                    isCore: true
+                    isFilterable: true
+                    isSortable: true
+                    isSearchable: true
+                  - fieldName: plan
+                    fieldType: string
+                    label: Plan
+                    isCore: false
+                    isFilterable: true
+                    isSortable: true
+                    isSearchable: false
+        '401':
+          description: The API key was missing, invalid, or revoked.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INVALID_API_KEY
+                  type: authentication_error
+                  message: The provided API key is invalid.
+                  suggestion: Check the API key format and retry with a valid active key.
+                  docs: https://docs.getbrew.io/api/authentication
+        '403':
+          description: The caller does not have the required contacts permission.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INSUFFICIENT_PERMISSIONS
+                  type: authorization_error
+                  message: The caller does not have the required permission.
+                  suggestion: Use an API key or session with the required contacts permission.
+                  docs: https://docs.getbrew.io/api/authentication
+                  param: contacts
+        '500':
+          description: Unexpected internal error.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INTERNAL_ERROR
+                  type: internal_error
+                  message: An unexpected error occurred.
+                  suggestion: Retry the request. If it keeps failing, contact support.
+                  docs: https://docs.getbrew.io/api/contacts#errors
+    post:
+      operationId: createContactField
+      tags:
+        - Contact Fields
+      summary: Create a custom contact field definition
+      description: Creates or upserts a custom field definition for contacts. Core fields cannot be recreated as custom fields. POST supports idempotency.
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: false
+          description: Optional idempotency key for safe retries. Reusing the same key with the same request body returns the original response for 24 hours.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+          example: contacts-import-2026-04-08-001
+      requestBody:
+        required: true
+        description: Custom field name and type.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FieldsPostRequest'
+            example:
+              fieldName: plan
+              fieldType: string
+      responses:
+        '200':
+          description: The field definition was created or updated.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FieldsSuccessResponse'
+              example:
+                success: true
+        '400':
+          description: The JSON body shape was invalid.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INVALID_REQUEST
+                  type: invalid_request
+                  message: 'Field type must be one of: string, number, date, bool. Got: banana.'
+                  suggestion: Use one of the supported field types and retry.
+                  docs: https://docs.getbrew.io/api/contacts#errors
+                  param: fieldType
+        '401':
+          description: The API key was missing, invalid, or revoked.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INVALID_API_KEY
+                  type: authentication_error
+                  message: The provided API key is invalid.
+                  suggestion: Check the API key format and retry with a valid active key.
+                  docs: https://docs.getbrew.io/api/authentication
+        '403':
+          description: The caller does not have the required contacts permission.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INSUFFICIENT_PERMISSIONS
+                  type: authorization_error
+                  message: The caller does not have the required permission.
+                  suggestion: Use an API key or session with the required contacts permission.
+                  docs: https://docs.getbrew.io/api/authentication
+                  param: contacts
+        '409':
+          description: The same idempotency key was reused with a different request body.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: IDEMPOTENCY_CONFLICT
+                  type: conflict
+                  message: The same idempotency key was reused with a different request payload.
+                  suggestion: Reuse the original payload or send a new idempotency key.
+                  docs: https://docs.getbrew.io/api/idempotency
+        '422':
+          description: The field was valid JSON but failed business validation.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              examples:
+                coreFieldImmutable:
+                  summary: Core field rejected
+                  value:
+                    error:
+                      code: CORE_FIELD_IMMUTABLE
+                      type: invalid_request
+                      message: Field 'firstName' is a core field and cannot be created as a custom field.
+                      suggestion: Use a custom field name instead.
+                      docs: https://docs.getbrew.io/api/contacts#errors
+                      param: firstName
+        '429':
+          description: The request hit the rolling rate limit window.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+            Retry-After:
+              schema:
+                type: integer
+                description: Seconds to wait before retrying the request.
+                example: 42
+              required: true
+              description: Seconds to wait before retrying the request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: RATE_LIMITED
+                  type: rate_limit
+                  message: Too many requests.
+                  suggestion: Wait for the retry window before sending another request.
+                  docs: https://docs.getbrew.io/api/rate-limiting
+                  retryAfter: 42
+        '500':
+          description: Unexpected internal error.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INTERNAL_ERROR
+                  type: internal_error
+                  message: An unexpected error occurred.
+                  suggestion: Retry the request. If it keeps failing, contact support.
+                  docs: https://docs.getbrew.io/api/contacts#errors
+    delete:
+      operationId: deleteContactField
+      tags:
+        - Contact Fields
+      summary: Delete a custom contact field definition
+      description: Deletes one custom field definition. Core fields cannot be deleted.
+      requestBody:
+        required: true
+        description: Custom field name to delete.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FieldsDeleteRequest'
+            example:
+              fieldName: plan
+      responses:
+        '200':
+          description: The field definition was deleted.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FieldsSuccessResponse'
+              example:
+                success: true
+        '400':
+          description: The JSON body shape was invalid.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INVALID_REQUEST
+                  type: invalid_request
+                  message: The `fieldName` field is required and must not be empty.
+                  suggestion: Provide a non-empty custom field name and retry.
+                  docs: https://docs.getbrew.io/api/contacts#errors
+                  param: fieldName
+        '401':
+          description: The API key was missing, invalid, or revoked.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INVALID_API_KEY
+                  type: authentication_error
+                  message: The provided API key is invalid.
+                  suggestion: Check the API key format and retry with a valid active key.
+                  docs: https://docs.getbrew.io/api/authentication
+        '403':
+          description: The caller does not have the required contacts permission.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INSUFFICIENT_PERMISSIONS
+                  type: authorization_error
+                  message: The caller does not have the required permission.
+                  suggestion: Use an API key or session with the required contacts permission.
+                  docs: https://docs.getbrew.io/api/authentication
+                  param: contacts
+        '404':
+          description: The field definition was not found.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: FIELD_NOT_FOUND
+                  type: not_found
+                  message: Field 'plan' does not exist.
+                  suggestion: Create it via POST /api/v1/fields or use POST /api/v1/contacts to auto-create it.
+                  docs: https://docs.getbrew.io/api/contacts#errors
+                  param: plan
+        '422':
+          description: The field is a core field and cannot be deleted.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: CORE_FIELD_IMMUTABLE
+                  type: invalid_request
+                  message: Field 'email' is a core field and cannot be removed.
+                  suggestion: Use a custom field name instead.
+                  docs: https://docs.getbrew.io/api/contacts#errors
+                  param: email
+        '429':
+          description: The request hit the rolling rate limit window.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+            Retry-After:
+              schema:
+                type: integer
+                description: Seconds to wait before retrying the request.
+                example: 42
+              required: true
+              description: Seconds to wait before retrying the request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: RATE_LIMITED
+                  type: rate_limit
+                  message: Too many requests.
+                  suggestion: Wait for the retry window before sending another request.
+                  docs: https://docs.getbrew.io/api/rate-limiting
+                  retryAfter: 42
+        '500':
+          description: Unexpected internal error.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INTERNAL_ERROR
+                  type: internal_error
+                  message: An unexpected error occurred.
+                  suggestion: Retry the request. If it keeps failing, contact support.
+                  docs: https://docs.getbrew.io/api/contacts#errors
+webhooks: {}

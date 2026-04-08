@@ -6,7 +6,7 @@ import { makeTestHttpClient } from '../../helpers/http-client'
 import { server } from '../../msw/server'
 
 describe('contacts.upsert', () => {
-  it('sends POST /v1/contacts with the contact body and unwraps the contact from the envelope', async () => {
+  it('sends POST /v1/contacts with the contact body and returns the full envelope', async () => {
     let capturedRequest: Request | undefined
     let capturedBody: unknown
     server.use(
@@ -18,10 +18,15 @@ describe('contacts.upsert', () => {
             contact: {
               email: 'jane@example.com',
               firstName: 'Jane',
+              subscribed: true,
+              suppressed: false,
+              createdAt: 1712592000000,
+              updatedAt: 1712592000000,
               customFields: { plan: 'enterprise' },
-              createdAt: '2026-04-09T00:00:00.000Z',
-              updatedAt: '2026-04-09T00:00:00.000Z',
             },
+            created: true,
+            fieldsCreated: ['plan'],
+            warnings: [],
           },
           { status: 201 }
         )
@@ -43,9 +48,12 @@ describe('contacts.upsert', () => {
       firstName: 'Jane',
       customFields: { plan: 'enterprise' },
     })
-    expect(result.email).toBe('jane@example.com')
-    expect(result.firstName).toBe('Jane')
-    expect(result.customFields).toEqual({ plan: 'enterprise' })
+    expect(result.contact.email).toBe('jane@example.com')
+    expect(result.contact.firstName).toBe('Jane')
+    expect(result.contact.customFields).toEqual({ plan: 'enterprise' })
+    expect(result.created).toBe(true)
+    expect(result.fieldsCreated).toEqual(['plan'])
+    expect(result.warnings).toEqual([])
   })
 
   it('auto-attaches an Idempotency-Key header (transport behavior, sanity check at resource layer)', async () => {
@@ -54,7 +62,19 @@ describe('contacts.upsert', () => {
       http.post('https://brew.new/api/v1/contacts', ({ request }) => {
         capturedRequest = request
         return HttpResponse.json(
-          { contact: { email: 'jane@example.com' } },
+          {
+            contact: {
+              email: 'jane@example.com',
+              subscribed: true,
+              suppressed: false,
+              createdAt: 1712592000000,
+              updatedAt: 1712592000000,
+              customFields: {},
+            },
+            created: true,
+            fieldsCreated: [],
+            warnings: [],
+          },
           { status: 201 }
         )
       })

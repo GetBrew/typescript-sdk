@@ -6,14 +6,35 @@ import { makeTestHttpClient } from '../../helpers/http-client'
 import { server } from '../../msw/server'
 
 describe('contacts.list', () => {
-  it('sends GET /v1/contacts with limit and cursor, returns the pagination envelope', async () => {
+  it('sends GET /v1/contacts with limit and cursor and returns the pagination envelope', async () => {
     let capturedRequest: Request | undefined
     server.use(
       http.get('https://brew.new/api/v1/contacts', ({ request }) => {
         capturedRequest = request
         return HttpResponse.json({
-          contacts: [{ email: 'a@example.com' }, { email: 'b@example.com' }],
-          nextCursor: 'cursor_abc',
+          contacts: [
+            {
+              email: 'a@example.com',
+              subscribed: true,
+              suppressed: false,
+              createdAt: 1712592000000,
+              updatedAt: 1712592300000,
+              customFields: {},
+            },
+            {
+              email: 'b@example.com',
+              subscribed: true,
+              suppressed: false,
+              createdAt: 1712592000000,
+              updatedAt: 1712592300000,
+              customFields: {},
+            },
+          ],
+          pagination: {
+            limit: 100,
+            cursor: 'cursor_abc',
+            hasMore: true,
+          },
         })
       })
     )
@@ -28,15 +49,19 @@ describe('contacts.list', () => {
     expect(url.searchParams.get('limit')).toBe('100')
     expect(url.searchParams.get('cursor')).toBe('start')
     expect(result.contacts).toHaveLength(2)
-    expect(result.nextCursor).toBe('cursor_abc')
+    expect(result.pagination.cursor).toBe('cursor_abc')
+    expect(result.pagination.hasMore).toBe(true)
   })
 
-  it('serializes filters as a JSON query param', async () => {
+  it('serializes filter as deepObject bracket-notation query keys', async () => {
     let capturedRequest: Request | undefined
     server.use(
       http.get('https://brew.new/api/v1/contacts', ({ request }) => {
         capturedRequest = request
-        return HttpResponse.json({ contacts: [] })
+        return HttpResponse.json({
+          contacts: [],
+          pagination: { limit: 50, cursor: null, hasMore: false },
+        })
       })
     )
 
@@ -44,17 +69,19 @@ describe('contacts.list', () => {
     const list = createListContacts(client)
 
     await list({
-      filters: [
-        { field: 'customFields.plan', operator: 'eq', value: 'enterprise' },
-      ],
+      filter: {
+        _logic: 'and',
+        subscribed: 'true',
+        'customFields.plan': { eq: 'enterprise' },
+      },
     })
 
     const url = new URL(capturedRequest!.url)
-    const rawFilters = url.searchParams.get('filters')
-    expect(rawFilters).not.toBeNull()
-    expect(JSON.parse(rawFilters!)).toEqual([
-      { field: 'customFields.plan', operator: 'eq', value: 'enterprise' },
-    ])
+    expect(url.searchParams.get('filter[_logic]')).toBe('and')
+    expect(url.searchParams.get('filter[subscribed]')).toBe('true')
+    expect(url.searchParams.get('filter[customFields.plan][eq]')).toBe(
+      'enterprise'
+    )
   })
 
   it('calls without any input when no options are passed', async () => {
@@ -62,7 +89,10 @@ describe('contacts.list', () => {
     server.use(
       http.get('https://brew.new/api/v1/contacts', ({ request }) => {
         capturedRequest = request
-        return HttpResponse.json({ contacts: [] })
+        return HttpResponse.json({
+          contacts: [],
+          pagination: { limit: 50, cursor: null, hasMore: false },
+        })
       })
     )
 
@@ -74,6 +104,6 @@ describe('contacts.list', () => {
     const url = new URL(capturedRequest!.url)
     expect(url.searchParams.get('limit')).toBeNull()
     expect(url.searchParams.get('cursor')).toBeNull()
-    expect(url.searchParams.get('filters')).toBeNull()
+    expect(url.searchParams.get('filter[subscribed]')).toBeNull()
   })
 })

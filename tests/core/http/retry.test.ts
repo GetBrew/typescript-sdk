@@ -37,9 +37,13 @@ describe('http.request — retry behavior', () => {
         callCount++
         return HttpResponse.json(
           {
-            code: 'validation_failed',
-            type: 'invalid_request',
-            message: 'bad email',
+            error: {
+              code: 'INVALID_REQUEST',
+              type: 'invalid_request',
+              message: 'bad email',
+              suggestion: 'Fix the email and retry.',
+              docs: 'https://docs.getbrew.io/api/contacts#errors',
+            },
           },
           { status: 400 }
         )
@@ -64,9 +68,13 @@ describe('http.request — retry behavior', () => {
         callCount++
         return HttpResponse.json(
           {
-            code: 'internal_error',
-            type: 'server_error',
-            message: 'boom',
+            error: {
+              code: 'INTERNAL_ERROR',
+              type: 'internal_error',
+              message: 'boom',
+              suggestion: 'Retry. If it keeps failing, contact support.',
+              docs: 'https://docs.getbrew.io/api/contacts#errors',
+            },
           },
           { status: 500 }
         )

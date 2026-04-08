@@ -1,21 +1,17 @@
+import type { components } from '../../generated/openapi-types'
 import type { HttpClient } from '../../core/http'
 import type { RequestOptions } from '../../types'
 
 import type { FieldsSuccessResponse } from './types'
 
-export type DeleteFieldInput = {
-  readonly fieldName: string
-}
+export type DeleteFieldInput = components['schemas']['FieldsDeleteRequest']
 
 /**
- * Remove a custom field from the contacts schema.
+ * Remove a custom field from the contacts schema. **Destructive**: this
+ * drops the column from every existing contact.
  *
- * Deleting a field is destructive — it drops the column from every
- * existing contact — so the transport's safe-retry policy (GET/DELETE
- * retry by default) is actually fine here: the delete is idempotent at
- * the server-state level (a second delete of a missing field just
- * returns success), and retrying on a transient network failure is
- * preferable to leaving the caller guessing whether the field is gone.
+ * DELETE retries on transient failures by default. Re-deleting a field
+ * that no longer exists is safe — the server treats it as success.
  */
 export function createDeleteField(client: HttpClient) {
   return async (

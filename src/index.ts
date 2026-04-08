@@ -16,6 +16,7 @@ export { BrewApiError } from './core/errors'
 export type {
   BrewClientConfig,
   BrewErrorEnvelope,
+  BrewErrorType,
   BrewFetch,
   BrewHttpMethod,
   BrewRawResponse,
@@ -30,8 +31,7 @@ export type { FieldsResource } from './resources/fields/resource'
 export type {
   Contact,
   ContactCustomFields,
-  ContactFilter,
-  ContactFilterOperator,
+  ContactsFilter,
 } from './resources/contacts/types'
 
 // ---------- Contacts: method inputs + outputs ----------
@@ -41,14 +41,18 @@ export type {
 } from './resources/contacts/list'
 export type { CountContactsInput } from './resources/contacts/count'
 export type { GetContactByEmailInput } from './resources/contacts/get-by-email'
-export type { UpsertContactInput } from './resources/contacts/upsert'
 export type {
+  UpsertContactInput,
+  UpsertContactResponse,
+} from './resources/contacts/upsert'
+export type {
+  UpsertManyContactRow,
   UpsertManyContactsInput,
   UpsertManyContactsResponse,
 } from './resources/contacts/upsert-many'
 export type {
   PatchContactInput,
-  PatchContactUpdates,
+  PatchContactResponse,
 } from './resources/contacts/patch'
 export type {
   DeleteContactInput,

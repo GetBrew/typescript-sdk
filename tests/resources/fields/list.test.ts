@@ -13,8 +13,8 @@ describe('fields.list', () => {
         capturedRequest = request
         return HttpResponse.json({
           fields: [
-            { name: 'plan', type: 'string' },
-            { name: 'signupDate', type: 'date' },
+            { fieldName: 'plan', fieldType: 'string', isCore: false },
+            { fieldName: 'signupDate', fieldType: 'date', isCore: false },
           ],
         })
       })
@@ -28,6 +28,7 @@ describe('fields.list', () => {
     expect(capturedRequest?.method).toBe('GET')
     expect(new URL(capturedRequest!.url).pathname).toBe('/api/v1/fields')
     expect(result.fields).toHaveLength(2)
-    expect(result.fields[0]?.name).toBe('plan')
+    expect(result.fields[0]?.fieldName).toBe('plan')
+    expect(result.fields[0]?.fieldType).toBe('string')
   })
 })

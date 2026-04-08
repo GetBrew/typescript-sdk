@@ -1,20 +1,22 @@
+import type { components } from '../../generated/openapi-types'
 import type { HttpClient } from '../../core/http'
 import type { RequestOptions } from '../../types'
 
-import type { ContactFieldType, FieldsSuccessResponse } from './types'
+import type { FieldsSuccessResponse } from './types'
 
-export type CreateFieldInput = {
-  readonly name: string
-  readonly type: ContactFieldType
-}
+export type CreateFieldInput = components['schemas']['FieldsPostRequest']
 
 /**
  * Define a new custom field on the contacts schema.
  *
+ * Note the wire field names: `fieldName` (not `name`) and `fieldType`
+ * (not `type`). The boolean type is `'bool'`, not `'boolean'`. These
+ * are pinned to the public API contract.
+ *
  * The transport auto-attaches an `Idempotency-Key` header on POST, so
- * retries on transient failures are safe without the caller having to
- * think about it — the API will reject a duplicate create with a
- * `field_already_exists` error rather than duplicating the field.
+ * retries on transient failures are safe — the API will reject a
+ * duplicate create with a `field_already_exists` error rather than
+ * duplicating the field.
  *
  * Factory name note: `createCreateField` reads awkwardly, but it keeps
  * the `create<Action><Resource>` factory-naming convention consistent

@@ -8,22 +8,40 @@ failure mode.
 ## The error shape
 
 ```ts
-import { BrewApiError } from '@brew.new/sdk'
+import { BrewApiError, type BrewErrorType } from '@brew.new/sdk'
 
 class BrewApiError extends Error {
   readonly status: number // HTTP status (404, 500, …)
-  readonly code: string // API code, e.g. 'contact_not_found'
-  readonly type: string // API type, e.g. 'not_found'
+  readonly code: string // API code, e.g. 'CONTACT_NOT_FOUND'
+  readonly type: BrewErrorType // Closed enum, see below
   readonly message: string // Human-readable explanation
-  readonly requestId: string | undefined // From the x-request-id header
-  readonly retryAfter: number | undefined // Delta-seconds from Retry-After
-  readonly suggestion: string | undefined // Optional remediation hint
-  readonly docs: string | undefined // Optional docs URL
+  readonly param: string | undefined // Which input field caused the error, when applicable
+  readonly suggestion: string // Remediation hint (always present per the API contract)
+  readonly docs: string // URL to the relevant docs section
+  readonly requestId: string | undefined // From the x-request-id response header
+  readonly retryAfter: number | undefined // Delta-seconds: from body envelope or Retry-After header
 }
 ```
 
 `BrewApiError` extends `Error`, so `instanceof Error` and
 `instanceof BrewApiError` both hold. The `name` field is `'BrewApiError'`.
+
+### Error types
+
+`type` is a closed enum on the wire, so the SDK exposes it as a union
+you can branch on with full type safety:
+
+```ts
+type BrewErrorType =
+  | 'authentication_error'
+  | 'authorization_error'
+  | 'invalid_request'
+  | 'not_found'
+  | 'not_implemented'
+  | 'conflict'
+  | 'rate_limit'
+  | 'internal_error'
+```
 
 ## The catch pattern
 
@@ -39,10 +57,10 @@ try {
   return contact
 } catch (error) {
   if (error instanceof BrewApiError) {
-    if (error.code === 'contact_not_found') {
+    if (error.code === 'CONTACT_NOT_FOUND') {
       return null
     }
-    if (error.status === 429) {
+    if (error.type === 'rate_limit') {
       console.warn(`Rate limited. Retry after ${error.retryAfter}s.`)
       throw error
     }
@@ -66,27 +84,39 @@ A few rules:
   your code path, every retry the SDK was allowed to make has already
   failed. Wrapping the call in your own retry loop on top is almost
   always wrong — adjust the SDK's `maxRetries` or `timeoutMs` instead.
+- **Branch on `type` for category, on `code` for specifics.** `type`
+  is the closed enum (all `not_found` errors), `code` is the specific
+  identifier (`CONTACT_NOT_FOUND`, `FIELD_NOT_FOUND`).
 
 ## Error envelope mapping
 
-The Brew API emits errors with a consistent envelope:
+The Brew API wraps every error in a consistent envelope:
 
 ```json
 {
-  "code": "validation_failed",
-  "type": "invalid_request",
-  "message": "email must be a valid email",
-  "suggestion": "Use a valid RFC 5322 address.",
-  "docs": "https://brew.new/docs/errors#validation_failed"
+  "error": {
+    "code": "INVALID_REQUEST",
+    "type": "invalid_request",
+    "message": "email must be a valid email",
+    "param": "email",
+    "suggestion": "Use a valid RFC 5322 address.",
+    "docs": "https://docs.getbrew.io/api/contacts#errors"
+  }
 }
 ```
 
-`BrewApiError.fromResponse()` maps this envelope onto the error class
-1:1, and pulls `requestId` from the `x-request-id` header and
-`retryAfter` from the `Retry-After` header. If the response body is not
-a valid envelope (e.g. an HTML 502 from an upstream proxy), the error
-falls back to a generic `code: 'unknown_error'` rather than throwing
-from the error path.
+`BrewApiError.fromResponse()` unwraps the `error` key, validates that
+`type` is one of the known enum values, and maps every field onto the
+class. `requestId` comes from the `x-request-id` response header.
+`retryAfter` is read from the body envelope first, then falls back to
+the `Retry-After` header — the body wins because it is specific to
+the exact error.
+
+If the response body is not a valid Brew error envelope (an HTML 502
+from an upstream proxy, an empty body, etc.) the SDK falls back to a
+generic envelope (`code: 'unknown_error'`, `type: 'internal_error'`)
+with a generic suggestion and docs URL — better to return a readable
+error than throw from the error path.
 
 ## What about network failures?
 
@@ -99,8 +129,8 @@ matrix.
 
 If retries do not save the request, the SDK throws the underlying
 `Error` directly (it does NOT wrap it in `BrewApiError` because there
-is no HTTP envelope to map). You should still expect both shapes from a
-defensive `catch`:
+is no HTTP envelope to map). You should still expect both shapes from
+a defensive `catch`:
 
 ```ts
 try {
@@ -117,8 +147,8 @@ try {
 
 ## Caller-initiated aborts
 
-Aborts triggered by your own `AbortSignal` are NEVER retried — they are
-intentional, and rethrown as the original `AbortError`. Check for
+Aborts triggered by your own `AbortSignal` are NEVER retried — they
+are intentional, and rethrown as the original `AbortError`. Check for
 abort separately if you handle it specially:
 
 ```ts

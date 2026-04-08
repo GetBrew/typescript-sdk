@@ -2,16 +2,16 @@
 
 Eight methods for managing contacts.
 
-| Method                      | HTTP                            |
-| --------------------------- | ------------------------------- |
-| [`list`](#list)             | `GET /v1/contacts`              |
-| [`count`](#count)           | `GET /v1/contacts?action=count` |
-| [`getByEmail`](#getbyemail) | `GET /v1/contacts?email=...`    |
-| [`upsert`](#upsert)         | `POST /v1/contacts`             |
-| [`upsertMany`](#upsertmany) | `POST /v1/contacts`             |
-| [`patch`](#patch)           | `PATCH /v1/contacts`            |
-| [`delete`](#delete)         | `DELETE /v1/contacts`           |
-| [`deleteMany`](#deletemany) | `DELETE /v1/contacts`           |
+| Method                      | HTTP                          |
+| --------------------------- | ----------------------------- |
+| [`list`](#list)             | `GET /v1/contacts`            |
+| [`count`](#count)           | `GET /v1/contacts?count=true` |
+| [`getByEmail`](#getbyemail) | `GET /v1/contacts?email=...`  |
+| [`upsert`](#upsert)         | `POST /v1/contacts`           |
+| [`upsertMany`](#upsertmany) | `POST /v1/contacts`           |
+| [`patch`](#patch)           | `PATCH /v1/contacts`          |
+| [`delete`](#delete)         | `DELETE /v1/contacts`         |
+| [`deleteMany`](#deletemany) | `DELETE /v1/contacts`         |
 
 ## Shared types
 
@@ -20,67 +20,105 @@ type Contact = {
   readonly email: string
   readonly firstName?: string
   readonly lastName?: string
-  readonly customFields?: Readonly<Record<string, unknown>>
-  readonly createdAt?: string
-  readonly updatedAt?: string
-}
-
-type ContactFilter = {
-  readonly field: string
-  readonly operator:
-    | 'eq'
-    | 'neq'
-    | 'gt'
-    | 'gte'
-    | 'lt'
-    | 'lte'
-    | 'in'
-    | 'nin'
-    | 'contains'
-    | 'exists'
-  readonly value: unknown
+  readonly subscribed: boolean // default true
+  readonly verificationStatus?: 'valid' | 'risky' | 'invalid'
+  readonly suppressed: boolean // default false
+  readonly suppressedReason?: string | null
+  readonly createdAt: number // UNIX millis, NOT a string
+  readonly updatedAt: number // UNIX millis, NOT a string
+  readonly importId?: string | null
+  readonly customFields: Readonly<Record<string, unknown>>
 }
 ```
 
-`field` uses dotted notation for custom fields — e.g.
-`'customFields.plan'`.
+> **Heads up on timestamps**: `createdAt` and `updatedAt` are UNIX
+> millisecond integers, not ISO strings. Convert with
+> `new Date(contact.createdAt)` if you need a Date object.
+
+### Filters
+
+`list` and `count` accept the same filter shape:
+
+```ts
+type ContactsFilter = {
+  readonly _logic?: 'and' | 'or' | 'none' // default 'and'
+} & {
+  readonly [field: string]:
+    | string // shorthand equality
+    | { readonly [operator: string]: string | number | boolean }
+}
+```
+
+Use dotted notation for custom fields (e.g. `'customFields.plan'`).
+The shorthand form is equality; the operator form supports the
+operators the API recognizes (`eq`, `neq`, `gt`, `gte`, `lt`, `lte`,
+`in`, `nin`, `contains`, `exists`, …).
+
+```ts
+// Shorthand equality
+{ subscribed: 'true' }
+
+// Explicit operator
+{ 'customFields.plan': { eq: 'enterprise' } }
+
+// Multi-clause with logic
+{
+  _logic: 'and',
+  subscribed: 'true',
+  'customFields.plan': { eq: 'enterprise' },
+}
+```
+
+The SDK serializes the filter as `deepObject` style query params on
+the wire (`filter[subscribed]=true`,
+`filter[customFields.plan][eq]=enterprise`). Callers never see the
+bracket notation directly — pass the object, the SDK does the rest.
 
 ---
 
 ## `list`
 
-Paginated list of contacts with optional filters.
+Paginated list of contacts with optional filters, search, and sort.
 
 ```ts
-type ListContactsInput = {
-  readonly limit?: number
-  readonly cursor?: string
-  readonly filters?: ReadonlyArray<ContactFilter>
-}
+type ListContactsInput = Readonly<{
+  limit?: number          // 1–100, default 50
+  cursor?: string         // opaque, from previous response
+  search?: string         // case-insensitive search across email/first/last
+  sort?: string           // default 'createdAt'
+  order?: 'asc' | 'desc'  // default 'desc'
+  filter?: ContactsFilter
+}>
 
 type ListContactsResponse = {
   readonly contacts: ReadonlyArray<Contact>
-  readonly nextCursor?: string
+  readonly pagination: {
+    readonly limit: number
+    readonly cursor: string | null
+    readonly hasMore: boolean
+  }
 }
 
 list(input?: ListContactsInput): Promise<ListContactsResponse>
 ```
 
 ```ts
-const { contacts, nextCursor } = await brew.contacts.list({
+const { contacts, pagination } = await brew.contacts.list({
   limit: 100,
-  filters: [
-    { field: 'customFields.plan', operator: 'eq', value: 'enterprise' },
-  ],
+  filter: {
+    _logic: 'and',
+    subscribed: 'true',
+    'customFields.plan': { eq: 'enterprise' },
+  },
 })
 
-if (nextCursor) {
-  const next = await brew.contacts.list({ limit: 100, cursor: nextCursor })
+if (pagination.hasMore && pagination.cursor) {
+  const next = await brew.contacts.list({
+    limit: 100,
+    cursor: pagination.cursor,
+  })
 }
 ```
-
-Filters are JSON-encoded into a single `filters` query parameter so the
-wire format stays a plain GET (no body, caching proxies happy).
 
 ---
 
@@ -91,7 +129,7 @@ as a bare `number` (the `{ count }` envelope is unwrapped for DX).
 
 ```ts
 type CountContactsInput = {
-  readonly filters?: ReadonlyArray<ContactFilter>
+  readonly filter?: ContactsFilter
 }
 
 count(input?: CountContactsInput): Promise<number>
@@ -99,9 +137,9 @@ count(input?: CountContactsInput): Promise<number>
 
 ```ts
 const enterpriseCount = await brew.contacts.count({
-  filters: [
-    { field: 'customFields.plan', operator: 'eq', value: 'enterprise' },
-  ],
+  filter: {
+    'customFields.plan': { eq: 'enterprise' },
+  },
 })
 ```
 
@@ -111,7 +149,7 @@ const enterpriseCount = await brew.contacts.count({
 
 Look up a single contact by email. Returns a bare `Contact` (the
 `{ contact }` envelope is unwrapped). Throws `BrewApiError` with code
-`contact_not_found` if the contact does not exist.
+`CONTACT_NOT_FOUND` if the contact does not exist.
 
 ```ts
 type GetContactByEmailInput = { readonly email: string }
@@ -121,6 +159,7 @@ getByEmail(input: GetContactByEmailInput): Promise<Contact>
 
 ```ts
 const contact = await brew.contacts.getByEmail({ email: 'jane@example.com' })
+console.log(new Date(contact.createdAt)) // remember: createdAt is a number
 ```
 
 ---
@@ -128,26 +167,40 @@ const contact = await brew.contacts.getByEmail({ email: 'jane@example.com' })
 ## `upsert`
 
 Create or update a single contact by email. Email is the identity;
-absent fields are treated as "leave unchanged" on update, not as
-"clear".
+absent fields are treated as "leave unchanged" on update.
 
 ```ts
 type UpsertContactInput = {
   readonly email: string
   readonly firstName?: string
   readonly lastName?: string
-  readonly customFields?: Readonly<Record<string, unknown>>
+  readonly subscribed?: boolean
+  readonly customFields?: { readonly [key: string]: unknown }
 }
 
-upsert(input: UpsertContactInput, options?: RequestOptions): Promise<Contact>
+type UpsertContactResponse = {
+  readonly contact: Contact
+  readonly created: boolean        // true if newly inserted, false if updated
+  readonly fieldsCreated: string[] // any custom fields auto-defined
+  readonly warnings: ReadonlyArray<UpsertWarning>
+}
+
+upsert(
+  input: UpsertContactInput,
+  options?: RequestOptions
+): Promise<UpsertContactResponse>
 ```
 
 ```ts
-const contact = await brew.contacts.upsert({
+const result = await brew.contacts.upsert({
   email: 'jane@example.com',
   firstName: 'Jane',
   customFields: { plan: 'enterprise' },
 })
+
+console.log(result.contact.email)
+console.log(result.created) // true if this was an insert
+console.log(result.fieldsCreated) // ['plan'] if 'plan' was a new custom field
 ```
 
 POST requests get an auto-generated `Idempotency-Key` so retries are
@@ -159,7 +212,7 @@ safe by default. See
 ## `upsertMany`
 
 Batch upsert. The wire format is `{ contacts: [...] }`; the SDK keeps
-single vs. batch as two explicit methods rather than overloading.
+single vs. batch as two explicit methods.
 
 ```ts
 type UpsertManyContactsInput = {
@@ -167,7 +220,18 @@ type UpsertManyContactsInput = {
 }
 
 type UpsertManyContactsResponse = {
-  readonly contacts: ReadonlyArray<Contact>
+  readonly summary: {
+    readonly inserted: number
+    readonly updated: number
+    readonly failed: number
+  }
+  readonly fieldsCreated: ReadonlyArray<string>
+  readonly errors: ReadonlyArray<{
+    readonly email: string
+    readonly code: string
+    readonly message: string
+  }>
+  readonly warnings: ReadonlyArray<UpsertWarning>
 }
 
 upsertMany(
@@ -183,41 +247,62 @@ const result = await brew.contacts.upsertMany({
     { email: 'b@example.com', firstName: 'B' },
   ],
 })
+
+console.log(result.summary) // { inserted: 1, updated: 1, failed: 0 }
+
+if (result.errors.length > 0) {
+  for (const err of result.errors) {
+    console.error(`${err.email}: ${err.code} — ${err.message}`)
+  }
+}
 ```
+
+The API returns `200` on full success and `207` on partial failure.
+Both come back as the same envelope shape, the SDK does not throw
+on `207` — check `result.errors` to see which rows failed.
 
 ---
 
 ## `patch`
 
-Partial update by email. The SDK flattens
-`{ email, updates: { ... } }` into the wire shape `{ email, ... }` so
-the caller's "identity + changes" mental model stays clean.
+Partial update by email. The wire format is `{ email, fields: {...} }`.
 
 ```ts
-type PatchContactUpdates = {
-  readonly firstName?: string
-  readonly lastName?: string
-  readonly customFields?: Readonly<Record<string, unknown>>
-}
-
 type PatchContactInput = {
   readonly email: string
-  readonly updates: PatchContactUpdates
+  readonly fields: { readonly [key: string]: unknown }
 }
 
-patch(input: PatchContactInput, options?: RequestOptions): Promise<Contact>
+type PatchContactResponse = {
+  readonly contact: Contact
+  readonly updated: ReadonlyArray<string>  // field names that actually changed
+}
+
+patch(
+  input: PatchContactInput,
+  options?: RequestOptions
+): Promise<PatchContactResponse>
 ```
 
 ```ts
-const contact = await brew.contacts.patch({
+const result = await brew.contacts.patch({
   email: 'jane@example.com',
-  updates: { customFields: { plan: 'pro' } },
+  fields: {
+    firstName: 'Janet',
+    'customFields.plan': 'pro',
+  },
 })
+
+console.log(result.updated) // ['firstName', 'customFields.plan']
 ```
 
-**PATCH is never retried**, even with an idempotency key — the server's
-view of "current state" may have shifted between attempts. See
-[retries-and-idempotency](./retries-and-idempotency.md) for the
+`fields` is an open object: include any combination of writable core
+fields (`firstName`, `lastName`, `subscribed`) and custom fields
+(keys like `'customFields.plan'`).
+
+**PATCH is never retried**, even with an idempotency key — the
+server's view of "current state" may have shifted between attempts.
+See [retries-and-idempotency](./retries-and-idempotency.md) for the
 rationale.
 
 ---
@@ -245,9 +330,7 @@ const { deleted } = await brew.contacts.delete({ email: 'jane@example.com' })
 
 ## `deleteMany`
 
-Batch delete by email list. Reuses `DeleteContactsResponse` from the
-single-delete method, so any change to the deletion response shape
-ripples through both sites automatically.
+Batch delete by email list.
 
 ```ts
 type DeleteManyContactsInput = {

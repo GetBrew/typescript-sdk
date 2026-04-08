@@ -62,14 +62,14 @@ etc.).
 
 ## Documentation
 
-| Topic                 | File                                                                   |
-| --------------------- | ---------------------------------------------------------------------- |
-| Client configuration  | [`docs/configuration.md`](./docs/configuration.md)                     |
-| Contacts resource     | [`docs/contacts.md`](./docs/contacts.md)                               |
-| Fields resource       | [`docs/fields.md`](./docs/fields.md)                                   |
-| Error handling        | [`docs/errors.md`](./docs/errors.md)                                   |
-| Retries + idempotency | [`docs/retries-and-idempotency.md`](./docs/retries-and-idempotency.md) |
-| OpenAPI type strategy | [`docs/openapi.md`](./docs/openapi.md)                                 |
+| Topic                      | File                                                                   |
+| -------------------------- | ---------------------------------------------------------------------- |
+| Client configuration       | [`docs/configuration.md`](./docs/configuration.md)                     |
+| Contacts resource          | [`docs/contacts.md`](./docs/contacts.md)                               |
+| Fields resource            | [`docs/fields.md`](./docs/fields.md)                                   |
+| Error handling             | [`docs/errors.md`](./docs/errors.md)                                   |
+| Retries + idempotency      | [`docs/retries-and-idempotency.md`](./docs/retries-and-idempotency.md) |
+| Development + OpenAPI sync | [`docs/development.md`](./docs/development.md)                         |
 
 ## Development
 

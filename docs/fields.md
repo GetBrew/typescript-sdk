@@ -13,12 +13,16 @@ each contact (plan, signup date, lifetime value, etc.).
 ## Shared types
 
 ```ts
-type ContactFieldType = 'string' | 'number' | 'boolean' | 'date' | 'array'
+type ContactFieldType = 'string' | 'number' | 'date' | 'bool'
 
 type ContactField = {
-  readonly name: string
-  readonly type: ContactFieldType
-  readonly createdAt?: string
+  readonly fieldName: string
+  readonly fieldType: ContactFieldType
+  readonly label?: string
+  readonly isCore?: boolean
+  readonly isFilterable?: boolean
+  readonly isSortable?: boolean
+  readonly isSearchable?: boolean
 }
 
 type FieldsSuccessResponse = {
@@ -26,15 +30,26 @@ type FieldsSuccessResponse = {
 }
 ```
 
-The supported field types are pinned to the public API contract — adding
-a type to the union here without server support would let callers write
-code that 422s at runtime.
+> **Two naming heads-ups**:
+>
+> - The wire field is `fieldName`, **not** `name`.
+> - The boolean type is `'bool'`, **not** `'boolean'`. There is no
+>   `'array'` type.
+>
+> Both are pinned to the public API contract — the SDK mirrors the
+> wire vocabulary exactly so the type system stops you from sending
+> something the server will reject.
+
+`isCore: true` distinguishes built-in fields (the ones every contact
+has — `email`, `firstName`, etc.) from organization-defined custom
+fields. Filter/sort/search flags describe what operations the field
+supports.
 
 ---
 
 ## `list`
 
-List every custom field defined on the contacts schema.
+List every contact field definition (both core and custom).
 
 ```ts
 type ListFieldsResponse = {
@@ -47,13 +62,14 @@ list(): Promise<ListFieldsResponse>
 ```ts
 const { fields } = await brew.fields.list()
 
-for (const field of fields) {
-  console.log(field.name, field.type)
+const customOnly = fields.filter((field) => field.isCore !== true)
+for (const field of customOnly) {
+  console.log(`${field.fieldName} (${field.fieldType})`)
 }
 ```
 
-The full envelope (not just the array) is returned so the API can grow
-metadata like pagination later without a breaking change.
+The full envelope (not just the array) is returned so the API can
+grow metadata like pagination later without a breaking change.
 
 ---
 
@@ -63,8 +79,8 @@ Define a new custom field on the contacts schema.
 
 ```ts
 type CreateFieldInput = {
-  readonly name: string
-  readonly type: ContactFieldType
+  readonly fieldName: string
+  readonly fieldType: ContactFieldType
 }
 
 create(
@@ -74,14 +90,16 @@ create(
 ```
 
 ```ts
-await brew.fields.create({ name: 'plan', type: 'string' })
-await brew.fields.create({ name: 'signupDate', type: 'date' })
-await brew.fields.create({ name: 'lifetimeValue', type: 'number' })
+await brew.fields.create({ fieldName: 'plan', fieldType: 'string' })
+await brew.fields.create({ fieldName: 'signupDate', fieldType: 'date' })
+await brew.fields.create({ fieldName: 'lifetimeValue', fieldType: 'number' })
+await brew.fields.create({ fieldName: 'isVip', fieldType: 'bool' })
 ```
 
 POST requests get an auto-generated `Idempotency-Key`, so retrying a
-transient failure is safe — the API will reject a duplicate create with
-a `field_already_exists` error rather than creating the field twice.
+transient failure is safe — the API will reject a duplicate create
+with a `field_already_exists` error rather than creating the field
+twice.
 
 ---
 

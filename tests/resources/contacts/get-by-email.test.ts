@@ -15,6 +15,10 @@ describe('contacts.getByEmail', () => {
           contact: {
             email: 'jane@example.com',
             firstName: 'Jane',
+            subscribed: true,
+            suppressed: false,
+            createdAt: 1712592000000,
+            updatedAt: 1712592300000,
             customFields: { plan: 'enterprise' },
           },
         })
@@ -31,10 +35,9 @@ describe('contacts.getByEmail', () => {
     const url = new URL(capturedRequest!.url)
     expect(url.pathname).toBe('/api/v1/contacts')
     expect(url.searchParams.get('email')).toBe('jane@example.com')
-    expect(contact).toEqual({
-      email: 'jane@example.com',
-      firstName: 'Jane',
-      customFields: { plan: 'enterprise' },
-    })
+    expect(contact.email).toBe('jane@example.com')
+    expect(contact.firstName).toBe('Jane')
+    expect(contact.createdAt).toBe(1712592000000)
+    expect(contact.customFields).toEqual({ plan: 'enterprise' })
   })
 })

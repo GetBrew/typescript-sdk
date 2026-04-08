@@ -6,7 +6,7 @@ import { makeTestHttpClient } from '../../helpers/http-client'
 import { server } from '../../msw/server'
 
 describe('contacts.count', () => {
-  it('sends GET /v1/contacts with action=count and returns the number unwrapped', async () => {
+  it('sends GET /v1/contacts with count=true and returns the number unwrapped', async () => {
     let capturedRequest: Request | undefined
     server.use(
       http.get('https://brew.new/api/v1/contacts', ({ request }) => {
@@ -21,11 +21,11 @@ describe('contacts.count', () => {
     const result = await count()
 
     const url = new URL(capturedRequest!.url)
-    expect(url.searchParams.get('action')).toBe('count')
+    expect(url.searchParams.get('count')).toBe('true')
     expect(result).toBe(42)
   })
 
-  it('forwards filters as JSON when provided', async () => {
+  it('forwards filter as bracket-notation deep-object query when provided', async () => {
     let capturedRequest: Request | undefined
     server.use(
       http.get('https://brew.new/api/v1/contacts', ({ request }) => {
@@ -38,16 +38,15 @@ describe('contacts.count', () => {
     const count = createCountContacts(client)
 
     await count({
-      filters: [
-        { field: 'customFields.plan', operator: 'eq', value: 'enterprise' },
-      ],
+      filter: {
+        'customFields.plan': { eq: 'enterprise' },
+      },
     })
 
     const url = new URL(capturedRequest!.url)
-    const rawFilters = url.searchParams.get('filters')
-    expect(rawFilters).not.toBeNull()
-    expect(JSON.parse(rawFilters!)).toEqual([
-      { field: 'customFields.plan', operator: 'eq', value: 'enterprise' },
-    ])
+    expect(url.searchParams.get('count')).toBe('true')
+    expect(url.searchParams.get('filter[customFields.plan][eq]')).toBe(
+      'enterprise'
+    )
   })
 })

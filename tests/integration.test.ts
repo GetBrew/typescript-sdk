@@ -60,8 +60,15 @@ describe('createBrewClient — end-to-end', () => {
             contact: {
               email: body.email,
               firstName: 'Jane',
+              subscribed: true,
+              suppressed: false,
+              createdAt: 1712592000000,
+              updatedAt: 1712592000000,
               customFields: { plan: 'enterprise' },
             },
+            created: true,
+            fieldsCreated: ['plan'],
+            warnings: [],
           },
           {
             status: 201,
@@ -75,9 +82,13 @@ describe('createBrewClient — end-to-end', () => {
         if (email !== 'jane@example.com') {
           return HttpResponse.json(
             {
-              code: 'contact_not_found',
-              type: 'not_found',
-              message: 'missing',
+              error: {
+                code: 'CONTACT_NOT_FOUND',
+                type: 'not_found',
+                message: 'missing',
+                suggestion: 'Use POST /api/v1/contacts to create one first.',
+                docs: 'https://docs.getbrew.io/api/contacts#errors',
+              },
             },
             { status: 404 }
           )
@@ -86,6 +97,10 @@ describe('createBrewClient — end-to-end', () => {
           contact: {
             email: 'jane@example.com',
             firstName: 'Jane',
+            subscribed: true,
+            suppressed: false,
+            createdAt: 1712592000000,
+            updatedAt: 1712592000000,
             customFields: { plan: 'enterprise' },
           },
         })
@@ -99,8 +114,9 @@ describe('createBrewClient — end-to-end', () => {
       firstName: 'Jane',
       customFields: { plan: 'enterprise' },
     })
-    expect(upserted.email).toBe('jane@example.com')
-    expect(upserted.customFields?.plan).toBe('enterprise')
+    expect(upserted.contact.email).toBe('jane@example.com')
+    expect(upserted.contact.customFields).toEqual({ plan: 'enterprise' })
+    expect(upserted.created).toBe(true)
 
     const fetched = await brew.contacts.getByEmail({
       email: 'jane@example.com',
@@ -114,9 +130,14 @@ describe('createBrewClient — end-to-end', () => {
       http.get('https://brew.new/api/v1/contacts', () => {
         return HttpResponse.json(
           {
-            code: 'contact_not_found',
-            type: 'not_found',
-            message: 'No contact with that email exists',
+            error: {
+              code: 'CONTACT_NOT_FOUND',
+              type: 'not_found',
+              message: 'No contact with that email exists',
+              suggestion: 'Use POST /api/v1/contacts to create one first.',
+              docs: 'https://docs.getbrew.io/api/contacts#errors',
+              param: 'email',
+            },
           },
           {
             status: 404,
@@ -135,7 +156,7 @@ describe('createBrewClient — end-to-end', () => {
       expect(error).toBeInstanceOf(BrewApiError)
       const asError = error as BrewApiError
       expect(asError.status).toBe(404)
-      expect(asError.code).toBe('contact_not_found')
+      expect(asError.code).toBe('CONTACT_NOT_FOUND')
       expect(asError.requestId).toBe('req_missing_1')
     }
   })
@@ -145,8 +166,8 @@ describe('createBrewClient — end-to-end', () => {
       http.get('https://brew.new/api/v1/fields', () => {
         return HttpResponse.json({
           fields: [
-            { name: 'plan', type: 'string' },
-            { name: 'signupDate', type: 'date' },
+            { fieldName: 'plan', fieldType: 'string', isCore: false },
+            { fieldName: 'signupDate', fieldType: 'date', isCore: false },
           ],
         })
       })
@@ -156,6 +177,7 @@ describe('createBrewClient — end-to-end', () => {
     const result = await brew.fields.list()
 
     expect(result.fields).toHaveLength(2)
-    expect(result.fields[0]?.name).toBe('plan')
+    expect(result.fields[0]?.fieldName).toBe('plan')
+    expect(result.fields[0]?.fieldType).toBe('string')
   })
 })

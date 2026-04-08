@@ -1,59 +1,62 @@
 /**
  * Shared domain types for the contacts resource.
  *
- * TODO(openapi): These are hand-rolled from the plan doc + public API
- * behavior. Once `openapi/public-api-v1.yaml` lands in the repo and the
- * `openapi-typescript` generator script is wired up, these should be
- * replaced with re-exports from `src/generated/openapi-types.ts`. Keep the
- * method-facing names stable so resource files don't churn.
+ * Sourced from `src/generated/openapi-types.ts`. Hand-rolled types are
+ * deliberately avoided here — every field, every default, and every
+ * optional/required marker comes from the OpenAPI spec so the SDK cannot
+ * silently drift from the API.
+ *
+ * If a name in this file conflicts with what the generator produces (e.g.
+ * the generated nested types are anonymous), we wrap it in a stable SDK
+ * alias so resource files import a clean name and the generated location
+ * stays an implementation detail of this module.
  */
+
+import type { components, paths } from '../../generated/openapi-types'
+
+/**
+ * A Brew contact as returned by the public API.
+ *
+ * Note: `createdAt` and `updatedAt` are UNIX millisecond timestamps
+ * (`number`), NOT ISO strings. Convert with `new Date(contact.createdAt)`
+ * if you need a Date object.
+ */
+export type Contact = components['schemas']['ContactsLookupResponse']['contact']
 
 /**
  * Arbitrary key/value pairs attached to a contact. Values are typed as
  * `unknown` because the Brew API accepts strings, numbers, booleans,
- * arrays, and nested objects as custom-field values — callers are
- * expected to narrow when they read specific fields.
+ * arrays, and nested objects as custom-field values — callers narrow
+ * when they read specific fields.
  */
-export type ContactCustomFields = Readonly<Record<string, unknown>>
+export type ContactCustomFields = Contact['customFields']
 
 /**
- * A Brew contact as returned by the public API. The email is the stable
- * identifier; every other field may be absent on read.
+ * Filter object for `list` and `count`. Uses the OpenAPI `deepObject`
+ * style: keys are field names (use dotted notation for custom fields like
+ * `'customFields.plan'`), values are either a string shorthand or an
+ * `{ operator: value }` object.
+ *
+ * Examples:
+ *
+ * ```ts
+ * // Shorthand equality
+ * { subscribed: 'true' }
+ *
+ * // Explicit operator
+ * { 'customFields.plan': { eq: 'enterprise' } }
+ *
+ * // Multi-clause with logic
+ * {
+ *   _logic: 'and',
+ *   subscribed: 'true',
+ *   'customFields.plan': { eq: 'enterprise' },
+ * }
+ * ```
+ *
+ * Sourced from the generated operation parameters so any spec change to
+ * the filter shape will surface as a tsc error here.
  */
-export type Contact = {
-  readonly email: string
-  readonly firstName?: string
-  readonly lastName?: string
-  readonly customFields?: ContactCustomFields
-  readonly createdAt?: string
-  readonly updatedAt?: string
-}
-
-/**
- * Operators supported by Brew's filter language. Mirrors the public
- * contract — if the contract grows new operators, add them here and the
- * SDK type system will force call sites to stay in sync.
- */
-export type ContactFilterOperator =
-  | 'eq'
-  | 'neq'
-  | 'gt'
-  | 'gte'
-  | 'lt'
-  | 'lte'
-  | 'in'
-  | 'nin'
-  | 'contains'
-  | 'exists'
-
-/**
- * A single filter predicate. `field` uses dotted notation for custom
- * fields (e.g. `customFields.plan`). `value` is `unknown` for the same
- * reason `ContactCustomFields` values are — the API accepts heterogeneous
- * value types per operator.
- */
-export type ContactFilter = {
-  readonly field: string
-  readonly operator: ContactFilterOperator
-  readonly value: unknown
-}
+export type ContactsFilter = NonNullable<
+  NonNullable<paths['/v1/contacts']['get']['parameters']['query']>['filter']
+>

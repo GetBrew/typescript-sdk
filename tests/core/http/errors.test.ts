@@ -6,14 +6,19 @@ import { makeTestHttpClient } from '../../helpers/http-client'
 import { server } from '../../msw/server'
 
 describe('http.request — error mapping', () => {
-  it('throws BrewApiError on 404 with the envelope mapped', async () => {
+  it('throws BrewApiError on 404 with the wrapped envelope mapped', async () => {
     server.use(
       http.get('https://brew.new/api/v1/contacts/missing', () => {
         return HttpResponse.json(
           {
-            code: 'contact_not_found',
-            type: 'not_found',
-            message: 'Contact does not exist',
+            error: {
+              code: 'CONTACT_NOT_FOUND',
+              type: 'not_found',
+              message: 'Contact does not exist',
+              suggestion: 'Use POST /api/v1/contacts to create one first.',
+              docs: 'https://docs.getbrew.io/api/contacts#errors',
+              param: 'email',
+            },
           },
           {
             status: 404,
@@ -30,10 +35,11 @@ describe('http.request — error mapping', () => {
     ).rejects.toMatchObject({
       name: 'BrewApiError',
       status: 404,
-      code: 'contact_not_found',
+      code: 'CONTACT_NOT_FOUND',
       type: 'not_found',
       message: 'Contact does not exist',
       requestId: 'req_not_found',
+      param: 'email',
     })
   })
 
@@ -42,9 +48,13 @@ describe('http.request — error mapping', () => {
       http.get('https://brew.new/api/v1/contacts', () => {
         return HttpResponse.json(
           {
-            code: 'internal_error',
-            type: 'server_error',
-            message: 'boom',
+            error: {
+              code: 'INTERNAL_ERROR',
+              type: 'internal_error',
+              message: 'boom',
+              suggestion: 'Retry. If it keeps failing, contact support.',
+              docs: 'https://docs.getbrew.io/api/contacts#errors',
+            },
           },
           {
             status: 500,
