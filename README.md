@@ -36,6 +36,30 @@ const found = await brew.contacts.getByEmail({ email: 'jane@example.com' })
 
 That's the whole shape. Every other method follows the same pattern.
 
+## Pointing at a different environment
+
+`baseUrl` is configurable. By default it points at production
+(`https://brew.new/api`), but you can override it for staging, local
+development, or a custom proxy:
+
+```ts
+const brew = createBrewClient({
+  apiKey: process.env.BREW_API_KEY!,
+  baseUrl: process.env.BREW_API_URL ?? 'https://brew.new/api',
+})
+```
+
+Common values:
+
+- `https://brew.new/api` — production (default)
+- `https://staging.brew.new/api` — staging
+- `http://localhost:3000/api` — your own dev server
+
+Trailing slashes are normalized either way. See
+[`docs/configuration.md`](./docs/configuration.md) for the full list of
+config options (`timeoutMs`, `maxRetries`, `userAgent`, custom `fetch`,
+etc.).
+
 ## Documentation
 
 | Topic                 | File                                                                   |
