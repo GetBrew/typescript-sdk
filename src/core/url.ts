@@ -93,9 +93,7 @@ function joinBaseAndPath({
  * string. Skips `undefined`/`null` values, serializes arrays as repeated
  * keys, and defers encoding to `URLSearchParams` for correctness.
  */
-function serializeQuery(
-  query: BuildUrlInput['query'] | undefined
-): string {
+function serializeQuery(query: BuildUrlInput['query'] | undefined): string {
   if (!query) return ''
 
   const params = new URLSearchParams()

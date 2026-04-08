@@ -51,7 +51,10 @@ export function resolveConfig(
 ): ResolvedBrewClientConfig {
   const { userConfig } = input
 
-  if (typeof userConfig.apiKey !== 'string' || userConfig.apiKey.trim() === '') {
+  if (
+    typeof userConfig.apiKey !== 'string' ||
+    userConfig.apiKey.trim() === ''
+  ) {
     throw new TypeError(
       'resolveConfig: `apiKey` is required and must be a non-empty string'
     )
@@ -68,10 +71,19 @@ export function resolveConfig(
 }
 
 /**
- * Default fetch implementation: the global `fetch` bound to `globalThis`.
- * Binding matters — some runtimes throw "Illegal invocation" if `fetch` is
- * called with the wrong `this`, and we want the same reference reused
- * across requests so custom transports (like a signed-proxy fetch) can
- * still be injected via `BrewClientConfig.fetch`.
+ * Default fetch implementation: a thin closure that resolves
+ * `globalThis.fetch` at CALL TIME, not at module-import time.
+ *
+ * This matters for two reasons:
+ *   1. Some runtimes throw "Illegal invocation" if the native fetch is
+ *      called with the wrong `this`. Calling it off of `globalThis`
+ *      directly avoids the issue without needing `.bind(globalThis)`.
+ *   2. Testing tools like MSW v2 replace `globalThis.fetch` inside their
+ *      `beforeAll` hook, which runs AFTER this module is imported. If we
+ *      captured the reference at import time (e.g. via `.bind`), we would
+ *      keep pointing at the ORIGINAL, unpatched fetch forever and MSW
+ *      would silently fail to intercept anything the SDK sends.
+ *
+ * Resolving at call time keeps both use cases correct.
  */
-const defaultFetch: BrewFetch = globalThis.fetch.bind(globalThis)
+const defaultFetch: BrewFetch = (input, init) => globalThis.fetch(input, init)

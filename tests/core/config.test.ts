@@ -89,15 +89,15 @@ describe('resolveConfig', () => {
 
   describe('validation', () => {
     it('throws when apiKey is an empty string', () => {
-      expect(() =>
-        resolveConfig({ userConfig: { apiKey: '' } })
-      ).toThrow(/apiKey/)
+      expect(() => resolveConfig({ userConfig: { apiKey: '' } })).toThrow(
+        /apiKey/
+      )
     })
 
     it('throws when apiKey is a whitespace-only string', () => {
-      expect(() =>
-        resolveConfig({ userConfig: { apiKey: '   ' } })
-      ).toThrow(/apiKey/)
+      expect(() => resolveConfig({ userConfig: { apiKey: '   ' } })).toThrow(
+        /apiKey/
+      )
     })
   })
 })
