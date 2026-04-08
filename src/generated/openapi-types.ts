@@ -308,12 +308,12 @@ export interface operations {
                 /** @description Sort direction. */
                 order?: "asc" | "desc";
                 /**
-                 * @description Deep object filters. Use shorthand `filter[subscribed]=true` or explicit operators like `filter[customFields.plan][eq]=enterprise`. Use `filter[_logic]=and|or|none` to control filter combination.
+                 * @description Deep object filters. Use shorthand `filter[subscribed]=true` or explicit operators like `filter[customFields.plan][equals]=enterprise`. Use `filter[_logic]=and|or|none` to control filter combination.
                  * @example {
                  *       "_logic": "and",
                  *       "subscribed": "true",
                  *       "customFields.plan": {
-                 *         "eq": "enterprise"
+                 *         "equals": "enterprise"
                  *       }
                  *     }
                  */

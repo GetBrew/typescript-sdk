@@ -660,7 +660,7 @@ paths:
           required: false
           style: deepObject
           explode: true
-          description: Deep object filters. Use shorthand `filter[subscribed]=true` or explicit operators like `filter[customFields.plan][eq]=enterprise`. Use `filter[_logic]=and|or|none` to control filter combination.
+          description: Deep object filters. Use shorthand `filter[subscribed]=true` or explicit operators like `filter[customFields.plan][equals]=enterprise`. Use `filter[_logic]=and|or|none` to control filter combination.
           schema:
             type: object
             properties:
@@ -684,7 +684,7 @@ paths:
             _logic: and
             subscribed: 'true'
             customFields.plan:
-              eq: enterprise
+              equals: enterprise
       responses:
         '200':
           description: Lookup mode returns a single contact. Count mode returns a count. List mode returns contacts plus pagination.
