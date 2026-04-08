@@ -37,6 +37,16 @@ export type ContactCustomFields = Contact['customFields']
  * `'customFields.plan'`), values are either a string shorthand or an
  * `{ operator: value }` object.
  *
+ * Supported operator names per the Brew API server:
+ *   equals, not_equals, contains, not_contains, contains_any,
+ *   not_contains_any, starts_with, ends_with, is_empty, is_not_empty,
+ *   in, not_in, exists, not_exists
+ *
+ * The OpenAPI type is intentionally permissive (`[key: string]`) so
+ * the SDK does not type-check the operator name. A typo like `eq`
+ * instead of `equals` will compile fine but the server will 400. See
+ * `docs/contacts.md` for the source-of-truth operator list.
+ *
  * Examples:
  *
  * ```ts
@@ -44,18 +54,18 @@ export type ContactCustomFields = Contact['customFields']
  * { subscribed: 'true' }
  *
  * // Explicit operator
- * { 'customFields.plan': { eq: 'enterprise' } }
+ * { 'customFields.plan': { equals: 'enterprise' } }
  *
  * // Multi-clause with logic
  * {
  *   _logic: 'and',
  *   subscribed: 'true',
- *   'customFields.plan': { eq: 'enterprise' },
+ *   'customFields.plan': { equals: 'enterprise' },
  * }
  * ```
  *
- * Sourced from the generated operation parameters so any spec change to
- * the filter shape will surface as a tsc error here.
+ * Sourced from the generated operation parameters so any spec change
+ * to the filter shape will surface as a tsc error here.
  */
 export type ContactsFilter = NonNullable<
   NonNullable<paths['/v1/contacts']['get']['parameters']['query']>['filter']

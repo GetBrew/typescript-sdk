@@ -30,8 +30,10 @@ export type ListContactsResponse = components['schemas']['ContactsListResponse']
  *
  * Filters use the OpenAPI `deepObject` style — `flattenFilter` converts
  * the structured `filter` input into bracket-notation query keys
- * (`filter[subscribed]=true`, `filter[customFields.plan][eq]=enterprise`)
- * before they reach the transport.
+ * (`filter[subscribed]=true`,
+ * `filter[customFields.plan][equals]=enterprise`) before they reach
+ * the transport. See `docs/contacts.md` for the full list of supported
+ * operator names.
  */
 export function createListContacts(client: HttpClient) {
   return async (

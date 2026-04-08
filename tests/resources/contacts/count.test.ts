@@ -39,13 +39,13 @@ describe('contacts.count', () => {
 
     await count({
       filter: {
-        'customFields.plan': { eq: 'enterprise' },
+        'customFields.plan': { equals: 'enterprise' },
       },
     })
 
     const url = new URL(capturedRequest!.url)
     expect(url.searchParams.get('count')).toBe('true')
-    expect(url.searchParams.get('filter[customFields.plan][eq]')).toBe(
+    expect(url.searchParams.get('filter[customFields.plan][equals]')).toBe(
       'enterprise'
     )
   })

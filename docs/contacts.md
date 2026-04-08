@@ -50,29 +50,51 @@ type ContactsFilter = {
 ```
 
 Use dotted notation for custom fields (e.g. `'customFields.plan'`).
-The shorthand form is equality; the operator form supports the
-operators the API recognizes (`eq`, `neq`, `gt`, `gte`, `lt`, `lte`,
-`in`, `nin`, `contains`, `exists`, …).
+The shorthand form is equality; the operator form uses one of the
+operator names the Brew API recognizes:
+
+| Operator           | Meaning                             |
+| ------------------ | ----------------------------------- |
+| `equals`           | Exact match                         |
+| `not_equals`       | Not an exact match                  |
+| `contains`         | Substring (string fields)           |
+| `not_contains`     | Negated substring                   |
+| `contains_any`     | Contains any of the listed values   |
+| `not_contains_any` | Contains none of the listed values  |
+| `starts_with`      | String starts with value            |
+| `ends_with`        | String ends with value              |
+| `is_empty`         | Field is empty / unset              |
+| `is_not_empty`     | Field has any value                 |
+| `in`               | Value is in the listed set          |
+| `not_in`           | Value is not in the listed set      |
+| `exists`           | Field exists on the contact         |
+| `not_exists`       | Field does not exist on the contact |
 
 ```ts
 // Shorthand equality
 { subscribed: 'true' }
 
 // Explicit operator
-{ 'customFields.plan': { eq: 'enterprise' } }
+{ 'customFields.plan': { equals: 'enterprise' } }
 
 // Multi-clause with logic
 {
   _logic: 'and',
   subscribed: 'true',
-  'customFields.plan': { eq: 'enterprise' },
+  'customFields.plan': { equals: 'enterprise' },
 }
 ```
 
 The SDK serializes the filter as `deepObject` style query params on
 the wire (`filter[subscribed]=true`,
-`filter[customFields.plan][eq]=enterprise`). Callers never see the
-bracket notation directly — pass the object, the SDK does the rest.
+`filter[customFields.plan][equals]=enterprise`). Callers never see
+the bracket notation directly — pass the object, the SDK does the
+rest.
+
+> The SDK does not type-check the operator name (the underlying
+> OpenAPI type is `[key: string]: string | { ... }`), so a typo
+> like `eq` instead of `equals` will compile fine but the server
+> will return a 400. The list above is the source of truth.
 
 ---
 

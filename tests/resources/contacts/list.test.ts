@@ -72,14 +72,14 @@ describe('contacts.list', () => {
       filter: {
         _logic: 'and',
         subscribed: 'true',
-        'customFields.plan': { eq: 'enterprise' },
+        'customFields.plan': { equals: 'enterprise' },
       },
     })
 
     const url = new URL(capturedRequest!.url)
     expect(url.searchParams.get('filter[_logic]')).toBe('and')
     expect(url.searchParams.get('filter[subscribed]')).toBe('true')
-    expect(url.searchParams.get('filter[customFields.plan][eq]')).toBe(
+    expect(url.searchParams.get('filter[customFields.plan][equals]')).toBe(
       'enterprise'
     )
   })
