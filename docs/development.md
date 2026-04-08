@@ -10,7 +10,7 @@ if you're new — the cross-repo handshake is the part everyone forgets.
 There are **two repos** that have to stay in sync:
 
 ```
-brew-omni-agent-mvp                       brew-typescript-sdk
+brew-omni-agent-mvp                       typescript-sdk
 ─────────────────────                     ───────────────────────
 the Brew app                              this repo (the OSS SDK)
 
@@ -41,8 +41,8 @@ import the types.
 You **never edit** any of these files by hand:
 
 - `brew-omni-agent-mvp/openapi/public-api-v1.yaml` (generated from Zod)
-- `brew-typescript-sdk/openapi/public-api-v1.yaml` (vendored copy)
-- `brew-typescript-sdk/src/generated/openapi-types.ts` (generated from YAML)
+- `typescript-sdk/openapi/public-api-v1.yaml` (vendored copy)
+- `typescript-sdk/src/generated/openapi-types.ts` (generated from YAML)
 
 Two of those generated files are **committed to git** (the SDK's
 copy of the YAML and the generated `.ts`) so every PR shows API
@@ -56,7 +56,7 @@ Both checkouts live under `~/Desktop/`:
 ```
 ~/Desktop/
 ├── brew-omni-agent-mvp/    ← the app repo (Zod, routes, tests, real backend)
-└── brew-typescript-sdk/    ← this repo (the SDK that wraps the public API)
+└── typescript-sdk/    ← this repo (the SDK that wraps the public API)
 ```
 
 Most commands assume that layout. If your local layout differs, adjust
@@ -130,7 +130,7 @@ PR as the Zod changes — same rules as any other commit there).
 ### Step 3 — Switch to the SDK repo
 
 ```bash
-cd ~/Desktop/brew-typescript-sdk
+cd ~/Desktop/typescript-sdk
 ```
 
 From here on out, every command runs in the SDK repo.
@@ -405,8 +405,8 @@ For DX improvements, refactors, doc fixes, or anything that doesn't
 touch the API contract:
 
 ```bash
-git clone https://github.com/GetBrew/brew-typescript-sdk.git
-cd brew-typescript-sdk
+git clone https://github.com/GetBrew/typescript-sdk.git
+cd typescript-sdk
 bun install
 ```
 
@@ -471,7 +471,7 @@ script. Read-only operations only.
 
 ```bash
 # In a temp file (NOT committed) at /tmp/smoke.ts:
-import { createBrewClient } from '/path/to/brew-typescript-sdk/dist/index.js'
+import { createBrewClient } from '/path/to/typescript-sdk/dist/index.js'
 
 const brew = createBrewClient({
   apiKey: process.env.BREW_API_KEY!,

@@ -5,7 +5,7 @@ import { buildHeaders } from '../../src/core/headers'
 describe('buildHeaders', () => {
   const baseInput = {
     apiKey: 'brew_test_abc',
-    userAgent: 'brew-typescript-sdk/0.0.0',
+    userAgent: 'brew.new-sdk/0.0.0',
   }
 
   it('sets Authorization to a Bearer token with the API key', () => {
@@ -15,7 +15,7 @@ describe('buildHeaders', () => {
 
   it('sets User-Agent from the resolved config', () => {
     const headers = buildHeaders(baseInput)
-    expect(headers.get('user-agent')).toBe('brew-typescript-sdk/0.0.0')
+    expect(headers.get('user-agent')).toBe('brew.new-sdk/0.0.0')
   })
 
   it('always sets Accept to application/json', () => {

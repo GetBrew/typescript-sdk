@@ -12,5 +12,5 @@
  * forked the package.json version away from git.
  */
 
-export const SDK_NAME = 'brew-typescript-sdk'
+export const SDK_NAME = 'brew.new-sdk'
 export const SDK_VERSION = '0.1.0-alpha.0'

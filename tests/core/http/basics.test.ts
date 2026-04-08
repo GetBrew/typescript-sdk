@@ -66,7 +66,7 @@ describe('http.request — basics (URL, method, headers, body, success)', () => 
       )
       expect(capturedRequest?.headers.get('accept')).toBe('application/json')
       expect(capturedRequest?.headers.get('user-agent')).toMatch(
-        /^brew-typescript-sdk\//
+        /^brew\.new-sdk\//
       )
     })
 

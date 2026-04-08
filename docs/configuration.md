@@ -16,7 +16,7 @@ const brew = createBrewClient({
   baseUrl: 'https://brew.new/api',
   timeoutMs: 30_000,
   maxRetries: 2,
-  userAgent: 'brew-typescript-sdk/0.1.0-alpha.0',
+  userAgent: 'brew.new-sdk/0.1.0-alpha.0',
   fetch: globalThis.fetch,
 })
 ```
@@ -70,7 +70,7 @@ You can override per-request via `RequestOptions.maxRetries`.
 
 ### `userAgent`
 
-Default: `brew-typescript-sdk/<version>`.
+Default: `brew.new-sdk/<version>`.
 
 Sent as the `User-Agent` header on every request. Override if you want
 your application to be attributable in Brew's server logs:
@@ -78,7 +78,7 @@ your application to be attributable in Brew's server logs:
 ```ts
 const brew = createBrewClient({
   apiKey: process.env.BREW_API_KEY!,
-  userAgent: `acme-billing/${process.env.APP_VERSION!} (brew-typescript-sdk)`,
+  userAgent: `acme-billing/${process.env.APP_VERSION!} (brew.new-sdk)`,
 })
 ```
 

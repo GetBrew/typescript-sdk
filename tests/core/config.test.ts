@@ -36,7 +36,7 @@ describe('resolveConfig', () => {
     })
 
     it('DEFAULT_USER_AGENT identifies this SDK by name', () => {
-      expect(DEFAULT_USER_AGENT).toMatch(/^brew-typescript-sdk\//)
+      expect(DEFAULT_USER_AGENT).toMatch(/^brew\.new-sdk\//)
     })
   })
 
