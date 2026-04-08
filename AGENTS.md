@@ -162,8 +162,8 @@ tests/
 Files under `src/generated/` are produced from the OpenAPI spec in the app
 repo. Never hand-edit them.
 
-## External design doc
+## Design doc
 
 The full design rationale (DX bar, resource surface, retry matrix, testing
-strategy, release flow) lives in `public-api-sdk-oss-plan.md` in the parent
-workspace. Read that before making architectural changes.
+strategy, release flow) lives in `public-api-sdk-oss-plan.md` at the repo
+root. Read that before making architectural changes.
