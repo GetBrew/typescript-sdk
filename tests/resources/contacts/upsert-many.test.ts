@@ -13,10 +13,7 @@ describe('contacts.upsertMany', () => {
         capturedBody = await request.json()
         return HttpResponse.json(
           {
-            contacts: [
-              { email: 'a@example.com' },
-              { email: 'b@example.com' },
-            ],
+            contacts: [{ email: 'a@example.com' }, { email: 'b@example.com' }],
           },
           { status: 201 }
         )

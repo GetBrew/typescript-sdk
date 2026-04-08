@@ -23,7 +23,9 @@ export function createCountContacts(client: HttpClient) {
       query: {
         action: 'count',
         filters:
-          input.filters === undefined ? undefined : JSON.stringify(input.filters),
+          input.filters === undefined
+            ? undefined
+            : JSON.stringify(input.filters),
       },
     })
     return response.data.count

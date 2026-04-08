@@ -3,6 +3,7 @@ import type {
   BrewFetch,
   ResolvedBrewClientConfig,
 } from '../types'
+import { SDK_NAME, SDK_VERSION } from '../version'
 
 /**
  * Production base URL for the Brew public API. Exposed as a constant so
@@ -28,9 +29,10 @@ export const DEFAULT_MAX_RETRIES = 2
 
 /**
  * Default `User-Agent` value. Identifies the SDK and its version so
- * incoming requests are attributable in server logs.
+ * incoming requests are attributable in server logs. Sourced from
+ * `src/version.ts` so bumping the version in one place propagates here.
  */
-export const DEFAULT_USER_AGENT = 'brew-typescript-sdk/0.0.0'
+export const DEFAULT_USER_AGENT = `${SDK_NAME}/${SDK_VERSION}`
 
 export type ResolveConfigInput = {
   readonly userConfig: BrewClientConfig

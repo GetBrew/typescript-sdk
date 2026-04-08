@@ -12,10 +12,7 @@ describe('contacts.list', () => {
       http.get('https://brew.new/api/v1/contacts', ({ request }) => {
         capturedRequest = request
         return HttpResponse.json({
-          contacts: [
-            { email: 'a@example.com' },
-            { email: 'b@example.com' },
-          ],
+          contacts: [{ email: 'a@example.com' }, { email: 'b@example.com' }],
           nextCursor: 'cursor_abc',
         })
       })

@@ -23,7 +23,9 @@ export type ListContactsResponse = {
  * they pass `cursor` from the previous response's `nextCursor`.
  */
 export function createListContacts(client: HttpClient) {
-  return async (input: ListContactsInput = {}): Promise<ListContactsResponse> => {
+  return async (
+    input: ListContactsInput = {}
+  ): Promise<ListContactsResponse> => {
     const response = await client.request<ListContactsResponse>({
       method: 'GET',
       path: '/v1/contacts',
@@ -31,7 +33,9 @@ export function createListContacts(client: HttpClient) {
         limit: input.limit,
         cursor: input.cursor,
         filters:
-          input.filters === undefined ? undefined : JSON.stringify(input.filters),
+          input.filters === undefined
+            ? undefined
+            : JSON.stringify(input.filters),
       },
     })
     return response.data
