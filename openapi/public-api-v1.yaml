@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: Brew Public API v1
   version: 1.0.0
-  description: Generated from the Brew app Zod contracts for the current `/api/v1/contacts` and `/api/v1/fields` endpoints. This file is the source of truth for the public contacts API documentation.
+  description: Generated from the Brew app Zod contracts for the current `/api/v1/contacts`, `/api/v1/audiences`, `/api/v1/brands`, `/api/v1/domains`, `/api/v1/fields`, `/api/v1/emails`, `/api/v1/templates`, and `/api/v1/sends` endpoints. This file is the source of truth for the public API documentation.
   contact:
     name: Brew Support
     url: https://docs.getbrew.io
@@ -18,8 +18,20 @@ security:
 tags:
   - name: Contacts
     description: Create, query, patch, and delete contacts.
+  - name: Audiences
+    description: List saved audiences available for the org.
+  - name: Brands
+    description: Create brands and list completed brands available for email generation.
+  - name: Domains
+    description: List verified sending domains available for the org.
   - name: Contact Fields
     description: List, create, and delete custom contact field definitions.
+  - name: Emails
+    description: Generate draft emails through the Brew email agent.
+  - name: Templates
+    description: List public templates that can be used as references.
+  - name: Sends
+    description: Start async send jobs for saved emails.
 components:
   securitySchemes:
     bearerAuth:
@@ -518,6 +530,87 @@ components:
           required:
             - emails
           additionalProperties: false
+    AudiencesListResponse:
+      type: object
+      properties:
+        audiences:
+          type: array
+          items:
+            type: object
+            properties:
+              audienceId:
+                type: string
+                minLength: 1
+              audienceName:
+                type: string
+                minLength: 1
+            required:
+              - audienceId
+              - audienceName
+            additionalProperties: false
+      required:
+        - audiences
+      additionalProperties: false
+    BrandsCreateResponse:
+      type: object
+      properties:
+        brandId:
+          type: string
+          minLength: 1
+      required:
+        - brandId
+      additionalProperties: false
+    BrandsCreateRequest:
+      type: object
+      properties:
+        brandUrl:
+          type: string
+          minLength: 1
+      required:
+        - brandUrl
+      additionalProperties: false
+    BrandsListResponse:
+      type: object
+      properties:
+        brands:
+          type: array
+          items:
+            type: object
+            properties:
+              brandId:
+                type: string
+                minLength: 1
+              brandUrl:
+                type: string
+                format: uri
+            required:
+              - brandId
+              - brandUrl
+            additionalProperties: false
+      required:
+        - brands
+      additionalProperties: false
+    DomainsListResponse:
+      type: object
+      properties:
+        domains:
+          type: array
+          items:
+            type: object
+            properties:
+              domainId:
+                type: string
+                minLength: 1
+              domainUrl:
+                type: string
+                format: uri
+            required:
+              - domainId
+              - domainUrl
+            additionalProperties: false
+      required:
+        - domains
+      additionalProperties: false
     FieldsGetResponse:
       type: object
       properties:
@@ -589,6 +682,147 @@ components:
       required:
         - fieldName
       additionalProperties: false
+    EmailsListResponse:
+      type: object
+      properties:
+        emails:
+          type: array
+          items:
+            type: object
+            properties:
+              emailId:
+                type: string
+                minLength: 1
+              emailTitle:
+                type: string
+                minLength: 1
+            required:
+              - emailId
+              - emailTitle
+            additionalProperties: false
+      required:
+        - emails
+      additionalProperties: false
+    EmailGenerateResponse:
+      anyOf:
+        - type: object
+          properties:
+            emailId:
+              type: string
+              minLength: 1
+            emailHtml:
+              type: string
+            emailPng:
+              type: string
+              format: uri
+            emailMobilePng:
+              type: string
+              format: uri
+          required:
+            - emailId
+            - emailHtml
+          additionalProperties: false
+        - type: object
+          properties:
+            response:
+              type: string
+              minLength: 1
+          required:
+            - response
+          additionalProperties: false
+    EmailGenerateRequest:
+      type: object
+      properties:
+        prompt:
+          type: string
+          minLength: 1
+        brandId:
+          type: string
+        contentUrl:
+          type: string
+          format: uri
+        referenceEmailId:
+          type: string
+      required:
+        - prompt
+      additionalProperties: false
+    TemplatesListResponse:
+      type: object
+      properties:
+        templates:
+          type: array
+          items:
+            type: object
+            properties:
+              emailId:
+                type: string
+                minLength: 1
+              emailHtml:
+                type: string
+                minLength: 1
+              emailPng:
+                type: string
+                format: uri
+            required:
+              - emailId
+              - emailHtml
+              - emailPng
+            additionalProperties: false
+      required:
+        - templates
+      additionalProperties: false
+    SendsPostResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - queued
+            - scheduled
+        runId:
+          type: string
+          minLength: 1
+        scheduledAt:
+          type: string
+          format: date-time
+      required:
+        - status
+        - runId
+      additionalProperties: false
+    SendsPostRequest:
+      type: object
+      properties:
+        emailId:
+          type: string
+          minLength: 1
+        domainId:
+          type: string
+          minLength: 1
+        subject:
+          type: string
+          minLength: 1
+        previewText:
+          type: string
+          maxLength: 50
+        replyTo:
+          type: string
+          format: email
+        audienceId:
+          type: string
+          minLength: 1
+        emails:
+          type: array
+          items:
+            type: string
+            format: email
+        scheduledAt:
+          type: string
+          format: date-time
+      required:
+        - emailId
+        - domainId
+        - subject
+      additionalProperties: false
   parameters: {}
 paths:
   /v1/contacts:
@@ -596,7 +830,7 @@ paths:
       operationId: getContacts
       tags:
         - Contacts
-      summary: List contacts, count contacts, or look up one contact by email
+      summary: List Contacts
       description: This endpoint supports three modes. Use `email` for single contact lookup. Use `count=true` to return only the count. Without either, Brew returns a paginated contact list.
       parameters:
         - name: email
@@ -938,10 +1172,11 @@ paths:
       operationId: upsertContacts
       tags:
         - Contacts
-      summary: Create or upsert one contact or a batch of contacts
+      summary: Upsert Contacts
       description: 'Send either one contact object or a `{ contacts: [...] }` batch payload. Brew auto creates missing custom field definitions, supports idempotency, and returns `207` for batch partial failures.'
       parameters:
-        - name: Idempotency-Key
+        - &a2
+          name: Idempotency-Key
           in: header
           required: false
           description: Optional idempotency key for safe retries. Reusing the same key with the same request body returns the original response for 24 hours.
@@ -949,7 +1184,7 @@ paths:
             type: string
             minLength: 1
             maxLength: 100
-          example: contacts-import-2026-04-08-001
+          example: api-request-2026-04-08-001
       requestBody:
         required: true
         description: Single contact payload or batch contact payload.
@@ -1301,7 +1536,7 @@ paths:
       operationId: patchContact
       tags:
         - Contacts
-      summary: Patch an existing contact
+      summary: Update Contact
       description: Update writable core fields or existing custom fields on one contact. PATCH does not create new contacts or new fields.
       requestBody:
         required: true
@@ -1588,7 +1823,7 @@ paths:
       operationId: deleteContacts
       tags:
         - Contacts
-      summary: Delete one contact or a batch of contacts
+      summary: Delete Contacts
       description: Send either one email or an `emails` array. Single delete returns `404` when the contact does not exist. Batch delete returns the delete count.
       requestBody:
         required: true
@@ -1803,12 +2038,557 @@ paths:
                   message: An unexpected error occurred.
                   suggestion: Retry the request. If it keeps failing, contact support.
                   docs: https://docs.getbrew.io/api/contacts#errors
+  /v1/audiences:
+    get:
+      operationId: listAudiences
+      tags:
+        - Audiences
+      summary: List Audiences
+      description: Returns saved audiences for the current organization. Synthetic All Contacts is not included.
+      responses:
+        '200':
+          description: Saved audiences for this organization.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AudiencesListResponse'
+              example:
+                audiences:
+                  - audienceId: jn7a8w4q8m9k2p1x7c3b5v6n9h7s2d4f
+                    audienceName: Nordic Founders
+        '401':
+          description: The API key was missing, invalid, or revoked.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INVALID_API_KEY
+                  type: authentication_error
+                  message: The provided API key is invalid.
+                  suggestion: Check the API key format and retry with a valid active key.
+                  docs: https://docs.getbrew.io/api/authentication
+        '403':
+          description: The caller does not have the required contacts permission.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INSUFFICIENT_PERMISSIONS
+                  type: authorization_error
+                  message: The caller does not have the required permission.
+                  suggestion: Use an API key or session with the required permission.
+                  docs: https://docs.getbrew.io/api/authentication
+                  param: contacts
+        '500':
+          description: Unexpected internal error.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INTERNAL_ERROR
+                  type: internal_error
+                  message: An unexpected error occurred.
+                  suggestion: Retry the request. If it keeps failing, contact support.
+                  docs: https://docs.getbrew.io/api/contacts#errors
+  /v1/brands:
+    post:
+      operationId: createBrand
+      tags:
+        - Brands
+      summary: Create Brand
+      description: Creates or reuses a brand for the current organization from a website URL. The request waits for phase 1 extraction to finish, then returns a `brandId` that is immediately usable with email generation. POST supports idempotency for safe retries.
+      parameters:
+        - *a2
+      requestBody:
+        required: true
+        description: Brand website URL or bare domain.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BrandsCreateRequest'
+            example:
+              brandUrl: https://example.com
+      responses:
+        '200':
+          description: Brand phase 1 extraction completed and the returned brand is ready for email generation.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BrandsCreateResponse'
+              example:
+                brandId: jn7a8w4q8m9k2p1x7c3b5v6n9h7s2d4f
+        '400':
+          description: The JSON body shape or brand URL was invalid.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INVALID_REQUEST
+                  type: invalid_request
+                  message: brandUrl must be a valid public URL or domain.
+                  suggestion: Fix the request payload and retry.
+                  docs: https://docs.getbrew.io/api
+                  param: brandUrl
+        '401':
+          description: The API key was missing, invalid, or revoked.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INVALID_API_KEY
+                  type: authentication_error
+                  message: The provided API key is invalid.
+                  suggestion: Check the API key format and retry with a valid active key.
+                  docs: https://docs.getbrew.io/api/authentication
+        '403':
+          description: The caller does not have the required emails permission.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INSUFFICIENT_PERMISSIONS
+                  type: authorization_error
+                  message: The caller does not have the required permission.
+                  suggestion: Use an API key or session with the required permission.
+                  docs: https://docs.getbrew.io/api/authentication
+                  param: emails
+        '409':
+          description: The same idempotency key was reused with a different request body.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: IDEMPOTENCY_CONFLICT
+                  type: conflict
+                  message: The same idempotency key was reused with a different request payload.
+                  suggestion: Reuse the original payload or send a new idempotency key.
+                  docs: https://docs.getbrew.io/api/idempotency
+        '429':
+          description: The request hit the rolling rate limit window.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+            Retry-After:
+              schema:
+                type: integer
+                description: Seconds to wait before retrying the request.
+                example: 42
+              required: true
+              description: Seconds to wait before retrying the request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: RATE_LIMITED
+                  type: rate_limit
+                  message: Too many requests.
+                  suggestion: Wait for the retry window before sending another request.
+                  docs: https://docs.getbrew.io/api/rate-limiting
+                  retryAfter: 42
+        '500':
+          description: The extraction failed or did not complete before the route timeout.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INTERNAL_ERROR
+                  type: internal_error
+                  message: An unexpected error occurred.
+                  suggestion: Retry the request. If it keeps failing, contact support.
+                  docs: https://docs.getbrew.io/api
+    get:
+      operationId: listBrands
+      tags:
+        - Brands
+      summary: List Brands
+      description: Returns completed brands for the current organization that can be used as `brandId` with email generation.
+      responses:
+        '200':
+          description: Completed brands available to the current organization.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BrandsListResponse'
+              example:
+                brands:
+                  - brandId: jn7a8w4q8m9k2p1x7c3b5v6n9h7s2d4f
+                    brandUrl: https://example.com
+        '401':
+          description: The API key was missing, invalid, or revoked.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INVALID_API_KEY
+                  type: authentication_error
+                  message: The provided API key is invalid.
+                  suggestion: Check the API key format and retry with a valid active key.
+                  docs: https://docs.getbrew.io/api/authentication
+        '403':
+          description: The caller does not have the required emails permission.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INSUFFICIENT_PERMISSIONS
+                  type: authorization_error
+                  message: The caller does not have the required permission.
+                  suggestion: Use an API key or session with the required permission.
+                  docs: https://docs.getbrew.io/api/authentication
+                  param: emails
+        '500':
+          description: Unexpected internal error.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INTERNAL_ERROR
+                  type: internal_error
+                  message: An unexpected error occurred.
+                  suggestion: Retry the request. If it keeps failing, contact support.
+                  docs: https://docs.getbrew.io/api/email#errors
+  /v1/domains:
+    get:
+      operationId: listDomains
+      tags:
+        - Domains
+      summary: List Domains
+      description: Returns verified sending domains for the current organization.
+      responses:
+        '200':
+          description: Verified sending domains for this organization.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DomainsListResponse'
+              example:
+                domains:
+                  - domainId: jn7a8w4q8m9k2p1x7c3b5v6n9h7s2d4f
+                    domainUrl: https://example.com
+        '401':
+          description: The API key was missing, invalid, or revoked.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INVALID_API_KEY
+                  type: authentication_error
+                  message: The provided API key is invalid.
+                  suggestion: Check the API key format and retry with a valid active key.
+                  docs: https://docs.getbrew.io/api/authentication
+        '403':
+          description: The caller does not have the required emails permission.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INSUFFICIENT_PERMISSIONS
+                  type: authorization_error
+                  message: The caller does not have the required permission.
+                  suggestion: Use an API key or session with the required permission.
+                  docs: https://docs.getbrew.io/api/authentication
+                  param: emails
+        '500':
+          description: Unexpected internal error.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INTERNAL_ERROR
+                  type: internal_error
+                  message: An unexpected error occurred.
+                  suggestion: Retry the request. If it keeps failing, contact support.
+                  docs: https://docs.getbrew.io/api/email#errors
   /v1/fields:
     get:
       operationId: listContactFields
       tags:
         - Contact Fields
-      summary: List contact field definitions
+      summary: List Fields
       description: Returns both core contact fields and custom field definitions available for the current organization.
       responses:
         '200':
@@ -1909,18 +2689,10 @@ paths:
       operationId: createContactField
       tags:
         - Contact Fields
-      summary: Create a custom contact field definition
+      summary: Create Field
       description: Creates or upserts a custom field definition for contacts. Core fields cannot be recreated as custom fields. POST supports idempotency.
       parameters:
-        - name: Idempotency-Key
-          in: header
-          required: false
-          description: Optional idempotency key for safe retries. Reusing the same key with the same request body returns the original response for 24 hours.
-          schema:
-            type: string
-            minLength: 1
-            maxLength: 100
-          example: contacts-import-2026-04-08-001
+        - *a2
       requestBody:
         required: true
         description: Custom field name and type.
@@ -2155,7 +2927,7 @@ paths:
       operationId: deleteContactField
       tags:
         - Contact Fields
-      summary: Delete a custom contact field definition
+      summary: Delete Field
       description: Deletes one custom field definition. Core fields cannot be deleted.
       requestBody:
         required: true
@@ -2384,4 +3156,942 @@ paths:
                   message: An unexpected error occurred.
                   suggestion: Retry the request. If it keeps failing, contact support.
                   docs: https://docs.getbrew.io/api/contacts#errors
+  /v1/emails:
+    get:
+      operationId: listEmails
+      tags:
+        - Emails
+      summary: List Emails
+      description: Returns the latest logical emails for the current organization. Historical versions are not exposed.
+      parameters:
+        - schema:
+            type: string
+            enum:
+              - streaming
+              - complete
+              - error
+          required: false
+          name: status
+          in: query
+        - schema:
+            type: string
+            format: date-time
+          required: false
+          name: createdAtFrom
+          in: query
+        - schema:
+            type: string
+            format: date-time
+          required: false
+          name: createdAtTo
+          in: query
+        - schema:
+            type: string
+            format: date-time
+          required: false
+          name: updatedAtFrom
+          in: query
+        - schema:
+            type: string
+            format: date-time
+          required: false
+          name: updatedAtTo
+          in: query
+      responses:
+        '200':
+          description: Latest logical emails for this organization.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmailsListResponse'
+              example:
+                emails:
+                  - emailId: 57Kg4U61MM8_Wi2Ix8QB-
+                    emailTitle: Welcome Email
+        '400':
+          description: The query params were invalid.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INVALID_REQUEST
+                  type: invalid_request
+                  message: 'status must be one of: streaming, complete, error.'
+                  suggestion: Fix the request query and retry.
+                  docs: https://docs.getbrew.io/api/email#errors
+                  param: status
+        '401':
+          description: The API key was missing, invalid, or revoked.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INVALID_API_KEY
+                  type: authentication_error
+                  message: The provided API key is invalid.
+                  suggestion: Check the API key format and retry with a valid active key.
+                  docs: https://docs.getbrew.io/api/authentication
+        '403':
+          description: The caller does not have the required emails permission.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INSUFFICIENT_PERMISSIONS
+                  type: authorization_error
+                  message: The caller does not have the required permission.
+                  suggestion: Use an API key or session with the required permission.
+                  docs: https://docs.getbrew.io/api/authentication
+                  param: emails
+        '500':
+          description: Unexpected internal error.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INTERNAL_ERROR
+                  type: internal_error
+                  message: An unexpected error occurred.
+                  suggestion: Retry the request. If it keeps failing, contact support.
+                  docs: https://docs.getbrew.io/api/email#errors
+    post:
+      operationId: generateEmail
+      tags:
+        - Emails
+      summary: Generate Email
+      description: Generates a draft email through the Brew email agent. POST supports idempotency for safe retries.
+      parameters:
+        - *a2
+      requestBody:
+        required: true
+        description: Email generation prompt and optional brand context.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmailGenerateRequest'
+            example:
+              prompt: Create a welcome email for new customers who joined Brew today.
+              brandId: jn7a8w4q8m9k2p1x7c3b5v6n9h7s2d4f
+              contentUrl: https://example.com/blog/product-launch
+      responses:
+        '200':
+          description: Generated email artifact or a text response if no email artifact was produced.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmailGenerateResponse'
+              examples:
+                generated:
+                  summary: Generated email
+                  value:
+                    emailId: email_2SmZOWV3ZQ7W5x6g3m4p
+                    emailHtml: <!DOCTYPE html><html><body>Welcome to Brew.</body></html>
+                    emailPng: https://storage.example.com/emails/email_2SmZOWV3ZQ7W5x6g3m4p.png
+                textOnly:
+                  summary: Text response
+                  value:
+                    response: No email was generated.
+        '400':
+          description: The JSON body shape was invalid.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INVALID_REQUEST
+                  type: invalid_request
+                  message: 'Unrecognized key: "extra"'
+                  suggestion: Fix the request payload and retry.
+                  docs: https://docs.getbrew.io/api/email#errors
+                  param: extra
+        '401':
+          description: The API key was missing, invalid, or revoked.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INVALID_API_KEY
+                  type: authentication_error
+                  message: The provided API key is invalid.
+                  suggestion: Check the API key format and retry with a valid active key.
+                  docs: https://docs.getbrew.io/api/authentication
+        '403':
+          description: The caller does not have the required emails permission.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INSUFFICIENT_PERMISSIONS
+                  type: authorization_error
+                  message: The caller does not have the required permission.
+                  suggestion: Use an API key or session with the required permission.
+                  docs: https://docs.getbrew.io/api/authentication
+                  param: emails
+        '404':
+          description: The requested brand was missing or not accessible.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: BRAND_NOT_FOUND
+                  type: not_found
+                  message: The requested brand 'jn7a8w4q8m9k2p1x7c3b5v6n9h7s2d4f' was not found.
+                  suggestion: Use a completed brand that belongs to this organization, or omit brandId.
+                  docs: https://docs.getbrew.io/api/email#errors
+                  param: brandId
+        '409':
+          description: The same idempotency key was reused with a different request body.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: IDEMPOTENCY_CONFLICT
+                  type: conflict
+                  message: The same idempotency key was reused with a different request payload.
+                  suggestion: Reuse the original payload or send a new idempotency key.
+                  docs: https://docs.getbrew.io/api/idempotency
+        '422':
+          description: The request was valid JSON but failed email generation validation.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: BRAND_NOT_READY
+                  type: invalid_request
+                  message: The requested brand 'jn7a8w4q8m9k2p1x7c3b5v6n9h7s2d4f' is not ready for email generation.
+                  suggestion: Wait for brand extraction to complete, use a completed brand, or omit brandId.
+                  docs: https://docs.getbrew.io/api/email#errors
+                  param: brandId
+        '429':
+          description: The request hit the rolling rate limit window.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+            Retry-After:
+              schema:
+                type: integer
+                description: Seconds to wait before retrying the request.
+                example: 42
+              required: true
+              description: Seconds to wait before retrying the request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: RATE_LIMITED
+                  type: rate_limit
+                  message: Too many requests.
+                  suggestion: Wait for the retry window before sending another request.
+                  docs: https://docs.getbrew.io/api/rate-limiting
+                  retryAfter: 42
+        '500':
+          description: Unexpected internal error.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INTERNAL_ERROR
+                  type: internal_error
+                  message: An unexpected error occurred.
+                  suggestion: Retry the request. If it keeps failing, contact support.
+                  docs: https://docs.getbrew.io/api/email#errors
+  /v1/templates:
+    get:
+      operationId: listTemplates
+      tags:
+        - Templates
+      summary: List Templates
+      description: Returns public email templates. Supports exact `brand` and `category` filters plus a lightweight text style `semantic` filter over template metadata.
+      parameters:
+        - schema:
+            type: string
+            minLength: 1
+          required: false
+          name: brand
+          in: query
+        - schema:
+            type: string
+            minLength: 1
+          required: false
+          name: category
+          in: query
+        - schema:
+            type: string
+            minLength: 1
+          required: false
+          name: semantic
+          in: query
+      responses:
+        '200':
+          description: Public templates matching the requested filters.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplatesListResponse'
+              example:
+                templates:
+                  - emailId: seed-vercel-newsletter
+                    emailHtml: <html><body>Frontend digest</body></html>
+                    emailPng: https://cdn.brew.new/seed-vercel.com-seed-vercel-newsletter.png
+        '400':
+          description: The query parameters were invalid.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INVALID_REQUEST
+                  type: invalid_request
+                  message: brand must be a non-empty string.
+                  suggestion: Fix the request query and retry.
+                  docs: https://docs.getbrew.io/api
+                  param: brand
+        '401':
+          description: The API key was missing, invalid, or revoked.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INVALID_API_KEY
+                  type: authentication_error
+                  message: The provided API key is invalid.
+                  suggestion: Check the API key format and retry with a valid active key.
+                  docs: https://docs.getbrew.io/api/authentication
+        '403':
+          description: The caller does not have the required emails permission.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INSUFFICIENT_PERMISSIONS
+                  type: authorization_error
+                  message: The caller does not have the required permission.
+                  suggestion: Use an API key or session with the required permission.
+                  docs: https://docs.getbrew.io/api/authentication
+                  param: emails
+        '429':
+          description: The request hit the rolling rate limit window.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+            Retry-After:
+              schema:
+                type: integer
+                description: Seconds to wait before retrying the request.
+                example: 42
+              required: true
+              description: Seconds to wait before retrying the request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: RATE_LIMITED
+                  type: rate_limit
+                  message: Too many requests.
+                  suggestion: Wait for the retry window before sending another request.
+                  docs: https://docs.getbrew.io/api/rate-limiting
+                  retryAfter: 42
+        '500':
+          description: Unexpected internal error.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INTERNAL_ERROR
+                  type: internal_error
+                  message: An unexpected error occurred.
+                  suggestion: Retry the request. If it keeps failing, contact support.
+                  docs: https://docs.getbrew.io/api
+  /v1/sends:
+    post:
+      operationId: createSend
+      tags:
+        - Sends
+      summary: Create Send
+      description: Starts an async send job for a saved email. Use audienceId or explicit emails. POST supports idempotency for safe retries.
+      parameters:
+        - *a2
+      requestBody:
+        required: true
+        description: Send request for an existing saved email.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendsPostRequest'
+            examples:
+              audience:
+                summary: Audience send
+                value:
+                  emailId: email_123
+                  domainId: domain_123
+                  subject: Welcome to Brew
+                  audienceId: audience_123
+                  scheduledAt: 2099-01-01T00:00:00.000Z
+              manual:
+                summary: Manual email send
+                value:
+                  emailId: email_123
+                  domainId: domain_123
+                  subject: Welcome to Brew
+                  emails:
+                    - ada@example.com
+                    - grace@example.com
+      responses:
+        '202':
+          description: The send was accepted and queued or scheduled.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendsPostResponse'
+              example:
+                status: scheduled
+                runId: wf_123
+                scheduledAt: 2099-01-01T00:00:00.000Z
+        '400':
+          description: The JSON body shape was invalid.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INVALID_REQUEST
+                  type: invalid_request
+                  message: Provide exactly one of audienceId or emails.
+                  suggestion: Fix the request payload and retry.
+                  docs: https://docs.getbrew.io/api/sends#errors
+                  param: audienceId
+        '401':
+          description: The API key was missing, invalid, or revoked.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INVALID_API_KEY
+                  type: authentication_error
+                  message: The provided API key is invalid.
+                  suggestion: Check the API key format and retry with a valid active key.
+                  docs: https://docs.getbrew.io/api/authentication
+        '403':
+          description: The caller does not have the required emails permission.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INSUFFICIENT_PERMISSIONS
+                  type: authorization_error
+                  message: The caller does not have the required permission.
+                  suggestion: Use an API key or session with the required permission.
+                  docs: https://docs.getbrew.io/api/authentication
+                  param: emails
+        '404':
+          description: The requested email, domain, or audience was not found.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: EMAIL_NOT_FOUND
+                  type: not_found
+                  message: The requested email 'email_123' was not found.
+                  suggestion: Use GET /api/v1/emails to choose an existing saved email for this organization.
+                  docs: https://docs.getbrew.io/api/sends#errors
+                  param: emailId
+        '409':
+          description: The send conflicted with an existing send or the same idempotency key was reused with a different request body.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              examples:
+                alreadySent:
+                  summary: Email already has a send
+                  value:
+                    error:
+                      code: EMAIL_ALREADY_SENT
+                      type: conflict
+                      message: The requested email 'email_123' has already been sent.
+                      suggestion: Duplicate the email or create a new email record before sending again.
+                      docs: https://docs.getbrew.io/api/sends#errors
+                      param: emailId
+                idempotencyConflict:
+                  summary: Idempotency conflict
+                  value:
+                    error:
+                      code: IDEMPOTENCY_CONFLICT
+                      type: conflict
+                      message: The same idempotency key was reused with a different request payload.
+                      suggestion: Reuse the original payload or send a new idempotency key.
+                      docs: https://docs.getbrew.io/api/idempotency
+        '422':
+          description: The request was valid JSON but the resource was not ready.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              examples:
+                domainNotReady:
+                  summary: Domain not verified
+                  value:
+                    error:
+                      code: DOMAIN_NOT_READY
+                      type: invalid_request
+                      message: The requested domain 'domain_123' is not verified for sending.
+                      suggestion: Use a verified domain, or finish domain verification before sending.
+                      docs: https://docs.getbrew.io/api/sends#errors
+                      param: domainId
+                emailNotReady:
+                  summary: Email not ready
+                  value:
+                    error:
+                      code: EMAIL_NOT_READY
+                      type: invalid_request
+                      message: The requested email 'email_123' is not ready to send.
+                      suggestion: Use a completed non archived email, or wait for generation to finish.
+                      docs: https://docs.getbrew.io/api/sends#errors
+                      param: emailId
+        '429':
+          description: The request hit the rolling rate limit window.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+            Retry-After:
+              schema:
+                type: integer
+                description: Seconds to wait before retrying the request.
+                example: 42
+              required: true
+              description: Seconds to wait before retrying the request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: RATE_LIMITED
+                  type: rate_limit
+                  message: Too many requests.
+                  suggestion: Wait for the retry window before sending another request.
+                  docs: https://docs.getbrew.io/api/rate-limiting
+                  retryAfter: 42
+        '500':
+          description: Unexpected internal error.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+              example:
+                error:
+                  code: INTERNAL_ERROR
+                  type: internal_error
+                  message: An unexpected error occurred.
+                  suggestion: Retry the request. If it keeps failing, contact support.
+                  docs: https://docs.getbrew.io/api/sends#errors
 webhooks: {}

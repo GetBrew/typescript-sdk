@@ -64,14 +64,24 @@ etc.).
 
 | Topic                      | File                                                                   |
 | -------------------------- | ---------------------------------------------------------------------- |
+| Audiences resource         | [`docs/audiences.md`](./docs/audiences.md)                             |
+| Brands resource            | [`docs/brands.md`](./docs/brands.md)                                   |
 | Client configuration       | [`docs/configuration.md`](./docs/configuration.md)                     |
 | Contacts resource          | [`docs/contacts.md`](./docs/contacts.md)                               |
+| Domains resource           | [`docs/domains.md`](./docs/domains.md)                                 |
+| Emails resource            | [`docs/emails.md`](./docs/emails.md)                                   |
 | Fields resource            | [`docs/fields.md`](./docs/fields.md)                                   |
 | Error handling             | [`docs/errors.md`](./docs/errors.md)                                   |
 | Retries + idempotency      | [`docs/retries-and-idempotency.md`](./docs/retries-and-idempotency.md) |
+| Sends resource             | [`docs/sends.md`](./docs/sends.md)                                     |
+| Templates resource         | [`docs/templates.md`](./docs/templates.md)                             |
 | Development + OpenAPI sync | [`docs/development.md`](./docs/development.md)                         |
 
 ## Development
+
+Use a modern Node 20 or newer runtime for SDK development. On this
+machine, Vitest worked with Node `20.19.2` and newer, but failed on the
+older system Node `20.10.0`.
 
 ```bash
 bun install

@@ -1,13 +1,37 @@
 import { resolveConfig } from './core/config'
 import { createHttpClient, type HttpTuning } from './core/http'
 import {
+  createAudiencesResource,
+  type AudiencesResource,
+} from './resources/audiences/resource'
+import {
   createContactsResource,
   type ContactsResource,
 } from './resources/contacts/resource'
 import {
+  createBrandsResource,
+  type BrandsResource,
+} from './resources/brands/resource'
+import {
   createFieldsResource,
   type FieldsResource,
 } from './resources/fields/resource'
+import {
+  createDomainsResource,
+  type DomainsResource,
+} from './resources/domains/resource'
+import {
+  createEmailsResource,
+  type EmailsResource,
+} from './resources/emails/resource'
+import {
+  createSendsResource,
+  type SendsResource,
+} from './resources/sends/resource'
+import {
+  createTemplatesResource,
+  type TemplatesResource,
+} from './resources/templates/resource'
 import type { BrewClientConfig } from './types'
 
 /**
@@ -16,8 +40,14 @@ import type { BrewClientConfig } from './types'
  * the wire-up in `createBrewClient`.
  */
 export type BrewClient = {
+  readonly audiences: AudiencesResource
+  readonly brands: BrandsResource
   readonly contacts: ContactsResource
+  readonly domains: DomainsResource
+  readonly emails: EmailsResource
   readonly fields: FieldsResource
+  readonly sends: SendsResource
+  readonly templates: TemplatesResource
 }
 
 /**
@@ -50,7 +80,13 @@ export function createBrewClient(
   const config = resolveConfig({ userConfig })
   const httpClient = createHttpClient(config, tuning ?? {})
   return {
+    audiences: createAudiencesResource(httpClient),
+    brands: createBrandsResource(httpClient),
     contacts: createContactsResource(httpClient),
+    domains: createDomainsResource(httpClient),
+    emails: createEmailsResource(httpClient),
     fields: createFieldsResource(httpClient),
+    sends: createSendsResource(httpClient),
+    templates: createTemplatesResource(httpClient),
   }
 }

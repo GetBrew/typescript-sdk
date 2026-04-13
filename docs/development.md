@@ -62,6 +62,10 @@ Both checkouts live under `~/Desktop/`:
 Most commands assume that layout. If your local layout differs, adjust
 the relative path in the `cp` step below.
 
+Use a modern Node 20 or newer runtime for SDK development. On this
+machine, Vitest worked with Node `20.19.2` and newer, but failed on the
+older system Node `20.10.0`.
+
 ---
 
 ## End-to-end: shipping a new endpoint
@@ -530,8 +534,14 @@ src/
 │   ├── idempotency.ts          generateIdempotencyKey + resolveIdempotencyKey
 │   └── config.ts               resolveConfig with defaults + late-binding fetch
 └── resources/
+    ├── audiences/              Same pattern
+    ├── brands/                 Same pattern
     ├── contacts/               One file per method + types.ts + resource.ts
-    └── fields/                 Same pattern
+    ├── domains/                Same pattern
+    ├── emails/                 Same pattern
+    ├── fields/                 Same pattern
+    ├── sends/                  Same pattern
+    └── templates/              Same pattern
 
 tests/
 ├── integration.test.ts         End-to-end through createBrewClient

@@ -37,6 +37,9 @@ describe('createBrewClient — end-to-end', () => {
   it('exposes every resource method on the public client surface', () => {
     const brew = makeIntegrationClient()
 
+    expect(typeof brew.audiences.list).toBe('function')
+    expect(typeof brew.brands.create).toBe('function')
+    expect(typeof brew.brands.list).toBe('function')
     expect(typeof brew.contacts.list).toBe('function')
     expect(typeof brew.contacts.count).toBe('function')
     expect(typeof brew.contacts.getByEmail).toBe('function')
@@ -46,9 +49,14 @@ describe('createBrewClient — end-to-end', () => {
     expect(typeof brew.contacts.delete).toBe('function')
     expect(typeof brew.contacts.deleteMany).toBe('function')
 
+    expect(typeof brew.domains.list).toBe('function')
+    expect(typeof brew.emails.list).toBe('function')
+    expect(typeof brew.emails.generate).toBe('function')
     expect(typeof brew.fields.list).toBe('function')
     expect(typeof brew.fields.create).toBe('function')
     expect(typeof brew.fields.delete).toBe('function')
+    expect(typeof brew.sends.create).toBe('function')
+    expect(typeof brew.templates.list).toBe('function')
   })
 
   it('runs a full upsert-then-fetch happy path through contacts', async () => {

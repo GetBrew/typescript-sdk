@@ -12,28 +12,92 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List contacts, count contacts, or look up one contact by email
+         * List Contacts
          * @description This endpoint supports three modes. Use `email` for single contact lookup. Use `count=true` to return only the count. Without either, Brew returns a paginated contact list.
          */
         get: operations["getContacts"];
         put?: never;
         /**
-         * Create or upsert one contact or a batch of contacts
+         * Upsert Contacts
          * @description Send either one contact object or a `{ contacts: [...] }` batch payload. Brew auto creates missing custom field definitions, supports idempotency, and returns `207` for batch partial failures.
          */
         post: operations["upsertContacts"];
         /**
-         * Delete one contact or a batch of contacts
+         * Delete Contacts
          * @description Send either one email or an `emails` array. Single delete returns `404` when the contact does not exist. Batch delete returns the delete count.
          */
         delete: operations["deleteContacts"];
         options?: never;
         head?: never;
         /**
-         * Patch an existing contact
+         * Update Contact
          * @description Update writable core fields or existing custom fields on one contact. PATCH does not create new contacts or new fields.
          */
         patch: operations["patchContact"];
+        trace?: never;
+    };
+    "/v1/audiences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Audiences
+         * @description Returns saved audiences for the current organization. Synthetic All Contacts is not included.
+         */
+        get: operations["listAudiences"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/brands": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Brands
+         * @description Returns completed brands for the current organization that can be used as `brandId` with email generation.
+         */
+        get: operations["listBrands"];
+        put?: never;
+        /**
+         * Create Brand
+         * @description Creates or reuses a brand for the current organization from a website URL. The request waits for phase 1 extraction to finish, then returns a `brandId` that is immediately usable with email generation. POST supports idempotency for safe retries.
+         */
+        post: operations["createBrand"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/domains": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Domains
+         * @description Returns verified sending domains for the current organization.
+         */
+        get: operations["listDomains"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/v1/fields": {
@@ -44,21 +108,85 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List contact field definitions
+         * List Fields
          * @description Returns both core contact fields and custom field definitions available for the current organization.
          */
         get: operations["listContactFields"];
         put?: never;
         /**
-         * Create a custom contact field definition
+         * Create Field
          * @description Creates or upserts a custom field definition for contacts. Core fields cannot be recreated as custom fields. POST supports idempotency.
          */
         post: operations["createContactField"];
         /**
-         * Delete a custom contact field definition
+         * Delete Field
          * @description Deletes one custom field definition. Core fields cannot be deleted.
          */
         delete: operations["deleteContactField"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/emails": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Emails
+         * @description Returns the latest logical emails for the current organization. Historical versions are not exposed.
+         */
+        get: operations["listEmails"];
+        put?: never;
+        /**
+         * Generate Email
+         * @description Generates a draft email through the Brew email agent. POST supports idempotency for safe retries.
+         */
+        post: operations["generateEmail"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Templates
+         * @description Returns public email templates. Supports exact `brand` and `category` filters plus a lightweight text style `semantic` filter over template metadata.
+         */
+        get: operations["listTemplates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sends": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Send
+         * @description Starts an async send job for a saved email. Use audienceId or explicit emails. POST supports idempotency for safe retries.
+         */
+        post: operations["createSend"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -248,6 +376,32 @@ export interface components {
         } | {
             emails: string[];
         };
+        AudiencesListResponse: {
+            audiences: {
+                audienceId: string;
+                audienceName: string;
+            }[];
+        };
+        BrandsCreateResponse: {
+            brandId: string;
+        };
+        BrandsCreateRequest: {
+            brandUrl: string;
+        };
+        BrandsListResponse: {
+            brands: {
+                brandId: string;
+                /** Format: uri */
+                brandUrl: string;
+            }[];
+        };
+        DomainsListResponse: {
+            domains: {
+                domainId: string;
+                /** Format: uri */
+                domainUrl: string;
+            }[];
+        };
         FieldsGetResponse: {
             fields: {
                 fieldName: string;
@@ -271,6 +425,56 @@ export interface components {
         };
         FieldsDeleteRequest: {
             fieldName: string;
+        };
+        EmailsListResponse: {
+            emails: {
+                emailId: string;
+                emailTitle: string;
+            }[];
+        };
+        EmailGenerateResponse: {
+            emailId: string;
+            emailHtml: string;
+            /** Format: uri */
+            emailPng?: string;
+            /** Format: uri */
+            emailMobilePng?: string;
+        } | {
+            response: string;
+        };
+        EmailGenerateRequest: {
+            prompt: string;
+            brandId?: string;
+            /** Format: uri */
+            contentUrl?: string;
+            referenceEmailId?: string;
+        };
+        TemplatesListResponse: {
+            templates: {
+                emailId: string;
+                emailHtml: string;
+                /** Format: uri */
+                emailPng: string;
+            }[];
+        };
+        SendsPostResponse: {
+            /** @enum {string} */
+            status: "queued" | "scheduled";
+            runId: string;
+            /** Format: date-time */
+            scheduledAt?: string;
+        };
+        SendsPostRequest: {
+            emailId: string;
+            domainId: string;
+            subject: string;
+            previewText?: string;
+            /** Format: email */
+            replyTo?: string;
+            audienceId?: string;
+            emails?: string[];
+            /** Format: date-time */
+            scheduledAt?: string;
         };
     };
     responses: never;
@@ -493,7 +697,7 @@ export interface operations {
             header?: {
                 /**
                  * @description Optional idempotency key for safe retries. Reusing the same key with the same request body returns the original response for 24 hours.
-                 * @example contacts-import-2026-04-08-001
+                 * @example api-request-2026-04-08-001
                  */
                 "Idempotency-Key"?: string;
             };
@@ -1136,6 +1340,513 @@ export interface operations {
             };
         };
     };
+    listAudiences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Saved audiences for this organization. */
+            200: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "audiences": [
+                     *         {
+                     *           "audienceId": "jn7a8w4q8m9k2p1x7c3b5v6n9h7s2d4f",
+                     *           "audienceName": "Nordic Founders"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["AudiencesListResponse"];
+                };
+            };
+            /** @description The API key was missing, invalid, or revoked. */
+            401: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INVALID_API_KEY",
+                     *         "type": "authentication_error",
+                     *         "message": "The provided API key is invalid.",
+                     *         "suggestion": "Check the API key format and retry with a valid active key.",
+                     *         "docs": "https://docs.getbrew.io/api/authentication"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The caller does not have the required contacts permission. */
+            403: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INSUFFICIENT_PERMISSIONS",
+                     *         "type": "authorization_error",
+                     *         "message": "The caller does not have the required permission.",
+                     *         "suggestion": "Use an API key or session with the required permission.",
+                     *         "docs": "https://docs.getbrew.io/api/authentication",
+                     *         "param": "contacts"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected internal error. */
+            500: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INTERNAL_ERROR",
+                     *         "type": "internal_error",
+                     *         "message": "An unexpected error occurred.",
+                     *         "suggestion": "Retry the request. If it keeps failing, contact support.",
+                     *         "docs": "https://docs.getbrew.io/api/contacts#errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    listBrands: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Completed brands available to the current organization. */
+            200: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "brands": [
+                     *         {
+                     *           "brandId": "jn7a8w4q8m9k2p1x7c3b5v6n9h7s2d4f",
+                     *           "brandUrl": "https://example.com"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["BrandsListResponse"];
+                };
+            };
+            /** @description The API key was missing, invalid, or revoked. */
+            401: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INVALID_API_KEY",
+                     *         "type": "authentication_error",
+                     *         "message": "The provided API key is invalid.",
+                     *         "suggestion": "Check the API key format and retry with a valid active key.",
+                     *         "docs": "https://docs.getbrew.io/api/authentication"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The caller does not have the required emails permission. */
+            403: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INSUFFICIENT_PERMISSIONS",
+                     *         "type": "authorization_error",
+                     *         "message": "The caller does not have the required permission.",
+                     *         "suggestion": "Use an API key or session with the required permission.",
+                     *         "docs": "https://docs.getbrew.io/api/authentication",
+                     *         "param": "emails"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected internal error. */
+            500: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INTERNAL_ERROR",
+                     *         "type": "internal_error",
+                     *         "message": "An unexpected error occurred.",
+                     *         "suggestion": "Retry the request. If it keeps failing, contact support.",
+                     *         "docs": "https://docs.getbrew.io/api/email#errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    createBrand: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description Optional idempotency key for safe retries. Reusing the same key with the same request body returns the original response for 24 hours.
+                 * @example api-request-2026-04-08-001
+                 */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Brand website URL or bare domain. */
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "brandUrl": "https://example.com"
+                 *     }
+                 */
+                "application/json": components["schemas"]["BrandsCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Brand phase 1 extraction completed and the returned brand is ready for email generation. */
+            200: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "brandId": "jn7a8w4q8m9k2p1x7c3b5v6n9h7s2d4f"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["BrandsCreateResponse"];
+                };
+            };
+            /** @description The JSON body shape or brand URL was invalid. */
+            400: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INVALID_REQUEST",
+                     *         "type": "invalid_request",
+                     *         "message": "brandUrl must be a valid public URL or domain.",
+                     *         "suggestion": "Fix the request payload and retry.",
+                     *         "docs": "https://docs.getbrew.io/api",
+                     *         "param": "brandUrl"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The API key was missing, invalid, or revoked. */
+            401: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INVALID_API_KEY",
+                     *         "type": "authentication_error",
+                     *         "message": "The provided API key is invalid.",
+                     *         "suggestion": "Check the API key format and retry with a valid active key.",
+                     *         "docs": "https://docs.getbrew.io/api/authentication"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The caller does not have the required emails permission. */
+            403: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INSUFFICIENT_PERMISSIONS",
+                     *         "type": "authorization_error",
+                     *         "message": "The caller does not have the required permission.",
+                     *         "suggestion": "Use an API key or session with the required permission.",
+                     *         "docs": "https://docs.getbrew.io/api/authentication",
+                     *         "param": "emails"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The same idempotency key was reused with a different request body. */
+            409: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "IDEMPOTENCY_CONFLICT",
+                     *         "type": "conflict",
+                     *         "message": "The same idempotency key was reused with a different request payload.",
+                     *         "suggestion": "Reuse the original payload or send a new idempotency key.",
+                     *         "docs": "https://docs.getbrew.io/api/idempotency"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The request hit the rolling rate limit window. */
+            429: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    /** @description Seconds to wait before retrying the request. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "RATE_LIMITED",
+                     *         "type": "rate_limit",
+                     *         "message": "Too many requests.",
+                     *         "suggestion": "Wait for the retry window before sending another request.",
+                     *         "docs": "https://docs.getbrew.io/api/rate-limiting",
+                     *         "retryAfter": 42
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The extraction failed or did not complete before the route timeout. */
+            500: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INTERNAL_ERROR",
+                     *         "type": "internal_error",
+                     *         "message": "An unexpected error occurred.",
+                     *         "suggestion": "Retry the request. If it keeps failing, contact support.",
+                     *         "docs": "https://docs.getbrew.io/api"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    listDomains: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Verified sending domains for this organization. */
+            200: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "domains": [
+                     *         {
+                     *           "domainId": "jn7a8w4q8m9k2p1x7c3b5v6n9h7s2d4f",
+                     *           "domainUrl": "https://example.com"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["DomainsListResponse"];
+                };
+            };
+            /** @description The API key was missing, invalid, or revoked. */
+            401: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INVALID_API_KEY",
+                     *         "type": "authentication_error",
+                     *         "message": "The provided API key is invalid.",
+                     *         "suggestion": "Check the API key format and retry with a valid active key.",
+                     *         "docs": "https://docs.getbrew.io/api/authentication"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The caller does not have the required emails permission. */
+            403: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INSUFFICIENT_PERMISSIONS",
+                     *         "type": "authorization_error",
+                     *         "message": "The caller does not have the required permission.",
+                     *         "suggestion": "Use an API key or session with the required permission.",
+                     *         "docs": "https://docs.getbrew.io/api/authentication",
+                     *         "param": "emails"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected internal error. */
+            500: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INTERNAL_ERROR",
+                     *         "type": "internal_error",
+                     *         "message": "An unexpected error occurred.",
+                     *         "suggestion": "Retry the request. If it keeps failing, contact support.",
+                     *         "docs": "https://docs.getbrew.io/api/email#errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
     listContactFields: {
         parameters: {
             query?: never;
@@ -1255,7 +1966,7 @@ export interface operations {
             header?: {
                 /**
                  * @description Optional idempotency key for safe retries. Reusing the same key with the same request body returns the original response for 24 hours.
-                 * @example contacts-import-2026-04-08-001
+                 * @example api-request-2026-04-08-001
                  */
                 "Idempotency-Key"?: string;
             };
@@ -1655,6 +2366,751 @@ export interface operations {
                      *         "message": "An unexpected error occurred.",
                      *         "suggestion": "Retry the request. If it keeps failing, contact support.",
                      *         "docs": "https://docs.getbrew.io/api/contacts#errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    listEmails: {
+        parameters: {
+            query?: {
+                status?: "streaming" | "complete" | "error";
+                createdAtFrom?: string;
+                createdAtTo?: string;
+                updatedAtFrom?: string;
+                updatedAtTo?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Latest logical emails for this organization. */
+            200: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "emails": [
+                     *         {
+                     *           "emailId": "57Kg4U61MM8_Wi2Ix8QB-",
+                     *           "emailTitle": "Welcome Email"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["EmailsListResponse"];
+                };
+            };
+            /** @description The query params were invalid. */
+            400: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INVALID_REQUEST",
+                     *         "type": "invalid_request",
+                     *         "message": "status must be one of: streaming, complete, error.",
+                     *         "suggestion": "Fix the request query and retry.",
+                     *         "docs": "https://docs.getbrew.io/api/email#errors",
+                     *         "param": "status"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The API key was missing, invalid, or revoked. */
+            401: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INVALID_API_KEY",
+                     *         "type": "authentication_error",
+                     *         "message": "The provided API key is invalid.",
+                     *         "suggestion": "Check the API key format and retry with a valid active key.",
+                     *         "docs": "https://docs.getbrew.io/api/authentication"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The caller does not have the required emails permission. */
+            403: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INSUFFICIENT_PERMISSIONS",
+                     *         "type": "authorization_error",
+                     *         "message": "The caller does not have the required permission.",
+                     *         "suggestion": "Use an API key or session with the required permission.",
+                     *         "docs": "https://docs.getbrew.io/api/authentication",
+                     *         "param": "emails"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected internal error. */
+            500: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INTERNAL_ERROR",
+                     *         "type": "internal_error",
+                     *         "message": "An unexpected error occurred.",
+                     *         "suggestion": "Retry the request. If it keeps failing, contact support.",
+                     *         "docs": "https://docs.getbrew.io/api/email#errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    generateEmail: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description Optional idempotency key for safe retries. Reusing the same key with the same request body returns the original response for 24 hours.
+                 * @example api-request-2026-04-08-001
+                 */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Email generation prompt and optional brand context. */
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "prompt": "Create a welcome email for new customers who joined Brew today.",
+                 *       "brandId": "jn7a8w4q8m9k2p1x7c3b5v6n9h7s2d4f",
+                 *       "contentUrl": "https://example.com/blog/product-launch"
+                 *     }
+                 */
+                "application/json": components["schemas"]["EmailGenerateRequest"];
+            };
+        };
+        responses: {
+            /** @description Generated email artifact or a text response if no email artifact was produced. */
+            200: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmailGenerateResponse"];
+                };
+            };
+            /** @description The JSON body shape was invalid. */
+            400: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INVALID_REQUEST",
+                     *         "type": "invalid_request",
+                     *         "message": "Unrecognized key: \"extra\"",
+                     *         "suggestion": "Fix the request payload and retry.",
+                     *         "docs": "https://docs.getbrew.io/api/email#errors",
+                     *         "param": "extra"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The API key was missing, invalid, or revoked. */
+            401: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INVALID_API_KEY",
+                     *         "type": "authentication_error",
+                     *         "message": "The provided API key is invalid.",
+                     *         "suggestion": "Check the API key format and retry with a valid active key.",
+                     *         "docs": "https://docs.getbrew.io/api/authentication"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The caller does not have the required emails permission. */
+            403: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INSUFFICIENT_PERMISSIONS",
+                     *         "type": "authorization_error",
+                     *         "message": "The caller does not have the required permission.",
+                     *         "suggestion": "Use an API key or session with the required permission.",
+                     *         "docs": "https://docs.getbrew.io/api/authentication",
+                     *         "param": "emails"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The requested brand was missing or not accessible. */
+            404: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "BRAND_NOT_FOUND",
+                     *         "type": "not_found",
+                     *         "message": "The requested brand 'jn7a8w4q8m9k2p1x7c3b5v6n9h7s2d4f' was not found.",
+                     *         "suggestion": "Use a completed brand that belongs to this organization, or omit brandId.",
+                     *         "docs": "https://docs.getbrew.io/api/email#errors",
+                     *         "param": "brandId"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The same idempotency key was reused with a different request body. */
+            409: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "IDEMPOTENCY_CONFLICT",
+                     *         "type": "conflict",
+                     *         "message": "The same idempotency key was reused with a different request payload.",
+                     *         "suggestion": "Reuse the original payload or send a new idempotency key.",
+                     *         "docs": "https://docs.getbrew.io/api/idempotency"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The request was valid JSON but failed email generation validation. */
+            422: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "BRAND_NOT_READY",
+                     *         "type": "invalid_request",
+                     *         "message": "The requested brand 'jn7a8w4q8m9k2p1x7c3b5v6n9h7s2d4f' is not ready for email generation.",
+                     *         "suggestion": "Wait for brand extraction to complete, use a completed brand, or omit brandId.",
+                     *         "docs": "https://docs.getbrew.io/api/email#errors",
+                     *         "param": "brandId"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The request hit the rolling rate limit window. */
+            429: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    /** @description Seconds to wait before retrying the request. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "RATE_LIMITED",
+                     *         "type": "rate_limit",
+                     *         "message": "Too many requests.",
+                     *         "suggestion": "Wait for the retry window before sending another request.",
+                     *         "docs": "https://docs.getbrew.io/api/rate-limiting",
+                     *         "retryAfter": 42
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected internal error. */
+            500: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INTERNAL_ERROR",
+                     *         "type": "internal_error",
+                     *         "message": "An unexpected error occurred.",
+                     *         "suggestion": "Retry the request. If it keeps failing, contact support.",
+                     *         "docs": "https://docs.getbrew.io/api/email#errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    listTemplates: {
+        parameters: {
+            query?: {
+                brand?: string;
+                category?: string;
+                semantic?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Public templates matching the requested filters. */
+            200: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "templates": [
+                     *         {
+                     *           "emailId": "seed-vercel-newsletter",
+                     *           "emailHtml": "<html><body>Frontend digest</body></html>",
+                     *           "emailPng": "https://cdn.brew.new/seed-vercel.com-seed-vercel-newsletter.png"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["TemplatesListResponse"];
+                };
+            };
+            /** @description The query parameters were invalid. */
+            400: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INVALID_REQUEST",
+                     *         "type": "invalid_request",
+                     *         "message": "brand must be a non-empty string.",
+                     *         "suggestion": "Fix the request query and retry.",
+                     *         "docs": "https://docs.getbrew.io/api",
+                     *         "param": "brand"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The API key was missing, invalid, or revoked. */
+            401: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INVALID_API_KEY",
+                     *         "type": "authentication_error",
+                     *         "message": "The provided API key is invalid.",
+                     *         "suggestion": "Check the API key format and retry with a valid active key.",
+                     *         "docs": "https://docs.getbrew.io/api/authentication"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The caller does not have the required emails permission. */
+            403: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INSUFFICIENT_PERMISSIONS",
+                     *         "type": "authorization_error",
+                     *         "message": "The caller does not have the required permission.",
+                     *         "suggestion": "Use an API key or session with the required permission.",
+                     *         "docs": "https://docs.getbrew.io/api/authentication",
+                     *         "param": "emails"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The request hit the rolling rate limit window. */
+            429: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    /** @description Seconds to wait before retrying the request. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "RATE_LIMITED",
+                     *         "type": "rate_limit",
+                     *         "message": "Too many requests.",
+                     *         "suggestion": "Wait for the retry window before sending another request.",
+                     *         "docs": "https://docs.getbrew.io/api/rate-limiting",
+                     *         "retryAfter": 42
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected internal error. */
+            500: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INTERNAL_ERROR",
+                     *         "type": "internal_error",
+                     *         "message": "An unexpected error occurred.",
+                     *         "suggestion": "Retry the request. If it keeps failing, contact support.",
+                     *         "docs": "https://docs.getbrew.io/api"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    createSend: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description Optional idempotency key for safe retries. Reusing the same key with the same request body returns the original response for 24 hours.
+                 * @example api-request-2026-04-08-001
+                 */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Send request for an existing saved email. */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SendsPostRequest"];
+            };
+        };
+        responses: {
+            /** @description The send was accepted and queued or scheduled. */
+            202: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "status": "scheduled",
+                     *       "runId": "wf_123",
+                     *       "scheduledAt": "2099-01-01T00:00:00.000Z"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["SendsPostResponse"];
+                };
+            };
+            /** @description The JSON body shape was invalid. */
+            400: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INVALID_REQUEST",
+                     *         "type": "invalid_request",
+                     *         "message": "Provide exactly one of audienceId or emails.",
+                     *         "suggestion": "Fix the request payload and retry.",
+                     *         "docs": "https://docs.getbrew.io/api/sends#errors",
+                     *         "param": "audienceId"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The API key was missing, invalid, or revoked. */
+            401: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INVALID_API_KEY",
+                     *         "type": "authentication_error",
+                     *         "message": "The provided API key is invalid.",
+                     *         "suggestion": "Check the API key format and retry with a valid active key.",
+                     *         "docs": "https://docs.getbrew.io/api/authentication"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The caller does not have the required emails permission. */
+            403: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INSUFFICIENT_PERMISSIONS",
+                     *         "type": "authorization_error",
+                     *         "message": "The caller does not have the required permission.",
+                     *         "suggestion": "Use an API key or session with the required permission.",
+                     *         "docs": "https://docs.getbrew.io/api/authentication",
+                     *         "param": "emails"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The requested email, domain, or audience was not found. */
+            404: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "EMAIL_NOT_FOUND",
+                     *         "type": "not_found",
+                     *         "message": "The requested email 'email_123' was not found.",
+                     *         "suggestion": "Use GET /api/v1/emails to choose an existing saved email for this organization.",
+                     *         "docs": "https://docs.getbrew.io/api/sends#errors",
+                     *         "param": "emailId"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The send conflicted with an existing send or the same idempotency key was reused with a different request body. */
+            409: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The request was valid JSON but the resource was not ready. */
+            422: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The request hit the rolling rate limit window. */
+            429: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    /** @description Seconds to wait before retrying the request. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "RATE_LIMITED",
+                     *         "type": "rate_limit",
+                     *         "message": "Too many requests.",
+                     *         "suggestion": "Wait for the retry window before sending another request.",
+                     *         "docs": "https://docs.getbrew.io/api/rate-limiting",
+                     *         "retryAfter": 42
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected internal error. */
+            500: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INTERNAL_ERROR",
+                     *         "type": "internal_error",
+                     *         "message": "An unexpected error occurred.",
+                     *         "suggestion": "Retry the request. If it keeps failing, contact support.",
+                     *         "docs": "https://docs.getbrew.io/api/sends#errors"
                      *       }
                      *     }
                      */
