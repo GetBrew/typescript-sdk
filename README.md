@@ -75,6 +75,7 @@ etc.).
 | Sends resource             | [`docs/sends.md`](./docs/sends.md)                                     |
 | Templates resource         | [`docs/templates.md`](./docs/templates.md)                             |
 | Development + OpenAPI sync | [`docs/development.md`](./docs/development.md)                         |
+| **Releasing a new version**| [`RELEASING.md`](./RELEASING.md)                                       |
 
 > Note: there is no `brew.brands` resource. Brand management lives in
 > the Brew dashboard, and the single brand bound to your API key is

@@ -11,6 +11,10 @@ API. The API is the source of truth — this SDK is a consumer of it.
 See `README.md` for the product-level overview and the external design doc
 (`public-api-sdk-oss-plan.md`) for the full rationale.
 
+For shipping a new version (iterate loop, validation, npm publish, the
+tag-driven release workflow, and token rotation), read [`RELEASING.md`](./RELEASING.md)
+end-to-end before touching `package.json#version` or pushing a `v*` tag.
+
 ## Testing
 
 All functional work is test-driven.
