@@ -9,10 +9,6 @@ import {
   type ContactsResource,
 } from './resources/contacts/resource'
 import {
-  createBrandsResource,
-  type BrandsResource,
-} from './resources/brands/resource'
-import {
   createFieldsResource,
   type FieldsResource,
 } from './resources/fields/resource'
@@ -38,10 +34,14 @@ import type { BrewClientConfig } from './types'
  * The public shape of a Brew API client. Expand this union as new
  * resource modules land — the only place that has to change is here plus
  * the wire-up in `createBrewClient`.
+ *
+ * Note: there is no `brands` resource. The Brew public API does not
+ * expose brand management. The single brand bound to your API key is
+ * the only brand the public API can act on; it is selected when the
+ * key is created in the dashboard.
  */
 export type BrewClient = {
   readonly audiences: AudiencesResource
-  readonly brands: BrandsResource
   readonly contacts: ContactsResource
   readonly domains: DomainsResource
   readonly emails: EmailsResource
@@ -81,7 +81,6 @@ export function createBrewClient(
   const httpClient = createHttpClient(config, tuning ?? {})
   return {
     audiences: createAudiencesResource(httpClient),
-    brands: createBrandsResource(httpClient),
     contacts: createContactsResource(httpClient),
     domains: createDomainsResource(httpClient),
     emails: createEmailsResource(httpClient),

@@ -1,6 +1,6 @@
 import type { components } from '../../generated/openapi-types'
-import type { HttpClient } from '../../core/http'
-import type { RequestOptions } from '../../types'
+import { unwrapResponse, type HttpClient } from '../../core/http'
+import type { BrewRawResponse, RequestOptions } from '../../types'
 
 import type { FieldsSuccessResponse } from './types'
 
@@ -12,18 +12,31 @@ export type DeleteFieldInput = components['schemas']['FieldsDeleteRequest']
  *
  * DELETE retries on transient failures by default. Re-deleting a field
  * that no longer exists is safe — the server treats it as success.
+ *
+ * Pass `{ raw: true }` in `options` to receive the full
+ * `BrewRawResponse<FieldsSuccessResponse>` instead of the unwrapped
+ * payload.
  */
 export function createDeleteField(client: HttpClient) {
-  return async (
+  function deleteField(
+    input: DeleteFieldInput,
+    options: RequestOptions & { readonly raw: true }
+  ): Promise<BrewRawResponse<FieldsSuccessResponse>>
+  function deleteField(
     input: DeleteFieldInput,
     options?: RequestOptions
-  ): Promise<FieldsSuccessResponse> => {
+  ): Promise<FieldsSuccessResponse>
+  async function deleteField(
+    input: DeleteFieldInput,
+    options?: RequestOptions
+  ): Promise<FieldsSuccessResponse | BrewRawResponse<FieldsSuccessResponse>> {
     const response = await client.request<FieldsSuccessResponse>({
       method: 'DELETE',
       path: '/v1/fields',
       body: input,
       ...(options ? { options } : {}),
     })
-    return response.data
+    return unwrapResponse(response, options)
   }
+  return deleteField
 }

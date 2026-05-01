@@ -1,5 +1,6 @@
 import type { components, paths } from '../../generated/openapi-types'
-import type { HttpClient } from '../../core/http'
+import { unwrapResponse, type HttpClient } from '../../core/http'
+import type { BrewRawResponse, RequestOptions } from '../../types'
 
 import { flattenFilter } from './_filter'
 
@@ -34,11 +35,24 @@ export type ListContactsResponse = components['schemas']['ContactsListResponse']
  * `filter[customFields.plan][equals]=enterprise`) before they reach
  * the transport. See `docs/contacts.md` for the full list of supported
  * operator names.
+ *
+ * Pass `{ raw: true }` in `options` to receive the full
+ * `BrewRawResponse<ListContactsResponse>` instead of the unwrapped
+ * envelope.
  */
 export function createListContacts(client: HttpClient) {
-  return async (
-    input: ListContactsInput = {}
-  ): Promise<ListContactsResponse> => {
+  function list(
+    input: ListContactsInput | undefined,
+    options: RequestOptions & { readonly raw: true }
+  ): Promise<BrewRawResponse<ListContactsResponse>>
+  function list(
+    input?: ListContactsInput,
+    options?: RequestOptions
+  ): Promise<ListContactsResponse>
+  async function list(
+    input: ListContactsInput = {},
+    options?: RequestOptions
+  ): Promise<ListContactsResponse | BrewRawResponse<ListContactsResponse>> {
     const filterQuery: Record<string, string> =
       input.filter === undefined ? {} : flattenFilter(input.filter)
 
@@ -53,7 +67,9 @@ export function createListContacts(client: HttpClient) {
         order: input.order,
         ...filterQuery,
       },
+      ...(options ? { options } : {}),
     })
-    return response.data
+    return unwrapResponse(response, options)
   }
+  return list
 }

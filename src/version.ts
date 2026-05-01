@@ -6,11 +6,18 @@
  *   - `index.ts` so consumers can read `SDK_VERSION` at runtime (e.g. to
  *     attach it to their own tracing headers)
  *
- * Keep this in sync with `package.json` on every release. There is no
- * build-time generation because the simpler manual sync has never
- * actually bitten us, and automating it would add a codegen step that
- * forked the package.json version away from git.
+ * The bare `__SDK_VERSION__` identifier below is replaced at build time
+ * by `tsup` (see the `define` block in `tsup.config.ts`) with the
+ * `version` field from `package.json`. In dev/test the identifier is
+ * undefined at runtime and we fall back to `'0.0.0-dev'` so the
+ * User-Agent header still resolves to a sensible value.
  */
 
+declare const __SDK_VERSION__: string | undefined
+
 export const SDK_NAME = 'brew.new-sdk'
-export const SDK_VERSION = '0.2.0'
+
+export const SDK_VERSION: string =
+  typeof __SDK_VERSION__ === 'string' && __SDK_VERSION__.length > 0
+    ? __SDK_VERSION__
+    : '0.0.0-dev'

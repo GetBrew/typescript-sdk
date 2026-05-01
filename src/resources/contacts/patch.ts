@@ -1,6 +1,6 @@
 import type { components } from '../../generated/openapi-types'
-import type { HttpClient } from '../../core/http'
-import type { RequestOptions } from '../../types'
+import { unwrapResponse, type HttpClient } from '../../core/http'
+import type { BrewRawResponse, RequestOptions } from '../../types'
 
 /**
  * Patchable fields on a contact. The wire shape per the OpenAPI spec is
@@ -29,18 +29,31 @@ export type PatchContactResponse =
  *
  * PATCH is deliberately NOT retried by the transport, even with an
  * idempotency key — see `core/retry.ts` for the rationale.
+ *
+ * Pass `{ raw: true }` in `options` to receive the full
+ * `BrewRawResponse<PatchContactResponse>` instead of the unwrapped
+ * payload.
  */
 export function createPatchContact(client: HttpClient) {
-  return async (
+  function patch(
+    input: PatchContactInput,
+    options: RequestOptions & { readonly raw: true }
+  ): Promise<BrewRawResponse<PatchContactResponse>>
+  function patch(
     input: PatchContactInput,
     options?: RequestOptions
-  ): Promise<PatchContactResponse> => {
+  ): Promise<PatchContactResponse>
+  async function patch(
+    input: PatchContactInput,
+    options?: RequestOptions
+  ): Promise<PatchContactResponse | BrewRawResponse<PatchContactResponse>> {
     const response = await client.request<PatchContactResponse>({
       method: 'PATCH',
       path: '/v1/contacts',
       body: input,
       ...(options ? { options } : {}),
     })
-    return response.data
+    return unwrapResponse(response, options)
   }
+  return patch
 }

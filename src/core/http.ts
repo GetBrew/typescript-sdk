@@ -314,3 +314,19 @@ function normalizeToError(value: unknown): Error {
   if (value instanceof Error) return value
   return new Error(typeof value === 'string' ? value : 'Unknown error')
 }
+
+/**
+ * Decide whether a resource method should return the unwrapped data
+ * payload (the default) or the full `BrewRawResponse<T>` envelope
+ * (when the caller passes `{ raw: true }` in `RequestOptions`).
+ *
+ * The actual return-type narrowing is done at call sites with an
+ * overload pair — this helper just centralizes the runtime branch so
+ * resource methods do not all reinvent it.
+ */
+export function unwrapResponse<T>(
+  response: BrewRawResponse<T>,
+  options: RequestOptions | undefined
+): T | BrewRawResponse<T> {
+  return options?.raw === true ? response : response.data
+}

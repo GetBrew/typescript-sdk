@@ -1,66 +1,68 @@
 # Development
 
 How to work on `@brew.new/sdk`. Read the **mental model** section first
-if you're new — the cross-repo handshake is the part everyone forgets.
+if you're new — the OpenAPI handshake is the part everyone forgets.
 
 ---
 
 ## Mental model
 
-There are **two repos** that have to stay in sync:
+The Zod schemas in the `sub-agent-orchestrator` package are the only
+source of truth. A single `pnpm openapi:generate` command mirrors the
+generated YAML to every consumer location, and a follow-up
+`pnpm openapi:sync:sdk-types` regenerates the SDK's TypeScript types
+from that YAML.
 
 ```
-brew-omni-agent-mvp                       typescript-sdk
-─────────────────────                     ───────────────────────
-the Brew app                              this repo (the OSS SDK)
-
-  lib/contacts/contracts.ts (Zod)
+sub-agent-orchestrator/lib/<resource>/contracts.ts (Zod)
             │
-            │  bun run openapi:generate
+            │  pnpm openapi:generate
             ▼
-  openapi/public-api-v1.yaml              openapi/public-api-v1.yaml
-                                                    │
-                                                    │  cp (manual)
-                                                    ▼
-                                          openapi/public-api-v1.yaml
-                                                    │
-                                                    │  bun run generate:types
-                                                    ▼
-                                          src/generated/openapi-types.ts
-                                                    │
-                                                    │  imported by
-                                                    ▼
-                                          src/resources/*/  + src/core/errors.ts
+sub-agent-orchestrator/openapi/public-api-v1.yaml      (in-repo freshness check)
+docs/api-reference/openapi-public-v1.yaml              (Mintlify docs site)
+typescript-sdk/openapi/public-api-v1.yaml              (SDK input — vendored)
+            │
+            │  pnpm openapi:sync:sdk-types     (or `bun run generate:types` inside typescript-sdk/)
+            ▼
+typescript-sdk/src/generated/openapi-types.ts
+            │
+            │  imported by
+            ▼
+typescript-sdk/src/resources/*/  + typescript-sdk/src/core/errors.ts
 ```
 
-The **dependency direction is one-way**: Zod schemas in the app repo
-are the source of truth, the YAML is generated from them, the SDK
-types are generated from the YAML, and the SDK resource methods
-import the types.
+The **dependency direction is one-way**: Zod schemas in the app
+package are the source of truth, all three YAMLs are generated from
+them in a single command, the SDK types are generated from the SDK's
+YAML, and the SDK resource methods import the types.
 
 You **never edit** any of these files by hand:
 
-- `brew-omni-agent-mvp/openapi/public-api-v1.yaml` (generated from Zod)
-- `typescript-sdk/openapi/public-api-v1.yaml` (vendored copy)
-- `typescript-sdk/src/generated/openapi-types.ts` (generated from YAML)
+- `sub-agent-orchestrator/openapi/public-api-v1.yaml` (generated from Zod)
+- `docs/api-reference/openapi-public-v1.yaml` (mirrored from Zod)
+- `typescript-sdk/openapi/public-api-v1.yaml` (mirrored from Zod)
+- `typescript-sdk/src/generated/openapi-types.ts` (generated from the SDK's YAML)
 
-Two of those generated files are **committed to git** (the SDK's
-copy of the YAML and the generated `.ts`) so every PR shows API
-drift as a real diff. That's the whole point of the manual sync —
-a human always sees what's about to ship.
+All four files are **committed to git** so every PR shows API drift
+as a real diff. CI runs `pnpm openapi:check` on `sub-agent-orchestrator`
+and will fail any PR where the YAMLs are out of sync with the Zod
+schemas.
 
-### The repos sit side-by-side on disk
+### Layout in this monorepo
 
-Both checkouts live under `~/Desktop/`:
+Both packages live as top-level folders in `brewski/`:
 
 ```
-~/Desktop/
-├── brew-omni-agent-mvp/    ← the app repo (Zod, routes, tests, real backend)
-└── typescript-sdk/    ← this repo (the SDK that wraps the public API)
+brewski/
+├── sub-agent-orchestrator/   ← the app package (Zod, routes, tests, real backend)
+├── docs/                     ← the Mintlify docs site
+└── typescript-sdk/           ← this package (the SDK that wraps the public API)
 ```
 
-Most commands assume that layout. If your local layout differs, adjust
-the relative path in the `cp` step below.
+The `pnpm openapi:generate` script in `sub-agent-orchestrator/`
+resolves all three YAML targets relative to `<repoRoot>/..`, so as
+long as the three folders sit next to each other inside `brewski/`,
+no path configuration is required.
 
 Use a modern Node 20 or newer runtime for SDK development. On this
 machine, Vitest worked with Node `20.19.2` and newer, but failed on the
@@ -95,10 +97,10 @@ time, you're done.
 > that's almost certainly a bug fix or a foundation improvement, not
 > "adding an endpoint". Different review path, different scope.
 
-### Step 1 — Make the API change in the app repo
+### Step 1 — Make the API change in the app package
 
 ```bash
-cd ~/Desktop/brew-omni-agent-mvp
+cd sub-agent-orchestrator
 ```
 
 Add the new endpoint the way every other endpoint in the app is added:
@@ -108,66 +110,62 @@ Add the new endpoint the way every other endpoint in the app is added:
 2. Add or update the route handler under `app/api/v1/<resource>/route.ts`.
 3. Register the operation in `openapi/public-api-v1-<resource>.ts`
    so the OpenAPI generator picks it up.
-4. Write the app-side tests (`bun run test:api`).
+4. Write the app-side tests (`pnpm test:api`).
 
-The app repo has its own conventions for this — follow them. Nothing
-on the SDK side should change yet.
+The app package has its own conventions for this — follow them.
+Nothing on the SDK side should change yet.
 
-### Step 2 — Regenerate the YAML in the app repo
+### Step 2 — Mirror the YAML to every consumer
 
-Still in the app repo:
-
-```bash
-cd ~/Desktop/brew-omni-agent-mvp
-bun run openapi:generate
-```
-
-This rewrites `openapi/public-api-v1.yaml` from the Zod schemas you
-just touched. Open the file (or `git diff openapi/public-api-v1.yaml`)
-and verify your new operation is actually in there. **If the YAML
-diff looks wrong here, stop.** Do not move to the SDK side until the
-app-side regen produces what you expect.
-
-Commit the YAML change in the app repo (or stage it for the same
-PR as the Zod changes — same rules as any other commit there).
-
-### Step 3 — Switch to the SDK repo
+Still in the app package:
 
 ```bash
-cd ~/Desktop/typescript-sdk
+cd sub-agent-orchestrator
+pnpm openapi:generate
 ```
 
-From here on out, every command runs in the SDK repo.
+This rewrites the YAML from the Zod schemas you just touched **into
+every checked-in location at once**:
 
-### Step 4 — Copy the new YAML into the SDK
+- `sub-agent-orchestrator/openapi/public-api-v1.yaml`
+- `docs/api-reference/openapi-public-v1.yaml`
+- `typescript-sdk/openapi/public-api-v1.yaml`
+
+`git diff` the three files together and verify your new operation
+is actually in there. **If the diff looks wrong here, stop.** Do
+not regenerate SDK types until the YAML mirror produces what you
+expect.
+
+### Step 3 — Regenerate the SDK's TypeScript types
+
+Still in the app package:
 
 ```bash
-cp ../brew-omni-agent-mvp/openapi/public-api-v1.yaml openapi/public-api-v1.yaml
+pnpm openapi:sync:sdk-types
 ```
 
-The SDK keeps its own vendored copy. This is the **manual handshake**
-between the two repos. No automation, no GitHub Action — a human
-always sees the diff.
+This runs `openapi-typescript` against the SDK's vendored YAML and
+rewrites `typescript-sdk/src/generated/openapi-types.ts`. Open that
+file and search for the new operation — you should see it under
+both `paths` and `operations`, and any new schemas under
+`components.schemas`.
 
-Run `git diff openapi/public-api-v1.yaml` and skim it. You should see
-exactly the changes you made in the app repo, no more, no less. If
-there's surprise drift in there, investigate before regenerating.
+Commit the regenerated `.ts` file alongside the YAML mirror. From
+now on, every type you write in resource methods should derive from
+this file.
 
-### Step 5 — Regenerate the SDK's TypeScript types
+(Inside the SDK package you can also run `bun run generate:types`,
+which is the same command the SDK's `prepublishOnly` step calls.)
+
+### Step 4 — Switch to the SDK package
 
 ```bash
-bun run generate:types
+cd typescript-sdk
 ```
 
-This runs `openapi-typescript` against the vendored YAML and rewrites
-`src/generated/openapi-types.ts`. Open that file and search for the
-new operation — you should see it under both `paths` and `operations`,
-and any new schemas under `components.schemas`.
+From here on out, every command runs in the SDK package.
 
-Commit the regenerated `.ts` file. From now on, every type you write
-in resource methods should derive from this file.
-
-### Step 6 — Add the SDK resource method
+### Step 5 — Add the SDK resource method
 
 The SDK uses **one file per method** under `src/resources/<resource>/`.
 For our `archive` example:
@@ -210,7 +208,7 @@ factory closure, return an async function that calls
 already handles retries, errors, idempotency, abort, headers, and
 URL building — the resource method is a thin shim.
 
-### Step 7 — Wire the new method into the resource factory
+### Step 6 — Wire the new method into the resource factory
 
 ```ts
 // src/resources/contacts/resource.ts
@@ -234,7 +232,7 @@ Two lines added: the type, and the wire-up in the factory return
 object. That's it — `brew.contacts.archive(...)` now exists on the
 public client.
 
-### Step 8 — Re-export the public types from `src/index.ts`
+### Step 7 — Re-export the public types from `src/index.ts`
 
 ```ts
 // src/index.ts
@@ -249,11 +247,11 @@ explicitly in their own code, the type needs to be exported from
 the public barrel. Anything not re-exported here is private and may
 change without a major version bump.
 
-### Step 9 — Write the test
+### Step 8 — Write the test
 
 The SDK is TDD — write the test first, watch it fail, then write the
-implementation. (For Step 6 above this means Step 9 actually comes
-BEFORE Step 6 in practice, but documenting it in this order keeps the
+implementation. (For Step 5 above this means Step 8 actually comes
+BEFORE Step 5 in practice, but documenting it in this order keeps the
 flow chronological. Mentally swap them.)
 
 ```ts
@@ -294,7 +292,7 @@ describe('contacts.archive', () => {
 shared harness that wires up an http client with fake-sleep retry
 tuning so tests run instantly. Use it everywhere.
 
-### Step 10 — Document the new method
+### Step 9 — Document the new method
 
 Add a section to `docs/contacts.md` (or whichever resource doc) with:
 
@@ -306,7 +304,7 @@ Add a section to `docs/contacts.md` (or whichever resource doc) with:
 Match the style of the existing entries. The doc is the user-facing
 reference — every new method needs one.
 
-### Step 11 — Run the four checks
+### Step 10 — Run the four checks
 
 ```bash
 bun tsc
@@ -323,24 +321,20 @@ the resource method depended on, fix the resource method. If the
 test fails, fix the test fixture or the implementation. The flow
 naturally surfaces drift at exactly the right place.
 
-### Step 12 — Bump the SDK version
-
-```ts
-// src/version.ts
-export const SDK_VERSION = '0.1.0-alpha.1' // bump from 0.1.0-alpha.0
-```
+### Step 11 — Bump the SDK version
 
 ```json
 // package.json
 "version": "0.1.0-alpha.1"
 ```
 
-Both files. They are not auto-synced — bump both in the same commit.
-(`SDK_VERSION` from `src/version.ts` flows into the default
-`User-Agent` header, so the bump propagates automatically once you
-update the constant.)
+Bump only `package.json`. `tsup.config.ts` reads the version from
+`package.json` at build time and injects it into `src/version.ts`
+via the `__SDK_VERSION__` placeholder, so the published `SDK_VERSION`
+constant (and the default `User-Agent` header derived from it) stays
+in lockstep without a second hand-edited file.
 
-### Step 13 — Commit everything as ONE PR
+### Step 12 — Commit everything as ONE PR
 
 ```bash
 git add -A
@@ -361,7 +355,7 @@ The single commit/PR should include:
 Reviewers can read the diff top-to-bottom and see the full
 end-to-end change in one place.
 
-### Step 14 — Publish
+### Step 13 — Publish
 
 ```bash
 npm publish --tag alpha   # for alpha versions
@@ -387,19 +381,21 @@ Done. The new endpoint is on npm. Consumers running
 
 When the upstream API changes the shape of a field (rename, type
 change, new required field, etc.) the flow is shorter — Steps 1, 2,
-3, 4, 5, 11, 12, 13, 14 from above. You skip the "add a new resource
+3, 10, 11, 12, 13 from above. You skip the "add a new resource
 method file" steps because the file already exists; you just have to
 fix it once tsc tells you what broke.
 
 The drill:
 
-1. App repo: change the Zod schema, update routes/tests, run
-   `bun run openapi:generate`.
-2. SDK repo: copy the YAML, run `bun run generate:types`.
-3. Run `bun tsc` — every drift point shows up as a type error.
-4. Fix each one. They're usually one-line edits in resource methods
+1. In `sub-agent-orchestrator/`: change the Zod schema, update
+   routes/tests, run `pnpm openapi:generate` (mirrors the YAML to
+   all three locations) followed by `pnpm openapi:sync:sdk-types`
+   (regenerates the SDK's TypeScript types).
+2. In `typescript-sdk/`: run `bun tsc` — every drift point shows up
+   as a type error.
+3. Fix each one. They're usually one-line edits in resource methods
    or test fixtures.
-5. Run the rest of the four checks. Bump version. Commit. Publish.
+4. Run the rest of the four checks. Bump version. Commit. Publish.
 
 ---
 
@@ -502,16 +498,17 @@ Delete the temp file when you're done. Never commit API keys.
 
 ---
 
-## Why we don't auto-sync the spec
+## Why we mirror the spec but don't auto-publish
 
-Tempting but dangerous. Auto-syncing the YAML on every upstream
-change would let breaking renames silently land in a published SDK
-version. The manual `cp` step is the **feature** — it forces a human
-to look at the diff before the change ships to npm consumers.
-
-For a 2-person team the manual ritual costs ~5 minutes per release
-and saves an unbounded amount of "why is everyone's `contact.email`
-suddenly undefined?" debugging. Worth it.
+The YAML *is* automatically mirrored to every consumer
+(`pnpm openapi:generate` writes the same bytes into the
+`sub-agent-orchestrator/`, `docs/`, and `typescript-sdk/` copies in
+one shot). What stays manual is the **publish** step: the SDK
+release decision is still gated on a human reviewing the diff and
+bumping `package.json` + `src/version.ts` deliberately. CI fails
+loudly when the YAMLs are stale (`pnpm openapi:check`) or when the
+SDK's `src/generated/openapi-types.ts` is out of sync, so a drift PR
+is impossible to merge silently.
 
 ---
 
@@ -521,7 +518,7 @@ suddenly undefined?" debugging. Worth it.
 src/
 ├── index.ts                    Public barrel — every consumer-facing export
 ├── client.ts                   createBrewClient factory
-├── version.ts                  SDK_NAME + SDK_VERSION (keep in sync with package.json)
+├── version.ts                  SDK_NAME + SDK_VERSION (version is injected at build time from package.json)
 ├── types.ts                    Public types (BrewClientConfig, RequestOptions, BrewErrorEnvelope)
 ├── generated/
 │   └── openapi-types.ts        ⚠️  AUTO-GENERATED — never hand-edit
@@ -535,7 +532,6 @@ src/
 │   └── config.ts               resolveConfig with defaults + late-binding fetch
 └── resources/
     ├── audiences/              Same pattern
-    ├── brands/                 Same pattern
     ├── contacts/               One file per method + types.ts + resource.ts
     ├── domains/                Same pattern
     ├── emails/                 Same pattern
@@ -573,23 +569,26 @@ openapi/
   `'array'` type. The wire vocabulary is `'string' | 'number' |
 'date' | 'bool'`. Mirror it exactly.
 
-- **`SDK_VERSION` in `src/version.ts` and `version` in `package.json`
-  must be bumped together.** No auto-sync. The constant is the
-  source of truth for the User-Agent header.
+- **`SDK_VERSION` is derived from `package.json` at build time.**
+  Bump `package.json#version` and run `bun run build`; tsup injects
+  the value into `src/version.ts` via the `__SDK_VERSION__` define.
+  No second hand-edited constant to keep in sync.
 
 - **Don't edit `src/generated/openapi-types.ts`.** Edit the spec
-  upstream, regenerate, copy over, regenerate here. Hand-edits will
-  be silently overwritten on the next `bun run generate:types`.
+  upstream in `sub-agent-orchestrator/lib/<resource>/contracts.ts`,
+  then run `pnpm openapi:generate` and `pnpm openapi:sync:sdk-types`
+  in the app package. Hand-edits will be silently overwritten on the
+  next regeneration.
 
 - **Don't edit `openapi/public-api-v1.yaml` either.** Same rule —
   it's a vendored copy of a generated file. The source of truth
-  lives in `brew-omni-agent-mvp/lib/contacts/contracts.ts` and the
-  Zod schemas there.
+  lives in `sub-agent-orchestrator/lib/<resource>/contracts.ts` and
+  the Zod schemas there.
 
 - **The SDK's resource method exists ONLY after the spec ships.**
   You can't add `brew.contacts.archive(...)` to the SDK without
-  first adding `archive` to the app repo's Zod + routes + YAML. The
-  dependency is one-way.
+  first adding `archive` to `sub-agent-orchestrator`'s Zod + routes
+  + YAML. The dependency is one-way.
 
 - **PATCH is never retried, even with an idempotency key.** PATCH
   is a partial-update primitive and the server's view of "current

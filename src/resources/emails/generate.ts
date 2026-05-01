@@ -1,6 +1,6 @@
 import type { components } from '../../generated/openapi-types'
-import type { HttpClient } from '../../core/http'
-import type { RequestOptions } from '../../types'
+import { unwrapResponse, type HttpClient } from '../../core/http'
+import type { BrewRawResponse, RequestOptions } from '../../types'
 
 export type GenerateEmailInput = components['schemas']['EmailGenerateRequest']
 export type GenerateEmailResponse =
@@ -13,18 +13,31 @@ export type GenerateEmailResponse =
  * - Normal case. a generated email artifact with `emailId` and `emailHtml`.
  * - Fallback case. a plain `{ response }` object when no email artifact was
  *   produced by the upstream agent flow.
+ *
+ * Pass `{ raw: true }` in `options` to receive the full
+ * `BrewRawResponse<GenerateEmailResponse>` instead of the unwrapped
+ * payload.
  */
 export function createGenerateEmail(client: HttpClient) {
-  return async (
+  function generateEmail(
+    input: GenerateEmailInput,
+    options: RequestOptions & { readonly raw: true }
+  ): Promise<BrewRawResponse<GenerateEmailResponse>>
+  function generateEmail(
     input: GenerateEmailInput,
     options?: RequestOptions
-  ): Promise<GenerateEmailResponse> => {
+  ): Promise<GenerateEmailResponse>
+  async function generateEmail(
+    input: GenerateEmailInput,
+    options?: RequestOptions
+  ): Promise<GenerateEmailResponse | BrewRawResponse<GenerateEmailResponse>> {
     const response = await client.request<GenerateEmailResponse>({
       method: 'POST',
       path: '/v1/emails',
       body: input,
       ...(options ? { options } : {}),
     })
-    return response.data
+    return unwrapResponse(response, options)
   }
+  return generateEmail
 }

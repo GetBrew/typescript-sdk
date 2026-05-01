@@ -122,8 +122,10 @@ error than throw from the error path.
 
 A network failure (DNS resolution, TCP reset, fetch reject) becomes a
 `BrewApiError` only AFTER all retry attempts have been exhausted. The
-SDK retries network errors by default for safe methods (`GET`, `PUT`,
-`DELETE`) and for `POST` when an idempotency key is attached. See
+SDK retries network errors by default for safe methods (`GET`,
+`DELETE`) and for `POST` (which always carries an auto-generated
+idempotency key). `PATCH` is **never** retried; the public v1 surface
+exposes no `PUT` operations. See
 [retries-and-idempotency](./retries-and-idempotency.md) for the full
 matrix.
 

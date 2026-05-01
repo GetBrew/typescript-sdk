@@ -1,5 +1,5 @@
-import type { HttpClient } from '../../core/http'
-import type { RequestOptions } from '../../types'
+import { unwrapResponse, type HttpClient } from '../../core/http'
+import type { BrewRawResponse, RequestOptions } from '../../types'
 
 import type { DeleteContactsResponse } from './delete'
 
@@ -13,18 +13,31 @@ export type DeleteManyContactsInput = {
  * Reuses `DeleteContactsResponse` from the single-delete module so the
  * two methods stay in sync — any change to the deletion response shape
  * ripples through both sites automatically.
+ *
+ * Pass `{ raw: true }` in `options` to receive the full
+ * `BrewRawResponse<DeleteContactsResponse>` instead of the unwrapped
+ * payload.
  */
 export function createDeleteManyContacts(client: HttpClient) {
-  return async (
+  function deleteMany(
+    input: DeleteManyContactsInput,
+    options: RequestOptions & { readonly raw: true }
+  ): Promise<BrewRawResponse<DeleteContactsResponse>>
+  function deleteMany(
     input: DeleteManyContactsInput,
     options?: RequestOptions
-  ): Promise<DeleteContactsResponse> => {
+  ): Promise<DeleteContactsResponse>
+  async function deleteMany(
+    input: DeleteManyContactsInput,
+    options?: RequestOptions
+  ): Promise<DeleteContactsResponse | BrewRawResponse<DeleteContactsResponse>> {
     const response = await client.request<DeleteContactsResponse>({
       method: 'DELETE',
       path: '/v1/contacts',
       body: input,
       ...(options ? { options } : {}),
     })
-    return response.data
+    return unwrapResponse(response, options)
   }
+  return deleteMany
 }

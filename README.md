@@ -65,7 +65,6 @@ etc.).
 | Topic                      | File                                                                   |
 | -------------------------- | ---------------------------------------------------------------------- |
 | Audiences resource         | [`docs/audiences.md`](./docs/audiences.md)                             |
-| Brands resource            | [`docs/brands.md`](./docs/brands.md)                                   |
 | Client configuration       | [`docs/configuration.md`](./docs/configuration.md)                     |
 | Contacts resource          | [`docs/contacts.md`](./docs/contacts.md)                               |
 | Domains resource           | [`docs/domains.md`](./docs/domains.md)                                 |
@@ -76,6 +75,10 @@ etc.).
 | Sends resource             | [`docs/sends.md`](./docs/sends.md)                                     |
 | Templates resource         | [`docs/templates.md`](./docs/templates.md)                             |
 | Development + OpenAPI sync | [`docs/development.md`](./docs/development.md)                         |
+
+> Note: there is no `brew.brands` resource. Brand management lives in
+> the Brew dashboard, and the single brand bound to your API key is
+> the only brand the SDK can act on.
 
 ## Development
 

@@ -97,9 +97,14 @@ await brew.fields.create({ fieldName: 'isVip', fieldType: 'bool' })
 ```
 
 POST requests get an auto-generated `Idempotency-Key`, so retrying a
-transient failure is safe — the API will reject a duplicate create
-with a `field_already_exists` error rather than creating the field
-twice.
+transient failure is safe. `POST /v1/fields` is upsert-shaped: a
+duplicate create for the same `fieldName` returns `200 { success: true }`
+instead of throwing, so it is safe to call this method to lazily ensure
+a custom field exists.
+
+The only validation failure surfaced as a `BrewApiError` here is
+`422 CORE_FIELD_IMMUTABLE` (when `fieldName` collides with a
+built-in core field like `email` or `firstName`).
 
 ---
 

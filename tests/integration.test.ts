@@ -38,8 +38,6 @@ describe('createBrewClient — end-to-end', () => {
     const brew = makeIntegrationClient()
 
     expect(typeof brew.audiences.list).toBe('function')
-    expect(typeof brew.brands.create).toBe('function')
-    expect(typeof brew.brands.list).toBe('function')
     expect(typeof brew.contacts.list).toBe('function')
     expect(typeof brew.contacts.count).toBe('function')
     expect(typeof brew.contacts.getByEmail).toBe('function')

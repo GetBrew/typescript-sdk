@@ -25,7 +25,6 @@ export type {
 
 // ---------- Resource shapes ----------
 export type { AudiencesResource } from './resources/audiences/resource'
-export type { BrandsResource } from './resources/brands/resource'
 export type { ContactsResource } from './resources/contacts/resource'
 export type { DomainsResource } from './resources/domains/resource'
 export type { EmailsResource } from './resources/emails/resource'
@@ -35,7 +34,6 @@ export type { TemplatesResource } from './resources/templates/resource'
 
 // ---------- Audiences: domain types ----------
 export type { Audience } from './resources/audiences/types'
-export type { Brand } from './resources/brands/types'
 export type { Domain } from './resources/domains/types'
 export type {
   EmailStatus,
@@ -51,11 +49,6 @@ export type { Template } from './resources/templates/types'
 
 // ---------- Audiences: method inputs + outputs ----------
 export type { ListAudiencesResponse } from './resources/audiences/list'
-export type {
-  CreateBrandInput,
-  CreateBrandResponse,
-} from './resources/brands/create'
-export type { ListBrandsResponse } from './resources/brands/list'
 export type { ListDomainsResponse } from './resources/domains/list'
 export type {
   GenerateEmailInput,
@@ -86,6 +79,7 @@ export type {
   ListContactsInput,
   ListContactsResponse,
 } from './resources/contacts/list'
+export type { ListAllContactsInput } from './resources/contacts/list-all'
 export type { CountContactsInput } from './resources/contacts/count'
 export type { GetContactByEmailInput } from './resources/contacts/get-by-email'
 export type {

@@ -1,6 +1,6 @@
 import type { components } from '../../generated/openapi-types'
-import type { HttpClient } from '../../core/http'
-import type { RequestOptions } from '../../types'
+import { unwrapResponse, type HttpClient } from '../../core/http'
+import type { BrewRawResponse, RequestOptions } from '../../types'
 
 /**
  * Caller-facing input for a single-contact upsert.
@@ -37,18 +37,31 @@ export type UpsertContactResponse =
  * distinguishes insert from update, `fieldsCreated` lists any custom
  * fields the upsert auto-defined, and `warnings` surfaces non-fatal
  * normalizations.
+ *
+ * Pass `{ raw: true }` in `options` to receive the full
+ * `BrewRawResponse<UpsertContactResponse>` instead of the unwrapped
+ * payload.
  */
 export function createUpsertContact(client: HttpClient) {
-  return async (
+  function upsert(
+    input: UpsertContactInput,
+    options: RequestOptions & { readonly raw: true }
+  ): Promise<BrewRawResponse<UpsertContactResponse>>
+  function upsert(
     input: UpsertContactInput,
     options?: RequestOptions
-  ): Promise<UpsertContactResponse> => {
+  ): Promise<UpsertContactResponse>
+  async function upsert(
+    input: UpsertContactInput,
+    options?: RequestOptions
+  ): Promise<UpsertContactResponse | BrewRawResponse<UpsertContactResponse>> {
     const response = await client.request<UpsertContactResponse>({
       method: 'POST',
       path: '/v1/contacts',
       body: input,
       ...(options ? { options } : {}),
     })
-    return response.data
+    return unwrapResponse(response, options)
   }
+  return upsert
 }

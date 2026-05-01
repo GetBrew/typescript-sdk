@@ -1,5 +1,29 @@
 # Public API SDK OSS Plan
 
+> **Implementation status (2026-05-01).** The originally-deferred items
+> from the bottom of this plan are now shipped:
+>
+> - `RequestOptions.raw` is wired end-to-end. Every resource method
+>   takes an optional `RequestOptions` argument and returns
+>   `BrewRawResponse<T>` instead of the unwrapped payload when called
+>   with `{ raw: true }`.
+> - `brew.contacts.listAll(...)` async iterator pages over every
+>   matching contact, honors `AbortSignal` between pages, and is
+>   covered by MSW tests in `tests/resources/contacts/list-all.test.ts`.
+> - `SDK_VERSION` is derived from `package.json` at build time via a
+>   tsup `define` substitution. Releasing now only requires bumping
+>   `package.json#version`.
+> - The OpenAPI YAML is mirrored into all three consumer locations
+>   (`sub-agent-orchestrator/openapi/public-api-v1.yaml`,
+>   `docs/api-reference/openapi-public-v1.yaml`,
+>   `typescript-sdk/openapi/public-api-v1.yaml`) by a single
+>   `pnpm openapi:generate` command in the app package, with a
+>   `pnpm openapi:check` CI guard. SDK type regeneration is one
+>   command (`pnpm openapi:sync:sdk-types`).
+>
+> The legacy section headings below describe the original DX goals.
+> Keep the bar; the implementation now meets it.
+
 ## Goal
 
 Build a standalone open source TypeScript SDK on top of the public Brew API.
@@ -700,13 +724,9 @@ const created = await brew.contacts.upsert({
 })
 
 const count = await brew.contacts.count({
-  filters: [
-    {
-      field: 'customFields.plan',
-      operator: 'eq',
-      value: 'enterprise',
-    },
-  ],
+  filter: {
+    'customFields.plan': { equals: 'enterprise' },
+  },
 })
 
 const fields = await brew.fields.list()

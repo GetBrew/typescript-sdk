@@ -1,6 +1,6 @@
 import type { components } from '../../generated/openapi-types'
-import type { HttpClient } from '../../core/http'
-import type { RequestOptions } from '../../types'
+import { unwrapResponse, type HttpClient } from '../../core/http'
+import type { BrewRawResponse, RequestOptions } from '../../types'
 
 /**
  * Per-row input for a batch upsert. Same shape as the single upsert
@@ -35,18 +35,33 @@ export type UpsertManyContactsResponse =
  * `errors` array (per-row failures), and `warnings`. Batch responses
  * are 200 on full success and 207 on partial failure — both come back
  * as the same envelope shape, the transport does not throw on 207.
+ *
+ * Pass `{ raw: true }` in `options` to receive the full
+ * `BrewRawResponse<UpsertManyContactsResponse>` instead of the
+ * unwrapped payload.
  */
 export function createUpsertManyContacts(client: HttpClient) {
-  return async (
+  function upsertMany(
+    input: UpsertManyContactsInput,
+    options: RequestOptions & { readonly raw: true }
+  ): Promise<BrewRawResponse<UpsertManyContactsResponse>>
+  function upsertMany(
     input: UpsertManyContactsInput,
     options?: RequestOptions
-  ): Promise<UpsertManyContactsResponse> => {
+  ): Promise<UpsertManyContactsResponse>
+  async function upsertMany(
+    input: UpsertManyContactsInput,
+    options?: RequestOptions
+  ): Promise<
+    UpsertManyContactsResponse | BrewRawResponse<UpsertManyContactsResponse>
+  > {
     const response = await client.request<UpsertManyContactsResponse>({
       method: 'POST',
       path: '/v1/contacts',
       body: input,
       ...(options ? { options } : {}),
     })
-    return response.data
+    return unwrapResponse(response, options)
   }
+  return upsertMany
 }

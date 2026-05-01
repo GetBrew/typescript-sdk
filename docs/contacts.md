@@ -130,7 +130,7 @@ const { contacts, pagination } = await brew.contacts.list({
   filter: {
     _logic: 'and',
     subscribed: 'true',
-    'customFields.plan': { eq: 'enterprise' },
+    'customFields.plan': { equals: 'enterprise' },
   },
 })
 
@@ -160,7 +160,7 @@ count(input?: CountContactsInput): Promise<number>
 ```ts
 const enterpriseCount = await brew.contacts.count({
   filter: {
-    'customFields.plan': { eq: 'enterprise' },
+    'customFields.plan': { equals: 'enterprise' },
   },
 })
 ```
@@ -279,9 +279,14 @@ if (result.errors.length > 0) {
 }
 ```
 
-The API returns `200` on full success and `207` on partial failure.
-Both come back as the same envelope shape, the SDK does not throw
-on `207` — check `result.errors` to see which rows failed.
+> **Partial failures are not exceptions.** The API returns `200` on
+> full success and `207 Multi-Status` on partial failure. Both come
+> back as the same envelope shape and the SDK **does not throw** on
+> `207` — `await brew.contacts.upsertMany(...)` resolves with the
+> body in either case. You **must** inspect `result.summary.failed`
+> and `result.errors[]` after every call to detect rows that the
+> server rejected. If you `try / catch` only, you will silently lose
+> per-row failures.
 
 ---
 
@@ -331,11 +336,17 @@ rationale.
 
 ## `delete`
 
-Delete a single contact by email.
+Delete a single contact by email. Returns `404 CONTACT_NOT_FOUND` (a
+thrown `BrewApiError`) when the contact does not exist — unlike
+[`deleteMany`](#deletemany), single-delete will never resolve with
+`deleted: 0`.
 
 ```ts
 type DeleteContactInput = { readonly email: string }
-type DeleteContactsResponse = { readonly deleted: number }
+type DeleteContactsResponse = {
+  readonly deleted: number
+  readonly notFound?: ReadonlyArray<string>
+}
 
 delete(
   input: DeleteContactInput,
@@ -344,19 +355,30 @@ delete(
 ```
 
 ```ts
-const { deleted } = await brew.contacts.delete({ email: 'jane@example.com' })
-// deleted === 1 if the contact existed, 0 otherwise
+const { deleted } = await brew.contacts.delete({
+  email: 'jane@example.com',
+})
+// deleted === 1 on success; throws BrewApiError(CONTACT_NOT_FOUND) otherwise
 ```
 
 ---
 
 ## `deleteMany`
 
-Batch delete by email list.
+Batch delete by email list. Always responds `200`. The response
+includes `deleted` (the number of contacts removed) plus an optional
+`notFound` array listing any submitted emails that did not match an
+existing contact (omitted when every email matched). Cross-check
+`notFound` to detect typos or already-deleted records.
 
 ```ts
 type DeleteManyContactsInput = {
   readonly emails: ReadonlyArray<string>
+}
+
+type DeleteContactsResponse = {
+  readonly deleted: number
+  readonly notFound?: ReadonlyArray<string>
 }
 
 deleteMany(
@@ -366,7 +388,12 @@ deleteMany(
 ```
 
 ```ts
-const { deleted } = await brew.contacts.deleteMany({
+const result = await brew.contacts.deleteMany({
   emails: ['a@example.com', 'b@example.com', 'c@example.com'],
 })
+
+console.log(result.deleted) // e.g. 2
+if (result.notFound?.length) {
+  console.warn('No contact found for:', result.notFound)
+}
 ```

@@ -4,6 +4,7 @@ import { createCountContacts } from './count'
 import { createDeleteContact } from './delete'
 import { createDeleteManyContacts } from './delete-many'
 import { createGetContactByEmail } from './get-by-email'
+import { createListAllContacts } from './list-all'
 import { createListContacts } from './list'
 import { createPatchContact } from './patch'
 import { createUpsertContact } from './upsert'
@@ -17,6 +18,7 @@ import { createUpsertManyContacts } from './upsert-many'
  */
 export type ContactsResource = {
   readonly list: ReturnType<typeof createListContacts>
+  readonly listAll: ReturnType<typeof createListAllContacts>
   readonly count: ReturnType<typeof createCountContacts>
   readonly getByEmail: ReturnType<typeof createGetContactByEmail>
   readonly upsert: ReturnType<typeof createUpsertContact>
@@ -34,6 +36,7 @@ export type ContactsResource = {
 export function createContactsResource(client: HttpClient): ContactsResource {
   return {
     list: createListContacts(client),
+    listAll: createListAllContacts(client),
     count: createCountContacts(client),
     getByEmail: createGetContactByEmail(client),
     upsert: createUpsertContact(client),
