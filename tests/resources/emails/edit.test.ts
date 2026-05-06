@@ -55,16 +55,13 @@ describe('emails.edit', () => {
   it('encodes the emailId path segment so unusual ids are safe on the wire', async () => {
     let captured: string | undefined
     server.use(
-      http.patch(
-        'https://brew.new/api/v1/emails/:emailId',
-        ({ params }) => {
-          captured = String(params.emailId)
-          return HttpResponse.json({
-            emailId: 'odd id',
-            emailHtml: '<html />',
-          })
-        }
-      )
+      http.patch('https://brew.new/api/v1/emails/:emailId', ({ params }) => {
+        captured = String(params.emailId)
+        return HttpResponse.json({
+          emailId: 'odd id',
+          emailHtml: '<html />',
+        })
+      })
     )
     const { client } = makeTestHttpClient()
     const edit = createEditEmail(client)

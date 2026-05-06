@@ -11,8 +11,7 @@ export type EditEmailInput = {
   readonly emailId: string
 } & components['schemas']['EmailEditRequest']
 
-export type EditEmailResponse =
-  components['schemas']['EmailGenerateResponse']
+export type EditEmailResponse = components['schemas']['EmailGenerateResponse']
 
 /**
  * Default per-request timeout for `PATCH /v1/emails/{emailId}`. Edit

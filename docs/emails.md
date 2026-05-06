@@ -2,11 +2,11 @@
 
 Three methods for listing saved emails, generating new ones, and editing existing ones.
 
-| Method                  | HTTP                          |
-| ----------------------- | ----------------------------- |
-| [`list`](#list)         | `GET /v1/emails`              |
-| [`generate`](#generate) | `POST /v1/emails`             |
-| [`edit`](#edit)         | `PATCH /v1/emails/{emailId}`  |
+| Method                  | HTTP                         |
+| ----------------------- | ---------------------------- |
+| [`list`](#list)         | `GET /v1/emails`             |
+| [`generate`](#generate) | `POST /v1/emails`            |
+| [`edit`](#edit)         | `PATCH /v1/emails/{emailId}` |
 
 ## Shared types
 
@@ -200,10 +200,10 @@ await brew.emails.edit(
 
 ### Errors
 
-| Status | Code                | Cause                                                      |
-| ------ | ------------------- | ---------------------------------------------------------- |
-| 400    | `INVALID_REQUEST`   | Missing `prompt`, invalid `contentUrl`, or unsupported field (e.g. `brandId`, `emailId` in body) |
-| 404    | `EMAIL_NOT_FOUND`   | The email doesn't exist for the brand bound to your key. Cross-brand ids surface here (not 403) to avoid leaking existence |
-| 409    | `EMAIL_IN_PROGRESS` | The target email is currently being generated. Retry shortly |
-| 409    | `IDEMPOTENCY_CONFLICT` | Reused `Idempotency-Key` with a different request body |
-| 422    | `BRAND_NOT_READY`   | The brand bound to the API key has not finished extraction |
+| Status | Code                   | Cause                                                                                                                      |
+| ------ | ---------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| 400    | `INVALID_REQUEST`      | Missing `prompt`, invalid `contentUrl`, or unsupported field (e.g. `brandId`, `emailId` in body)                           |
+| 404    | `EMAIL_NOT_FOUND`      | The email doesn't exist for the brand bound to your key. Cross-brand ids surface here (not 403) to avoid leaking existence |
+| 409    | `EMAIL_IN_PROGRESS`    | The target email is currently being generated. Retry shortly                                                               |
+| 409    | `IDEMPOTENCY_CONFLICT` | Reused `Idempotency-Key` with a different request body                                                                     |
+| 422    | `BRAND_NOT_READY`      | The brand bound to the API key has not finished extraction                                                                 |

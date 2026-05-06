@@ -18,9 +18,7 @@ import {
  * API). It is not the total cap; iterate the result to stop at any
  * count you want.
  */
-export type ListAllContactsInput = Readonly<
-  Omit<ListContactsInput, 'cursor'>
->
+export type ListAllContactsInput = Readonly<Omit<ListContactsInput, 'cursor'>>
 
 /**
  * Async iterator helper that pages through every matching contact.

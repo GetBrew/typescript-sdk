@@ -51,7 +51,10 @@ export function createCountContacts(client: HttpClient) {
       ...(options ? { options } : {}),
     })
     if (options?.raw === true) {
-      return unwrapResponse(response, options) as BrewRawResponse<ContactsCountResponse>
+      return unwrapResponse(
+        response,
+        options
+      ) as BrewRawResponse<ContactsCountResponse>
     }
     return response.data.count
   }

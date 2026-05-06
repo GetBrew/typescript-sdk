@@ -43,7 +43,10 @@ export function createGetContactByEmail(client: HttpClient) {
       ...(options ? { options } : {}),
     })
     if (options?.raw === true) {
-      return unwrapResponse(response, options) as BrewRawResponse<ContactsLookupEnvelope>
+      return unwrapResponse(
+        response,
+        options
+      ) as BrewRawResponse<ContactsLookupEnvelope>
     }
     return response.data.contact
   }
