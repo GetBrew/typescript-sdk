@@ -407,8 +407,6 @@ export interface components {
             emailHtml: string;
             /** Format: uri */
             emailPng?: string;
-            /** Format: uri */
-            emailMobilePng?: string;
         } | {
             response: string;
         };

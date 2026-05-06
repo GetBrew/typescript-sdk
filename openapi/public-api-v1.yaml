@@ -49,7 +49,7 @@ components:
       scheme: bearer
       bearerFormat: API key
       description: "Send your Brew API key as `Authorization: Bearer brew_xxx`."
-      x-default: brew_your_api_key
+      x-default: Bearer brew_your_api_key
     apiKeyAuth:
       type: apiKey
       in: header
@@ -696,9 +696,6 @@ components:
             emailHtml:
               type: string
             emailPng:
-              type: string
-              format: uri
-            emailMobilePng:
               type: string
               format: uri
           required:
