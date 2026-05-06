@@ -1,7 +1,10 @@
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it } from 'vitest'
 
-import { createGenerateEmail } from '../../../src/resources/emails/generate'
+import {
+  GENERATE_EMAIL_DEFAULT_TIMEOUT_MS,
+  createGenerateEmail,
+} from '../../../src/resources/emails/generate'
 import { makeTestHttpClient } from '../../helpers/http-client'
 import { server } from '../../msw/server'
 
@@ -27,7 +30,6 @@ describe('emails.generate', () => {
 
     const result = await generate({
       prompt: 'Create a welcome email',
-      brandId: 'brand_123',
       contentUrl: 'https://vercel.com/blog',
       referenceEmailId: 'seed-vercel-newsletter',
     })
@@ -35,7 +37,6 @@ describe('emails.generate', () => {
     expect(capturedRequest?.method).toBe('POST')
     expect(capturedBody).toEqual({
       prompt: 'Create a welcome email',
-      brandId: 'brand_123',
       contentUrl: 'https://vercel.com/blog',
       referenceEmailId: 'seed-vercel-newsletter',
     })
@@ -43,9 +44,8 @@ describe('emails.generate', () => {
     expect('emailId' in result).toBe(true)
     if ('emailId' in result) {
       expect(result.emailId).toBe('email_123')
-      expect(result.emailMobilePng).toBe(
-        'https://cdn.brew.new/email_123-mobile.png'
-      )
+      expect(result.emailHtml).toContain('Welcome')
+      expect(result.emailPng).toBe('https://cdn.brew.new/email_123.png')
     }
   })
 
@@ -65,8 +65,36 @@ describe('emails.generate', () => {
       prompt: 'Explain the campaign strategy only',
     })
 
-    expect(result).toEqual({
-      response: 'I can help with strategy, but no email was generated.',
-    })
+    expect('emailId' in result).toBe(false)
+    if (!('emailId' in result)) {
+      expect(result.response).toBe(
+        'I can help with strategy, but no email was generated.'
+      )
+    }
+  })
+
+  it('exposes a 4-minute default timeout that exceeds the global SDK default', () => {
+    expect(GENERATE_EMAIL_DEFAULT_TIMEOUT_MS).toBe(240_000)
+  })
+
+  it('honours a caller-supplied AbortSignal', async () => {
+    server.use(
+      http.post('https://brew.new/api/v1/emails', async () => {
+        await new Promise((resolve) => setTimeout(resolve, 100))
+        return HttpResponse.json({ response: 'too late' })
+      })
+    )
+
+    const { client } = makeTestHttpClient()
+    const generate = createGenerateEmail(client)
+
+    const controller = new AbortController()
+    const pending = generate(
+      { prompt: 'Create a welcome email' },
+      { signal: controller.signal }
+    )
+    controller.abort()
+
+    await expect(pending).rejects.toThrowError()
   })
 })
