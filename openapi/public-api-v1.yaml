@@ -723,6 +723,18 @@ components:
       required:
         - prompt
       additionalProperties: false
+    EmailEditRequest:
+      type: object
+      properties:
+        prompt:
+          type: string
+          minLength: 1
+        contentUrl:
+          type: string
+          format: uri
+      required:
+        - prompt
+      additionalProperties: false
     TemplatesListResponse:
       type: object
       properties:
@@ -3114,7 +3126,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EmailGenerateResponse"
-              examples:
+              examples: &a3
                 generated:
                   summary: Generated email
                   value:
@@ -3245,6 +3257,293 @@ paths:
                   message: The same idempotency key was reused with a different request payload.
                   suggestion: Reuse the original payload or send a new idempotency key.
                   docs: https://docs.getbrew.io/api/idempotency
+        "422":
+          description: The request was valid JSON but failed email generation validation. Most often this means the brand bound to the API key has not finished extraction.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: BRAND_NOT_READY
+                  type: invalid_request
+                  message: The requested brand is not ready for email generation.
+                  suggestion: Wait for brand extraction to complete in the dashboard before generating emails.
+                  docs: https://docs.getbrew.io/api/email#errors
+        "429":
+          description: The request hit the rolling rate limit window.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+            Retry-After:
+              schema:
+                type: integer
+                description: Seconds to wait before retrying the request.
+                example: 42
+              required: true
+              description: Seconds to wait before retrying the request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: RATE_LIMITED
+                  type: rate_limit
+                  message: Too many requests.
+                  suggestion: Wait for the retry window before sending another request.
+                  docs: https://docs.getbrew.io/api/rate-limiting
+                  retryAfter: 42
+        "500":
+          description: Unexpected internal error.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: INTERNAL_ERROR
+                  type: internal_error
+                  message: An unexpected error occurred.
+                  suggestion: Retry the request. If it keeps failing, contact support.
+                  docs: https://docs.getbrew.io/api/email#errors
+  /v1/emails/{emailId}:
+    patch:
+      operationId: editEmail
+      tags:
+        - Emails
+      summary: Edit Email
+      description: 'Edits a saved email by running the Brew email agent against the current `version: "latest"` JSX. The new draft is persisted as a fresh `version: "latest"` row on the same `emailId`, and the previous head is demoted to a numeric historical version. PATCH supports idempotency for safe retries.'
+      parameters:
+        - in: path
+          name: emailId
+          required: true
+          schema:
+            type: string
+          description: The id of the email to edit. The email must belong to the same brand the API key is scoped to; cross-brand ids surface as 404 to avoid leaking existence.
+        - *a2
+      requestBody:
+        required: true
+        description: Edit instruction and optional fresh content URL. The brand is resolved from the API key and the emailId is on the URL — neither is accepted in the body.
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailEditRequest"
+            example:
+              prompt: Tighten the headline and replace the CTA copy with "Get started today".
+      responses:
+        "200":
+          description: 'Updated email artifact (a new `version: "latest"` row was written) or a text response if the agent returned prose without JSX.'
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmailGenerateResponse"
+              examples: *a3
+        "400":
+          description: The JSON body shape was invalid. The request must NOT include a `brandId` or `emailId` field — the brand is resolved from the API key and the emailId is on the URL.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              examples:
+                unrecognizedKey:
+                  summary: Unsupported field in request body
+                  value:
+                    error:
+                      code: INVALID_REQUEST
+                      type: invalid_request
+                      message: 'Unrecognized key: "brandId"'
+                      suggestion: Remove the unsupported field. The brand is resolved from the API key.
+                      docs: https://docs.getbrew.io/api/email#errors
+                      param: brandId
+                missingPrompt:
+                  summary: Required field missing
+                  value:
+                    error:
+                      code: INVALID_REQUEST
+                      type: invalid_request
+                      message: prompt is required and must be a non-empty string.
+                      suggestion: Provide a non-empty prompt and retry.
+                      docs: https://docs.getbrew.io/api/email#errors
+                      param: prompt
+        "401":
+          description: The API key was missing, invalid, or revoked.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: INVALID_API_KEY
+                  type: authentication_error
+                  message: The provided API key is invalid.
+                  suggestion: Check the API key format and retry with a valid active key.
+                  docs: https://docs.getbrew.io/api/authentication
+        "403":
+          description: The caller does not have the required permission.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: INSUFFICIENT_PERMISSIONS
+                  type: authorization_error
+                  message: The caller does not have the required permission.
+                  suggestion: Use an API key or session with the required permission.
+                  docs: https://docs.getbrew.io/api/authentication
+                  param: emails
+        "404":
+          description: The email does not exist for the brand bound to this API key. Cross-brand ids intentionally surface here (rather than 403) to avoid leaking cross-brand existence.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: EMAIL_NOT_FOUND
+                  type: not_found
+                  message: No email exists with id 'email_2SmZOWV3ZQ7W5x6g3m4p'.
+                  suggestion: Verify the emailId via GET /api/v1/emails. Cross-brand ids surface as 404 to avoid leaking existence.
+                  docs: https://docs.getbrew.io/api/email#errors
+                  param: emailId
+        "409":
+          description: "Conflict: the target email is currently being generated (`EMAIL_IN_PROGRESS`) or the same `Idempotency-Key` was reused with a different request body (`IDEMPOTENCY_CONFLICT`)."
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              examples:
+                emailInProgress:
+                  summary: Email is still streaming
+                  value:
+                    error:
+                      code: EMAIL_IN_PROGRESS
+                      type: conflict
+                      message: Email 'email_2SmZOWV3ZQ7W5x6g3m4p' is currently being generated and cannot be edited until it completes.
+                      suggestion: Wait a few seconds and retry. Streaming emails finalize automatically.
+                      docs: https://docs.getbrew.io/api/email#errors
+                      param: emailId
+                idempotencyConflict:
+                  summary: Reused Idempotency-Key with a different body
+                  value:
+                    error:
+                      code: IDEMPOTENCY_CONFLICT
+                      type: conflict
+                      message: The same idempotency key was reused with a different request payload.
+                      suggestion: Reuse the original payload or send a new idempotency key.
+                      docs: https://docs.getbrew.io/api/idempotency
         "422":
           description: The request was valid JSON but failed email generation validation. Most often this means the brand bound to the API key has not finished extraction.
           headers:

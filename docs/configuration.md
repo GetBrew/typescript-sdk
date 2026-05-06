@@ -55,11 +55,13 @@ backoff.
 
 You can override this per-request via `RequestOptions.timeoutMs`.
 
-> **Exception: `brew.emails.generate`** uses a per-call default of
-> `240_000` ms (4 minutes) because email generation typically takes
-> 30–90 seconds. Caller-supplied `timeoutMs` still wins. The constant
-> is exported as `GENERATE_EMAIL_DEFAULT_TIMEOUT_MS` for callers that
-> want to compose their own timeouts.
+> **Exception: `brew.emails.generate` and `brew.emails.edit`** use a
+> per-call default of `240_000` ms (4 minutes) because both endpoints
+> run the same long-form agent loop and typically take 30–90 seconds.
+> Caller-supplied `timeoutMs` still wins. The constants are exported
+> as `GENERATE_EMAIL_DEFAULT_TIMEOUT_MS` and
+> `EDIT_EMAIL_DEFAULT_TIMEOUT_MS` for callers that want to compose
+> their own timeouts.
 
 ### `maxRetries`
 

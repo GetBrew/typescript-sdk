@@ -57,6 +57,11 @@ export type {
   GenerateEmailInput,
   GenerateEmailResponse,
 } from './resources/emails/generate'
+export { EDIT_EMAIL_DEFAULT_TIMEOUT_MS } from './resources/emails/edit'
+export type {
+  EditEmailInput,
+  EditEmailResponse,
+} from './resources/emails/edit'
 export type {
   ListEmailsInput,
   ListEmailsResponse,
