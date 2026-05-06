@@ -83,11 +83,20 @@ describe('resolveIdempotencyKey', () => {
       ).toBeUndefined()
     })
 
-    it('ignores a provided key on PATCH', () => {
+    it('forwards a caller-provided key on PATCH (used by emails.edit)', () => {
       expect(
         resolveIdempotencyKey({
           method: 'PATCH',
-          provided: 'idem_should_be_ignored',
+          provided: 'idem_caller_provided',
+        })
+      ).toBe('idem_caller_provided')
+    })
+
+    it('does NOT auto-generate a key on PATCH (caller must opt in)', () => {
+      expect(
+        resolveIdempotencyKey({
+          method: 'PATCH',
+          provided: undefined,
         })
       ).toBeUndefined()
     })

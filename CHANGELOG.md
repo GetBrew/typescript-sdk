@@ -1,5 +1,37 @@
 # Changelog
 
+## 1.2.0
+
+### New methods
+
+- `brew.emails.edit({ emailId, prompt, contentUrl? })` —
+  `PATCH /v1/emails/{emailId}`. Runs the email agent's edit lane
+  against the email's current `latest` JSX and persists a new
+  `version: "latest"` row in Convex while the previous head is
+  demoted to a numeric historical version. Same response union as
+  `generate` — narrow on `'emailId' in result` to access the
+  artifact.
+
+### Behavior changes
+
+- The HTTP layer now forwards a caller-supplied `Idempotency-Key`
+  on `PATCH` (previously dropped). Auto-generation remains POST-only;
+  callers must opt into idempotency on PATCH by passing
+  `RequestOptions.idempotencyKey`. This lets `emails.edit` replay
+  safely without changing existing PATCH callers' behavior.
+
+### Long-running default timeout
+
+- `brew.emails.edit` shares the 4-minute default timeout with
+  `generate` (same agent loop). Exported as
+  `EDIT_EMAIL_DEFAULT_TIMEOUT_MS` from the public entrypoint.
+
+### Docs
+
+- `docs/emails.md` documents the new `edit` method, the response
+  union narrowing, idempotency on PATCH, and the
+  `EMAIL_NOT_FOUND` / `EMAIL_IN_PROGRESS` error envelopes.
+
 ## 1.1.0
 
 ### Breaking shape narrowing

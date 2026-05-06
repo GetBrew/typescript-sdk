@@ -50,13 +50,13 @@ export type { Template } from './resources/templates/types'
 // ---------- Audiences: method inputs + outputs ----------
 export type { ListAudiencesResponse } from './resources/audiences/list'
 export type { ListDomainsResponse } from './resources/domains/list'
-export {
-  GENERATE_EMAIL_DEFAULT_TIMEOUT_MS,
-} from './resources/emails/generate'
+export { GENERATE_EMAIL_DEFAULT_TIMEOUT_MS } from './resources/emails/generate'
 export type {
   GenerateEmailInput,
   GenerateEmailResponse,
 } from './resources/emails/generate'
+export { EDIT_EMAIL_DEFAULT_TIMEOUT_MS } from './resources/emails/edit'
+export type { EditEmailInput, EditEmailResponse } from './resources/emails/edit'
 export type {
   ListEmailsInput,
   ListEmailsResponse,

@@ -62,20 +62,20 @@ etc.).
 
 ## Documentation
 
-| Topic                      | File                                                                   |
-| -------------------------- | ---------------------------------------------------------------------- |
-| Audiences resource         | [`docs/audiences.md`](./docs/audiences.md)                             |
-| Client configuration       | [`docs/configuration.md`](./docs/configuration.md)                     |
-| Contacts resource          | [`docs/contacts.md`](./docs/contacts.md)                               |
-| Domains resource           | [`docs/domains.md`](./docs/domains.md)                                 |
-| Emails resource            | [`docs/emails.md`](./docs/emails.md)                                   |
-| Fields resource            | [`docs/fields.md`](./docs/fields.md)                                   |
-| Error handling             | [`docs/errors.md`](./docs/errors.md)                                   |
-| Retries + idempotency      | [`docs/retries-and-idempotency.md`](./docs/retries-and-idempotency.md) |
-| Sends resource             | [`docs/sends.md`](./docs/sends.md)                                     |
-| Templates resource         | [`docs/templates.md`](./docs/templates.md)                             |
-| Development + OpenAPI sync | [`docs/development.md`](./docs/development.md)                         |
-| **Releasing a new version**| [`RELEASING.md`](./RELEASING.md)                                       |
+| Topic                       | File                                                                   |
+| --------------------------- | ---------------------------------------------------------------------- |
+| Audiences resource          | [`docs/audiences.md`](./docs/audiences.md)                             |
+| Client configuration        | [`docs/configuration.md`](./docs/configuration.md)                     |
+| Contacts resource           | [`docs/contacts.md`](./docs/contacts.md)                               |
+| Domains resource            | [`docs/domains.md`](./docs/domains.md)                                 |
+| Emails resource             | [`docs/emails.md`](./docs/emails.md)                                   |
+| Fields resource             | [`docs/fields.md`](./docs/fields.md)                                   |
+| Error handling              | [`docs/errors.md`](./docs/errors.md)                                   |
+| Retries + idempotency       | [`docs/retries-and-idempotency.md`](./docs/retries-and-idempotency.md) |
+| Sends resource              | [`docs/sends.md`](./docs/sends.md)                                     |
+| Templates resource          | [`docs/templates.md`](./docs/templates.md)                             |
+| Development + OpenAPI sync  | [`docs/development.md`](./docs/development.md)                         |
+| **Releasing a new version** | [`RELEASING.md`](./RELEASING.md)                                       |
 
 > Note: there is no `brew.brands` resource. Brand management lives in
 > the Brew dashboard, and the single brand bound to your API key is

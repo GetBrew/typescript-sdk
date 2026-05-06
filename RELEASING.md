@@ -113,12 +113,12 @@ scripts, including `prepublishOnly`.
 Pre-1.0 history shipped breaking changes as minor bumps. From 1.0
 onward, follow standard SemVer:
 
-| Change | Bump |
-|---|---|
-| Adding a new method, type, or optional input field | `minor` |
-| Bug fix, doc-only change, internal refactor with same public surface | `patch` |
-| Removing or renaming any public export, changing a method signature, removing an enum value | `major` |
-| Pre-release for risky changes | `1.x.0-alpha.0` published with `--tag alpha` |
+| Change                                                                                      | Bump                                         |
+| ------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| Adding a new method, type, or optional input field                                          | `minor`                                      |
+| Bug fix, doc-only change, internal refactor with same public surface                        | `patch`                                      |
+| Removing or renaming any public export, changing a method signature, removing an enum value | `major`                                      |
+| Pre-release for risky changes                                                               | `1.x.0-alpha.0` published with `--tag alpha` |
 
 Once a version is published it is immutable. If something is broken
 after publish, ship `X.Y.Z+1` rather than try to fix in place.

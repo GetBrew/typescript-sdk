@@ -500,7 +500,7 @@ Delete the temp file when you're done. Never commit API keys.
 
 ## Why we mirror the spec but don't auto-publish
 
-The YAML *is* automatically mirrored to every consumer
+The YAML _is_ automatically mirrored to every consumer
 (`pnpm openapi:generate` writes the same bytes into the
 `sub-agent-orchestrator/`, `docs/`, and `typescript-sdk/` copies in
 one shot). What stays manual is the **publish** step: the SDK
@@ -588,7 +588,7 @@ openapi/
 - **The SDK's resource method exists ONLY after the spec ships.**
   You can't add `brew.contacts.archive(...)` to the SDK without
   first adding `archive` to `sub-agent-orchestrator`'s Zod + routes
-  + YAML. The dependency is one-way.
+  - YAML. The dependency is one-way.
 
 - **PATCH is never retried, even with an idempotency key.** PATCH
   is a partial-update primitive and the server's view of "current
