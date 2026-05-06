@@ -412,6 +412,7 @@ export interface components {
         };
         EmailGenerateRequest: {
             prompt: string;
+            brandId?: string;
             /** Format: uri */
             contentUrl?: string;
             referenceEmailId?: string;
@@ -2080,6 +2081,7 @@ export interface operations {
         parameters: {
             query?: {
                 status?: "streaming" | "complete" | "error";
+                brandId?: string;
                 createdAtFrom?: string;
                 createdAtTo?: string;
                 updatedAtFrom?: string;
@@ -2163,7 +2165,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The caller does not have the required permission. */
+            /** @description The caller does not have the required permission, or a brand-scoped API key requested a different brand. */
             403: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -2171,18 +2173,6 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INSUFFICIENT_PERMISSIONS",
-                     *         "type": "authorization_error",
-                     *         "message": "The caller does not have the required permission.",
-                     *         "suggestion": "Use an API key or session with the required permission.",
-                     *         "docs": "https://docs.getbrew.io/api/authentication",
-                     *         "param": "emails"
-                     *       }
-                     *     }
-                     */
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
@@ -2223,12 +2213,13 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        /** @description Email generation prompt and optional reference context. The brand is resolved from the API key and must not be passed. */
+        /** @description Email generation prompt and optional brand context. */
         requestBody: {
             content: {
                 /**
                  * @example {
                  *       "prompt": "Create a welcome email for new customers who joined Brew today.",
+                 *       "brandId": "jn7a8w4q8m9k2p1x7c3b5v6n9h7s2d4f",
                  *       "contentUrl": "https://example.com/blog/product-launch"
                  *     }
                  */
@@ -2253,7 +2244,7 @@ export interface operations {
                     "application/json": components["schemas"]["EmailGenerateResponse"];
                 };
             };
-            /** @description The JSON body shape was invalid. The request must NOT include a `brandId` field — the brand is resolved from the API key. */
+            /** @description The JSON body shape was invalid. */
             400: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -2261,6 +2252,18 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INVALID_REQUEST",
+                     *         "type": "invalid_request",
+                     *         "message": "Unrecognized key: \"extra\"",
+                     *         "suggestion": "Fix the request payload and retry.",
+                     *         "docs": "https://docs.getbrew.io/api/email#errors",
+                     *         "param": "extra"
+                     *       }
+                     *     }
+                     */
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
@@ -2286,7 +2289,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The caller does not have the required permission. */
+            /** @description The caller does not have the required permission, or a brand-scoped API key requested a different brand. */
             403: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -2294,22 +2297,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INSUFFICIENT_PERMISSIONS",
-                     *         "type": "authorization_error",
-                     *         "message": "The caller does not have the required permission.",
-                     *         "suggestion": "Use an API key or session with the required permission.",
-                     *         "docs": "https://docs.getbrew.io/api/authentication",
-                     *         "param": "emails"
-                     *       }
-                     *     }
-                     */
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The brand bound to the API key is missing or not accessible. */
+            /** @description The requested brand was missing or not accessible. */
             404: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -2322,9 +2313,10 @@ export interface operations {
                      *       "error": {
                      *         "code": "BRAND_NOT_FOUND",
                      *         "type": "not_found",
-                     *         "message": "The requested brand was not found.",
-                     *         "suggestion": "Verify in the dashboard that the brand bound to this API key still exists.",
-                     *         "docs": "https://docs.getbrew.io/api/email#errors"
+                     *         "message": "The requested brand 'jn7a8w4q8m9k2p1x7c3b5v6n9h7s2d4f' was not found.",
+                     *         "suggestion": "Use a completed brand that belongs to this organization, or omit brandId.",
+                     *         "docs": "https://docs.getbrew.io/api/email#errors",
+                     *         "param": "brandId"
                      *       }
                      *     }
                      */
@@ -2353,7 +2345,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The request was valid JSON but failed email generation validation. Most often this means the brand bound to the API key has not finished extraction. */
+            /** @description The request was valid JSON but failed email generation validation. */
             422: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -2366,9 +2358,10 @@ export interface operations {
                      *       "error": {
                      *         "code": "BRAND_NOT_READY",
                      *         "type": "invalid_request",
-                     *         "message": "The requested brand is not ready for email generation.",
-                     *         "suggestion": "Wait for brand extraction to complete in the dashboard before generating emails.",
-                     *         "docs": "https://docs.getbrew.io/api/email#errors"
+                     *         "message": "The requested brand 'jn7a8w4q8m9k2p1x7c3b5v6n9h7s2d4f' is not ready for email generation.",
+                     *         "suggestion": "Wait for brand extraction to complete, use a completed brand, or omit brandId.",
+                     *         "docs": "https://docs.getbrew.io/api/email#errors",
+                     *         "param": "brandId"
                      *       }
                      *     }
                      */

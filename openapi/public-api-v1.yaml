@@ -7,13 +7,14 @@ info:
 
     ## Brand scoping
 
-    API keys are always scoped to a specific brand. The brand is resolved from the key on every request. **No public endpoint accepts a `brandId` field** in its request body or query string — sending one returns `400 INVALID_REQUEST`.
+    API keys are always scoped to a specific brand. When an API key is used:
 
-    - Brand-scoped list and read endpoints (`/v1/audiences`, `/v1/domains`, `/v1/emails`, `/v1/contacts`, `/v1/fields`) automatically filter to the key brand.
-    - Endpoints that operate on resources tagged with another brand return `404` (resource not visible). The trigger / automation routes (`/api/trigger/event`, `/api/automations/{automationId}/trigger`) return `403 BRAND_SCOPE_MISMATCH` when the matched runtime resource is in a different brand.
+    - Brand-scoped list and read endpoints (`/v1/audiences`, `/v1/domains`, `/v1/emails`, `/v1/contacts`, `/v1/fields`) automatically filter to that brand.
+    - Passing a different `brandId` (when the endpoint accepts one) returns `403 BRAND_SCOPE_MISMATCH`.
+    - Endpoints that operate on resources tagged with another brand return `404` (resource not visible) or `403 BRAND_SCOPE_MISMATCH` for trigger / automation routes.
     - `GET /v1/templates` is organization-wide and not constrained to the key brand.
     - `GET /v1/domains` returns verified sending domains for the key brand.
-    - Brands themselves are managed in the Brew dashboard. The dashboard `brandId` is the value bound to your API key and never needs to be passed in a request.
+    - Brands themselves are managed in the Brew dashboard (the public API no longer exposes endpoints to create or list brands). The `brandId` returned in the dashboard is the value to pass to `POST /v1/emails` and is the same value bound to your API key.
   contact:
     name: Brew Support
     url: https://docs.getbrew.io
@@ -48,7 +49,7 @@ components:
       scheme: bearer
       bearerFormat: API key
       description: "Send your Brew API key as `Authorization: Bearer brew_xxx`."
-      x-default: brew_your_api_key
+      x-default: Bearer brew_your_api_key
     apiKeyAuth:
       type: apiKey
       in: header
@@ -715,6 +716,8 @@ components:
         prompt:
           type: string
           minLength: 1
+        brandId:
+          type: string
         contentUrl:
           type: string
           format: uri
@@ -2912,6 +2915,11 @@ paths:
           in: query
         - schema:
             type: string
+          required: false
+          name: brandId
+          in: query
+        - schema:
+            type: string
             format: date-time
           required: false
           name: createdAtFrom
@@ -3018,7 +3026,7 @@ paths:
                   suggestion: Check the API key format and retry with a valid active key.
                   docs: https://docs.getbrew.io/api/authentication
         "403":
-          description: The caller does not have the required permission.
+          description: The caller does not have the required permission, or a brand-scoped API key requested a different brand.
           headers:
             x-request-id:
               schema:
@@ -3031,14 +3039,27 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INSUFFICIENT_PERMISSIONS
-                  type: authorization_error
-                  message: The caller does not have the required permission.
-                  suggestion: Use an API key or session with the required permission.
-                  docs: https://docs.getbrew.io/api/authentication
-                  param: emails
+              examples:
+                insufficientPermissions:
+                  summary: Missing emails permission
+                  value:
+                    error:
+                      code: INSUFFICIENT_PERMISSIONS
+                      type: authorization_error
+                      message: The caller does not have the required permission.
+                      suggestion: Use an API key or session with the required permission.
+                      docs: https://docs.getbrew.io/api/authentication
+                      param: emails
+                brandScopeMismatch:
+                  summary: Brand-scoped key requested a different brand
+                  value:
+                    error:
+                      code: BRAND_SCOPE_MISMATCH
+                      type: authorization_error
+                      message: API key is scoped to brand 'brand_a' and cannot access brand 'brand_b'.
+                      suggestion: Use a key scoped to the same brand or omit brandId to use the key default.
+                      docs: https://docs.getbrew.io/api/authentication
+                      param: brandId
         "500":
           description: Unexpected internal error.
           headers:
@@ -3070,13 +3091,14 @@ paths:
         - *a2
       requestBody:
         required: true
-        description: Email generation prompt and optional reference context. The brand is resolved from the API key and must not be passed.
+        description: Email generation prompt and optional brand context.
         content:
           application/json:
             schema:
               $ref: "#/components/schemas/EmailGenerateRequest"
             example:
               prompt: Create a welcome email for new customers who joined Brew today.
+              brandId: jn7a8w4q8m9k2p1x7c3b5v6n9h7s2d4f
               contentUrl: https://example.com/blog/product-launch
       responses:
         "200":
@@ -3126,7 +3148,7 @@ paths:
                   value:
                     response: No email was generated.
         "400":
-          description: The JSON body shape was invalid. The request must NOT include a `brandId` field — the brand is resolved from the API key.
+          description: The JSON body shape was invalid.
           headers:
             x-request-id:
               schema:
@@ -3139,27 +3161,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
-              examples:
-                unrecognizedKey:
-                  summary: Unsupported field (e.g. brandId) in request body
-                  value:
-                    error:
-                      code: INVALID_REQUEST
-                      type: invalid_request
-                      message: 'Unrecognized key: "brandId"'
-                      suggestion: Remove the unsupported field. The brand is resolved from the API key.
-                      docs: https://docs.getbrew.io/api/email#errors
-                      param: brandId
-                missingPrompt:
-                  summary: Required field missing
-                  value:
-                    error:
-                      code: INVALID_REQUEST
-                      type: invalid_request
-                      message: prompt is required and must be a non-empty string.
-                      suggestion: Provide a non-empty prompt and retry.
-                      docs: https://docs.getbrew.io/api/email#errors
-                      param: prompt
+              example:
+                error:
+                  code: INVALID_REQUEST
+                  type: invalid_request
+                  message: 'Unrecognized key: "extra"'
+                  suggestion: Fix the request payload and retry.
+                  docs: https://docs.getbrew.io/api/email#errors
+                  param: extra
         "401":
           description: The API key was missing, invalid, or revoked.
           headers:
@@ -3182,7 +3191,7 @@ paths:
                   suggestion: Check the API key format and retry with a valid active key.
                   docs: https://docs.getbrew.io/api/authentication
         "403":
-          description: The caller does not have the required permission.
+          description: The caller does not have the required permission, or a brand-scoped API key requested a different brand.
           headers:
             x-request-id:
               schema:
@@ -3195,16 +3204,29 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INSUFFICIENT_PERMISSIONS
-                  type: authorization_error
-                  message: The caller does not have the required permission.
-                  suggestion: Use an API key or session with the required permission.
-                  docs: https://docs.getbrew.io/api/authentication
-                  param: emails
+              examples:
+                insufficientPermissions:
+                  summary: Missing emails permission
+                  value:
+                    error:
+                      code: INSUFFICIENT_PERMISSIONS
+                      type: authorization_error
+                      message: The caller does not have the required permission.
+                      suggestion: Use an API key or session with the required permission.
+                      docs: https://docs.getbrew.io/api/authentication
+                      param: emails
+                brandScopeMismatch:
+                  summary: Brand-scoped key requested a different brand
+                  value:
+                    error:
+                      code: BRAND_SCOPE_MISMATCH
+                      type: authorization_error
+                      message: API key is scoped to brand 'brand_a' and cannot access brand 'brand_b'.
+                      suggestion: Use a key scoped to the same brand or omit brandId to use the key default.
+                      docs: https://docs.getbrew.io/api/authentication
+                      param: brandId
         "404":
-          description: The brand bound to the API key is missing or not accessible.
+          description: The requested brand was missing or not accessible.
           headers:
             x-request-id:
               schema:
@@ -3221,9 +3243,10 @@ paths:
                 error:
                   code: BRAND_NOT_FOUND
                   type: not_found
-                  message: The requested brand was not found.
-                  suggestion: Verify in the dashboard that the brand bound to this API key still exists.
+                  message: The requested brand 'jn7a8w4q8m9k2p1x7c3b5v6n9h7s2d4f' was not found.
+                  suggestion: Use a completed brand that belongs to this organization, or omit brandId.
                   docs: https://docs.getbrew.io/api/email#errors
+                  param: brandId
         "409":
           description: The same idempotency key was reused with a different request body.
           headers:
@@ -3246,7 +3269,7 @@ paths:
                   suggestion: Reuse the original payload or send a new idempotency key.
                   docs: https://docs.getbrew.io/api/idempotency
         "422":
-          description: The request was valid JSON but failed email generation validation. Most often this means the brand bound to the API key has not finished extraction.
+          description: The request was valid JSON but failed email generation validation.
           headers:
             x-request-id:
               schema:
@@ -3263,9 +3286,10 @@ paths:
                 error:
                   code: BRAND_NOT_READY
                   type: invalid_request
-                  message: The requested brand is not ready for email generation.
-                  suggestion: Wait for brand extraction to complete in the dashboard before generating emails.
+                  message: The requested brand 'jn7a8w4q8m9k2p1x7c3b5v6n9h7s2d4f' is not ready for email generation.
+                  suggestion: Wait for brand extraction to complete, use a completed brand, or omit brandId.
                   docs: https://docs.getbrew.io/api/email#errors
+                  param: brandId
         "429":
           description: The request hit the rolling rate limit window.
           headers:
