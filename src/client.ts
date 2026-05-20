@@ -5,13 +5,13 @@ import {
   type AudiencesResource,
 } from './resources/audiences/resource'
 import {
+  createAutomationsResource,
+  type AutomationsResource,
+} from './resources/automations/resource'
+import {
   createContactsResource,
   type ContactsResource,
 } from './resources/contacts/resource'
-import {
-  createFieldsResource,
-  type FieldsResource,
-} from './resources/fields/resource'
 import {
   createDomainsResource,
   type DomainsResource,
@@ -21,6 +21,18 @@ import {
   type EmailsResource,
 } from './resources/emails/resource'
 import {
+  createAutomationRunsResource,
+  type AutomationRunsResource,
+} from './resources/automation-runs/resource'
+import {
+  createEventsResource,
+  type EventsResource,
+} from './resources/events/resource'
+import {
+  createFieldsResource,
+  type FieldsResource,
+} from './resources/fields/resource'
+import {
   createSendsResource,
   type SendsResource,
 } from './resources/sends/resource'
@@ -28,6 +40,10 @@ import {
   createTemplatesResource,
   type TemplatesResource,
 } from './resources/templates/resource'
+import {
+  createTriggersResource,
+  type TriggersResource,
+} from './resources/triggers/resource'
 import type { BrewClientConfig } from './types'
 
 /**
@@ -42,12 +58,18 @@ import type { BrewClientConfig } from './types'
  */
 export type BrewClient = {
   readonly audiences: AudiencesResource
+  readonly automations: AutomationsResource
+  /** Canonical surface for trigger fires / automation tests / cancels. */
+  readonly automationRuns: AutomationRunsResource
   readonly contacts: ContactsResource
   readonly domains: DomainsResource
   readonly emails: EmailsResource
+  /** @deprecated alias for `automationRuns.fire` — same shape; targets `POST /v1/automation/runs` under the hood. */
+  readonly events: EventsResource
   readonly fields: FieldsResource
   readonly sends: SendsResource
   readonly templates: TemplatesResource
+  readonly triggers: TriggersResource
 }
 
 /**
@@ -81,11 +103,15 @@ export function createBrewClient(
   const httpClient = createHttpClient(config, tuning ?? {})
   return {
     audiences: createAudiencesResource(httpClient),
+    automations: createAutomationsResource(httpClient),
+    automationRuns: createAutomationRunsResource(httpClient),
     contacts: createContactsResource(httpClient),
     domains: createDomainsResource(httpClient),
     emails: createEmailsResource(httpClient),
+    events: createEventsResource(httpClient),
     fields: createFieldsResource(httpClient),
     sends: createSendsResource(httpClient),
     templates: createTemplatesResource(httpClient),
+    triggers: createTriggersResource(httpClient),
   }
 }

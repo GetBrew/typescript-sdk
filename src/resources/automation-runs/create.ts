@@ -1,0 +1,134 @@
+import { unwrapResponse, type HttpClient } from '../../core/http'
+import type { BrewRawResponse, RequestOptions } from '../../types'
+
+import type { AutomationRunsPostResponse } from './types'
+
+/**
+ * Discriminated body union for `POST /v1/automation/runs`. Hand-rolled
+ * so the per-branch shape is preserved at the type level — the
+ * generated OpenAPI types collapse union branches into a single
+ * object.
+ */
+export type AutomationRunsPostInput =
+  | {
+      triggerEventId: string
+      payload: Record<string, unknown>
+      idempotencyKey?: string
+      dryRun?: boolean
+    }
+  | {
+      automationId: string
+      mode: 'test'
+      payload?: Record<string, unknown>
+    }
+  | {
+      automationId: string
+      triggerInstanceId: string
+      mode: 'replay'
+    }
+
+/**
+ * Raw `POST /v1/automation/runs` — body is a 3-branch union (fire /
+ * test / replay). Prefer the sugar methods (`fire`, `test`, `replay`)
+ * which narrow the body shape per branch.
+ */
+export function createPostAutomationRun(client: HttpClient) {
+  function postAutomationRun(
+    input: AutomationRunsPostInput,
+    options: RequestOptions & { readonly raw: true }
+  ): Promise<BrewRawResponse<AutomationRunsPostResponse>>
+  function postAutomationRun(
+    input: AutomationRunsPostInput,
+    options?: RequestOptions
+  ): Promise<AutomationRunsPostResponse>
+  async function postAutomationRun(
+    input: AutomationRunsPostInput,
+    options?: RequestOptions
+  ): Promise<
+    AutomationRunsPostResponse | BrewRawResponse<AutomationRunsPostResponse>
+  > {
+    const response = await client.request<AutomationRunsPostResponse>({
+      method: 'POST',
+      path: '/v1/automation/runs',
+      body: input,
+      ...(options ? { options } : {}),
+    })
+    return unwrapResponse(response, options)
+  }
+  return postAutomationRun
+}
+
+export type FireTriggerInput = {
+  triggerEventId: string
+  payload: Record<string, unknown>
+  /**
+   * Idempotency token (preferred via the `Idempotency-Key` header
+   * on the underlying request). Retries with the same key replay
+   * the original `automationRunIds` instead of starting duplicate
+   * runs.
+   */
+  idempotencyKey?: string
+  /** When `true`, validates payload without firing — returns warnings/errors only. */
+  dryRun?: boolean
+}
+
+/**
+ * Fire a trigger. Returns
+ * `{ automationRunIds, triggerInstanceId, status }`.
+ */
+export function createFireTrigger(
+  postAutomationRun: ReturnType<typeof createPostAutomationRun>
+) {
+  return function fireTrigger(
+    input: FireTriggerInput,
+    options?: RequestOptions
+  ): Promise<AutomationRunsPostResponse> {
+    return postAutomationRun(input, options)
+  }
+}
+
+export type TestAutomationInput = {
+  automationId: string
+  payload?: Record<string, unknown>
+}
+
+/**
+ * Test-fire a saved automation (no real mail sent).
+ */
+export function createTestAutomation(
+  postAutomationRun: ReturnType<typeof createPostAutomationRun>
+) {
+  return function testAutomation(
+    input: TestAutomationInput,
+    options?: RequestOptions
+  ): Promise<AutomationRunsPostResponse> {
+    return postAutomationRun({ ...input, mode: 'test' }, options)
+  }
+}
+
+export type ReplayAutomationRunInput = {
+  automationId: string
+  triggerInstanceId: string
+}
+
+/**
+ * Replay a historical fire against the current automation version.
+ * Currently returns `501 NOT_IMPLEMENTED` while P7 ships.
+ */
+export function createReplayAutomationRun(
+  postAutomationRun: ReturnType<typeof createPostAutomationRun>
+) {
+  return function replayAutomationRun(
+    input: ReplayAutomationRunInput,
+    options?: RequestOptions
+  ): Promise<AutomationRunsPostResponse> {
+    return postAutomationRun(
+      {
+        automationId: input.automationId,
+        triggerInstanceId: input.triggerInstanceId,
+        mode: 'replay',
+      },
+      options
+    )
+  }
+}
