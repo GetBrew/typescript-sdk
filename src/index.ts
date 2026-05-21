@@ -25,12 +25,91 @@ export type {
 
 // ---------- Resource shapes ----------
 export type { AudiencesResource } from './resources/audiences/resource'
+export type { AutomationsResource } from './resources/automations/resource'
 export type { ContactsResource } from './resources/contacts/resource'
 export type { DomainsResource } from './resources/domains/resource'
 export type { EmailsResource } from './resources/emails/resource'
+export type { AutomationRunsResource } from './resources/automation-runs/resource'
+export type { EventsResource } from './resources/events/resource'
 export type { FieldsResource } from './resources/fields/resource'
 export type { SendsResource } from './resources/sends/resource'
 export type { TemplatesResource } from './resources/templates/resource'
+export type { TriggersResource } from './resources/triggers/resource'
+
+// ---------- Triggers: domain types ----------
+export type { Trigger, TriggersListResponse } from './resources/triggers/types'
+export type {
+  CreateTriggerInput,
+  CreateTriggerResponse,
+} from './resources/triggers/create'
+export type {
+  GetTriggerInput,
+  GetTriggerResponse,
+  ListTriggersResponse,
+} from './resources/triggers/list'
+export type {
+  PatchTriggerInput,
+  PatchTriggerResponse,
+} from './resources/triggers/patch'
+export type {
+  DeleteTriggerInput,
+  DeleteTriggerResponse,
+} from './resources/triggers/delete'
+
+// ---------- Automations: domain types ----------
+export type {
+  Automation,
+  AutomationsListResponse,
+} from './resources/automations/types'
+export type {
+  CreateAutomationInput,
+  CreateAutomationResponse,
+  AutomationNodeInput,
+  AutomationConnectionInput,
+  AutomationTriggerNodeConfig,
+  AutomationSendEmailNodeConfig,
+  AutomationWaitNodeConfig,
+  AutomationFilterNodeConfig,
+  AutomationFilterCondition,
+  AutomationSplitNodeConfig,
+} from './resources/automations/create'
+export type {
+  GetAutomationInput,
+  GetAutomationResponse,
+  ListAutomationsResponse,
+} from './resources/automations/list'
+export type {
+  PatchAutomationInput,
+  PatchAutomationResponse,
+} from './resources/automations/patch'
+export type {
+  DeleteAutomationInput,
+  DeleteAutomationResponse,
+} from './resources/automations/delete'
+
+// ---------- Automation runs: domain types ----------
+export type {
+  AutomationRun,
+  AutomationRunLog,
+  AutomationRunsListResponse,
+  AutomationRunsPostResponse,
+} from './resources/automation-runs/types'
+export type {
+  AutomationRunsPostInput,
+  FireTriggerInput,
+  TestAutomationInput,
+  ReplayAutomationRunInput,
+} from './resources/automation-runs/create'
+export type {
+  ListAutomationRunsInput,
+  ListAutomationRunsResponse,
+  GetAutomationRunInput,
+  GetAutomationRunResponse,
+} from './resources/automation-runs/list'
+export type {
+  CancelAutomationRunInput,
+  CancelAutomationRunResponse,
+} from './resources/automation-runs/cancel'
 
 // ---------- Audiences: domain types ----------
 export type { Audience } from './resources/audiences/types'
@@ -38,6 +117,7 @@ export type { Domain } from './resources/domains/types'
 export type {
   EmailStatus,
   EmailSummary,
+  EmailType,
   GeneratedEmailArtifact,
   GeneratedEmailTextResponse,
 } from './resources/emails/types'

@@ -77,7 +77,7 @@ describe('sends.create', () => {
         emailId: 'email_456',
         domainId: 'domain_456',
         subject: 'Scheduled launch',
-        emails: ['ada@example.com', 'grace@example.com'],
+        audienceId: 'audience_456',
         scheduledAt: '2099-01-01T00:00:00.000Z',
       },
       { idempotencyKey: 'send-001' }
@@ -87,7 +87,7 @@ describe('sends.create', () => {
       emailId: 'email_456',
       domainId: 'domain_456',
       subject: 'Scheduled launch',
-      emails: ['ada@example.com', 'grace@example.com'],
+      audienceId: 'audience_456',
       scheduledAt: '2099-01-01T00:00:00.000Z',
     })
     expect(capturedRequest?.headers.get('idempotency-key')).toBe('send-001')

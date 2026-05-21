@@ -30,6 +30,7 @@ describe('emails.generate', () => {
 
     const result = await generate({
       prompt: 'Create a welcome email',
+      emailType: 'campaign',
       contentUrl: 'https://vercel.com/blog',
       referenceEmailId: 'seed-vercel-newsletter',
     })
@@ -37,6 +38,7 @@ describe('emails.generate', () => {
     expect(capturedRequest?.method).toBe('POST')
     expect(capturedBody).toEqual({
       prompt: 'Create a welcome email',
+      emailType: 'campaign',
       contentUrl: 'https://vercel.com/blog',
       referenceEmailId: 'seed-vercel-newsletter',
     })
@@ -63,6 +65,7 @@ describe('emails.generate', () => {
 
     const result = await generate({
       prompt: 'Explain the campaign strategy only',
+      emailType: 'campaign',
     })
 
     expect('emailId' in result).toBe(false)
@@ -90,11 +93,35 @@ describe('emails.generate', () => {
 
     const controller = new AbortController()
     const pending = generate(
-      { prompt: 'Create a welcome email' },
+      { prompt: 'Create a welcome email', emailType: 'campaign' },
       { signal: controller.signal }
     )
     controller.abort()
 
     await expect(pending).rejects.toThrowError()
+  })
+
+  it('threads emailType through the request body', async () => {
+    let capturedBody: unknown
+    server.use(
+      http.post('https://brew.new/api/v1/emails', async ({ request }) => {
+        capturedBody = await request.json()
+        return HttpResponse.json({
+          emailId: 'email_auto',
+          emailHtml: '<html>auto</html>',
+        })
+      })
+    )
+
+    const { client } = makeTestHttpClient()
+    const generate = createGenerateEmail(client)
+    await generate({
+      prompt: 'day-2 nudge body for the welcome automation',
+      emailType: 'automation',
+    })
+
+    expect(capturedBody).toMatchObject({
+      emailType: 'automation',
+    })
   })
 })

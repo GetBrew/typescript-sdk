@@ -122,6 +122,12 @@ export interface paths {
         /**
          * Generate Email
          * @description Generates a draft email through the Brew email agent. POST supports idempotency for safe retries.
+         *
+         *     `emailType` is required and categorises the row:
+         *
+         *     - `campaign` — one-shot send to an audience / contact list (canvas-board default).
+         *     - `automation` — body referenced by `sendEmail` nodes inside an automation graph. Does NOT surface on the `/emails` canvas; chain with `POST /v1/automations` for the full flow.
+         *     - `transactional` — system-triggered (welcome / receipt / reset).
          */
         post: operations["generateEmail"];
         delete?: never;
@@ -181,7 +187,9 @@ export interface paths {
         put?: never;
         /**
          * Create Send
-         * @description Starts an async send job for a saved email. Use `audienceId` or explicit `emails`. POST supports idempotency for safe retries.
+         * @description Starts an async campaign send for a saved email to a brand-owned audience. `audienceId` is required — the public surface only supports audience-scoped blasts. For per-recipient delivery driven by an event, use `POST /v1/automation/runs` (fire) against a published automation. POST supports idempotency for safe retries.
+         *
+         *     Optional `emailVersionId` pins to a specific email version. Omit to send the current `latest`.
          *
          *     Brand scoping: API keys are bound to a single brand. The send is always recorded against the API key brand and you cannot pass a `brandId` body field. Resources (`emailId`, `audienceId`) that exist in a different brand within the same organization are intentionally surfaced as `404` (rather than `403`) so the API never confirms the existence of resources outside the caller brand.
          */
@@ -192,10 +200,576 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List recent fires (audit log)
+         * @description Returns the most recent trigger fires for the API key brand, newest first. Useful for an inbound audit log dashboard or to correlate executionIds back to their original event.
+         *
+         *     Brand-scoped via the resolved API key — there is no `brandId` query parameter. Use `?triggerEventId=...` to filter to a specific trigger.
+         */
+        get: operations["listEvents"];
+        put?: never;
+        /**
+         * Fire a trigger event
+         * @description Fires a published trigger event by its internal `triggerEventId`. The path is fixed at `/v1/events` — trigger names, titles, and `providerEventKey` are descriptors and never appear in the URL.
+         *
+         *     On success, every published automation attached to the trigger is started and its `executionId` is returned. Published transactional emails attached to the trigger are also delivered as part of the same fire.
+         *
+         *     ## Idempotency
+         *     Send a stable `Idempotency-Key` HTTP header on every retry — Brew namespaces the token with your org and dedups on `(provider="brew_api", externalEventId)` so a replay returns the original `executionIds` (status `idempotent_replay`) instead of starting new workflow runs. The legacy body field `idempotencyKey` is supported for back-compat; new integrations should use the header.
+         *
+         *     Brand scoping: the trigger event must belong to the API key brand. A `403 BRAND_SCOPE_MISMATCH` is returned when the matched trigger is in a different brand.
+         */
+        post: operations["fireEvent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/events/{triggerInstanceId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Fetch a single fire
+         * @description Returns one persisted fire by its `triggerInstanceId`. Returns `404 EVENT_NOT_FOUND` if the row is not visible to the API key brand.
+         */
+        get: operations["getEvent"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/triggers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List triggers OR get one (?triggerEventId=…)
+         * @description Always returns `{ triggers: TriggerRow[] }` — list mode by default, or a single-element array when `?triggerEventId=…` is supplied. Includes every trigger type for the brand — `provider: "brew_api"` for API-created customs and `provider: "clerk" | "stripe" | …` for integration-provisioned triggers.
+         */
+        get: operations["listTriggers"];
+        put?: never;
+        /**
+         * Create a trigger event (deterministic)
+         * @description Deterministic create — body carries `{ title, description?, payloadSchema }`. The server mints `triggerEventId` and hardcodes `provider: "brew_api"` — every trigger created through the public API is a custom Brew-API trigger. Integration triggers (clerk, stripe, shopify, …) are provisioned by the corresponding integration only.
+         *
+         *     Strict mode rejects unknown keys (including `provider` / `providerEventKey`, which were removed from this body shape). `payloadSchema.fields` MUST declare `{ key: "email", type: "string", required: true }` so downstream automations can resolve a recipient.
+         */
+        post: operations["createTrigger"];
+        /**
+         * Delete a trigger
+         * @description Refuses with `409 TRIGGER_HAS_DEPENDENT_AUTOMATIONS` when any non-archived automation still references the trigger.
+         */
+        delete: operations["deleteTrigger"];
+        options?: never;
+        head?: never;
+        /**
+         * Update a trigger (metadata) OR toggle status
+         * @description Body is a discriminated union: { triggerEventId, title? | description? | payloadSchema? } updates metadata; { triggerEventId, status } toggles enabled/disabled.
+         */
+        patch: operations["patchTrigger"];
+        trace?: never;
+    };
+    "/v1/automations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List automations OR get one (?automationId=…)
+         * @description Always returns `{ automations: AutomationRow[] }`. No query → list every latest row for the brand. `?automationId=…` → one-element list (or 404 when missing). `?include=versions` (single-row mode only) attaches the full `versions[]` history inline on the row.
+         */
+        get: operations["listAutomations"];
+        put?: never;
+        /**
+         * Create an automation (deterministic)
+         * @description Deterministic create — caller supplies the full graph (`{ name, triggerEventId, nodes, connections }`). Returns the canonical `AutomationRow`.
+         *
+         *     AI authoring is intentionally not part of the public surface — chain `POST /v1/emails { emailType: "automation", prompt }` (×N) first to mint the bodies that `sendEmail` nodes reference, then POST the explicit graph here.
+         *
+         *     **Dry-run** — add `dryRun: true` to validate-without-persist; returns `{ valid, blockers[], warnings[], nodeCounts }`.
+         */
+        post: operations["createAutomation"];
+        /**
+         * Cascade-delete an automation
+         * @description Removes the automation + every version row + owned emails + executions + execution logs + canvas layouts. Returns counts. Idempotent (deleting a deleted automation returns all zeros, not 404).
+         */
+        delete: operations["deleteAutomation"];
+        options?: never;
+        head?: never;
+        /**
+         * Update / publish / unpublish an automation
+         * @description PATCH body is a discriminated union (one of):
+         *
+         *     - **Update** — `{ automationId, name? | description? | nodes? | connections? | triggerEventId? }`.
+         *     - **Publish / unpublish** — `{ automationId, published: true | false, automationVersionId? }`.
+         *     - **Dry-run update** — add `dryRun: true` to the update branch to validate without persisting.
+         *
+         *     Bodies that match multiple branches OR no branch are rejected with `400 INVALID_REQUEST`.
+         */
+        patch: operations["patchAutomation"];
+        trace?: never;
+    };
+    "/v1/automation/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List recent automation runs (filterable) OR get one
+         * @description Always returns `{ runs: AutomationRunRow[] }`. No query → recent runs for the brand. `?automationRunId=…` → one-element list (or 404 when missing). Filters: automationId, triggerEventId, triggerInstanceId, recipientEmail, status, mode, from, to, limit, cursor. `?include=logs` embeds per-node log rows in a sibling `logs[]` array.
+         */
+        get: operations["listAutomationRuns"];
+        put?: never;
+        /**
+         * Fire a trigger, test an automation, or replay a historical fire
+         * @description POST body is a 3-branch union, dispatched by body shape:
+         *
+         *     - **Fire** — `{ triggerEventId, payload, idempotencyKey?, dryRun? }`. Starts one Vercel Workflow per published automation attached to the trigger and returns `{ automationRunIds[], triggerInstanceId, status: "triggered" | "idempotent_replay" }`.
+         *     - **Test** — `{ automationId, mode: "test", payload? }`. Suppression-aware test run; no real mail sent.
+         *     - **Replay** — `{ automationId, triggerInstanceId, mode: "replay" }` (NOT_IMPLEMENTED, P7).
+         *
+         *     Supports `Idempotency-Key` header on the fire branch — retries with the same key return the original `automationRunIds` without starting duplicate workflow runs.
+         */
+        post: operations["createAutomationRun"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Cancel an in-flight automation run (P7 — NOT_IMPLEMENTED today)
+         * @description Currently returns `501 NOT_IMPLEMENTED`. The cancel hook (P7) wires into the wait-node Promise.race so long drips can be interrupted mid-flight.
+         */
+        patch: operations["patchAutomationRun"];
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @enum {string} */
+        EmailType: "campaign" | "automation" | "transactional";
+        EmailListItem: {
+            emailId: string;
+            emailTitle: string;
+            /** @enum {string} */
+            emailType: "campaign" | "automation" | "transactional";
+        };
+        TriggerRow: {
+            triggerEventId: string;
+            title: string;
+            description?: string;
+            /** @enum {string} */
+            provider: "brew_api" | "clerk" | "stripe" | "shopify" | "stytch" | "supabase" | "workos" | "revenuecat" | "custom";
+            providerEventKey?: string;
+            /** @enum {string} */
+            status: "enabled" | "disabled";
+            payloadSchema: {
+                /** @enum {string} */
+                type: "object";
+                fields: {
+                    /** @description Variable name used by emails and automations, e.g. email or firstName. Prefer self-descriptive keys; this column has no separate description field. */
+                    key: string;
+                    /** @enum {string} */
+                    type: "string" | "int" | "boolean";
+                    required: boolean;
+                    /** @description Substitution value when the inbound payload is missing this field. Also used as the email agent's `e.g. {{ key | fallback }}` example. */
+                    fallbackValue?: string | number | boolean;
+                    /**
+                     * @description PII classification for redaction. "high" auto-redacts the value in execution logs and the inbound log. "low" (default when omitted) preserves the value. "none" is an explicit marker that the field is non-personal.
+                     * @enum {string}
+                     */
+                    pii?: "none" | "low" | "high";
+                }[];
+            };
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        AutomationNode: {
+            id: string;
+            label: string;
+            description?: string;
+            /** @enum {string} */
+            type: "trigger";
+            config: {
+                actionType?: string;
+                triggerEventId?: string;
+                eventName?: string;
+            };
+        } | {
+            id: string;
+            label: string;
+            description?: string;
+            /** @enum {string} */
+            type: "sendEmail";
+            config: {
+                actionType?: string;
+                emailId: string;
+                emailVersionId: string;
+                domainId: string;
+                subject: string;
+                previewText: string;
+                fromName?: string;
+                /** Format: email */
+                replyTo?: string;
+                emailTitle?: string;
+                emailRowId?: string;
+                fromAddress?: string;
+            };
+        } | {
+            id: string;
+            label: string;
+            description?: string;
+            /** @enum {string} */
+            type: "wait";
+            config: {
+                actionType?: string;
+                duration: number;
+                /** @enum {string} */
+                unit: "ms" | "seconds" | "minutes" | "hours" | "days" | "weeks";
+            };
+        } | {
+            id: string;
+            label: string;
+            description?: string;
+            /** @enum {string} */
+            type: "filter";
+            config: {
+                actionType?: string;
+                /** @enum {string} */
+                logicalOperator: "AND" | "OR";
+                conditions: {
+                    field: string;
+                    operator: string;
+                    value?: string | number | boolean;
+                }[];
+            };
+        } | {
+            id: string;
+            label: string;
+            description?: string;
+            /** @enum {string} */
+            type: "split";
+            config: {
+                actionType?: string;
+                /** @enum {string} */
+                mode: "percentage";
+                leftLabel: string;
+                rightLabel: string;
+                leftPercentage: number;
+                seed?: string;
+            } | {
+                actionType?: string;
+                /** @enum {string} */
+                mode: "condition";
+                leftLabel: string;
+                rightLabel: string;
+                /** @enum {string} */
+                logicalOperator: "AND" | "OR";
+                conditions: {
+                    field: string;
+                    operator: string;
+                    value?: string | number | boolean;
+                }[];
+            };
+        };
+        AutomationConnection: {
+            from: string;
+            to: string;
+            /** @enum {string} */
+            branch?: "left" | "right";
+        };
+        AutomationRow: {
+            automationId: string;
+            automationVersionId: string;
+            triggerEventId?: string;
+            name: string;
+            description?: string;
+            version: number | "latest";
+            published: boolean;
+            nodes: ({
+                id: string;
+                label: string;
+                description?: string;
+                /** @enum {string} */
+                type: "trigger";
+                config: {
+                    actionType?: string;
+                    triggerEventId?: string;
+                    eventName?: string;
+                };
+            } | {
+                id: string;
+                label: string;
+                description?: string;
+                /** @enum {string} */
+                type: "sendEmail";
+                config: {
+                    actionType?: string;
+                    emailId?: string;
+                    emailVersionId?: string;
+                    emailRowId?: string;
+                    emailTitle?: string;
+                    subject?: string;
+                    previewText?: string;
+                    fromName?: string;
+                    fromAddress?: string;
+                    domainId?: string;
+                    replyTo?: string;
+                    to?: unknown;
+                    html?: string;
+                    variables?: {
+                        [key: string]: unknown;
+                    };
+                };
+            } | {
+                id: string;
+                label: string;
+                description?: string;
+                /** @enum {string} */
+                type: "wait";
+                config: {
+                    actionType?: string;
+                    duration: number;
+                    /** @enum {string} */
+                    unit: "ms" | "seconds" | "minutes" | "hours" | "days" | "weeks";
+                };
+            } | {
+                id: string;
+                label: string;
+                description?: string;
+                /** @enum {string} */
+                type: "filter";
+                config: {
+                    actionType?: string;
+                    /** @enum {string} */
+                    logicalOperator: "AND" | "OR";
+                    conditions: {
+                        field: string;
+                        operator: string;
+                        value?: string | number | boolean;
+                    }[];
+                };
+            } | {
+                id: string;
+                label: string;
+                description?: string;
+                /** @enum {string} */
+                type: "split";
+                config: {
+                    actionType?: string;
+                    /** @enum {string} */
+                    mode: "percentage";
+                    leftLabel: string;
+                    rightLabel: string;
+                    leftPercentage: number;
+                    seed?: string;
+                } | {
+                    actionType?: string;
+                    /** @enum {string} */
+                    mode: "condition";
+                    leftLabel: string;
+                    rightLabel: string;
+                    /** @enum {string} */
+                    logicalOperator: "AND" | "OR";
+                    conditions: {
+                        field: string;
+                        operator: string;
+                        value?: string | number | boolean;
+                    }[];
+                };
+            })[];
+            connections: {
+                from: string;
+                to: string;
+                /** @enum {string} */
+                branch?: "left" | "right";
+            }[];
+            emailIds: string[];
+            createdBy?: string;
+            createdByUserId?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            updatedAt?: string;
+            /** Format: date-time */
+            publishedAt?: string;
+            versions?: {
+                automationId: string;
+                automationVersionId: string;
+                triggerEventId?: string;
+                name: string;
+                description?: string;
+                version: number | "latest";
+                published: boolean;
+                nodes: ({
+                    id: string;
+                    label: string;
+                    description?: string;
+                    /** @enum {string} */
+                    type: "trigger";
+                    config: {
+                        actionType?: string;
+                        triggerEventId?: string;
+                        eventName?: string;
+                    };
+                } | {
+                    id: string;
+                    label: string;
+                    description?: string;
+                    /** @enum {string} */
+                    type: "sendEmail";
+                    config: {
+                        actionType?: string;
+                        emailId?: string;
+                        emailVersionId?: string;
+                        emailRowId?: string;
+                        emailTitle?: string;
+                        subject?: string;
+                        previewText?: string;
+                        fromName?: string;
+                        fromAddress?: string;
+                        domainId?: string;
+                        replyTo?: string;
+                        to?: unknown;
+                        html?: string;
+                        variables?: {
+                            [key: string]: unknown;
+                        };
+                    };
+                } | {
+                    id: string;
+                    label: string;
+                    description?: string;
+                    /** @enum {string} */
+                    type: "wait";
+                    config: {
+                        actionType?: string;
+                        duration: number;
+                        /** @enum {string} */
+                        unit: "ms" | "seconds" | "minutes" | "hours" | "days" | "weeks";
+                    };
+                } | {
+                    id: string;
+                    label: string;
+                    description?: string;
+                    /** @enum {string} */
+                    type: "filter";
+                    config: {
+                        actionType?: string;
+                        /** @enum {string} */
+                        logicalOperator: "AND" | "OR";
+                        conditions: {
+                            field: string;
+                            operator: string;
+                            value?: string | number | boolean;
+                        }[];
+                    };
+                } | {
+                    id: string;
+                    label: string;
+                    description?: string;
+                    /** @enum {string} */
+                    type: "split";
+                    config: {
+                        actionType?: string;
+                        /** @enum {string} */
+                        mode: "percentage";
+                        leftLabel: string;
+                        rightLabel: string;
+                        leftPercentage: number;
+                        seed?: string;
+                    } | {
+                        actionType?: string;
+                        /** @enum {string} */
+                        mode: "condition";
+                        leftLabel: string;
+                        rightLabel: string;
+                        /** @enum {string} */
+                        logicalOperator: "AND" | "OR";
+                        conditions: {
+                            field: string;
+                            operator: string;
+                            value?: string | number | boolean;
+                        }[];
+                    };
+                })[];
+                connections: {
+                    from: string;
+                    to: string;
+                    /** @enum {string} */
+                    branch?: "left" | "right";
+                }[];
+                emailIds: string[];
+                createdBy?: string;
+                createdByUserId?: string;
+                /** Format: date-time */
+                createdAt?: string;
+                /** Format: date-time */
+                updatedAt?: string;
+                /** Format: date-time */
+                publishedAt?: string;
+            }[];
+        };
+        AutomationRunRow: {
+            automationRunId: string;
+            automationId: string;
+            automationVersionId: string;
+            triggerInstanceId?: string;
+            /** @enum {string} */
+            mode: "live" | "test";
+            /** @enum {string} */
+            status: "pending" | "running" | "completed" | "failed" | "cancelled";
+            /** Format: email */
+            recipientEmail?: string;
+            workflowRunId?: string;
+            dedupKey?: string;
+            /** Format: date-time */
+            startedAt?: string;
+            /** Format: date-time */
+            completedAt?: string;
+            error?: string;
+        };
+        AutomationRunLogRow: {
+            automationRunId: string;
+            nodeId: string;
+            nodeName: string;
+            /** @enum {string} */
+            nodeType: "trigger" | "wait" | "filter" | "split" | "sendEmail";
+            /** @enum {string} */
+            status: "running" | "success" | "error" | "skipped";
+            orderIndex: number;
+            /** @enum {string} */
+            branch?: "left" | "right";
+            durationMs?: number;
+            /** Format: date-time */
+            startedAt: string;
+            /** Format: date-time */
+            completedAt?: string;
+            error?: string;
+        };
         ContactsGetSuccessResponse: components["schemas"]["ContactsCountResponse"] | components["schemas"]["ContactsLookupResponse"] | components["schemas"]["ContactsListResponse"];
         ContactsCountResponse: {
             count: number;
@@ -420,10 +994,13 @@ export interface components {
             emails: {
                 emailId: string;
                 emailTitle: string;
+                /** @enum {string} */
+                emailType: "campaign" | "automation" | "transactional";
             }[];
         };
         EmailGenerateResponse: {
             emailId: string;
+            emailVersionId: string;
             emailHtml: string;
             /** Format: uri */
             emailPng?: string;
@@ -432,11 +1009,15 @@ export interface components {
         };
         EmailGenerateRequest: {
             prompt: string;
+            /** @enum {string} */
+            emailType: "campaign" | "automation" | "transactional";
             /** Format: uri */
             contentUrl?: string;
             referenceEmailId?: string;
         };
         EmailEditRequest: {
+            emailId: string;
+            emailVersionId?: string;
             prompt: string;
             /** Format: uri */
             contentUrl?: string;
@@ -458,15 +1039,686 @@ export interface components {
         };
         SendsPostRequest: {
             emailId: string;
+            emailVersionId?: string;
             domainId: string;
             subject: string;
             previewText?: string;
             /** Format: email */
             replyTo?: string;
-            audienceId?: string;
-            emails?: string[];
+            audienceId: string;
             /** Format: date-time */
             scheduledAt?: string;
+        };
+        FireEventResponse: {
+            success: boolean;
+            /**
+             * @description Discriminator for the response category. Pairs with `code`. A disabled trigger returns `status: "failed"` + `code: "TRIGGER_DISABLED"` (HTTP 422). An enabled trigger with no published automation attached returns `status: "failed"` + `code: "NO_PUBLISHED_AUTOMATION"` (HTTP 422). Successful fires always return `status: "triggered"`.
+             * @enum {string}
+             */
+            status: "triggered" | "idempotent_replay" | "ready" | "invalid_api_key" | "invalid_json" | "failed" | "forbidden" | "payload_mismatch" | "trigger_event_not_found";
+            code: string;
+            message: string;
+            triggerEventId?: string;
+            /** @description ISO-8601 timestamp the request was processed at. */
+            receivedAt: string;
+            details?: {
+                resolvedPayload?: {
+                    [key: string]: unknown;
+                };
+                warnings?: unknown[];
+                idempotencyKey?: string;
+                /** @description Unique identifier for the persisted inbound row. Useful for support and replay. Set whenever an Idempotency-Key was provided. */
+                triggerInstanceId?: string;
+                publishedTransactionalEmails?: ({
+                    emailId: string;
+                } & {
+                    [key: string]: unknown;
+                })[];
+                publishedAutomations?: ({
+                    automationId: string;
+                    title?: string;
+                } & {
+                    [key: string]: unknown;
+                })[];
+                automationRunIds?: string[];
+                counts?: {
+                    transactionalEmails: number;
+                    automations: number;
+                };
+            } & {
+                [key: string]: unknown;
+            };
+        };
+        FireEventRequest: {
+            /** @description Internal id of the published trigger event to fire. Returned by `POST /api/v1/triggers` and listed in `GET /api/v1/triggers`. The trigger title and providerEventKey are descriptors and are NEVER URL segments — the path is fixed at `/api/v1/automation/runs`. */
+            triggerEventId: string;
+            /** @description Event payload — fields and types must match the trigger's `payloadSchema`. Unknown fields are accepted but reported as `unexpected_key` warnings. */
+            payload: {
+                [key: string]: unknown;
+            };
+            /** @description Legacy body-field alternative to the `Idempotency-Key` HTTP header. Prefer the header for new integrations. The token is namespaced server-side with the API key org so different tenants cannot collide. */
+            idempotencyKey?: string;
+        };
+        TriggersPostRequest: {
+            title: string;
+            description?: string;
+            payloadSchema: {
+                /** @enum {string} */
+                type: "object";
+                fields: {
+                    /** @description Variable name used by emails and automations, e.g. email or firstName. Prefer self-descriptive keys; this column has no separate description field. */
+                    key: string;
+                    /** @enum {string} */
+                    type: "string" | "int" | "boolean";
+                    required: boolean;
+                    /** @description Substitution value when the inbound payload is missing this field. Also used as the email agent's `e.g. {{ key | fallback }}` example. */
+                    fallbackValue?: string | number | boolean;
+                    /**
+                     * @description PII classification for redaction. "high" auto-redacts the value in execution logs and the inbound log. "low" (default when omitted) preserves the value. "none" is an explicit marker that the field is non-personal.
+                     * @enum {string}
+                     */
+                    pii?: "none" | "low" | "high";
+                }[];
+            };
+        };
+        TriggersListResponse: {
+            triggers: {
+                triggerEventId: string;
+                title: string;
+                description?: string;
+                /** @enum {string} */
+                provider: "brew_api" | "clerk" | "stripe" | "shopify" | "stytch" | "supabase" | "workos" | "revenuecat" | "custom";
+                providerEventKey?: string;
+                /** @enum {string} */
+                status: "enabled" | "disabled";
+                payloadSchema: {
+                    /** @enum {string} */
+                    type: "object";
+                    fields: {
+                        /** @description Variable name used by emails and automations, e.g. email or firstName. Prefer self-descriptive keys; this column has no separate description field. */
+                        key: string;
+                        /** @enum {string} */
+                        type: "string" | "int" | "boolean";
+                        required: boolean;
+                        /** @description Substitution value when the inbound payload is missing this field. Also used as the email agent's `e.g. {{ key | fallback }}` example. */
+                        fallbackValue?: string | number | boolean;
+                        /**
+                         * @description PII classification for redaction. "high" auto-redacts the value in execution logs and the inbound log. "low" (default when omitted) preserves the value. "none" is an explicit marker that the field is non-personal.
+                         * @enum {string}
+                         */
+                        pii?: "none" | "low" | "high";
+                    }[];
+                };
+                /** Format: date-time */
+                createdAt: string;
+                /** Format: date-time */
+                updatedAt: string;
+            }[];
+        };
+        TriggersPatchRequest: {
+            triggerEventId: string;
+            title?: string;
+            description?: string;
+            payloadSchema?: {
+                /** @enum {string} */
+                type: "object";
+                fields: {
+                    /** @description Variable name used by emails and automations, e.g. email or firstName. Prefer self-descriptive keys; this column has no separate description field. */
+                    key: string;
+                    /** @enum {string} */
+                    type: "string" | "int" | "boolean";
+                    required: boolean;
+                    /** @description Substitution value when the inbound payload is missing this field. Also used as the email agent's `e.g. {{ key | fallback }}` example. */
+                    fallbackValue?: string | number | boolean;
+                    /**
+                     * @description PII classification for redaction. "high" auto-redacts the value in execution logs and the inbound log. "low" (default when omitted) preserves the value. "none" is an explicit marker that the field is non-personal.
+                     * @enum {string}
+                     */
+                    pii?: "none" | "low" | "high";
+                }[];
+            };
+        } | {
+            triggerEventId: string;
+            /** @enum {string} */
+            status: "enabled" | "disabled";
+        };
+        TriggersDeleteRequest: {
+            triggerEventId: string;
+        };
+        AutomationsListResponse: {
+            automations: {
+                automationId: string;
+                automationVersionId: string;
+                triggerEventId?: string;
+                name: string;
+                description?: string;
+                version: number | "latest";
+                published: boolean;
+                nodes: ({
+                    id: string;
+                    label: string;
+                    description?: string;
+                    /** @enum {string} */
+                    type: "trigger";
+                    config: {
+                        actionType?: string;
+                        triggerEventId?: string;
+                        eventName?: string;
+                    };
+                } | {
+                    id: string;
+                    label: string;
+                    description?: string;
+                    /** @enum {string} */
+                    type: "sendEmail";
+                    config: {
+                        actionType?: string;
+                        emailId?: string;
+                        emailVersionId?: string;
+                        emailRowId?: string;
+                        emailTitle?: string;
+                        subject?: string;
+                        previewText?: string;
+                        fromName?: string;
+                        fromAddress?: string;
+                        domainId?: string;
+                        replyTo?: string;
+                        to?: unknown;
+                        html?: string;
+                        variables?: {
+                            [key: string]: unknown;
+                        };
+                    };
+                } | {
+                    id: string;
+                    label: string;
+                    description?: string;
+                    /** @enum {string} */
+                    type: "wait";
+                    config: {
+                        actionType?: string;
+                        duration: number;
+                        /** @enum {string} */
+                        unit: "ms" | "seconds" | "minutes" | "hours" | "days" | "weeks";
+                    };
+                } | {
+                    id: string;
+                    label: string;
+                    description?: string;
+                    /** @enum {string} */
+                    type: "filter";
+                    config: {
+                        actionType?: string;
+                        /** @enum {string} */
+                        logicalOperator: "AND" | "OR";
+                        conditions: {
+                            field: string;
+                            operator: string;
+                            value?: string | number | boolean;
+                        }[];
+                    };
+                } | {
+                    id: string;
+                    label: string;
+                    description?: string;
+                    /** @enum {string} */
+                    type: "split";
+                    config: {
+                        actionType?: string;
+                        /** @enum {string} */
+                        mode: "percentage";
+                        leftLabel: string;
+                        rightLabel: string;
+                        leftPercentage: number;
+                        seed?: string;
+                    } | {
+                        actionType?: string;
+                        /** @enum {string} */
+                        mode: "condition";
+                        leftLabel: string;
+                        rightLabel: string;
+                        /** @enum {string} */
+                        logicalOperator: "AND" | "OR";
+                        conditions: {
+                            field: string;
+                            operator: string;
+                            value?: string | number | boolean;
+                        }[];
+                    };
+                })[];
+                connections: {
+                    from: string;
+                    to: string;
+                    /** @enum {string} */
+                    branch?: "left" | "right";
+                }[];
+                emailIds: string[];
+                createdBy?: string;
+                createdByUserId?: string;
+                /** Format: date-time */
+                createdAt?: string;
+                /** Format: date-time */
+                updatedAt?: string;
+                /** Format: date-time */
+                publishedAt?: string;
+                versions?: {
+                    automationId: string;
+                    automationVersionId: string;
+                    triggerEventId?: string;
+                    name: string;
+                    description?: string;
+                    version: number | "latest";
+                    published: boolean;
+                    nodes: ({
+                        id: string;
+                        label: string;
+                        description?: string;
+                        /** @enum {string} */
+                        type: "trigger";
+                        config: {
+                            actionType?: string;
+                            triggerEventId?: string;
+                            eventName?: string;
+                        };
+                    } | {
+                        id: string;
+                        label: string;
+                        description?: string;
+                        /** @enum {string} */
+                        type: "sendEmail";
+                        config: {
+                            actionType?: string;
+                            emailId?: string;
+                            emailVersionId?: string;
+                            emailRowId?: string;
+                            emailTitle?: string;
+                            subject?: string;
+                            previewText?: string;
+                            fromName?: string;
+                            fromAddress?: string;
+                            domainId?: string;
+                            replyTo?: string;
+                            to?: unknown;
+                            html?: string;
+                            variables?: {
+                                [key: string]: unknown;
+                            };
+                        };
+                    } | {
+                        id: string;
+                        label: string;
+                        description?: string;
+                        /** @enum {string} */
+                        type: "wait";
+                        config: {
+                            actionType?: string;
+                            duration: number;
+                            /** @enum {string} */
+                            unit: "ms" | "seconds" | "minutes" | "hours" | "days" | "weeks";
+                        };
+                    } | {
+                        id: string;
+                        label: string;
+                        description?: string;
+                        /** @enum {string} */
+                        type: "filter";
+                        config: {
+                            actionType?: string;
+                            /** @enum {string} */
+                            logicalOperator: "AND" | "OR";
+                            conditions: {
+                                field: string;
+                                operator: string;
+                                value?: string | number | boolean;
+                            }[];
+                        };
+                    } | {
+                        id: string;
+                        label: string;
+                        description?: string;
+                        /** @enum {string} */
+                        type: "split";
+                        config: {
+                            actionType?: string;
+                            /** @enum {string} */
+                            mode: "percentage";
+                            leftLabel: string;
+                            rightLabel: string;
+                            leftPercentage: number;
+                            seed?: string;
+                        } | {
+                            actionType?: string;
+                            /** @enum {string} */
+                            mode: "condition";
+                            leftLabel: string;
+                            rightLabel: string;
+                            /** @enum {string} */
+                            logicalOperator: "AND" | "OR";
+                            conditions: {
+                                field: string;
+                                operator: string;
+                                value?: string | number | boolean;
+                            }[];
+                        };
+                    })[];
+                    connections: {
+                        from: string;
+                        to: string;
+                        /** @enum {string} */
+                        branch?: "left" | "right";
+                    }[];
+                    emailIds: string[];
+                    createdBy?: string;
+                    createdByUserId?: string;
+                    /** Format: date-time */
+                    createdAt?: string;
+                    /** Format: date-time */
+                    updatedAt?: string;
+                    /** Format: date-time */
+                    publishedAt?: string;
+                }[];
+            }[];
+        };
+        AutomationsPostRequest: {
+            name: string;
+            description?: string;
+            triggerEventId: string;
+            nodes: ({
+                id: string;
+                label: string;
+                description?: string;
+                /** @enum {string} */
+                type: "trigger";
+                config: {
+                    actionType?: string;
+                    triggerEventId?: string;
+                    eventName?: string;
+                };
+            } | {
+                id: string;
+                label: string;
+                description?: string;
+                /** @enum {string} */
+                type: "sendEmail";
+                config: {
+                    actionType?: string;
+                    emailId: string;
+                    emailVersionId: string;
+                    domainId: string;
+                    subject: string;
+                    previewText: string;
+                    fromName?: string;
+                    /** Format: email */
+                    replyTo?: string;
+                    emailTitle?: string;
+                    emailRowId?: string;
+                    fromAddress?: string;
+                };
+            } | {
+                id: string;
+                label: string;
+                description?: string;
+                /** @enum {string} */
+                type: "wait";
+                config: {
+                    actionType?: string;
+                    duration: number;
+                    /** @enum {string} */
+                    unit: "ms" | "seconds" | "minutes" | "hours" | "days" | "weeks";
+                };
+            } | {
+                id: string;
+                label: string;
+                description?: string;
+                /** @enum {string} */
+                type: "filter";
+                config: {
+                    actionType?: string;
+                    /** @enum {string} */
+                    logicalOperator: "AND" | "OR";
+                    conditions: {
+                        field: string;
+                        operator: string;
+                        value?: string | number | boolean;
+                    }[];
+                };
+            } | {
+                id: string;
+                label: string;
+                description?: string;
+                /** @enum {string} */
+                type: "split";
+                config: {
+                    actionType?: string;
+                    /** @enum {string} */
+                    mode: "percentage";
+                    leftLabel: string;
+                    rightLabel: string;
+                    leftPercentage: number;
+                    seed?: string;
+                } | {
+                    actionType?: string;
+                    /** @enum {string} */
+                    mode: "condition";
+                    leftLabel: string;
+                    rightLabel: string;
+                    /** @enum {string} */
+                    logicalOperator: "AND" | "OR";
+                    conditions: {
+                        field: string;
+                        operator: string;
+                        value?: string | number | boolean;
+                    }[];
+                };
+            })[];
+            /** @default [] */
+            connections: {
+                from: string;
+                to: string;
+                /** @enum {string} */
+                branch?: "left" | "right";
+            }[];
+            dryRun?: boolean;
+        };
+        AutomationsPatchRequest: {
+            automationId: string;
+            name?: string;
+            description?: string;
+            nodes?: ({
+                id: string;
+                label: string;
+                description?: string;
+                /** @enum {string} */
+                type: "trigger";
+                config: {
+                    actionType?: string;
+                    triggerEventId?: string;
+                    eventName?: string;
+                };
+            } | {
+                id: string;
+                label: string;
+                description?: string;
+                /** @enum {string} */
+                type: "sendEmail";
+                config: {
+                    actionType?: string;
+                    emailId: string;
+                    emailVersionId: string;
+                    domainId: string;
+                    subject: string;
+                    previewText: string;
+                    fromName?: string;
+                    /** Format: email */
+                    replyTo?: string;
+                    emailTitle?: string;
+                    emailRowId?: string;
+                    fromAddress?: string;
+                };
+            } | {
+                id: string;
+                label: string;
+                description?: string;
+                /** @enum {string} */
+                type: "wait";
+                config: {
+                    actionType?: string;
+                    duration: number;
+                    /** @enum {string} */
+                    unit: "ms" | "seconds" | "minutes" | "hours" | "days" | "weeks";
+                };
+            } | {
+                id: string;
+                label: string;
+                description?: string;
+                /** @enum {string} */
+                type: "filter";
+                config: {
+                    actionType?: string;
+                    /** @enum {string} */
+                    logicalOperator: "AND" | "OR";
+                    conditions: {
+                        field: string;
+                        operator: string;
+                        value?: string | number | boolean;
+                    }[];
+                };
+            } | {
+                id: string;
+                label: string;
+                description?: string;
+                /** @enum {string} */
+                type: "split";
+                config: {
+                    actionType?: string;
+                    /** @enum {string} */
+                    mode: "percentage";
+                    leftLabel: string;
+                    rightLabel: string;
+                    leftPercentage: number;
+                    seed?: string;
+                } | {
+                    actionType?: string;
+                    /** @enum {string} */
+                    mode: "condition";
+                    leftLabel: string;
+                    rightLabel: string;
+                    /** @enum {string} */
+                    logicalOperator: "AND" | "OR";
+                    conditions: {
+                        field: string;
+                        operator: string;
+                        value?: string | number | boolean;
+                    }[];
+                };
+            })[];
+            connections?: {
+                from: string;
+                to: string;
+                /** @enum {string} */
+                branch?: "left" | "right";
+            }[];
+            triggerEventId?: string;
+            dryRun?: boolean;
+        } | {
+            automationId: string;
+            published: boolean;
+            automationVersionId?: string;
+        };
+        AutomationsDeleteResponse: {
+            automationId: string;
+            deletedAutomations: number;
+            deletedEmails: number;
+            deletedEmailGroupings: number;
+            deletedCanvasLayouts: number;
+            deletedExecutions: number;
+            deletedExecutionLogs: number;
+        };
+        AutomationsDeleteRequest: {
+            automationId: string;
+        };
+        AutomationRunsPostResponse: {
+            triggerInstanceId?: string;
+            automationRunIds: string[];
+            /** @enum {string} */
+            status: "triggered" | "idempotent_replay" | "test_started" | "replay_started";
+            counts?: {
+                automations: number;
+                transactionalEmails: number;
+            };
+            /** Format: date-time */
+            receivedAt: string;
+            warnings?: string[];
+        };
+        AutomationRunsPostRequest: {
+            triggerEventId: string;
+            payload: {
+                [key: string]: unknown;
+            };
+            idempotencyKey?: string;
+            dryRun?: boolean;
+        } | {
+            automationId: string;
+            /** @enum {string} */
+            mode: "test";
+            payload?: {
+                [key: string]: unknown;
+            };
+        } | {
+            automationId: string;
+            triggerInstanceId: string;
+            /** @enum {string} */
+            mode: "replay";
+        };
+        AutomationRunsListResponse: {
+            runs: {
+                automationRunId: string;
+                automationId: string;
+                automationVersionId: string;
+                triggerInstanceId?: string;
+                /** @enum {string} */
+                mode: "live" | "test";
+                /** @enum {string} */
+                status: "pending" | "running" | "completed" | "failed" | "cancelled";
+                /** Format: email */
+                recipientEmail?: string;
+                workflowRunId?: string;
+                dedupKey?: string;
+                /** Format: date-time */
+                startedAt?: string;
+                /** Format: date-time */
+                completedAt?: string;
+                error?: string;
+            }[];
+            logs?: {
+                automationRunId: string;
+                nodeId: string;
+                nodeName: string;
+                /** @enum {string} */
+                nodeType: "trigger" | "wait" | "filter" | "split" | "sendEmail";
+                /** @enum {string} */
+                status: "running" | "success" | "error" | "skipped";
+                orderIndex: number;
+                /** @enum {string} */
+                branch?: "left" | "right";
+                durationMs?: number;
+                /** Format: date-time */
+                startedAt: string;
+                /** Format: date-time */
+                completedAt?: string;
+                error?: string;
+            }[];
+            pagination?: {
+                limit: number;
+                cursor?: string;
+                hasMore: boolean;
+            };
+        };
+        AutomationRunsPatchRequest: {
+            automationRunId: string;
+            /** @enum {string} */
+            status: "cancelled";
+            reason?: string;
         };
     };
     responses: never;
@@ -563,7 +1815,7 @@ export interface operations {
                      *         "type": "invalid_request",
                      *         "message": "Unsupported sort field 'doesNotExist'.",
                      *         "suggestion": "Fix the request payload and retry.",
-                     *         "docs": "https://docs.getbrew.io/api/contacts#errors",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
                      *         "param": "sort"
                      *       }
                      *     }
@@ -597,7 +1849,7 @@ export interface operations {
                      *         "type": "authorization_error",
                      *         "message": "The caller does not have the required permission.",
                      *         "suggestion": "Use an API key or session with the required contacts permission.",
-                     *         "docs": "https://docs.getbrew.io/api/authentication",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
                      *         "param": "contacts"
                      *       }
                      *     }
@@ -620,7 +1872,7 @@ export interface operations {
                      *         "type": "not_found",
                      *         "message": "No contact exists with email 'missing-contact@example.com'.",
                      *         "suggestion": "Use POST /api/v1/contacts to create a new contact first.",
-                     *         "docs": "https://docs.getbrew.io/api/contacts#errors",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
                      *         "param": "email"
                      *       }
                      *     }
@@ -651,7 +1903,7 @@ export interface operations {
                      *         "type": "rate_limit",
                      *         "message": "Too many requests.",
                      *         "suggestion": "Wait for the retry window before sending another request.",
-                     *         "docs": "https://docs.getbrew.io/api/rate-limiting",
+                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
                      *         "retryAfter": 42
                      *       }
                      *     }
@@ -674,7 +1926,7 @@ export interface operations {
                      *         "type": "internal_error",
                      *         "message": "An unexpected error occurred.",
                      *         "suggestion": "Retry the request. If it keeps failing, contact support.",
-                     *         "docs": "https://docs.getbrew.io/api/contacts#errors"
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
                      *       }
                      *     }
                      */
@@ -777,7 +2029,7 @@ export interface operations {
                      *         "type": "invalid_request",
                      *         "message": "The `contacts` array must contain at least one contact.",
                      *         "suggestion": "Send at least one contact in the batch request.",
-                     *         "docs": "https://docs.getbrew.io/api/contacts#errors",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
                      *         "param": "contacts"
                      *       }
                      *     }
@@ -800,7 +2052,7 @@ export interface operations {
                      *         "type": "authentication_error",
                      *         "message": "The provided API key is invalid.",
                      *         "suggestion": "Check the API key format and retry with a valid active key.",
-                     *         "docs": "https://docs.getbrew.io/api/authentication"
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
                      *       }
                      *     }
                      */
@@ -822,7 +2074,7 @@ export interface operations {
                      *         "type": "authorization_error",
                      *         "message": "The caller does not have the required permission.",
                      *         "suggestion": "Use an API key or session with the required contacts permission.",
-                     *         "docs": "https://docs.getbrew.io/api/authentication",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
                      *         "param": "contacts"
                      *       }
                      *     }
@@ -875,7 +2127,7 @@ export interface operations {
                      *         "type": "rate_limit",
                      *         "message": "Too many requests.",
                      *         "suggestion": "Wait for the retry window before sending another request.",
-                     *         "docs": "https://docs.getbrew.io/api/rate-limiting",
+                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
                      *         "retryAfter": 42
                      *       }
                      *     }
@@ -898,7 +2150,7 @@ export interface operations {
                      *         "type": "internal_error",
                      *         "message": "An unexpected error occurred.",
                      *         "suggestion": "Retry the request. If it keeps failing, contact support.",
-                     *         "docs": "https://docs.getbrew.io/api/contacts#errors"
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
                      *       }
                      *     }
                      */
@@ -953,7 +2205,7 @@ export interface operations {
                      *         "type": "invalid_request",
                      *         "message": "Provide either `email` for a single delete or `emails` for a batch delete.",
                      *         "suggestion": "Send a valid delete request body and retry.",
-                     *         "docs": "https://docs.getbrew.io/api/contacts#errors"
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
                      *       }
                      *     }
                      */
@@ -975,7 +2227,7 @@ export interface operations {
                      *         "type": "authentication_error",
                      *         "message": "The provided API key is invalid.",
                      *         "suggestion": "Check the API key format and retry with a valid active key.",
-                     *         "docs": "https://docs.getbrew.io/api/authentication"
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
                      *       }
                      *     }
                      */
@@ -997,7 +2249,7 @@ export interface operations {
                      *         "type": "authorization_error",
                      *         "message": "The caller does not have the required permission.",
                      *         "suggestion": "Use an API key or session with the required contacts permission.",
-                     *         "docs": "https://docs.getbrew.io/api/authentication",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
                      *         "param": "contacts"
                      *       }
                      *     }
@@ -1020,7 +2272,7 @@ export interface operations {
                      *         "type": "not_found",
                      *         "message": "No contact exists with email 'missing-contact@example.com'.",
                      *         "suggestion": "Use POST /api/v1/contacts to create a new contact first.",
-                     *         "docs": "https://docs.getbrew.io/api/contacts#errors",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
                      *         "param": "email"
                      *       }
                      *     }
@@ -1051,7 +2303,7 @@ export interface operations {
                      *         "type": "rate_limit",
                      *         "message": "Too many requests.",
                      *         "suggestion": "Wait for the retry window before sending another request.",
-                     *         "docs": "https://docs.getbrew.io/api/rate-limiting",
+                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
                      *         "retryAfter": 42
                      *       }
                      *     }
@@ -1074,7 +2326,7 @@ export interface operations {
                      *         "type": "internal_error",
                      *         "message": "An unexpected error occurred.",
                      *         "suggestion": "Retry the request. If it keeps failing, contact support.",
-                     *         "docs": "https://docs.getbrew.io/api/contacts#errors"
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
                      *       }
                      *     }
                      */
@@ -1162,7 +2414,7 @@ export interface operations {
                      *         "type": "invalid_request",
                      *         "message": "The `fields` object is required for PATCH requests.",
                      *         "suggestion": "Provide at least one field to update and retry.",
-                     *         "docs": "https://docs.getbrew.io/api/contacts#errors",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
                      *         "param": "fields"
                      *       }
                      *     }
@@ -1185,7 +2437,7 @@ export interface operations {
                      *         "type": "authentication_error",
                      *         "message": "The provided API key is invalid.",
                      *         "suggestion": "Check the API key format and retry with a valid active key.",
-                     *         "docs": "https://docs.getbrew.io/api/authentication"
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
                      *       }
                      *     }
                      */
@@ -1207,7 +2459,7 @@ export interface operations {
                      *         "type": "authorization_error",
                      *         "message": "The caller does not have the required permission.",
                      *         "suggestion": "Use an API key or session with the required contacts permission.",
-                     *         "docs": "https://docs.getbrew.io/api/authentication",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
                      *         "param": "contacts"
                      *       }
                      *     }
@@ -1230,7 +2482,7 @@ export interface operations {
                      *         "type": "not_found",
                      *         "message": "No contact exists with email 'missing-contact@example.com'.",
                      *         "suggestion": "Use POST /api/v1/contacts to create a new contact first.",
-                     *         "docs": "https://docs.getbrew.io/api/contacts#errors",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
                      *         "param": "email"
                      *       }
                      *     }
@@ -1253,7 +2505,7 @@ export interface operations {
                      *         "type": "conflict",
                      *         "message": "Field 'customFields.revenue' is type 'number' but received 'string'.",
                      *         "suggestion": "Send a value that matches the field definition, or update the field definition first.",
-                     *         "docs": "https://docs.getbrew.io/api/contacts#errors",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
                      *         "param": "customFields.revenue"
                      *       }
                      *     }
@@ -1295,7 +2547,7 @@ export interface operations {
                      *         "type": "rate_limit",
                      *         "message": "Too many requests.",
                      *         "suggestion": "Wait for the retry window before sending another request.",
-                     *         "docs": "https://docs.getbrew.io/api/rate-limiting",
+                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
                      *         "retryAfter": 42
                      *       }
                      *     }
@@ -1318,7 +2570,7 @@ export interface operations {
                      *         "type": "internal_error",
                      *         "message": "An unexpected error occurred.",
                      *         "suggestion": "Retry the request. If it keeps failing, contact support.",
-                     *         "docs": "https://docs.getbrew.io/api/contacts#errors"
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
                      *       }
                      *     }
                      */
@@ -1378,7 +2630,7 @@ export interface operations {
                      *         "type": "authentication_error",
                      *         "message": "The provided API key is invalid.",
                      *         "suggestion": "Check the API key format and retry with a valid active key.",
-                     *         "docs": "https://docs.getbrew.io/api/authentication"
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
                      *       }
                      *     }
                      */
@@ -1400,7 +2652,7 @@ export interface operations {
                      *         "type": "authorization_error",
                      *         "message": "The caller does not have the required permission.",
                      *         "suggestion": "Use an API key or session with the required permission.",
-                     *         "docs": "https://docs.getbrew.io/api/authentication",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
                      *         "param": "contacts"
                      *       }
                      *     }
@@ -1423,7 +2675,7 @@ export interface operations {
                      *         "type": "internal_error",
                      *         "message": "An unexpected error occurred.",
                      *         "suggestion": "Retry the request. If it keeps failing, contact support.",
-                     *         "docs": "https://docs.getbrew.io/api/contacts#errors"
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
                      *       }
                      *     }
                      */
@@ -1483,7 +2735,7 @@ export interface operations {
                      *         "type": "authentication_error",
                      *         "message": "The provided API key is invalid.",
                      *         "suggestion": "Check the API key format and retry with a valid active key.",
-                     *         "docs": "https://docs.getbrew.io/api/authentication"
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
                      *       }
                      *     }
                      */
@@ -1505,7 +2757,7 @@ export interface operations {
                      *         "type": "authorization_error",
                      *         "message": "The caller does not have the required permission.",
                      *         "suggestion": "Use an API key or session with the required permission.",
-                     *         "docs": "https://docs.getbrew.io/api/authentication",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
                      *         "param": "emails"
                      *       }
                      *     }
@@ -1528,7 +2780,7 @@ export interface operations {
                      *         "type": "internal_error",
                      *         "message": "An unexpected error occurred.",
                      *         "suggestion": "Retry the request. If it keeps failing, contact support.",
-                     *         "docs": "https://docs.getbrew.io/api/email#errors"
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
                      *       }
                      *     }
                      */
@@ -1602,7 +2854,7 @@ export interface operations {
                      *         "type": "authentication_error",
                      *         "message": "The provided API key is invalid.",
                      *         "suggestion": "Check the API key format and retry with a valid active key.",
-                     *         "docs": "https://docs.getbrew.io/api/authentication"
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
                      *       }
                      *     }
                      */
@@ -1624,7 +2876,7 @@ export interface operations {
                      *         "type": "authorization_error",
                      *         "message": "The caller does not have the required permission.",
                      *         "suggestion": "Use an API key or session with the required contacts permission.",
-                     *         "docs": "https://docs.getbrew.io/api/authentication",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
                      *         "param": "contacts"
                      *       }
                      *     }
@@ -1655,7 +2907,7 @@ export interface operations {
                      *         "type": "rate_limit",
                      *         "message": "Too many requests.",
                      *         "suggestion": "Wait for the retry window before sending another request.",
-                     *         "docs": "https://docs.getbrew.io/api/rate-limiting",
+                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
                      *         "retryAfter": 42
                      *       }
                      *     }
@@ -1678,7 +2930,7 @@ export interface operations {
                      *         "type": "internal_error",
                      *         "message": "An unexpected error occurred.",
                      *         "suggestion": "Retry the request. If it keeps failing, contact support.",
-                     *         "docs": "https://docs.getbrew.io/api/contacts#errors"
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
                      *       }
                      *     }
                      */
@@ -1750,7 +3002,7 @@ export interface operations {
                      *         "type": "invalid_request",
                      *         "message": "Field type must be one of: string, number, date, bool. Got: banana.",
                      *         "suggestion": "Use one of the supported field types and retry.",
-                     *         "docs": "https://docs.getbrew.io/api/contacts#errors",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
                      *         "param": "fieldType"
                      *       }
                      *     }
@@ -1773,7 +3025,7 @@ export interface operations {
                      *         "type": "authentication_error",
                      *         "message": "The provided API key is invalid.",
                      *         "suggestion": "Check the API key format and retry with a valid active key.",
-                     *         "docs": "https://docs.getbrew.io/api/authentication"
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
                      *       }
                      *     }
                      */
@@ -1795,7 +3047,7 @@ export interface operations {
                      *         "type": "authorization_error",
                      *         "message": "The caller does not have the required permission.",
                      *         "suggestion": "Use an API key or session with the required contacts permission.",
-                     *         "docs": "https://docs.getbrew.io/api/authentication",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
                      *         "param": "contacts"
                      *       }
                      *     }
@@ -1818,7 +3070,7 @@ export interface operations {
                      *         "type": "conflict",
                      *         "message": "The same idempotency key was reused with a different request payload.",
                      *         "suggestion": "Reuse the original payload or send a new idempotency key.",
-                     *         "docs": "https://docs.getbrew.io/api/idempotency"
+                     *         "docs": "https://docs.brew.new/api-reference/api/idempotency"
                      *       }
                      *     }
                      */
@@ -1859,7 +3111,7 @@ export interface operations {
                      *         "type": "rate_limit",
                      *         "message": "Too many requests.",
                      *         "suggestion": "Wait for the retry window before sending another request.",
-                     *         "docs": "https://docs.getbrew.io/api/rate-limiting",
+                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
                      *         "retryAfter": 42
                      *       }
                      *     }
@@ -1882,7 +3134,7 @@ export interface operations {
                      *         "type": "internal_error",
                      *         "message": "An unexpected error occurred.",
                      *         "suggestion": "Retry the request. If it keeps failing, contact support.",
-                     *         "docs": "https://docs.getbrew.io/api/contacts#errors"
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
                      *       }
                      *     }
                      */
@@ -1947,7 +3199,7 @@ export interface operations {
                      *         "type": "invalid_request",
                      *         "message": "The `fieldName` field is required and must not be empty.",
                      *         "suggestion": "Provide a non-empty custom field name and retry.",
-                     *         "docs": "https://docs.getbrew.io/api/contacts#errors",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
                      *         "param": "fieldName"
                      *       }
                      *     }
@@ -1970,7 +3222,7 @@ export interface operations {
                      *         "type": "authentication_error",
                      *         "message": "The provided API key is invalid.",
                      *         "suggestion": "Check the API key format and retry with a valid active key.",
-                     *         "docs": "https://docs.getbrew.io/api/authentication"
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
                      *       }
                      *     }
                      */
@@ -1992,7 +3244,7 @@ export interface operations {
                      *         "type": "authorization_error",
                      *         "message": "The caller does not have the required permission.",
                      *         "suggestion": "Use an API key or session with the required contacts permission.",
-                     *         "docs": "https://docs.getbrew.io/api/authentication",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
                      *         "param": "contacts"
                      *       }
                      *     }
@@ -2015,7 +3267,7 @@ export interface operations {
                      *         "type": "not_found",
                      *         "message": "Field 'plan' does not exist.",
                      *         "suggestion": "Create it via POST /api/v1/fields or use POST /api/v1/contacts to auto-create it.",
-                     *         "docs": "https://docs.getbrew.io/api/contacts#errors",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
                      *         "param": "plan"
                      *       }
                      *     }
@@ -2038,7 +3290,7 @@ export interface operations {
                      *         "type": "invalid_request",
                      *         "message": "Field 'email' is a core field and cannot be removed.",
                      *         "suggestion": "Use a custom field name instead.",
-                     *         "docs": "https://docs.getbrew.io/api/contacts#errors",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
                      *         "param": "email"
                      *       }
                      *     }
@@ -2069,7 +3321,7 @@ export interface operations {
                      *         "type": "rate_limit",
                      *         "message": "Too many requests.",
                      *         "suggestion": "Wait for the retry window before sending another request.",
-                     *         "docs": "https://docs.getbrew.io/api/rate-limiting",
+                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
                      *         "retryAfter": 42
                      *       }
                      *     }
@@ -2092,7 +3344,7 @@ export interface operations {
                      *         "type": "internal_error",
                      *         "message": "An unexpected error occurred.",
                      *         "suggestion": "Retry the request. If it keeps failing, contact support.",
-                     *         "docs": "https://docs.getbrew.io/api/contacts#errors"
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
                      *       }
                      *     }
                      */
@@ -2104,6 +3356,7 @@ export interface operations {
     listEmails: {
         parameters: {
             query?: {
+                emailType?: "campaign" | "automation" | "transactional";
                 status?: "streaming" | "complete" | "error";
                 createdAtFrom?: string;
                 createdAtTo?: string;
@@ -2135,7 +3388,13 @@ export interface operations {
                      *       "emails": [
                      *         {
                      *           "emailId": "57Kg4U61MM8_Wi2Ix8QB-",
-                     *           "emailTitle": "Welcome Email"
+                     *           "emailTitle": "Welcome Email",
+                     *           "emailType": "campaign"
+                     *         },
+                     *         {
+                     *           "emailId": "auto_email_2",
+                     *           "emailTitle": "Day 2 nudge",
+                     *           "emailType": "automation"
                      *         }
                      *       ]
                      *     }
@@ -2158,7 +3417,7 @@ export interface operations {
                      *         "type": "invalid_request",
                      *         "message": "status must be one of: streaming, complete, error.",
                      *         "suggestion": "Fix the request query and retry.",
-                     *         "docs": "https://docs.getbrew.io/api/email#errors",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
                      *         "param": "status"
                      *       }
                      *     }
@@ -2181,7 +3440,7 @@ export interface operations {
                      *         "type": "authentication_error",
                      *         "message": "The provided API key is invalid.",
                      *         "suggestion": "Check the API key format and retry with a valid active key.",
-                     *         "docs": "https://docs.getbrew.io/api/authentication"
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
                      *       }
                      *     }
                      */
@@ -2203,7 +3462,7 @@ export interface operations {
                      *         "type": "authorization_error",
                      *         "message": "The caller does not have the required permission.",
                      *         "suggestion": "Use an API key or session with the required permission.",
-                     *         "docs": "https://docs.getbrew.io/api/authentication",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
                      *         "param": "emails"
                      *       }
                      *     }
@@ -2226,7 +3485,7 @@ export interface operations {
                      *         "type": "internal_error",
                      *         "message": "An unexpected error occurred.",
                      *         "suggestion": "Retry the request. If it keeps failing, contact support.",
-                     *         "docs": "https://docs.getbrew.io/api/email#errors"
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
                      *       }
                      *     }
                      */
@@ -2251,12 +3510,6 @@ export interface operations {
         /** @description Email generation prompt and optional reference context. The brand is resolved from the API key and must not be passed. */
         requestBody: {
             content: {
-                /**
-                 * @example {
-                 *       "prompt": "Create a welcome email for new customers who joined Brew today.",
-                 *       "contentUrl": "https://example.com/blog/product-launch"
-                 *     }
-                 */
                 "application/json": components["schemas"]["EmailGenerateRequest"];
             };
         };
@@ -2304,7 +3557,7 @@ export interface operations {
                      *         "type": "authentication_error",
                      *         "message": "The provided API key is invalid.",
                      *         "suggestion": "Check the API key format and retry with a valid active key.",
-                     *         "docs": "https://docs.getbrew.io/api/authentication"
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
                      *       }
                      *     }
                      */
@@ -2326,7 +3579,7 @@ export interface operations {
                      *         "type": "authorization_error",
                      *         "message": "The caller does not have the required permission.",
                      *         "suggestion": "Use an API key or session with the required permission.",
-                     *         "docs": "https://docs.getbrew.io/api/authentication",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
                      *         "param": "emails"
                      *       }
                      *     }
@@ -2349,7 +3602,7 @@ export interface operations {
                      *         "type": "not_found",
                      *         "message": "The requested brand was not found.",
                      *         "suggestion": "Verify in the dashboard that the brand bound to this API key still exists.",
-                     *         "docs": "https://docs.getbrew.io/api/email#errors"
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
                      *       }
                      *     }
                      */
@@ -2371,7 +3624,7 @@ export interface operations {
                      *         "type": "conflict",
                      *         "message": "The same idempotency key was reused with a different request payload.",
                      *         "suggestion": "Reuse the original payload or send a new idempotency key.",
-                     *         "docs": "https://docs.getbrew.io/api/idempotency"
+                     *         "docs": "https://docs.brew.new/api-reference/api/idempotency"
                      *       }
                      *     }
                      */
@@ -2393,7 +3646,7 @@ export interface operations {
                      *         "type": "invalid_request",
                      *         "message": "The requested brand is not ready for email generation.",
                      *         "suggestion": "Wait for brand extraction to complete in the dashboard before generating emails.",
-                     *         "docs": "https://docs.getbrew.io/api/email#errors"
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
                      *       }
                      *     }
                      */
@@ -2423,7 +3676,7 @@ export interface operations {
                      *         "type": "rate_limit",
                      *         "message": "Too many requests.",
                      *         "suggestion": "Wait for the retry window before sending another request.",
-                     *         "docs": "https://docs.getbrew.io/api/rate-limiting",
+                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
                      *         "retryAfter": 42
                      *       }
                      *     }
@@ -2446,7 +3699,7 @@ export interface operations {
                      *         "type": "internal_error",
                      *         "message": "An unexpected error occurred.",
                      *         "suggestion": "Retry the request. If it keeps failing, contact support.",
-                     *         "docs": "https://docs.getbrew.io/api/email#errors"
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
                      *       }
                      *     }
                      */
@@ -2526,7 +3779,7 @@ export interface operations {
                      *         "type": "authentication_error",
                      *         "message": "The provided API key is invalid.",
                      *         "suggestion": "Check the API key format and retry with a valid active key.",
-                     *         "docs": "https://docs.getbrew.io/api/authentication"
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
                      *       }
                      *     }
                      */
@@ -2548,7 +3801,7 @@ export interface operations {
                      *         "type": "authorization_error",
                      *         "message": "The caller does not have the required permission.",
                      *         "suggestion": "Use an API key or session with the required permission.",
-                     *         "docs": "https://docs.getbrew.io/api/authentication",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
                      *         "param": "emails"
                      *       }
                      *     }
@@ -2571,7 +3824,7 @@ export interface operations {
                      *         "type": "not_found",
                      *         "message": "No email exists with id 'email_2SmZOWV3ZQ7W5x6g3m4p'.",
                      *         "suggestion": "Verify the emailId via GET /api/v1/emails. Cross-brand ids surface as 404 to avoid leaking existence.",
-                     *         "docs": "https://docs.getbrew.io/api/email#errors",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
                      *         "param": "emailId"
                      *       }
                      *     }
@@ -2605,7 +3858,7 @@ export interface operations {
                      *         "type": "invalid_request",
                      *         "message": "The requested brand is not ready for email generation.",
                      *         "suggestion": "Wait for brand extraction to complete in the dashboard before generating emails.",
-                     *         "docs": "https://docs.getbrew.io/api/email#errors"
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
                      *       }
                      *     }
                      */
@@ -2635,7 +3888,7 @@ export interface operations {
                      *         "type": "rate_limit",
                      *         "message": "Too many requests.",
                      *         "suggestion": "Wait for the retry window before sending another request.",
-                     *         "docs": "https://docs.getbrew.io/api/rate-limiting",
+                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
                      *         "retryAfter": 42
                      *       }
                      *     }
@@ -2658,7 +3911,7 @@ export interface operations {
                      *         "type": "internal_error",
                      *         "message": "An unexpected error occurred.",
                      *         "suggestion": "Retry the request. If it keeps failing, contact support.",
-                     *         "docs": "https://docs.getbrew.io/api/email#errors"
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
                      *       }
                      *     }
                      */
@@ -2723,7 +3976,7 @@ export interface operations {
                      *         "type": "invalid_request",
                      *         "message": "brand must be a non-empty string.",
                      *         "suggestion": "Fix the request query and retry.",
-                     *         "docs": "https://docs.getbrew.io/api",
+                     *         "docs": "https://docs.brew.new/api-reference/api/api-introduction",
                      *         "param": "brand"
                      *       }
                      *     }
@@ -2746,7 +3999,7 @@ export interface operations {
                      *         "type": "authentication_error",
                      *         "message": "The provided API key is invalid.",
                      *         "suggestion": "Check the API key format and retry with a valid active key.",
-                     *         "docs": "https://docs.getbrew.io/api/authentication"
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
                      *       }
                      *     }
                      */
@@ -2768,7 +4021,7 @@ export interface operations {
                      *         "type": "authorization_error",
                      *         "message": "The caller does not have the required permission.",
                      *         "suggestion": "Use an API key or session with the required permission.",
-                     *         "docs": "https://docs.getbrew.io/api/authentication",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
                      *         "param": "emails"
                      *       }
                      *     }
@@ -2799,7 +4052,7 @@ export interface operations {
                      *         "type": "rate_limit",
                      *         "message": "Too many requests.",
                      *         "suggestion": "Wait for the retry window before sending another request.",
-                     *         "docs": "https://docs.getbrew.io/api/rate-limiting",
+                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
                      *         "retryAfter": 42
                      *       }
                      *     }
@@ -2822,7 +4075,7 @@ export interface operations {
                      *         "type": "internal_error",
                      *         "message": "An unexpected error occurred.",
                      *         "suggestion": "Retry the request. If it keeps failing, contact support.",
-                     *         "docs": "https://docs.getbrew.io/api"
+                     *         "docs": "https://docs.brew.new/api-reference/api/api-introduction"
                      *       }
                      *     }
                      */
@@ -2844,7 +4097,7 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        /** @description Send request for an existing saved email. */
+        /** @description Campaign send request for a saved email + audience. */
         requestBody: {
             content: {
                 "application/json": components["schemas"]["SendsPostRequest"];
@@ -2875,7 +4128,7 @@ export interface operations {
                     "application/json": components["schemas"]["SendsPostResponse"];
                 };
             };
-            /** @description The JSON body shape was invalid. */
+            /** @description The JSON body shape was invalid (e.g. missing required `audienceId`, unknown body keys such as the removed `emails[]` field). */
             400: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -2888,9 +4141,9 @@ export interface operations {
                      *       "error": {
                      *         "code": "INVALID_REQUEST",
                      *         "type": "invalid_request",
-                     *         "message": "Provide exactly one of audienceId or emails.",
-                     *         "suggestion": "Fix the request payload and retry.",
-                     *         "docs": "https://docs.getbrew.io/api/sends#errors",
+                     *         "message": "audienceId is required.",
+                     *         "suggestion": "Send `audienceId` from GET /v1/audiences. For per-recipient delivery use POST /v1/automation/runs (fire branch) instead.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
                      *         "param": "audienceId"
                      *       }
                      *     }
@@ -2913,7 +4166,7 @@ export interface operations {
                      *         "type": "authentication_error",
                      *         "message": "The provided API key is invalid.",
                      *         "suggestion": "Check the API key format and retry with a valid active key.",
-                     *         "docs": "https://docs.getbrew.io/api/authentication"
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
                      *       }
                      *     }
                      */
@@ -2935,7 +4188,7 @@ export interface operations {
                      *         "type": "authorization_error",
                      *         "message": "The caller does not have the required permission.",
                      *         "suggestion": "Use an API key or session with the required permission.",
-                     *         "docs": "https://docs.getbrew.io/api/authentication",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
                      *         "param": "emails"
                      *       }
                      *     }
@@ -2958,7 +4211,7 @@ export interface operations {
                      *         "type": "not_found",
                      *         "message": "The requested email 'email_123' was not found.",
                      *         "suggestion": "Use GET /api/v1/emails to choose an existing saved email for this organization.",
-                     *         "docs": "https://docs.getbrew.io/api/sends#errors",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
                      *         "param": "emailId"
                      *       }
                      *     }
@@ -3011,7 +4264,7 @@ export interface operations {
                      *         "type": "rate_limit",
                      *         "message": "Too many requests.",
                      *         "suggestion": "Wait for the retry window before sending another request.",
-                     *         "docs": "https://docs.getbrew.io/api/rate-limiting",
+                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
                      *         "retryAfter": 42
                      *       }
                      *     }
@@ -3034,7 +4287,995 @@ export interface operations {
                      *         "type": "internal_error",
                      *         "message": "An unexpected error occurred.",
                      *         "suggestion": "Retry the request. If it keeps failing, contact support.",
-                     *         "docs": "https://docs.getbrew.io/api/sends#errors"
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    listEvents: {
+        parameters: {
+            query?: {
+                /** @description Maximum number of rows to return. Default 25, max 100. */
+                limit?: number;
+                /** @description Filter results to one specific trigger event id. */
+                triggerEventId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of recent fires (newest first). */
+            200: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `limit` is out of range. */
+            400: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INVALID_LIMIT",
+                     *         "type": "invalid_request",
+                     *         "message": "`limit` must be an integer between 1 and 100.",
+                     *         "suggestion": "Pass a `limit` between 1 and 100.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "limit"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The API key was missing, invalid, or revoked. */
+            401: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "UNAUTHORIZED",
+                     *         "type": "authentication_error",
+                     *         "message": "Invalid or revoked API key.",
+                     *         "suggestion": "Provide a valid Brew API key.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    fireEvent: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description Optional idempotency key for safe retries. Reusing the same key with the same request body returns the original response for 24 hours.
+                 * @example api-request-2026-04-08-001
+                 */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Trigger fire request. */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FireEventRequest"];
+            };
+        };
+        responses: {
+            /** @description The trigger was accepted and matched (or replayed via idempotency). */
+            200: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FireEventResponse"];
+                };
+            };
+            /** @description The request body was malformed or the payload did not match the trigger schema. */
+            400: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The API key was missing, invalid, or revoked. */
+            401: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "UNAUTHORIZED",
+                     *         "type": "authentication_error",
+                     *         "message": "Invalid or revoked API key.",
+                     *         "suggestion": "Provide `Authorization: Bearer <brew_api_key>` or `X-API-Key`. API keys are managed on Settings → API.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The API key brand does not match the matched trigger event, or the key is missing required permissions. */
+            403: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description No trigger event matched the supplied `triggerEventId`. */
+            404: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "TRIGGER_EVENT_NOT_FOUND",
+                     *         "type": "not_found",
+                     *         "message": "No trigger event found for \"tri_unknown\".",
+                     *         "suggestion": "Use GET /v1/triggers to list trigger events for the API key brand.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "triggerEventId"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The trigger cannot fire as-is. Either the trigger row is disabled (`status: "disabled"`), or it is enabled but no PUBLISHED automation references it. */
+            422: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected internal error. */
+            500: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INTERNAL_ERROR",
+                     *         "type": "internal_error",
+                     *         "message": "An unexpected error occurred.",
+                     *         "suggestion": "Retry the request. If it keeps failing, contact support with the `x-request-id` header value.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    getEvent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The `tin_<id>` returned by POST /v1/events. */
+                triggerInstanceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The fire record. */
+            200: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The supplied id is not a valid `tin_<id>`. */
+            400: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INVALID_TRIGGER_INSTANCE_ID",
+                     *         "type": "invalid_request",
+                     *         "message": "`triggerInstanceId` must be a non-empty string starting with `tin_`.",
+                     *         "suggestion": "Use the id returned by POST /v1/events.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "triggerInstanceId"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The API key was missing, invalid, or revoked. */
+            401: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "UNAUTHORIZED",
+                     *         "type": "authentication_error",
+                     *         "message": "Invalid or revoked API key.",
+                     *         "suggestion": "Provide a valid Brew API key.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The fire record was not found (or not visible to this brand). */
+            404: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "EVENT_NOT_FOUND",
+                     *         "type": "not_found",
+                     *         "message": "No event found for \"tin_unknown\".",
+                     *         "suggestion": "Use GET /v1/events to find recent fires for the API key brand.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "triggerInstanceId"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    listTriggers: {
+        parameters: {
+            query?: {
+                triggerEventId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of trigger rows. Single-element array when `?triggerEventId=…` matched a row. */
+            200: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TriggersListResponse"];
+                };
+            };
+            /** @description No trigger with that id in this brand. */
+            404: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "TRIGGER_EVENT_NOT_FOUND",
+                     *         "type": "not_found",
+                     *         "message": "Trigger event 'tri_xxx' was not found.",
+                     *         "suggestion": "Use GET /api/v1/triggers to list trigger events for the API key brand.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "triggerEventId"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    createTrigger: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description Optional idempotency key for safe retries. Reusing the same key with the same request body returns the original response for 24 hours.
+                 * @example api-request-2026-04-08-001
+                 */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TriggersPostRequest"];
+            };
+        };
+        responses: {
+            /** @description Created. Returns the canonical trigger row. */
+            201: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TriggerRow"];
+                };
+            };
+            /** @description Invalid payload (strict-mode body violation). */
+            400: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "PAYLOAD_SCHEMA_EMAIL_REQUIRED",
+                     *         "type": "invalid_request",
+                     *         "message": "payloadSchema.fields must include { key: \"email\", type: \"string\", required: true }.",
+                     *         "suggestion": "Add { key: \"email\", type: \"string\", required: true } to payloadSchema.fields before retrying.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "payloadSchema.fields"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Integration providers can only be provisioned through the Integrations page. */
+            422: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "TRIGGER_PROVIDER_RESTRICTED",
+                     *         "type": "invalid_request",
+                     *         "message": "Trigger events with provider 'clerk' are owned by the integration and cannot be created via the public API.",
+                     *         "suggestion": "Use provider=\"brew_api\" for custom triggers, or toggle the integration trigger on the Integrations page.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "provider"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    deleteTrigger: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TriggersDeleteRequest"];
+            };
+        };
+        responses: {
+            /** @description Deleted. */
+            200: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Trigger has dependent automations. */
+            409: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "TRIGGER_HAS_DEPENDENT_AUTOMATIONS",
+                     *         "type": "conflict",
+                     *         "message": "Trigger event 'tri_xxx' is referenced by 2 automation(s) and cannot be deleted. Archive or detach them first.",
+                     *         "suggestion": "DELETE the referencing automations via DELETE /api/v1/automations then retry.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "triggerEventId"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    patchTrigger: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TriggersPatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated row. */
+            200: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TriggerRow"];
+                };
+            };
+            /** @description No trigger with that id in this brand. */
+            404: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "TRIGGER_EVENT_NOT_FOUND",
+                     *         "type": "not_found",
+                     *         "message": "Trigger event 'tri_xxx' was not found.",
+                     *         "suggestion": "Use GET /v1/triggers to list triggers.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "triggerEventId"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Integration triggers (clerk, stripe, …) are immutable through the public API. */
+            422: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "TRIGGER_IMMUTABLE",
+                     *         "type": "invalid_request",
+                     *         "message": "Trigger events from provider 'clerk' are immutable through the public API.",
+                     *         "suggestion": "Toggle per-event settings on the Integrations page instead.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "provider"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    listAutomations: {
+        parameters: {
+            query?: {
+                automationId?: string;
+                /** @description Comma-separated list. Allowed: `versions`. */
+                include?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List or single-row response. */
+            200: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationsListResponse"];
+                };
+            };
+            /** @description No automation with that id in this brand. */
+            404: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "AUTOMATION_NOT_FOUND",
+                     *         "type": "not_found",
+                     *         "message": "Automation 'auto_xxx' was not found.",
+                     *         "suggestion": "Use GET /v1/automations to list automations.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "automationId"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    createAutomation: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description Optional idempotency key for safe retries. Reusing the same key with the same request body returns the original response for 24 hours.
+                 * @example api-request-2026-04-08-001
+                 */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AutomationsPostRequest"];
+            };
+        };
+        responses: {
+            /** @description Dry-run result (no Convex writes). `valid` indicates whether the graph would publish cleanly. */
+            200: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Created. Returns `{ automations: [row] }` — a one-element list of the canonical automation row. */
+            201: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationsListResponse"];
+                };
+            };
+            /** @description Missing required field, strict-mode body violation, OR the graph references emails / domains that do not exist or are the wrong type. The `AUTOMATION_GRAPH_INVALID` response includes `error.details.issues` with one entry per offending node / connection. */
+            400: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Referenced `triggerEventId` does not exist in this brand. */
+            404: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "TRIGGER_EVENT_NOT_FOUND",
+                     *         "type": "not_found",
+                     *         "message": "Trigger event 'tri_unknown' was not found in this brand. Use GET /v1/triggers to verify.",
+                     *         "suggestion": "Pass a triggerEventId returned by POST /v1/triggers.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "triggerEventId"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    deleteAutomation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AutomationsDeleteRequest"];
+            };
+        };
+        responses: {
+            /** @description Cascade complete. */
+            200: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationsDeleteResponse"];
+                };
+            };
+        };
+    };
+    patchAutomation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AutomationsPatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated. Returns `{ automations: [row] }` — a one-element list of the updated automation row. */
+            200: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationsListResponse"];
+                };
+            };
+            /** @description Publish validation failed — see message for blockers. */
+            409: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "PUBLISH_VALIDATION_FAILED",
+                     *         "type": "conflict",
+                     *         "message": "Add at least one Send Email action",
+                     *         "suggestion": "Fix every blocker reported in `details.blockers` then PATCH again with { automationId, published: true }.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Semantic refusals: trying to unpublish an automation that is not currently published. */
+            422: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "AUTOMATION_NOT_PUBLISHED",
+                     *         "type": "invalid_request",
+                     *         "message": "Automation 'auto_abc' is not currently published — nothing to unpublish.",
+                     *         "suggestion": "Verify the automation is published via GET /api/v1/automations?automationId=…",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "published"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    listAutomationRuns: {
+        parameters: {
+            query?: {
+                automationRunId?: string;
+                automationId?: string;
+                triggerEventId?: string;
+                triggerInstanceId?: string;
+                recipientEmail?: string;
+                status?: "pending" | "running" | "completed" | "failed" | "cancelled";
+                mode?: "live" | "test";
+                from?: string;
+                to?: string;
+                limit?: number;
+                cursor?: string;
+                /** @description Comma-separated list. Allowed: `logs`. */
+                include?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of runs (single-element when `?automationRunId=…`). */
+            200: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationRunsListResponse"];
+                };
+            };
+            /** @description Automation run not found in this brand. */
+            404: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "AUTOMATION_RUN_NOT_FOUND",
+                     *         "type": "not_found",
+                     *         "message": "Automation run 'run_xxx' was not found.",
+                     *         "suggestion": "Use GET /api/v1/automation/runs to list runs.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "automationRunId"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    createAutomationRun: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description Optional idempotency key for safe retries. Reusing the same key with the same request body returns the original response for 24 hours.
+                 * @example api-request-2026-04-08-001
+                 */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AutomationRunsPostRequest"];
+            };
+        };
+        responses: {
+            /** @description Idempotent replay — original `automationRunIds` returned. */
+            200: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationRunsPostResponse"];
+                };
+            };
+            /** @description Fire / test accepted. */
+            202: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutomationRunsPostResponse"];
+                };
+            };
+            /** @description Invalid payload OR body matched no branch / multiple branches. */
+            400: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INVALID_REQUEST",
+                     *         "type": "invalid_request",
+                     *         "message": "Invalid request payload.",
+                     *         "suggestion": "Send one of: { triggerEventId, payload } (fire), { automationId, mode: \"test\" }, { automationId, triggerInstanceId, mode: \"replay\" }.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Automation not found for test / replay. */
+            404: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "AUTOMATION_NOT_FOUND",
+                     *         "type": "not_found",
+                     *         "message": "Automation 'auto_xxx' was not found.",
+                     *         "suggestion": "Use GET /v1/automations to list automations.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "automationId"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Trigger is disabled OR no published automation attached for fire. */
+            422: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "TRIGGER_DISABLED",
+                     *         "type": "invalid_request",
+                     *         "message": "Trigger event 'tri_xxx' is disabled — only enabled triggers can be fired.",
+                     *         "suggestion": "PATCH /v1/triggers { triggerEventId, status: \"enabled\" }.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "triggerEventId"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Replay branch is gated behind P7. */
+            501: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "NOT_IMPLEMENTED",
+                     *         "type": "not_implemented",
+                     *         "message": "This endpoint shell is ready, but the business logic is not implemented yet.",
+                     *         "suggestion": "Use the test branch to validate without delivering, OR the fire branch with a deduplicated idempotency key.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    patchAutomationRun: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AutomationRunsPatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Cancel is being implemented (P7). */
+            501: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "NOT_IMPLEMENTED",
+                     *         "type": "not_implemented",
+                     *         "message": "This endpoint shell is ready, but the business logic is not implemented yet.",
+                     *         "suggestion": "Cancel is part of the P7 work; tracked in docs/email-automations-architecture.md §7.4.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
                      *       }
                      *     }
                      */
