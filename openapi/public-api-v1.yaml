@@ -7590,7 +7590,7 @@ paths:
       operationId: listEvents
       tags:
         - Events
-      summary: List recent fires (audit log)
+      summary: List recent fires
       description: |-
         Returns the most recent trigger fires for the API key brand, newest first. Useful for an inbound audit log dashboard or to correlate executionIds back to their original event.
 
@@ -7761,7 +7761,7 @@ paths:
       operationId: createTrigger
       tags:
         - Triggers
-      summary: Create a trigger event (deterministic)
+      summary: Create a trigger
       description: |-
         Deterministic create — body carries `{ title, description?, payloadSchema }`. The server mints `triggerEventId` and hardcodes `provider: "brew_api"` — every trigger created through the public API is a custom Brew-API trigger. Integration triggers (clerk, stripe, shopify, …) are provisioned by the corresponding integration only.
 
@@ -7852,7 +7852,7 @@ paths:
       operationId: listTriggers
       tags:
         - Triggers
-      summary: List triggers OR get one (?triggerEventId=…)
+      summary: List triggers
       description: 'Always returns `{ triggers: TriggerRow[] }` — list mode by default, or a single-element array when `?triggerEventId=…` is supplied. Includes every trigger type for the brand — `provider: "brew_api"` for API-created customs and `provider: "clerk" | "stripe" | …` for integration-provisioned triggers.'
       parameters:
         - name: triggerEventId
@@ -7948,7 +7948,7 @@ paths:
       operationId: patchTrigger
       tags:
         - Triggers
-      summary: Update a trigger (metadata) OR toggle status
+      summary: Update or toggle a trigger
       description: "Body is a discriminated union: { triggerEventId, title? | description? | payloadSchema? } updates metadata; { triggerEventId, status } toggles enabled/disabled."
       requestBody:
         required: true
@@ -8081,7 +8081,7 @@ paths:
       operationId: createAutomation
       tags:
         - Automations
-      summary: Create an automation (deterministic)
+      summary: Create an automation
       description: |-
         Deterministic create — caller supplies the full graph (`{ name, triggerEventId, nodes, connections }`). Returns the canonical `AutomationRow`.
 
@@ -8230,7 +8230,7 @@ paths:
       operationId: listAutomations
       tags:
         - Automations
-      summary: List automations OR get one (?automationId=…)
+      summary: List automations
       description: "Always returns `{ automations: AutomationRow[] }`. No query → list every latest row for the brand. `?automationId=…` → one-element list (or 404 when missing). `?include=versions` (single-row mode only) attaches the full `versions[]` history inline on the row."
       parameters:
         - name: automationId
@@ -8596,7 +8596,7 @@ paths:
       operationId: listAutomationRuns
       tags:
         - Automation Runs
-      summary: List recent automation runs (filterable) OR get one
+      summary: List automation runs
       description: "Always returns `{ runs: AutomationRunRow[] }`. No query → recent runs for the brand. `?automationRunId=…` → one-element list (or 404 when missing). Filters: automationId, triggerEventId, triggerInstanceId, recipientEmail, status, mode, from, to, limit, cursor. `?include=logs` embeds per-node log rows in a sibling `logs[]` array."
       parameters:
         - name: automationRunId
@@ -8724,7 +8724,7 @@ paths:
       operationId: patchAutomationRun
       tags:
         - Automation Runs
-      summary: Cancel an in-flight automation run (P7 — NOT_IMPLEMENTED today)
+      summary: Cancel an automation run
       description: Currently returns `501 NOT_IMPLEMENTED`. The cancel hook (P7) wires into the wait-node Promise.race so long drips can be interrupted mid-flight.
       requestBody:
         required: true

@@ -208,7 +208,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List recent fires (audit log)
+         * List recent fires
          * @description Returns the most recent trigger fires for the API key brand, newest first. Useful for an inbound audit log dashboard or to correlate executionIds back to their original event.
          *
          *     Brand-scoped via the resolved API key — there is no `brandId` query parameter. Use `?triggerEventId=...` to filter to a specific trigger.
@@ -261,13 +261,13 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List triggers OR get one (?triggerEventId=…)
+         * List triggers
          * @description Always returns `{ triggers: TriggerRow[] }` — list mode by default, or a single-element array when `?triggerEventId=…` is supplied. Includes every trigger type for the brand — `provider: "brew_api"` for API-created customs and `provider: "clerk" | "stripe" | …` for integration-provisioned triggers.
          */
         get: operations["listTriggers"];
         put?: never;
         /**
-         * Create a trigger event (deterministic)
+         * Create a trigger
          * @description Deterministic create — body carries `{ title, description?, payloadSchema }`. The server mints `triggerEventId` and hardcodes `provider: "brew_api"` — every trigger created through the public API is a custom Brew-API trigger. Integration triggers (clerk, stripe, shopify, …) are provisioned by the corresponding integration only.
          *
          *     Strict mode rejects unknown keys (including `provider` / `providerEventKey`, which were removed from this body shape). `payloadSchema.fields` MUST declare `{ key: "email", type: "string", required: true }` so downstream automations can resolve a recipient.
@@ -281,7 +281,7 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Update a trigger (metadata) OR toggle status
+         * Update or toggle a trigger
          * @description Body is a discriminated union: { triggerEventId, title? | description? | payloadSchema? } updates metadata; { triggerEventId, status } toggles enabled/disabled.
          */
         patch: operations["patchTrigger"];
@@ -295,13 +295,13 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List automations OR get one (?automationId=…)
+         * List automations
          * @description Always returns `{ automations: AutomationRow[] }`. No query → list every latest row for the brand. `?automationId=…` → one-element list (or 404 when missing). `?include=versions` (single-row mode only) attaches the full `versions[]` history inline on the row.
          */
         get: operations["listAutomations"];
         put?: never;
         /**
-         * Create an automation (deterministic)
+         * Create an automation
          * @description Deterministic create — caller supplies the full graph (`{ name, triggerEventId, nodes, connections }`). Returns the canonical `AutomationRow`.
          *
          *     AI authoring is intentionally not part of the public surface — chain `POST /v1/emails { emailType: "automation", prompt }` (×N) first to mint the bodies that `sendEmail` nodes reference, then POST the explicit graph here.
@@ -337,7 +337,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List recent automation runs (filterable) OR get one
+         * List automation runs
          * @description Always returns `{ runs: AutomationRunRow[] }`. No query → recent runs for the brand. `?automationRunId=…` → one-element list (or 404 when missing). Filters: automationId, triggerEventId, triggerInstanceId, recipientEmail, status, mode, from, to, limit, cursor. `?include=logs` embeds per-node log rows in a sibling `logs[]` array.
          */
         get: operations["listAutomationRuns"];
@@ -357,7 +357,7 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Cancel an in-flight automation run (P7 — NOT_IMPLEMENTED today)
+         * Cancel an automation run
          * @description Currently returns `501 NOT_IMPLEMENTED`. The cancel hook (P7) wires into the wait-node Promise.race so long drips can be interrupted mid-flight.
          */
         patch: operations["patchAutomationRun"];
@@ -371,6 +371,7 @@ export interface components {
         EmailType: "campaign" | "automation" | "transactional";
         EmailListItem: {
             emailId: string;
+            emailVersionId?: string;
             emailTitle: string;
             /** @enum {string} */
             emailType: "campaign" | "automation" | "transactional";
@@ -435,7 +436,6 @@ export interface components {
                 /** Format: email */
                 replyTo?: string;
                 emailTitle?: string;
-                emailRowId?: string;
                 fromAddress?: string;
             };
         } | {
@@ -530,7 +530,6 @@ export interface components {
                     actionType?: string;
                     emailId?: string;
                     emailVersionId?: string;
-                    emailRowId?: string;
                     emailTitle?: string;
                     subject?: string;
                     previewText?: string;
@@ -645,7 +644,6 @@ export interface components {
                         actionType?: string;
                         emailId?: string;
                         emailVersionId?: string;
-                        emailRowId?: string;
                         emailTitle?: string;
                         subject?: string;
                         previewText?: string;
@@ -993,6 +991,7 @@ export interface components {
         EmailsListResponse: {
             emails: {
                 emailId: string;
+                emailVersionId?: string;
                 emailTitle: string;
                 /** @enum {string} */
                 emailType: "campaign" | "automation" | "transactional";
@@ -1011,6 +1010,7 @@ export interface components {
             prompt: string;
             /** @enum {string} */
             emailType: "campaign" | "automation" | "transactional";
+            contentUrls?: string[];
             /** Format: uri */
             contentUrl?: string;
             referenceEmailId?: string;
@@ -1019,6 +1019,7 @@ export interface components {
             emailId: string;
             emailVersionId?: string;
             prompt: string;
+            contentUrls?: string[];
             /** Format: uri */
             contentUrl?: string;
         };
@@ -1215,7 +1216,6 @@ export interface components {
                         actionType?: string;
                         emailId?: string;
                         emailVersionId?: string;
-                        emailRowId?: string;
                         emailTitle?: string;
                         subject?: string;
                         previewText?: string;
@@ -1330,7 +1330,6 @@ export interface components {
                             actionType?: string;
                             emailId?: string;
                             emailVersionId?: string;
-                            emailRowId?: string;
                             emailTitle?: string;
                             subject?: string;
                             previewText?: string;
@@ -1451,7 +1450,6 @@ export interface components {
                     /** Format: email */
                     replyTo?: string;
                     emailTitle?: string;
-                    emailRowId?: string;
                     fromAddress?: string;
                 };
             } | {
@@ -1552,7 +1550,6 @@ export interface components {
                     /** Format: email */
                     replyTo?: string;
                     emailTitle?: string;
-                    emailRowId?: string;
                     fromAddress?: string;
                 };
             } | {
