@@ -82,6 +82,9 @@ components:
         emailId:
           type: string
           minLength: 1
+        emailVersionId:
+          type: string
+          minLength: 1
         emailTitle:
           type: string
           minLength: 1
@@ -259,8 +262,6 @@ components:
                   type: string
                   format: email
                 emailTitle:
-                  type: string
-                emailRowId:
                   type: string
                 fromAddress:
                   type: string
@@ -546,8 +547,6 @@ components:
                       emailId:
                         type: string
                       emailVersionId:
-                        type: string
-                      emailRowId:
                         type: string
                       emailTitle:
                         type: string
@@ -868,8 +867,6 @@ components:
                             emailId:
                               type: string
                             emailVersionId:
-                              type: string
-                            emailRowId:
                               type: string
                             emailTitle:
                               type: string
@@ -1852,6 +1849,9 @@ components:
               emailId:
                 type: string
                 minLength: 1
+              emailVersionId:
+                type: string
+                minLength: 1
               emailTitle:
                 type: string
                 minLength: 1
@@ -1909,6 +1909,12 @@ components:
             - campaign
             - automation
             - transactional
+        contentUrls:
+          type: array
+          items:
+            type: string
+            format: uri
+          maxItems: 8
         contentUrl:
           type: string
           format: uri
@@ -1932,6 +1938,12 @@ components:
         prompt:
           type: string
           minLength: 1
+        contentUrls:
+          type: array
+          items:
+            type: string
+            format: uri
+          maxItems: 8
         contentUrl:
           type: string
           format: uri
@@ -2457,8 +2469,6 @@ components:
                               type: string
                             emailVersionId:
                               type: string
-                            emailRowId:
-                              type: string
                             emailTitle:
                               type: string
                             subject:
@@ -2778,8 +2788,6 @@ components:
                                   emailId:
                                     type: string
                                   emailVersionId:
-                                    type: string
-                                  emailRowId:
                                     type: string
                                   emailTitle:
                                     type: string
@@ -3124,8 +3132,6 @@ components:
                         format: email
                       emailTitle:
                         type: string
-                      emailRowId:
-                        type: string
                       fromAddress:
                         type: string
                     required:
@@ -3423,8 +3429,6 @@ components:
                             type: string
                             format: email
                           emailTitle:
-                            type: string
-                          emailRowId:
                             type: string
                           fromAddress:
                             type: string
