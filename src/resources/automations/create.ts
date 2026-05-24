@@ -110,13 +110,19 @@ type AutomationNodeBase = {
  * `lib/automations/wire-format.ts:{trigger,sendEmail,wait,filter,split}ConfigSchema`.
  */
 export type AutomationNodeInput =
-  | (AutomationNodeBase & { type: 'trigger'; config: AutomationTriggerNodeConfig })
+  | (AutomationNodeBase & {
+      type: 'trigger'
+      config: AutomationTriggerNodeConfig
+    })
   | (AutomationNodeBase & {
       type: 'sendEmail'
       config: AutomationSendEmailNodeConfig
     })
   | (AutomationNodeBase & { type: 'wait'; config: AutomationWaitNodeConfig })
-  | (AutomationNodeBase & { type: 'filter'; config: AutomationFilterNodeConfig })
+  | (AutomationNodeBase & {
+      type: 'filter'
+      config: AutomationFilterNodeConfig
+    })
   | (AutomationNodeBase & { type: 'split'; config: AutomationSplitNodeConfig })
 
 export type AutomationConnectionInput = {

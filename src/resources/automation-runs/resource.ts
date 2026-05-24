@@ -7,10 +7,7 @@ import {
   createReplayAutomationRun,
   createTestAutomation,
 } from './create'
-import {
-  createGetAutomationRun,
-  createListAutomationRuns,
-} from './list'
+import { createGetAutomationRun, createListAutomationRuns } from './list'
 
 export type AutomationRunsResource = {
   /** Raw `POST /v1/automation/runs` — body is a fire | test | replay union. */
