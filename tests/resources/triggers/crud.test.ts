@@ -14,7 +14,6 @@ const TRIGGER_ROW = {
   triggerEventId: 'tri_abc',
   title: 'Password Reset',
   provider: 'brew_api' as const,
-  status: 'enabled' as const,
   payloadSchema: VALID_PAYLOAD_SCHEMA,
   createdAt: '2026-04-08T12:34:56.789Z',
   updatedAt: '2026-04-08T12:34:56.789Z',
@@ -82,26 +81,35 @@ describe('triggers resource — POST/GET/PATCH/DELETE wiring', () => {
     expect(result.triggers[0]?.triggerEventId).toBe('tri_abc')
   })
 
-  it('enable / disable sugar both PATCH with the right status field', async () => {
-    const captured: Array<{ triggerEventId: string; status: string }> = []
+  it('does not surface enable / disable methods (triggers are always on; gated by automation.published)', () => {
+    const { client } = makeTestHttpClient()
+    const triggers = createTriggersResource(client)
+    expect('enable' in triggers).toBe(false)
+    expect('disable' in triggers).toBe(false)
+  })
+
+  it('patch PATCHes /v1/triggers with metadata-only fields', async () => {
+    let captured: unknown
     server.use(
       http.patch('https://brew.new/api/v1/triggers', async ({ request }) => {
-        captured.push(
-          (await request.json()) as { triggerEventId: string; status: string }
-        )
+        captured = await request.json()
         return HttpResponse.json({ trigger: TRIGGER_ROW })
       })
     )
 
     const { client } = makeTestHttpClient()
     const triggers = createTriggersResource(client)
-    await triggers.enable({ triggerEventId: 'tri_abc' })
-    await triggers.disable({ triggerEventId: 'tri_abc' })
+    await triggers.patch({
+      triggerEventId: 'tri_abc',
+      title: 'New title',
+      description: 'Renamed',
+    })
 
-    expect(captured).toEqual([
-      { triggerEventId: 'tri_abc', status: 'enabled' },
-      { triggerEventId: 'tri_abc', status: 'disabled' },
-    ])
+    expect(captured).toEqual({
+      triggerEventId: 'tri_abc',
+      title: 'New title',
+      description: 'Renamed',
+    })
   })
 
   it('delete DELETEs /v1/triggers with the id body', async () => {

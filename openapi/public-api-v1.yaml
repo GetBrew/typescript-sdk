@@ -127,11 +127,6 @@ components:
             - custom
         providerEventKey:
           type: string
-        status:
-          type: string
-          enum:
-            - enabled
-            - disabled
         payloadSchema:
           type: object
           properties:
@@ -186,7 +181,6 @@ components:
         - triggerEventId
         - title
         - provider
-        - status
         - payloadSchema
         - createdAt
         - updatedAt
@@ -2044,7 +2038,7 @@ components:
             - forbidden
             - payload_mismatch
             - trigger_event_not_found
-          description: 'Discriminator for the response category. Pairs with `code`. A disabled trigger returns `status: "failed"` + `code: "TRIGGER_DISABLED"` (HTTP 422). An enabled trigger with no published automation attached returns `status: "failed"` + `code: "NO_PUBLISHED_AUTOMATION"` (HTTP 422). Successful fires always return `status: "triggered"`.'
+          description: 'Discriminator for the response category. Pairs with `code`. A trigger with no published automation attached returns `status: "failed"` + `code: "NO_PUBLISHED_AUTOMATION"` (HTTP 422). Successful fires always return `status: "triggered"`.'
         code:
           type: string
         message:
@@ -2224,11 +2218,6 @@ components:
                   - custom
               providerEventKey:
                 type: string
-              status:
-                type: string
-                enum:
-                  - enabled
-                  - disabled
               payloadSchema:
                 type: object
                 properties:
@@ -2283,7 +2272,6 @@ components:
               - triggerEventId
               - title
               - provider
-              - status
               - payloadSchema
               - createdAt
               - updatedAt
@@ -2292,82 +2280,66 @@ components:
         - triggers
       additionalProperties: false
     TriggersPatchRequest:
-      anyOf:
-        - type: object
+      type: object
+      properties:
+        triggerEventId:
+          type: string
+          minLength: 1
+          maxLength: 256
+        title:
+          type: string
+          minLength: 1
+          maxLength: 120
+        description:
+          type: string
+          maxLength: 2000
+        payloadSchema:
+          type: object
           properties:
-            triggerEventId:
-              type: string
-              minLength: 1
-              maxLength: 256
-            title:
-              type: string
-              minLength: 1
-              maxLength: 120
-            description:
-              type: string
-              maxLength: 2000
-            payloadSchema:
-              type: object
-              properties:
-                type:
-                  type: string
-                  enum:
-                    - object
-                fields:
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      key:
-                        type: string
-                        minLength: 1
-                        description: Variable name used by emails and automations, e.g. email or firstName. Prefer self-descriptive keys; this column has no separate description field.
-                      type:
-                        type: string
-                        enum:
-                          - string
-                          - int
-                          - boolean
-                      required:
-                        type: boolean
-                      fallbackValue:
-                        anyOf:
-                          - type: string
-                          - type: number
-                          - type: boolean
-                        description: Substitution value when the inbound payload is missing this field. Also used as the email agent's `e.g. {{ key | fallback }}` example.
-                      pii:
-                        type: string
-                        enum:
-                          - none
-                          - low
-                          - high
-                        description: PII classification for redaction. "high" auto-redacts the value in execution logs and the inbound log. "low" (default when omitted) preserves the value. "none" is an explicit marker that the field is non-personal.
-                    required:
-                      - key
-                      - type
-                      - required
-              required:
-                - type
-                - fields
-          required:
-            - triggerEventId
-          additionalProperties: false
-        - type: object
-          properties:
-            triggerEventId:
-              type: string
-              minLength: 1
-              maxLength: 256
-            status:
+            type:
               type: string
               enum:
-                - enabled
-                - disabled
+                - object
+            fields:
+              type: array
+              items:
+                type: object
+                properties:
+                  key:
+                    type: string
+                    minLength: 1
+                    description: Variable name used by emails and automations, e.g. email or firstName. Prefer self-descriptive keys; this column has no separate description field.
+                  type:
+                    type: string
+                    enum:
+                      - string
+                      - int
+                      - boolean
+                  required:
+                    type: boolean
+                  fallbackValue:
+                    anyOf:
+                      - type: string
+                      - type: number
+                      - type: boolean
+                    description: Substitution value when the inbound payload is missing this field. Also used as the email agent's `e.g. {{ key | fallback }}` example.
+                  pii:
+                    type: string
+                    enum:
+                      - none
+                      - low
+                      - high
+                    description: PII classification for redaction. "high" auto-redacts the value in execution logs and the inbound log. "low" (default when omitted) preserves the value. "none" is an explicit marker that the field is non-personal.
+                required:
+                  - key
+                  - type
+                  - required
           required:
-            - triggerEventId
-            - status
-          additionalProperties: false
+            - type
+            - fields
+      required:
+        - triggerEventId
+      additionalProperties: false
     TriggersDeleteRequest:
       type: object
       properties:
@@ -7531,7 +7503,7 @@ paths:
                   docs: https://docs.brew.new/api-reference/api/errors
                   param: triggerEventId
         "422":
-          description: 'The trigger cannot fire as-is. Either the trigger row is disabled (`status: "disabled"`), or it is enabled but no PUBLISHED automation references it.'
+          description: The trigger has no PUBLISHED automation attached. Whether a trigger fires is governed solely by `automation.published` on each wired automation.
           headers:
             x-request-id:
               schema:
@@ -7544,27 +7516,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
-              examples:
-                triggerDisabled:
-                  summary: Trigger is disabled
-                  value:
-                    error:
-                      code: TRIGGER_DISABLED
-                      type: invalid_request
-                      message: Trigger event "tri_xxx" is "disabled" — only enabled triggers can be fired.
-                      suggestion: Re-enable the trigger via POST /v1/triggers/{triggerEventId}/enable before firing it.
-                      docs: https://docs.brew.new/api-reference/api/errors
-                      param: triggerEventId
-                noPublishedAutomation:
-                  summary: Trigger is published but has no published automation attached
-                  value:
-                    error:
-                      code: NO_PUBLISHED_AUTOMATION
-                      type: invalid_request
-                      message: Trigger event "tri_xxx" has no published automation attached. Publish at least one automation that uses this trigger before firing.
-                      suggestion: Publish at least one automation bound to this trigger via POST /v1/automations/{automationId}/publish.
-                      docs: https://docs.brew.new/api-reference/api/errors
-                      param: triggerEventId
+              example:
+                error:
+                  code: NO_PUBLISHED_AUTOMATION
+                  type: invalid_request
+                  message: Trigger event "tri_xxx" has no published automation attached. Publish at least one automation that uses this trigger before firing.
+                  suggestion: Publish at least one automation bound to this trigger via POST /v1/automations/{automationId}/publish.
+                  docs: https://docs.brew.new/api-reference/api/errors
+                  param: triggerEventId
         "500":
           description: Unexpected internal error.
           headers:
@@ -7590,7 +7549,7 @@ paths:
       operationId: listEvents
       tags:
         - Events
-      summary: List recent fires
+      summary: List recent fires (audit log)
       description: |-
         Returns the most recent trigger fires for the API key brand, newest first. Useful for an inbound audit log dashboard or to correlate executionIds back to their original event.
 
@@ -7761,7 +7720,7 @@ paths:
       operationId: createTrigger
       tags:
         - Triggers
-      summary: Create a trigger
+      summary: Create a trigger event (deterministic)
       description: |-
         Deterministic create — body carries `{ title, description?, payloadSchema }`. The server mints `triggerEventId` and hardcodes `provider: "brew_api"` — every trigger created through the public API is a custom Brew-API trigger. Integration triggers (clerk, stripe, shopify, …) are provisioned by the corresponding integration only.
 
@@ -7845,14 +7804,14 @@ paths:
                   code: TRIGGER_PROVIDER_RESTRICTED
                   type: invalid_request
                   message: Trigger events with provider 'clerk' are owned by the integration and cannot be created via the public API.
-                  suggestion: Use provider="brew_api" for custom triggers, or toggle the integration trigger on the Integrations page.
+                  suggestion: Use provider="brew_api" for custom triggers, or connect the integration on the Integrations page.
                   docs: https://docs.brew.new/api-reference/api/errors
                   param: provider
     get:
       operationId: listTriggers
       tags:
         - Triggers
-      summary: List triggers
+      summary: List triggers OR get one (?triggerEventId=…)
       description: 'Always returns `{ triggers: TriggerRow[] }` — list mode by default, or a single-element array when `?triggerEventId=…` is supplied. Includes every trigger type for the brand — `provider: "brew_api"` for API-created customs and `provider: "clerk" | "stripe" | …` for integration-provisioned triggers.'
       parameters:
         - name: triggerEventId
@@ -7885,7 +7844,6 @@ paths:
                       - triggerEventId: tri_password_reset
                         title: Password Reset Requested
                         provider: brew_api
-                        status: enabled
                         payloadSchema:
                           type: object
                           fields:
@@ -7897,7 +7855,6 @@ paths:
                       - triggerEventId: clerk:org_123:brand_abc:user.created
                         title: "Clerk: User Created"
                         provider: clerk
-                        status: enabled
                         payloadSchema:
                           type: object
                           fields:
@@ -7913,7 +7870,6 @@ paths:
                       - triggerEventId: tri_password_reset
                         title: Password Reset Requested
                         provider: brew_api
-                        status: enabled
                         payloadSchema:
                           type: object
                           fields:
@@ -7948,8 +7904,8 @@ paths:
       operationId: patchTrigger
       tags:
         - Triggers
-      summary: Update or toggle a trigger
-      description: "Body is a discriminated union: { triggerEventId, title? | description? | payloadSchema? } updates metadata; { triggerEventId, status } toggles enabled/disabled."
+      summary: Update trigger metadata
+      description: "Update one or more editable fields on a custom (`brew_api`) trigger. Body: { triggerEventId, title? | description? | payloadSchema? }. At least one editable field must be supplied. Integration triggers (clerk / stripe / shopify / …) are immutable through this endpoint — they are managed by their integration on the Integrations page."
       requestBody:
         required: true
         content:
@@ -7962,11 +7918,6 @@ paths:
                 value:
                   triggerEventId: tri_xxx
                   title: Renamed
-              status:
-                summary: Toggle status
-                value:
-                  triggerEventId: tri_xxx
-                  status: disabled
       responses:
         "200":
           description: Updated row.
@@ -8023,7 +7974,7 @@ paths:
                   code: TRIGGER_IMMUTABLE
                   type: invalid_request
                   message: Trigger events from provider 'clerk' are immutable through the public API.
-                  suggestion: Toggle per-event settings on the Integrations page instead.
+                  suggestion: Manage integration-provisioned triggers through the Integrations page.
                   docs: https://docs.brew.new/api-reference/api/errors
                   param: provider
     delete:
@@ -8081,7 +8032,7 @@ paths:
       operationId: createAutomation
       tags:
         - Automations
-      summary: Create an automation
+      summary: Create an automation (deterministic)
       description: |-
         Deterministic create — caller supplies the full graph (`{ name, triggerEventId, nodes, connections }`). Returns the canonical `AutomationRow`.
 
@@ -8230,7 +8181,7 @@ paths:
       operationId: listAutomations
       tags:
         - Automations
-      summary: List automations
+      summary: List automations OR get one (?automationId=…)
       description: "Always returns `{ automations: AutomationRow[] }`. No query → list every latest row for the brand. `?automationId=…` → one-element list (or 404 when missing). `?include=versions` (single-row mode only) attaches the full `versions[]` history inline on the row."
       parameters:
         - name: automationId
@@ -8550,7 +8501,7 @@ paths:
                   docs: https://docs.brew.new/api-reference/api/errors
                   param: automationId
         "422":
-          description: Trigger is disabled OR no published automation attached for fire.
+          description: No published automation attached to the trigger.
           headers:
             x-request-id:
               schema:
@@ -8565,10 +8516,10 @@ paths:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
               example:
                 error:
-                  code: TRIGGER_DISABLED
+                  code: NO_PUBLISHED_AUTOMATION
                   type: invalid_request
-                  message: Trigger event 'tri_xxx' is disabled — only enabled triggers can be fired.
-                  suggestion: 'PATCH /v1/triggers { triggerEventId, status: "enabled" }.'
+                  message: Trigger event 'tri_xxx' has no published automation attached.
+                  suggestion: Publish at least one automation bound to this trigger via POST /v1/automations/{automationId}/publish.
                   docs: https://docs.brew.new/api-reference/api/errors
                   param: triggerEventId
         "501":
@@ -8596,7 +8547,7 @@ paths:
       operationId: listAutomationRuns
       tags:
         - Automation Runs
-      summary: List automation runs
+      summary: List recent automation runs (filterable) OR get one
       description: "Always returns `{ runs: AutomationRunRow[] }`. No query → recent runs for the brand. `?automationRunId=…` → one-element list (or 404 when missing). Filters: automationId, triggerEventId, triggerInstanceId, recipientEmail, status, mode, from, to, limit, cursor. `?include=logs` embeds per-node log rows in a sibling `logs[]` array."
       parameters:
         - name: automationRunId
@@ -8724,7 +8675,7 @@ paths:
       operationId: patchAutomationRun
       tags:
         - Automation Runs
-      summary: Cancel an automation run
+      summary: Cancel an in-flight automation run (P7 — NOT_IMPLEMENTED today)
       description: Currently returns `501 NOT_IMPLEMENTED`. The cancel hook (P7) wires into the wait-node Promise.race so long drips can be interrupted mid-flight.
       requestBody:
         required: true

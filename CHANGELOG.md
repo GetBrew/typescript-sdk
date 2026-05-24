@@ -1,5 +1,74 @@
 # Changelog
 
+## 5.0.0
+
+The one-switch trigger refactor. Brew previously required two operator
+steps to turn on an integration trigger: connect the integration AND
+flip a per-event `status: 'enabled' | 'disabled'` toggle. Step 2 was a
+recurring footgun (users built automations, published them, and watched
+events arrive without ever firing because they hadn't toggled the
+matching event row). The whole status concept is gone. **Wired
+automations fire iff they're published.** Whether a trigger is "on" is
+no longer a separate question.
+
+### BREAKING — removed: `brew.triggers.enable()` and `brew.triggers.disable()`
+
+```diff
+- await brew.triggers.enable({ triggerEventId })
+- await brew.triggers.disable({ triggerEventId })
+```
+
+There is no replacement. To stop a trigger from firing, unpublish the
+bound automation (`brew.automations.patch({ automationId, published: false })`).
+To remove the trigger entirely, use `brew.triggers.delete({ triggerEventId })`.
+
+### BREAKING — `brew.triggers.patch()` is metadata-only
+
+The status-toggle branch on PATCH is removed. The body now accepts
+`{ triggerEventId, title?, description?, payloadSchema? }` exclusively;
+sending `{ status }` returns `400 INVALID_REQUEST`.
+
+```diff
+- await brew.triggers.patch({ triggerEventId, status: 'enabled' })
++ await brew.automations.patch({ automationId, published: true })
+```
+
+### BREAKING — `TriggerRow.status` field removed
+
+`status: 'enabled' | 'disabled'` is no longer on the `Trigger` /
+`TriggerRow` type returned by `brew.triggers.list()` / `.get()` /
+`.create()` / `.patch()`. Code that destructures or filters on it must
+be updated.
+
+```diff
+- const liveTriggers = (await brew.triggers.list()).triggers.filter(
+-   (t) => t.status === 'enabled'
+- )
++ const allTriggers = (await brew.triggers.list()).triggers
++ // To find which triggers are actually firing, list published automations
++ // and read each automation.bindings[].triggerEventId.
+```
+
+### BREAKING — `TRIGGER_DISABLED` error code removed
+
+`POST /v1/events` (and `brew.automationRuns.fire()`) used to return
+HTTP 422 with `code: 'TRIGGER_DISABLED'` when the trigger row's status
+was `'disabled'`. That path is gone. The only 422 on fire is
+`NO_PUBLISHED_AUTOMATION` (no automation is published against the
+trigger event id).
+
+Error-handling code that switched on `TRIGGER_DISABLED` should be
+removed; consumers should rely on `NO_PUBLISHED_AUTOMATION` instead.
+
+### Migration: `1.2.0` → `5.0.0`
+
+This release jumps over the unpublished `4.0.0` work — v4 was prepared
+in `public-api/v4-flat-api-surface` (flat list envelopes, executions →
+automationRuns rename) but never landed on npm. v5 ships the whole v4
+surface PLUS the trigger-status removal in one major. Read the v4.0.0
+notes below for the flat-envelope + automationRuns changes you'll also
+encounter on upgrade from `1.2.0`.
+
 ## 4.0.0
 
 Sweeping cleanup of the v1 surface: every list endpoint now returns

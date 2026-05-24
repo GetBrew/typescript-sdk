@@ -5,26 +5,24 @@ import type { BrewRawResponse, RequestOptions } from '../../types'
 import type { Trigger } from './types'
 
 /**
- * Full PATCH input — either an update body (title / description /
- * payloadSchema) or a status-toggle body. The server rejects bodies
- * that match neither branch OR both branches with 400
- * INVALID_REQUEST.
- *
- * Prefer the sugar wrappers (`brew.triggers.enable`,
- * `brew.triggers.disable`) for status toggles; use this when you need
- * to update metadata fields.
+ * Metadata-only PATCH input — update `title`, `description`, or
+ * `payloadSchema` on an existing trigger. Trigger rows no longer carry
+ * a `status` field; to stop a trigger from firing, unpublish the bound
+ * automation. The server rejects bodies that include `{ status }` with
+ * `400 INVALID_REQUEST`, and rejects a bare `{ triggerEventId }` with
+ * no editable fields so empty-noop PATCHes can't accidentally succeed.
  */
 export type PatchTriggerInput = components['schemas']['TriggersPatchRequest']
 
 export type PatchTriggerResponse = { trigger: Trigger }
 
 /**
- * `PATCH /v1/triggers` — update metadata OR toggle status.
+ * `PATCH /v1/triggers` — update trigger metadata.
  *
- * Note: the API requires at least one editable field alongside
- * `triggerEventId` for an update; a bare id with no fields is
- * rejected so callers who meant to toggle status can't accidentally
- * no-op.
+ * Requires at least one editable field (`title`, `description`, or
+ * `payloadSchema`) alongside `triggerEventId`. The previous status-toggle
+ * branch was removed when triggers became always-on; see the v5.0.0
+ * release notes.
  */
 export function createPatchTrigger(client: HttpClient) {
   function patchTrigger(
@@ -48,38 +46,4 @@ export function createPatchTrigger(client: HttpClient) {
     return unwrapResponse(response, options)
   }
   return patchTrigger
-}
-
-/**
- * Sugar over `patchTrigger({ triggerEventId, status: 'enabled' })`.
- */
-export function createEnableTrigger(
-  patchTrigger: ReturnType<typeof createPatchTrigger>
-) {
-  return function enableTrigger(
-    input: { triggerEventId: string },
-    options?: RequestOptions
-  ): Promise<PatchTriggerResponse> {
-    return patchTrigger(
-      { triggerEventId: input.triggerEventId, status: 'enabled' },
-      options
-    )
-  }
-}
-
-/**
- * Sugar over `patchTrigger({ triggerEventId, status: 'disabled' })`.
- */
-export function createDisableTrigger(
-  patchTrigger: ReturnType<typeof createPatchTrigger>
-) {
-  return function disableTrigger(
-    input: { triggerEventId: string },
-    options?: RequestOptions
-  ): Promise<PatchTriggerResponse> {
-    return patchTrigger(
-      { triggerEventId: input.triggerEventId, status: 'disabled' },
-      options
-    )
-  }
 }
