@@ -160,18 +160,15 @@ describe('automation runs resource — fire/test/replay + list/get/cancel', () =
   it('events back-compat alias targets /v1/automation/runs under the hood', async () => {
     let url: string | undefined
     server.use(
-      http.post(
-        'https://brew.new/api/v1/automation/runs',
-        ({ request }) => {
-          url = request.url
-          return HttpResponse.json({
-            triggerInstanceId: 'tin_01',
-            automationRunIds: ['run_a'],
-            status: 'triggered',
-            receivedAt: '2026-04-08T12:34:56.789Z',
-          })
-        }
-      )
+      http.post('https://brew.new/api/v1/automation/runs', ({ request }) => {
+        url = request.url
+        return HttpResponse.json({
+          triggerInstanceId: 'tin_01',
+          automationRunIds: ['run_a'],
+          status: 'triggered',
+          receivedAt: '2026-04-08T12:34:56.789Z',
+        })
+      })
     )
     const { client } = makeTestHttpClient()
     const events = createEventsResource(client)

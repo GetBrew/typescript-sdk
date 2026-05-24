@@ -16,9 +16,7 @@ export function createListTriggers(client: HttpClient) {
   function listTriggers(
     options: RequestOptions & { readonly raw: true }
   ): Promise<BrewRawResponse<ListTriggersResponse>>
-  function listTriggers(
-    options?: RequestOptions
-  ): Promise<ListTriggersResponse>
+  function listTriggers(options?: RequestOptions): Promise<ListTriggersResponse>
   async function listTriggers(
     options?: RequestOptions
   ): Promise<ListTriggersResponse | BrewRawResponse<ListTriggersResponse>> {

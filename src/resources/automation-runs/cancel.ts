@@ -28,8 +28,7 @@ export function createCancelAutomationRun(client: HttpClient) {
     input: CancelAutomationRunInput,
     options?: RequestOptions
   ): Promise<
-    | CancelAutomationRunResponse
-    | BrewRawResponse<CancelAutomationRunResponse>
+    CancelAutomationRunResponse | BrewRawResponse<CancelAutomationRunResponse>
   > {
     const response = await client.request<CancelAutomationRunResponse>({
       method: 'PATCH',

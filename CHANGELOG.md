@@ -1,5 +1,74 @@
 # Changelog
 
+## 5.0.0
+
+The one-switch trigger refactor. Brew previously required two operator
+steps to turn on an integration trigger: connect the integration AND
+flip a per-event `status: 'enabled' | 'disabled'` toggle. Step 2 was a
+recurring footgun (users built automations, published them, and watched
+events arrive without ever firing because they hadn't toggled the
+matching event row). The whole status concept is gone. **Wired
+automations fire iff they're published.** Whether a trigger is "on" is
+no longer a separate question.
+
+### BREAKING — removed: `brew.triggers.enable()` and `brew.triggers.disable()`
+
+```diff
+- await brew.triggers.enable({ triggerEventId })
+- await brew.triggers.disable({ triggerEventId })
+```
+
+There is no replacement. To stop a trigger from firing, unpublish the
+bound automation (`brew.automations.patch({ automationId, published: false })`).
+To remove the trigger entirely, use `brew.triggers.delete({ triggerEventId })`.
+
+### BREAKING — `brew.triggers.patch()` is metadata-only
+
+The status-toggle branch on PATCH is removed. The body now accepts
+`{ triggerEventId, title?, description?, payloadSchema? }` exclusively;
+sending `{ status }` returns `400 INVALID_REQUEST`.
+
+```diff
+- await brew.triggers.patch({ triggerEventId, status: 'enabled' })
++ await brew.automations.patch({ automationId, published: true })
+```
+
+### BREAKING — `TriggerRow.status` field removed
+
+`status: 'enabled' | 'disabled'` is no longer on the `Trigger` /
+`TriggerRow` type returned by `brew.triggers.list()` / `.get()` /
+`.create()` / `.patch()`. Code that destructures or filters on it must
+be updated.
+
+```diff
+- const liveTriggers = (await brew.triggers.list()).triggers.filter(
+-   (t) => t.status === 'enabled'
+- )
++ const allTriggers = (await brew.triggers.list()).triggers
++ // To find which triggers are actually firing, list published automations
++ // and read each automation.bindings[].triggerEventId.
+```
+
+### BREAKING — `TRIGGER_DISABLED` error code removed
+
+`POST /v1/events` (and `brew.automationRuns.fire()`) used to return
+HTTP 422 with `code: 'TRIGGER_DISABLED'` when the trigger row's status
+was `'disabled'`. That path is gone. The only 422 on fire is
+`NO_PUBLISHED_AUTOMATION` (no automation is published against the
+trigger event id).
+
+Error-handling code that switched on `TRIGGER_DISABLED` should be
+removed; consumers should rely on `NO_PUBLISHED_AUTOMATION` instead.
+
+### Migration: `1.2.0` → `5.0.0`
+
+This release jumps over the unpublished `4.0.0` work — v4 was prepared
+in `public-api/v4-flat-api-surface` (flat list envelopes, executions →
+automationRuns rename) but never landed on npm. v5 ships the whole v4
+surface PLUS the trigger-status removal in one major. Read the v4.0.0
+notes below for the flat-envelope + automationRuns changes you'll also
+encounter on upgrade from `1.2.0`.
+
 ## 4.0.0
 
 Sweeping cleanup of the v1 surface: every list endpoint now returns
@@ -29,35 +98,35 @@ SDK resource follows:
 
 Field renames at the wire boundary:
 
-| Was              | Now                |
-| ---------------- | ------------------ |
-| `executionId`    | `automationRunId`  |
-| `executions[]`   | `runs[]`           |
+| Was              | Now                                                  |
+| ---------------- | ---------------------------------------------------- |
+| `executionId`    | `automationRunId`                                    |
+| `executions[]`   | `runs[]`                                             |
 | `executionIds[]` | `automationRunIds[]` (fire response under `details`) |
 
 Error codes:
 
-| Was                     | Now                            |
-| ----------------------- | ------------------------------ |
-| `EXECUTION_NOT_FOUND`   | `AUTOMATION_RUN_NOT_FOUND`     |
+| Was                   | Now                        |
+| --------------------- | -------------------------- |
+| `EXECUTION_NOT_FOUND` | `AUTOMATION_RUN_NOT_FOUND` |
 
 Type renames:
 
-| Was                       | Now                              |
-| ------------------------- | -------------------------------- |
-| `ExecutionsResource`      | `AutomationRunsResource`         |
-| `Execution`               | `AutomationRun`                  |
-| `ExecutionLog`            | `AutomationRunLog`               |
-| `ExecutionsListResponse`  | `AutomationRunsListResponse`     |
-| `ExecutionsPostResponse`  | `AutomationRunsPostResponse`     |
-| `ExecutionsPostInput`     | `AutomationRunsPostInput`        |
-| `ListExecutionsInput`     | `ListAutomationRunsInput`        |
-| `ListExecutionsResponse`  | `ListAutomationRunsResponse`     |
-| `GetExecutionInput`       | `GetAutomationRunInput`          |
-| `GetExecutionResponse`    | `GetAutomationRunResponse`       |
-| `CancelExecutionInput`    | `CancelAutomationRunInput`       |
-| `CancelExecutionResponse` | `CancelAutomationRunResponse`   |
-| `ReplayExecutionInput`    | `ReplayAutomationRunInput`       |
+| Was                       | Now                           |
+| ------------------------- | ----------------------------- |
+| `ExecutionsResource`      | `AutomationRunsResource`      |
+| `Execution`               | `AutomationRun`               |
+| `ExecutionLog`            | `AutomationRunLog`            |
+| `ExecutionsListResponse`  | `AutomationRunsListResponse`  |
+| `ExecutionsPostResponse`  | `AutomationRunsPostResponse`  |
+| `ExecutionsPostInput`     | `AutomationRunsPostInput`     |
+| `ListExecutionsInput`     | `ListAutomationRunsInput`     |
+| `ListExecutionsResponse`  | `ListAutomationRunsResponse`  |
+| `GetExecutionInput`       | `GetAutomationRunInput`       |
+| `GetExecutionResponse`    | `GetAutomationRunResponse`    |
+| `CancelExecutionInput`    | `CancelAutomationRunInput`    |
+| `CancelExecutionResponse` | `CancelAutomationRunResponse` |
+| `ReplayExecutionInput`    | `ReplayAutomationRunInput`    |
 
 The server keeps `/v1/executions` as a deprecated alias (with
 `Deprecation: true` / `Sunset: 2026-12-01T00:00:00Z` headers) so old
@@ -154,15 +223,15 @@ shape. Migrate callers to `brew.automationRuns.fire(...)`.
 
 ### Migration cheat sheet
 
-| Old call                                                     | New call                                                              |
-| ------------------------------------------------------------ | --------------------------------------------------------------------- |
-| `brew.executions.fire(...)`                                  | `brew.automationRuns.fire(...)`                                       |
-| `brew.executions.get({ executionId })`                       | `brew.automationRuns.get({ automationRunId }).then(r => r.runs[0])`   |
-| `brew.executions.cancel({ executionId })`                    | `brew.automationRuns.cancel({ automationRunId })`                     |
-| `brew.triggers.create({ provider: 'brew_api', ... })`        | `brew.triggers.create({ /* drop provider */ ... })`                   |
-| `brew.triggers.get({ triggerEventId, include: ['usage'] })`  | `brew.triggers.get({ triggerEventId }).then(r => r.triggers[0])`      |
-| `brew.automations.get({ automationId }).then(r => r.automation)` | `brew.automations.get({ automationId }).then(r => r.automations[0])` |
-| `brew.sends.create({ emails: [...] })`                       | `brew.automationRuns.fire({ triggerEventId, payload: { email: ... } })` |
+| Old call                                                         | New call                                                                |
+| ---------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `brew.executions.fire(...)`                                      | `brew.automationRuns.fire(...)`                                         |
+| `brew.executions.get({ executionId })`                           | `brew.automationRuns.get({ automationRunId }).then(r => r.runs[0])`     |
+| `brew.executions.cancel({ executionId })`                        | `brew.automationRuns.cancel({ automationRunId })`                       |
+| `brew.triggers.create({ provider: 'brew_api', ... })`            | `brew.triggers.create({ /* drop provider */ ... })`                     |
+| `brew.triggers.get({ triggerEventId, include: ['usage'] })`      | `brew.triggers.get({ triggerEventId }).then(r => r.triggers[0])`        |
+| `brew.automations.get({ automationId }).then(r => r.automation)` | `brew.automations.get({ automationId }).then(r => r.automations[0])`    |
+| `brew.sends.create({ emails: [...] })`                           | `brew.automationRuns.fire({ triggerEventId, payload: { email: ... } })` |
 
 ## 3.1.0
 
@@ -172,15 +241,15 @@ shape. Migrate callers to `brew.automationRuns.fire(...)`.
 field, mirroring the server-side
 `API_SEND_EMAIL_CONFIG_SCHEMA` Zod contract:
 
-| Field             | Status   | Notes                                                                                  |
-| ----------------- | -------- | -------------------------------------------------------------------------------------- |
-| `emailId`         | required | FK into `emails`. Returned by `brew.emails.generate(...)`.                              |
-| `emailVersionId`  | required | Pin to an exact email version. Returned by `brew.emails.generate(...)` / `.edit(...)`. |
-| `domainId`        | required | Custom verified domain. Pick from `brew.domains.list(...)`.                            |
-| `subject`         | required | Inbox subject. Supports `{{var \| fallback}}` interpolation.                            |
-| `previewText`     | required | Inbox preview. Supports interpolation.                                                 |
-| `fromName`        | optional | Defaults to the domain's `defaultSenderName`.                                          |
-| `replyTo`         | optional | Defaults to the domain's `defaultReplyToEmail`.                                        |
+| Field            | Status   | Notes                                                                                  |
+| ---------------- | -------- | -------------------------------------------------------------------------------------- |
+| `emailId`        | required | FK into `emails`. Returned by `brew.emails.generate(...)`.                             |
+| `emailVersionId` | required | Pin to an exact email version. Returned by `brew.emails.generate(...)` / `.edit(...)`. |
+| `domainId`       | required | Custom verified domain. Pick from `brew.domains.list(...)`.                            |
+| `subject`        | required | Inbox subject. Supports `{{var \| fallback}}` interpolation.                           |
+| `previewText`    | required | Inbox preview. Supports interpolation.                                                 |
+| `fromName`       | optional | Defaults to the domain's `defaultSenderName`.                                          |
+| `replyTo`        | optional | Defaults to the domain's `defaultReplyToEmail`.                                        |
 
 The server resolves every `emailId + emailVersionId` pair through
 `getEmailByEmailVersionIdScoped` to verify the row exists in the
@@ -219,18 +288,18 @@ structured `error.details.issues[]` envelope when the graph fails the
 post-Zod, pre-write resolution pass. Each issue carries a `kind`
 discriminator so SDK callers can branch:
 
-| `kind`                       | Example                                              |
-| ---------------------------- | ---------------------------------------------------- |
-| `duplicate_node_id`          | Two nodes share an `id`.                             |
-| `connection_unknown_from`    | `connection.from` points to a non-existent node.     |
-| `connection_unknown_to`      | `connection.to` points to a non-existent node.       |
-| `connection_targets_trigger` | A connection's `to` is the trigger node.             |
-| `connection_self_loop`       | `connection.from === connection.to`.                 |
-| `email_not_found`            | `emailVersionId` does not exist in the brand.        |
-| `email_version_mismatch`     | `emailVersionId` exists but belongs to a different `emailId`. |
+| `kind`                       | Example                                                                       |
+| ---------------------------- | ----------------------------------------------------------------------------- |
+| `duplicate_node_id`          | Two nodes share an `id`.                                                      |
+| `connection_unknown_from`    | `connection.from` points to a non-existent node.                              |
+| `connection_unknown_to`      | `connection.to` points to a non-existent node.                                |
+| `connection_targets_trigger` | A connection's `to` is the trigger node.                                      |
+| `connection_self_loop`       | `connection.from === connection.to`.                                          |
+| `email_not_found`            | `emailVersionId` does not exist in the brand.                                 |
+| `email_version_mismatch`     | `emailVersionId` exists but belongs to a different `emailId`.                 |
 | `email_wrong_type`           | Referenced email is `campaign` (only `automation` / `transactional` allowed). |
-| `domain_not_found`           | `domainId` does not exist in the brand.              |
-| `domain_not_ready`           | Referenced domain is not verified for sending.       |
+| `domain_not_found`           | `domainId` does not exist in the brand.                                       |
+| `domain_not_ready`           | Referenced domain is not verified for sending.                                |
 
 ## 3.0.0
 
@@ -255,7 +324,7 @@ through the SDK chain deterministic calls.
   with `sendEmail` nodes referencing the returned `emailId` values.
 - `brew.automations.regenerate({ automationId, prompt })` — issue a
   deterministic `brew.automations.patch({ automationId, nodes,
-  connections })` instead.
+connections })` instead.
 - `PatchAutomationInput.prompt` / `PatchAutomationInput.autoCreateEmails`
   — fields removed; PATCH bodies that include them now return
   `400 INVALID_REQUEST`.
@@ -330,14 +399,34 @@ const { automation } = await brew.automations.create({
   name: 'Welcome flow',
   triggerEventId: trigger.triggerEventId,
   nodes: [
-    { id: 'trg',     label: 'On checkout',  type: 'trigger',   config: { triggerEventId: trigger.triggerEventId } },
-    { id: 'send_1',  label: 'Welcome',      type: 'sendEmail', config: { emailId: welcome.emailId } },
-    { id: 'wait_2d', label: 'Wait 2 days',  type: 'wait',      config: { duration: 2, unit: 'days' } },
-    { id: 'send_2',  label: 'Day 2 nudge',  type: 'sendEmail', config: { emailId: dayTwo.emailId } },
+    {
+      id: 'trg',
+      label: 'On checkout',
+      type: 'trigger',
+      config: { triggerEventId: trigger.triggerEventId },
+    },
+    {
+      id: 'send_1',
+      label: 'Welcome',
+      type: 'sendEmail',
+      config: { emailId: welcome.emailId },
+    },
+    {
+      id: 'wait_2d',
+      label: 'Wait 2 days',
+      type: 'wait',
+      config: { duration: 2, unit: 'days' },
+    },
+    {
+      id: 'send_2',
+      label: 'Day 2 nudge',
+      type: 'sendEmail',
+      config: { emailId: dayTwo.emailId },
+    },
   ],
   connections: [
-    { from: 'trg',     to: 'send_1' },
-    { from: 'send_1',  to: 'wait_2d' },
+    { from: 'trg', to: 'send_1' },
+    { from: 'send_1', to: 'wait_2d' },
     { from: 'wait_2d', to: 'send_2' },
   ],
 })
@@ -425,11 +514,11 @@ back-compat through the sunset window.
 
 ### Migration guide (from 1.x)
 
-| Before (1.x) | After (2.x) |
-|---|---|
+| Before (1.x)                                          | After (2.x)                                                                                         |
+| ----------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
 | `brew.emails.edit({ emailId, … })` — `emailId` on URL | `brew.emails.edit({ emailId, … })` — `emailId` now in body (server-side change, same SDK call site) |
-| (no equivalent) | `brew.triggers.*`, `brew.automations.*`, `brew.executions.*` |
-| (no equivalent) | `brew.events.fire(...)` — deprecated alias forwarding to `executions.fire` |
+| (no equivalent)                                       | `brew.triggers.*`, `brew.automations.*`, `brew.executions.*`                                        |
+| (no equivalent)                                       | `brew.events.fire(...)` — deprecated alias forwarding to `executions.fire`                          |
 
 No breaking changes to existing 1.x methods.
 

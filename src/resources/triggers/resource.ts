@@ -3,11 +3,7 @@ import type { HttpClient } from '../../core/http'
 import { createCreateTrigger } from './create'
 import { createDeleteTrigger } from './delete'
 import { createGetTrigger, createListTriggers } from './list'
-import {
-  createDisableTrigger,
-  createEnableTrigger,
-  createPatchTrigger,
-} from './patch'
+import { createPatchTrigger } from './patch'
 
 export type TriggersResource = {
   /** `POST /v1/triggers` — deterministic create. */
@@ -16,25 +12,24 @@ export type TriggersResource = {
   readonly list: ReturnType<typeof createListTriggers>
   /** `GET /v1/triggers?triggerEventId=…` — single trigger + optional includes. */
   readonly get: ReturnType<typeof createGetTrigger>
-  /** `PATCH /v1/triggers` — update metadata OR toggle status. */
+  /**
+   * `PATCH /v1/triggers` — update trigger metadata (title, description,
+   * payloadSchema). Trigger rows no longer have a status field — fire
+   * is gated by the bound automation being published. To stop a trigger
+   * from firing, unpublish its automation; to remove a trigger entirely,
+   * use `delete`.
+   */
   readonly patch: ReturnType<typeof createPatchTrigger>
-  /** Sugar over `patch({ status: 'enabled' })`. */
-  readonly enable: ReturnType<typeof createEnableTrigger>
-  /** Sugar over `patch({ status: 'disabled' })`. */
-  readonly disable: ReturnType<typeof createDisableTrigger>
   /** `DELETE /v1/triggers` — destructive with dependency guard. */
   readonly delete: ReturnType<typeof createDeleteTrigger>
 }
 
 export function createTriggersResource(client: HttpClient): TriggersResource {
-  const patch = createPatchTrigger(client)
   return {
     create: createCreateTrigger(client),
     list: createListTriggers(client),
     get: createGetTrigger(client),
-    patch,
-    enable: createEnableTrigger(patch),
-    disable: createDisableTrigger(patch),
+    patch: createPatchTrigger(client),
     delete: createDeleteTrigger(client),
   }
 }

@@ -281,8 +281,8 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Update a trigger (metadata) OR toggle status
-         * @description Body is a discriminated union: { triggerEventId, title? | description? | payloadSchema? } updates metadata; { triggerEventId, status } toggles enabled/disabled.
+         * Update trigger metadata
+         * @description Update one or more editable fields on a custom (`brew_api`) trigger. Body: { triggerEventId, title? | description? | payloadSchema? }. At least one editable field must be supplied. Integration triggers (clerk / stripe / shopify / …) are immutable through this endpoint — they are managed by their integration on the Integrations page.
          */
         patch: operations["patchTrigger"];
         trace?: never;
@@ -371,6 +371,7 @@ export interface components {
         EmailType: "campaign" | "automation" | "transactional";
         EmailListItem: {
             emailId: string;
+            emailVersionId?: string;
             emailTitle: string;
             /** @enum {string} */
             emailType: "campaign" | "automation" | "transactional";
@@ -382,8 +383,6 @@ export interface components {
             /** @enum {string} */
             provider: "brew_api" | "clerk" | "stripe" | "shopify" | "stytch" | "supabase" | "workos" | "revenuecat" | "custom";
             providerEventKey?: string;
-            /** @enum {string} */
-            status: "enabled" | "disabled";
             payloadSchema: {
                 /** @enum {string} */
                 type: "object";
@@ -435,7 +434,6 @@ export interface components {
                 /** Format: email */
                 replyTo?: string;
                 emailTitle?: string;
-                emailRowId?: string;
                 fromAddress?: string;
             };
         } | {
@@ -530,7 +528,6 @@ export interface components {
                     actionType?: string;
                     emailId?: string;
                     emailVersionId?: string;
-                    emailRowId?: string;
                     emailTitle?: string;
                     subject?: string;
                     previewText?: string;
@@ -645,7 +642,6 @@ export interface components {
                         actionType?: string;
                         emailId?: string;
                         emailVersionId?: string;
-                        emailRowId?: string;
                         emailTitle?: string;
                         subject?: string;
                         previewText?: string;
@@ -993,6 +989,7 @@ export interface components {
         EmailsListResponse: {
             emails: {
                 emailId: string;
+                emailVersionId?: string;
                 emailTitle: string;
                 /** @enum {string} */
                 emailType: "campaign" | "automation" | "transactional";
@@ -1011,6 +1008,7 @@ export interface components {
             prompt: string;
             /** @enum {string} */
             emailType: "campaign" | "automation" | "transactional";
+            contentUrls?: string[];
             /** Format: uri */
             contentUrl?: string;
             referenceEmailId?: string;
@@ -1019,6 +1017,7 @@ export interface components {
             emailId: string;
             emailVersionId?: string;
             prompt: string;
+            contentUrls?: string[];
             /** Format: uri */
             contentUrl?: string;
         };
@@ -1052,7 +1051,7 @@ export interface components {
         FireEventResponse: {
             success: boolean;
             /**
-             * @description Discriminator for the response category. Pairs with `code`. A disabled trigger returns `status: "failed"` + `code: "TRIGGER_DISABLED"` (HTTP 422). An enabled trigger with no published automation attached returns `status: "failed"` + `code: "NO_PUBLISHED_AUTOMATION"` (HTTP 422). Successful fires always return `status: "triggered"`.
+             * @description Discriminator for the response category. Pairs with `code`. A trigger with no published automation attached returns `status: "failed"` + `code: "NO_PUBLISHED_AUTOMATION"` (HTTP 422). Successful fires always return `status: "triggered"`.
              * @enum {string}
              */
             status: "triggered" | "idempotent_replay" | "ready" | "invalid_api_key" | "invalid_json" | "failed" | "forbidden" | "payload_mismatch" | "trigger_event_not_found";
@@ -1129,8 +1128,6 @@ export interface components {
                 /** @enum {string} */
                 provider: "brew_api" | "clerk" | "stripe" | "shopify" | "stytch" | "supabase" | "workos" | "revenuecat" | "custom";
                 providerEventKey?: string;
-                /** @enum {string} */
-                status: "enabled" | "disabled";
                 payloadSchema: {
                     /** @enum {string} */
                     type: "object";
@@ -1177,10 +1174,6 @@ export interface components {
                     pii?: "none" | "low" | "high";
                 }[];
             };
-        } | {
-            triggerEventId: string;
-            /** @enum {string} */
-            status: "enabled" | "disabled";
         };
         TriggersDeleteRequest: {
             triggerEventId: string;
@@ -1215,7 +1208,6 @@ export interface components {
                         actionType?: string;
                         emailId?: string;
                         emailVersionId?: string;
-                        emailRowId?: string;
                         emailTitle?: string;
                         subject?: string;
                         previewText?: string;
@@ -1330,7 +1322,6 @@ export interface components {
                             actionType?: string;
                             emailId?: string;
                             emailVersionId?: string;
-                            emailRowId?: string;
                             emailTitle?: string;
                             subject?: string;
                             previewText?: string;
@@ -1451,7 +1442,6 @@ export interface components {
                     /** Format: email */
                     replyTo?: string;
                     emailTitle?: string;
-                    emailRowId?: string;
                     fromAddress?: string;
                 };
             } | {
@@ -1552,7 +1542,6 @@ export interface components {
                     /** Format: email */
                     replyTo?: string;
                     emailTitle?: string;
-                    emailRowId?: string;
                     fromAddress?: string;
                 };
             } | {
@@ -4464,7 +4453,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The trigger cannot fire as-is. Either the trigger row is disabled (`status: "disabled"`), or it is enabled but no PUBLISHED automation references it. */
+            /** @description The trigger has no PUBLISHED automation attached. Whether a trigger fires is governed solely by `automation.published` on each wired automation. */
             422: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -4472,6 +4461,18 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "NO_PUBLISHED_AUTOMATION",
+                     *         "type": "invalid_request",
+                     *         "message": "Trigger event \"tri_xxx\" has no published automation attached. Publish at least one automation that uses this trigger before firing.",
+                     *         "suggestion": "Publish at least one automation bound to this trigger via POST /v1/automations/{automationId}/publish.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "triggerEventId"
+                     *       }
+                     *     }
+                     */
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
@@ -4704,7 +4705,7 @@ export interface operations {
                      *         "code": "TRIGGER_PROVIDER_RESTRICTED",
                      *         "type": "invalid_request",
                      *         "message": "Trigger events with provider 'clerk' are owned by the integration and cannot be created via the public API.",
-                     *         "suggestion": "Use provider=\"brew_api\" for custom triggers, or toggle the integration trigger on the Integrations page.",
+                     *         "suggestion": "Use provider=\"brew_api\" for custom triggers, or connect the integration on the Integrations page.",
                      *         "docs": "https://docs.brew.new/api-reference/api/errors",
                      *         "param": "provider"
                      *       }
@@ -4823,7 +4824,7 @@ export interface operations {
                      *         "code": "TRIGGER_IMMUTABLE",
                      *         "type": "invalid_request",
                      *         "message": "Trigger events from provider 'clerk' are immutable through the public API.",
-                     *         "suggestion": "Toggle per-event settings on the Integrations page instead.",
+                     *         "suggestion": "Manage integration-provisioned triggers through the Integrations page.",
                      *         "docs": "https://docs.brew.new/api-reference/api/errors",
                      *         "param": "provider"
                      *       }
@@ -5200,7 +5201,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description Trigger is disabled OR no published automation attached for fire. */
+            /** @description No published automation attached to the trigger. */
             422: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -5211,10 +5212,10 @@ export interface operations {
                     /**
                      * @example {
                      *       "error": {
-                     *         "code": "TRIGGER_DISABLED",
+                     *         "code": "NO_PUBLISHED_AUTOMATION",
                      *         "type": "invalid_request",
-                     *         "message": "Trigger event 'tri_xxx' is disabled — only enabled triggers can be fired.",
-                     *         "suggestion": "PATCH /v1/triggers { triggerEventId, status: \"enabled\" }.",
+                     *         "message": "Trigger event 'tri_xxx' has no published automation attached.",
+                     *         "suggestion": "Publish at least one automation bound to this trigger via POST /v1/automations/{automationId}/publish.",
                      *         "docs": "https://docs.brew.new/api-reference/api/errors",
                      *         "param": "triggerEventId"
                      *       }

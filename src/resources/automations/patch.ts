@@ -1,10 +1,7 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
-import type {
-  AutomationConnectionInput,
-  AutomationNodeInput,
-} from './create'
+import type { AutomationConnectionInput, AutomationNodeInput } from './create'
 import type { Automation } from './types'
 
 /**

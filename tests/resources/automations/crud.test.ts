@@ -28,13 +28,10 @@ describe('automations resource — POST/GET/PATCH/DELETE wiring', () => {
   it('create POSTs with deterministic body and returns { automations: [row] }', async () => {
     let body: unknown
     server.use(
-      http.post(
-        'https://brew.new/api/v1/automations',
-        async ({ request }) => {
-          body = await request.json()
-          return HttpResponse.json({ automations: [ROW] }, { status: 201 })
-        }
-      )
+      http.post('https://brew.new/api/v1/automations', async ({ request }) => {
+        body = await request.json()
+        return HttpResponse.json({ automations: [ROW] }, { status: 201 })
+      })
     )
     const { client } = makeTestHttpClient()
     const automations = createAutomationsResource(client)
@@ -44,7 +41,10 @@ describe('automations resource — POST/GET/PATCH/DELETE wiring', () => {
       nodes: [TRIGGER_NODE],
       connections: [],
     })
-    expect(body).toMatchObject({ name: 'Welcome', triggerEventId: 'tri_signup' })
+    expect(body).toMatchObject({
+      name: 'Welcome',
+      triggerEventId: 'tri_signup',
+    })
     expect('automations' in result).toBe(true)
     if ('automations' in result) {
       expect(result.automations[0]?.automationId).toBe('auto_abc')
@@ -92,15 +92,12 @@ describe('automations resource — POST/GET/PATCH/DELETE wiring', () => {
   it('publish sugar PATCHes with published:true', async () => {
     let body: unknown
     server.use(
-      http.patch(
-        'https://brew.new/api/v1/automations',
-        async ({ request }) => {
-          body = await request.json()
-          return HttpResponse.json({
-            automations: [{ ...ROW, published: true }],
-          })
-        }
-      )
+      http.patch('https://brew.new/api/v1/automations', async ({ request }) => {
+        body = await request.json()
+        return HttpResponse.json({
+          automations: [{ ...ROW, published: true }],
+        })
+      })
     )
     const { client } = makeTestHttpClient()
     const automations = createAutomationsResource(client)
@@ -111,15 +108,12 @@ describe('automations resource — POST/GET/PATCH/DELETE wiring', () => {
   it('publish with automationVersionId targets a specific version', async () => {
     let body: unknown
     server.use(
-      http.patch(
-        'https://brew.new/api/v1/automations',
-        async ({ request }) => {
-          body = await request.json()
-          return HttpResponse.json({
-            automations: [{ ...ROW, published: true }],
-          })
-        }
-      )
+      http.patch('https://brew.new/api/v1/automations', async ({ request }) => {
+        body = await request.json()
+        return HttpResponse.json({
+          automations: [{ ...ROW, published: true }],
+        })
+      })
     )
     const { client } = makeTestHttpClient()
     const automations = createAutomationsResource(client)
@@ -137,13 +131,10 @@ describe('automations resource — POST/GET/PATCH/DELETE wiring', () => {
   it('unpublish sugar PATCHes with published:false', async () => {
     let body: unknown
     server.use(
-      http.patch(
-        'https://brew.new/api/v1/automations',
-        async ({ request }) => {
-          body = await request.json()
-          return HttpResponse.json({ automations: [ROW] })
-        }
-      )
+      http.patch('https://brew.new/api/v1/automations', async ({ request }) => {
+        body = await request.json()
+        return HttpResponse.json({ automations: [ROW] })
+      })
     )
     const { client } = makeTestHttpClient()
     const automations = createAutomationsResource(client)
