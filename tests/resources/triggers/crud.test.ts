@@ -25,7 +25,7 @@ describe('triggers resource — POST/GET/PATCH/DELETE wiring', () => {
     server.use(
       http.post('https://brew.new/api/v1/triggers', async ({ request }) => {
         capturedBody = await request.json()
-        return HttpResponse.json({ trigger: TRIGGER_ROW }, { status: 201 })
+        return HttpResponse.json({ triggers: [TRIGGER_ROW] }, { status: 201 })
       })
     )
 
@@ -40,7 +40,7 @@ describe('triggers resource — POST/GET/PATCH/DELETE wiring', () => {
       title: 'Password Reset',
       payloadSchema: VALID_PAYLOAD_SCHEMA,
     })
-    expect(result.trigger.triggerEventId).toBe('tri_abc')
+    expect(result.triggers[0]!.triggerEventId).toBe('tri_abc')
   })
 
   it('does not surface a `generate` method on the triggers resource (deterministic-only)', () => {
@@ -93,7 +93,7 @@ describe('triggers resource — POST/GET/PATCH/DELETE wiring', () => {
     server.use(
       http.patch('https://brew.new/api/v1/triggers', async ({ request }) => {
         captured = await request.json()
-        return HttpResponse.json({ trigger: TRIGGER_ROW })
+        return HttpResponse.json({ triggers: [TRIGGER_ROW] })
       })
     )
 

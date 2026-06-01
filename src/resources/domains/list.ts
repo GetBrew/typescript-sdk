@@ -5,11 +5,12 @@ import type { BrewRawResponse, RequestOptions } from '../../types'
 export type ListDomainsResponse = components['schemas']['DomainsListResponse']
 
 /**
- * List verified sending domains available to the current organization.
- *
- * The API already filters this down to domains that are actually usable
- * for public sends, so callers can safely treat the returned list as the
- * valid picker source for `brew.sends.create(...)`.
+ * List ALL sending domains for the current organization — including
+ * `pending` rows and their DNS `records` (so lifecycle callers can
+ * complete verification). Each row carries `status` and the derived
+ * `sendable` flag. For only the verified, send-ready set (the valid
+ * picker source for `brew.sends.create(...)`), use
+ * `brew.domains.listSendable()` or filter on `row.sendable`.
  *
  * Pass `{ raw: true }` in the second argument to receive the full
  * `BrewRawResponse<ListDomainsResponse>` instead of the unwrapped
@@ -31,4 +32,30 @@ export function createListDomains(client: HttpClient) {
     return unwrapResponse(response, options)
   }
   return listDomains
+}
+
+/**
+ * `GET /v1/domains?sendableOnly=true` — only verified, send-ready
+ * domains (the valid picker source for sends + automation `sendEmail`
+ * nodes).
+ */
+export function createListSendableDomains(client: HttpClient) {
+  function listSendableDomains(
+    options: RequestOptions & { readonly raw: true }
+  ): Promise<BrewRawResponse<ListDomainsResponse>>
+  function listSendableDomains(
+    options?: RequestOptions
+  ): Promise<ListDomainsResponse>
+  async function listSendableDomains(
+    options?: RequestOptions
+  ): Promise<ListDomainsResponse | BrewRawResponse<ListDomainsResponse>> {
+    const response = await client.request<ListDomainsResponse>({
+      method: 'GET',
+      path: '/v1/domains',
+      query: { sendableOnly: 'true' },
+      ...(options ? { options } : {}),
+    })
+    return unwrapResponse(response, options)
+  }
+  return listSendableDomains
 }

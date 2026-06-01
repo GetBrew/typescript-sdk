@@ -24,6 +24,7 @@ export type {
 } from './types'
 
 // ---------- Resource shapes ----------
+export type { AnalyticsResource } from './resources/analytics/resource'
 export type { AudiencesResource } from './resources/audiences/resource'
 export type { AutomationsResource } from './resources/automations/resource'
 export type { ContactsResource } from './resources/contacts/resource'
@@ -93,6 +94,8 @@ export type {
   AutomationRunLog,
   AutomationRunsListResponse,
   AutomationRunsPostResponse,
+  FireTriggerResponse,
+  TestRunResponse,
 } from './resources/automation-runs/types'
 export type {
   AutomationRunsPostInput,
@@ -110,6 +113,15 @@ export type {
   CancelAutomationRunInput,
   CancelAutomationRunResponse,
 } from './resources/automation-runs/cancel'
+
+// ---------- Analytics: domain types + method outputs ----------
+export type {
+  CampaignAnalyticsResponse,
+  CampaignAnalyticsRow,
+  AutomationAnalyticsResponse,
+  AutomationAnalyticsRow,
+} from './resources/analytics/types'
+export type { AutomationAnalyticsInput } from './resources/analytics/automations'
 
 // ---------- Audiences: domain types ----------
 export type { Audience } from './resources/audiences/types'
@@ -129,7 +141,40 @@ export type { Template } from './resources/templates/types'
 
 // ---------- Audiences: method inputs + outputs ----------
 export type { ListAudiencesResponse } from './resources/audiences/list'
+export type {
+  CreateAudienceInput,
+  CreateAudienceResponse,
+  DuplicateAudienceInput,
+} from './resources/audiences/create'
+export type {
+  UpdateAudienceInput,
+  UpdateAudienceResponse,
+} from './resources/audiences/update'
+export type {
+  DeleteAudienceInput,
+  DeleteAudienceResponse,
+} from './resources/audiences/delete'
+export type {
+  GetAudienceInput,
+  GetAudienceResponse,
+} from './resources/audiences/get'
+
+// ---------- Domains: method inputs + outputs ----------
 export type { ListDomainsResponse } from './resources/domains/list'
+export type { GetDomainInput, GetDomainResponse } from './resources/domains/get'
+export type { AddDomainInput, AddDomainResponse } from './resources/domains/add'
+export type {
+  VerifyDomainInput,
+  VerifyDomainResponse,
+} from './resources/domains/verify'
+export type {
+  UpdateDomainSettingsInput,
+  UpdateDomainSettingsResponse,
+} from './resources/domains/settings'
+export type {
+  DeleteDomainInput,
+  DeleteDomainResponse,
+} from './resources/domains/delete'
 export { GENERATE_EMAIL_DEFAULT_TIMEOUT_MS } from './resources/emails/generate'
 export type {
   GenerateEmailInput,
@@ -141,6 +186,20 @@ export type {
   ListEmailsInput,
   ListEmailsResponse,
 } from './resources/emails/list'
+export type { EmailVersion } from './resources/emails/types'
+export type {
+  GetEmailInput,
+  GetEmailResponse,
+  EmailVersionsResponse,
+} from './resources/emails/get'
+export type {
+  DeleteEmailInput,
+  DeleteEmailResponse,
+} from './resources/emails/delete'
+export type {
+  RestoreEmailInput,
+  RestoreEmailResponse,
+} from './resources/emails/restore'
 export type {
   CreateSendInput,
   CreateSendResponse,

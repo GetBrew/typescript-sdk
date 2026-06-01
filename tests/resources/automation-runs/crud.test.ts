@@ -14,12 +14,20 @@ describe('automation runs resource — fire/test/replay + list/get/cancel', () =
         'https://brew.new/api/v1/automation/runs',
         async ({ request }) => {
           body = await request.json()
+          // Fire returns the rich FIRE_EVENT_RESPONSE envelope — the
+          // started run ids live under `details.automationRunIds`.
           return HttpResponse.json({
-            triggerInstanceId: 'tin_01HZ',
-            automationRunIds: ['run_a'],
+            success: true,
             status: 'triggered',
-            counts: { automations: 1, transactionalEmails: 0 },
+            code: 'TRIGGERED',
+            message: 'Trigger fired.',
+            triggerEventId: 'tri_x',
             receivedAt: '2026-04-08T12:34:56.789Z',
+            details: {
+              triggerInstanceId: 'tin_01HZ',
+              automationRunIds: ['run_a'],
+              counts: { automations: 1, transactionalEmails: 0 },
+            },
           })
         }
       )
@@ -34,7 +42,7 @@ describe('automation runs resource — fire/test/replay + list/get/cancel', () =
       triggerEventId: 'tri_x',
       payload: { email: 'jane@example.com' },
     })
-    expect(result.automationRunIds).toEqual(['run_a'])
+    expect(result.details?.automationRunIds).toEqual(['run_a'])
     expect(result.status).toBe('triggered')
   })
 

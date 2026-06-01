@@ -1,7 +1,7 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
-import type { Trigger } from './types'
+import type { TriggersListResponse } from './types'
 
 /**
  * Deterministic create input. Caller supplies the full trigger
@@ -31,7 +31,13 @@ export type CreateTriggerInput = {
   }
 }
 
-export type CreateTriggerResponse = { trigger: Trigger }
+/**
+ * Create returns the uniform `{ triggers: [row] }` envelope (a
+ * one-element array of the created trigger) — destructure
+ * `result.triggers[0]`. There is no singular `{ trigger }` shape on
+ * the surface.
+ */
+export type CreateTriggerResponse = TriggersListResponse
 
 /**
  * `POST /v1/triggers` deterministic create.

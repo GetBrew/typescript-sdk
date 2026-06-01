@@ -1,6 +1,10 @@
 import { resolveConfig } from './core/config'
 import { createHttpClient, type HttpTuning } from './core/http'
 import {
+  createAnalyticsResource,
+  type AnalyticsResource,
+} from './resources/analytics/resource'
+import {
   createAudiencesResource,
   type AudiencesResource,
 } from './resources/audiences/resource'
@@ -57,6 +61,8 @@ import type { BrewClientConfig } from './types'
  * key is created in the dashboard.
  */
 export type BrewClient = {
+  /** Read-only campaign + automation performance analytics. */
+  readonly analytics: AnalyticsResource
   readonly audiences: AudiencesResource
   readonly automations: AutomationsResource
   /** Canonical surface for trigger fires / automation tests / cancels. */
@@ -102,6 +108,7 @@ export function createBrewClient(
   const config = resolveConfig({ userConfig })
   const httpClient = createHttpClient(config, tuning ?? {})
   return {
+    analytics: createAnalyticsResource(httpClient),
     audiences: createAudiencesResource(httpClient),
     automations: createAutomationsResource(httpClient),
     automationRuns: createAutomationRunsResource(httpClient),

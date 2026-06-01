@@ -2,7 +2,7 @@ import type { components } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
-import type { Trigger } from './types'
+import type { TriggersListResponse } from './types'
 
 /**
  * Metadata-only PATCH input — update `title`, `description`, or
@@ -14,7 +14,12 @@ import type { Trigger } from './types'
  */
 export type PatchTriggerInput = components['schemas']['TriggersPatchRequest']
 
-export type PatchTriggerResponse = { trigger: Trigger }
+/**
+ * Update returns the uniform `{ triggers: [row] }` envelope (a
+ * one-element array of the updated trigger) — destructure
+ * `result.triggers[0]`.
+ */
+export type PatchTriggerResponse = TriggersListResponse
 
 /**
  * `PATCH /v1/triggers` — update trigger metadata.
