@@ -27,3 +27,12 @@ export type GeneratedEmailTextResponse = Extract<
   components['schemas']['EmailGenerateResponse'],
   { response: string }
 >
+
+/**
+ * One persisted version of an email — returned in the `versions[]`
+ * sibling array of `brew.emails.versions({ emailId })`. `version:
+ * 'latest'` is the current head; numeric versions are historical.
+ */
+export type EmailVersion = NonNullable<
+  components['schemas']['EmailsListResponse']['versions']
+>[number]

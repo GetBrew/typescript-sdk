@@ -55,6 +55,8 @@ tags:
     description: Manage automation graphs end-to-end — create deterministically, generate from a prompt (AI), patch / publish / unpublish / regenerate, cascade-delete. Flat /v1/automations route.
   - name: Executions
     description: Fire triggers, test automations, replay historical fires, read execution history. Flat /v1/executions route — folds in what /v1/events did before.
+  - name: Analytics
+    description: Read-only campaign + automation performance analytics. Campaign analytics are lifetime per-campaign; automation analytics are windowed (default last 30 days).
 components:
   securitySchemes:
     bearerAuth:
@@ -1149,10 +1151,6 @@ components:
         recipientEmail:
           type: string
           format: email
-        workflowRunId:
-          type: string
-        dedupKey:
-          type: string
         startedAt:
           type: string
           format: date-time
@@ -1164,7 +1162,6 @@ components:
       required:
         - automationRunId
         - automationId
-        - automationVersionId
         - mode
         - status
       additionalProperties: false
@@ -1268,9 +1265,11 @@ components:
                 - string
                 - "null"
             createdAt:
-              type: number
+              type: string
+              format: date-time
             updatedAt:
-              type: number
+              type: string
+              format: date-time
             importId:
               type:
                 - string
@@ -1319,9 +1318,11 @@ components:
                   - string
                   - "null"
               createdAt:
-                type: number
+                type: string
+                format: date-time
               updatedAt:
-                type: number
+                type: string
+                format: date-time
               importId:
                 type:
                   - string
@@ -1434,9 +1435,11 @@ components:
                 - string
                 - "null"
             createdAt:
-              type: number
+              type: string
+              format: date-time
             updatedAt:
-              type: number
+              type: string
+              format: date-time
             importId:
               type:
                 - string
@@ -1645,9 +1648,11 @@ components:
                 - string
                 - "null"
             createdAt:
-              type: number
+              type: string
+              format: date-time
             updatedAt:
-              type: number
+              type: string
+              format: date-time
             importId:
               type:
                 - string
@@ -1730,15 +1735,178 @@ components:
               audienceId:
                 type: string
                 minLength: 1
+                maxLength: 64
               audienceName:
                 type: string
                 minLength: 1
+                maxLength: 200
+              filters:
+                type: object
+                properties:
+                  filters:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        field:
+                          type: string
+                          minLength: 1
+                        operator:
+                          type: string
+                          minLength: 1
+                        value: {}
+                        type:
+                          type: string
+                      required:
+                        - field
+                        - operator
+                      additionalProperties: false
+                  logicalOperator:
+                    type: string
+                    enum:
+                      - and
+                      - or
+                required:
+                  - filters
+                  - logicalOperator
+                additionalProperties: false
+              count:
+                type: integer
+                minimum: 0
+              createdAt:
+                type: string
+                format: date-time
+              updatedAt:
+                type: string
+                format: date-time
             required:
               - audienceId
               - audienceName
+              - filters
+              - count
+              - createdAt
+              - updatedAt
             additionalProperties: false
       required:
         - audiences
+      additionalProperties: false
+    AudiencesPostRequest:
+      anyOf:
+        - type: object
+          properties:
+            name:
+              type: string
+              minLength: 1
+              maxLength: 200
+            filters:
+              type: object
+              properties:
+                filters:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      field:
+                        type: string
+                        minLength: 1
+                      operator:
+                        type: string
+                        minLength: 1
+                      value: {}
+                      type:
+                        type: string
+                    required:
+                      - field
+                      - operator
+                    additionalProperties: false
+                logicalOperator:
+                  type: string
+                  enum:
+                    - and
+                    - or
+              required:
+                - filters
+                - logicalOperator
+              additionalProperties: false
+          required:
+            - name
+            - filters
+          additionalProperties: false
+        - type: object
+          properties:
+            duplicateFrom:
+              type: string
+              minLength: 1
+              maxLength: 64
+          required:
+            - duplicateFrom
+          additionalProperties: false
+    AudiencesPatchRequest:
+      type: object
+      properties:
+        audienceId:
+          type: string
+          minLength: 1
+          maxLength: 64
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        filters:
+          type: object
+          properties:
+            filters:
+              type: array
+              items:
+                type: object
+                properties:
+                  field:
+                    type: string
+                    minLength: 1
+                  operator:
+                    type: string
+                    minLength: 1
+                  value: {}
+                  type:
+                    type: string
+                required:
+                  - field
+                  - operator
+                additionalProperties: false
+            logicalOperator:
+              type: string
+              enum:
+                - and
+                - or
+          required:
+            - filters
+            - logicalOperator
+          additionalProperties: false
+      required:
+        - audienceId
+      additionalProperties: false
+    AudiencesDeleteResponse:
+      type: object
+      properties:
+        audienceId:
+          type: string
+          minLength: 1
+          maxLength: 64
+        deleted:
+          type: boolean
+      required:
+        - audienceId
+        - deleted
+      additionalProperties: false
+    AudiencesDeleteRequest:
+      type: object
+      properties:
+        audienceId:
+          type: string
+          minLength: 1
+          maxLength: 64
+      required:
+        - audienceId
       additionalProperties: false
     DomainsListResponse:
       type: object
@@ -1751,15 +1919,159 @@ components:
               domainId:
                 type: string
                 minLength: 1
+                maxLength: 64
               domainUrl:
                 type: string
                 format: uri
+              name:
+                type: string
+                minLength: 1
+                maxLength: 253
+              region:
+                type: string
+              status:
+                type: string
+                enum:
+                  - not_started
+                  - pending
+                  - verified
+                  - failed
+                  - temporary_failure
+                  - partially_verified
+                  - partially_failed
+              sendingEnabled:
+                type: boolean
+              sendable:
+                type: boolean
+              records:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    record:
+                      type: string
+                    name:
+                      type: string
+                    type:
+                      type: string
+                    ttl:
+                      type: string
+                    status:
+                      type: string
+                    value:
+                      type: string
+                    priority:
+                      type: number
+                  required:
+                    - record
+                    - name
+                    - type
+                    - ttl
+                    - status
+                    - value
+                  additionalProperties: false
+              openTracking:
+                type: boolean
+              clickTracking:
+                type: boolean
+              createdAt:
+                type: string
+                format: date-time
+              updatedAt:
+                type: string
+                format: date-time
+              verifiedAt:
+                type: string
+                format: date-time
             required:
               - domainId
               - domainUrl
+              - name
+              - region
+              - status
+              - sendingEnabled
+              - sendable
+              - records
+              - createdAt
+              - updatedAt
             additionalProperties: false
       required:
         - domains
+      additionalProperties: false
+    DomainsPostRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 253
+        region:
+          type: string
+          enum:
+            - us-east-1
+        customReturnPath:
+          type: string
+          minLength: 1
+          maxLength: 64
+      required:
+        - name
+      additionalProperties: false
+    DomainsPatchRequest:
+      anyOf:
+        - type: object
+          properties:
+            domainId:
+              type: string
+              minLength: 1
+              maxLength: 64
+            verify:
+              type: boolean
+              enum:
+                - true
+          required:
+            - domainId
+            - verify
+          additionalProperties: false
+        - type: object
+          properties:
+            domainId:
+              type: string
+              minLength: 1
+              maxLength: 64
+            defaultSenderName:
+              type: string
+              maxLength: 120
+            defaultFromEmail:
+              type: string
+              format: email
+            defaultReplyToEmail:
+              type: string
+              format: email
+          required:
+            - domainId
+          additionalProperties: false
+    DomainsDeleteResponse:
+      type: object
+      properties:
+        domainId:
+          type: string
+          minLength: 1
+          maxLength: 64
+        deleted:
+          type: boolean
+      required:
+        - domainId
+        - deleted
+      additionalProperties: false
+    DomainsDeleteRequest:
+      type: object
+      properties:
+        domainId:
+          type: string
+          minLength: 1
+          maxLength: 64
+      required:
+        - domainId
       additionalProperties: false
     FieldsGetResponse:
       type: object
@@ -1860,6 +2172,39 @@ components:
               - emailTitle
               - emailType
             additionalProperties: false
+        versions:
+          type: array
+          items:
+            type: object
+            properties:
+              emailVersionId:
+                type: string
+                minLength: 1
+              version:
+                anyOf:
+                  - type: integer
+                    minimum: 0
+                  - type: string
+                    enum:
+                      - latest
+              status:
+                type: string
+                enum:
+                  - streaming
+                  - complete
+                  - error
+              lifecycleStatus:
+                type: string
+              updatedAt:
+                type: string
+                format: date-time
+            required:
+              - emailVersionId
+              - version
+              - status
+              - lifecycleStatus
+              - updatedAt
+            additionalProperties: false
       required:
         - emails
       additionalProperties: false
@@ -1944,6 +2289,69 @@ components:
       required:
         - emailId
         - prompt
+      additionalProperties: false
+    EmailsPatchRequest:
+      anyOf:
+        - type: object
+          properties:
+            emailId:
+              type: string
+              minLength: 1
+              maxLength: 64
+            emailVersionId:
+              type: string
+              minLength: 1
+              maxLength: 64
+            prompt:
+              type: string
+              minLength: 1
+            contentUrls:
+              type: array
+              items:
+                type: string
+                format: uri
+              maxItems: 8
+            contentUrl:
+              type: string
+              format: uri
+          required:
+            - emailId
+            - prompt
+          additionalProperties: false
+        - type: object
+          properties:
+            emailId:
+              type: string
+              minLength: 1
+              maxLength: 64
+            restoreVersion:
+              type: integer
+              minimum: 0
+          required:
+            - emailId
+            - restoreVersion
+          additionalProperties: false
+    EmailsDeleteResponse:
+      type: object
+      properties:
+        emailId:
+          type: string
+          minLength: 1
+        deleted:
+          type: boolean
+      required:
+        - emailId
+        - deleted
+      additionalProperties: false
+    EmailsDeleteRequest:
+      type: object
+      properties:
+        emailId:
+          type: string
+          minLength: 1
+          maxLength: 64
+      required:
+        - emailId
       additionalProperties: false
     TemplatesListResponse:
       type: object
@@ -2112,8 +2520,8 @@ components:
         triggerEventId:
           type: string
           minLength: 1
-          maxLength: 64
-          description: Internal id of the published trigger event to fire. Returned by `POST /api/v1/triggers` and listed in `GET /api/v1/triggers`. The trigger title and providerEventKey are descriptors and are NEVER URL segments — the path is fixed at `/api/v1/automation/runs`.
+          maxLength: 256
+          description: Internal id of the published trigger event to fire. Returned by `POST /api/v1/triggers` and listed in `GET /api/v1/triggers`. Accepts both custom `brew_api` ids and composite integration ids (≤ 256 chars). The trigger title and providerEventKey are descriptors and are NEVER URL segments — the path is fixed at `/api/v1/automation/runs`.
         payload:
           type: object
           additionalProperties: {}
@@ -2126,64 +2534,6 @@ components:
       required:
         - triggerEventId
         - payload
-      additionalProperties: false
-    TriggersPostRequest:
-      type: object
-      properties:
-        title:
-          type: string
-          minLength: 1
-          maxLength: 120
-        description:
-          type: string
-          maxLength: 2000
-        payloadSchema:
-          type: object
-          properties:
-            type:
-              type: string
-              enum:
-                - object
-            fields:
-              type: array
-              items:
-                type: object
-                properties:
-                  key:
-                    type: string
-                    minLength: 1
-                    description: Variable name used by emails and automations, e.g. email or firstName. Prefer self-descriptive keys; this column has no separate description field.
-                  type:
-                    type: string
-                    enum:
-                      - string
-                      - int
-                      - boolean
-                  required:
-                    type: boolean
-                  fallbackValue:
-                    anyOf:
-                      - type: string
-                      - type: number
-                      - type: boolean
-                    description: Substitution value when the inbound payload is missing this field. Also used as the email agent's `e.g. {{ key | fallback }}` example.
-                  pii:
-                    type: string
-                    enum:
-                      - none
-                      - low
-                      - high
-                    description: PII classification for redaction. "high" auto-redacts the value in execution logs and the inbound log. "low" (default when omitted) preserves the value. "none" is an explicit marker that the field is non-personal.
-                required:
-                  - key
-                  - type
-                  - required
-          required:
-            - type
-            - fields
-      required:
-        - title
-        - payloadSchema
       additionalProperties: false
     TriggersListResponse:
       type: object
@@ -2279,6 +2629,64 @@ components:
       required:
         - triggers
       additionalProperties: false
+    TriggersPostRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 120
+        description:
+          type: string
+          maxLength: 2000
+        payloadSchema:
+          type: object
+          properties:
+            type:
+              type: string
+              enum:
+                - object
+            fields:
+              type: array
+              items:
+                type: object
+                properties:
+                  key:
+                    type: string
+                    minLength: 1
+                    description: Variable name used by emails and automations, e.g. email or firstName. Prefer self-descriptive keys; this column has no separate description field.
+                  type:
+                    type: string
+                    enum:
+                      - string
+                      - int
+                      - boolean
+                  required:
+                    type: boolean
+                  fallbackValue:
+                    anyOf:
+                      - type: string
+                      - type: number
+                      - type: boolean
+                    description: Substitution value when the inbound payload is missing this field. Also used as the email agent's `e.g. {{ key | fallback }}` example.
+                  pii:
+                    type: string
+                    enum:
+                      - none
+                      - low
+                      - high
+                    description: PII classification for redaction. "high" auto-redacts the value in execution logs and the inbound log. "low" (default when omitted) preserves the value. "none" is an explicit marker that the field is non-personal.
+                required:
+                  - key
+                  - type
+                  - required
+          required:
+            - type
+            - fields
+      required:
+        - title
+        - payloadSchema
+      additionalProperties: false
     TriggersPatchRequest:
       type: object
       properties:
@@ -2339,6 +2747,24 @@ components:
             - fields
       required:
         - triggerEventId
+      additionalProperties: false
+    TriggersDeleteResponse:
+      type: object
+      properties:
+        triggerEventId:
+          type: string
+          minLength: 1
+          maxLength: 256
+        deletedAt:
+          type: string
+          format: date-time
+        deletedRows:
+          type: integer
+          minimum: 0
+      required:
+        - triggerEventId
+        - deletedAt
+        - deletedRows
       additionalProperties: false
     TriggersDeleteRequest:
       type: object
@@ -3673,50 +4099,135 @@ components:
         - automationId
       additionalProperties: false
     AutomationRunsPostResponse:
-      type: object
-      properties:
-        triggerInstanceId:
-          type: string
-          minLength: 4
-          maxLength: 64
-        automationRunIds:
-          type: array
-          items:
-            type: string
-            minLength: 1
-            maxLength: 64
-        status:
-          type: string
-          enum:
-            - triggered
-            - idempotent_replay
-            - test_started
-            - replay_started
-        counts:
-          type: object
+      anyOf:
+        - type: object
           properties:
-            automations:
-              type: integer
-              minimum: 0
-            transactionalEmails:
-              type: integer
-              minimum: 0
+            success:
+              type: boolean
+            status:
+              type: string
+              enum:
+                - triggered
+                - idempotent_replay
+                - ready
+                - invalid_api_key
+                - invalid_json
+                - failed
+                - forbidden
+                - payload_mismatch
+                - trigger_event_not_found
+              description: 'Discriminator for the response category. Pairs with `code`. A trigger with no published automation attached returns `status: "failed"` + `code: "NO_PUBLISHED_AUTOMATION"` (HTTP 422). Successful fires always return `status: "triggered"`.'
+            code:
+              type: string
+            message:
+              type: string
+            triggerEventId:
+              type: string
+            receivedAt:
+              type: string
+              description: ISO-8601 timestamp the request was processed at.
+            details:
+              type: object
+              properties:
+                resolvedPayload:
+                  type: object
+                  additionalProperties: {}
+                warnings:
+                  type: array
+                  items: {}
+                idempotencyKey:
+                  type: string
+                triggerInstanceId:
+                  type: string
+                  description: Unique identifier for the persisted inbound row. Useful for support and replay. Set whenever an Idempotency-Key was provided.
+                publishedTransactionalEmails:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      emailId:
+                        type: string
+                    required:
+                      - emailId
+                    additionalProperties: {}
+                publishedAutomations:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      automationId:
+                        type: string
+                      title:
+                        type: string
+                    required:
+                      - automationId
+                    additionalProperties: {}
+                automationRunIds:
+                  type: array
+                  items:
+                    type: string
+                counts:
+                  type: object
+                  properties:
+                    transactionalEmails:
+                      type: integer
+                    automations:
+                      type: integer
+                  required:
+                    - transactionalEmails
+                    - automations
+              additionalProperties: {}
           required:
-            - automations
-            - transactionalEmails
+            - success
+            - status
+            - code
+            - message
+            - receivedAt
           additionalProperties: false
-        receivedAt:
-          type: string
-          format: date-time
-        warnings:
-          type: array
-          items:
-            type: string
-      required:
-        - automationRunIds
-        - status
-        - receivedAt
-      additionalProperties: false
+        - type: object
+          properties:
+            triggerInstanceId:
+              type: string
+              minLength: 4
+              maxLength: 64
+            automationRunIds:
+              type: array
+              items:
+                type: string
+                minLength: 1
+                maxLength: 64
+            status:
+              type: string
+              enum:
+                - triggered
+                - idempotent_replay
+                - test_started
+                - replay_started
+            counts:
+              type: object
+              properties:
+                automations:
+                  type: integer
+                  minimum: 0
+                transactionalEmails:
+                  type: integer
+                  minimum: 0
+              required:
+                - automations
+                - transactionalEmails
+              additionalProperties: false
+            receivedAt:
+              type: string
+              format: date-time
+            warnings:
+              type: array
+              items:
+                type: string
+          required:
+            - automationRunIds
+            - status
+            - receivedAt
+          additionalProperties: false
     AutomationRunsPostRequest:
       anyOf:
         - type: object
@@ -3732,8 +4243,6 @@ components:
               type: string
               minLength: 1
               maxLength: 100
-            dryRun:
-              type: boolean
           required:
             - triggerEventId
             - payload
@@ -3814,10 +4323,6 @@ components:
               recipientEmail:
                 type: string
                 format: email
-              workflowRunId:
-                type: string
-              dedupKey:
-                type: string
               startedAt:
                 type: string
                 format: date-time
@@ -3829,7 +4334,6 @@ components:
             required:
               - automationRunId
               - automationId
-              - automationVersionId
               - mode
               - status
             additionalProperties: false
@@ -3926,6 +4430,192 @@ components:
       required:
         - automationRunId
         - status
+      additionalProperties: false
+    CampaignAnalyticsResponse:
+      type: object
+      properties:
+        campaigns:
+          type: array
+          items:
+            type: object
+            properties:
+              emailId:
+                type: string
+                minLength: 1
+              title:
+                type: string
+              sentAt:
+                type: string
+                format: date-time
+              stats:
+                type: object
+                properties:
+                  sent:
+                    type: integer
+                    minimum: 0
+                  delivered:
+                    type: integer
+                    minimum: 0
+                  opened:
+                    type: integer
+                    minimum: 0
+                  clicked:
+                    type: integer
+                    minimum: 0
+                  bounced:
+                    type: integer
+                    minimum: 0
+                  complained:
+                    type: integer
+                    minimum: 0
+                  unsubscribed:
+                    type: integer
+                    minimum: 0
+                required:
+                  - sent
+                  - delivered
+                  - opened
+                  - clicked
+                  - bounced
+                  - complained
+                  - unsubscribed
+                additionalProperties: false
+            required:
+              - emailId
+              - title
+              - stats
+            additionalProperties: false
+      required:
+        - campaigns
+      additionalProperties: false
+    AutomationAnalyticsResponse:
+      type: object
+      properties:
+        automations:
+          type: array
+          items:
+            type: object
+            properties:
+              automationId:
+                type: string
+                minLength: 1
+              name:
+                type: string
+              published:
+                type: boolean
+              triggerEventId:
+                type: string
+              runs:
+                type: integer
+                minimum: 0
+              completed:
+                type: integer
+                minimum: 0
+              failed:
+                type: integer
+                minimum: 0
+              sent:
+                type: integer
+                minimum: 0
+              delivered:
+                type: integer
+                minimum: 0
+              opened:
+                type: integer
+                minimum: 0
+              clicked:
+                type: integer
+                minimum: 0
+              bounced:
+                type: integer
+                minimum: 0
+              successRate:
+                type: number
+                minimum: 0
+                maximum: 1
+              openRate:
+                type: number
+                minimum: 0
+                maximum: 1
+              clickRate:
+                type: number
+                minimum: 0
+                maximum: 1
+              lastRunAt:
+                type: string
+                format: date-time
+              lastRunStatus:
+                type: string
+            required:
+              - automationId
+              - name
+              - published
+              - runs
+              - completed
+              - failed
+              - sent
+              - delivered
+              - opened
+              - clicked
+              - bounced
+              - successRate
+              - openRate
+              - clickRate
+            additionalProperties: false
+        totals:
+          type: object
+          properties:
+            runs:
+              type: integer
+              minimum: 0
+            completed:
+              type: integer
+              minimum: 0
+            failed:
+              type: integer
+              minimum: 0
+            sent:
+              type: integer
+              minimum: 0
+            delivered:
+              type: integer
+              minimum: 0
+            opened:
+              type: integer
+              minimum: 0
+            clicked:
+              type: integer
+              minimum: 0
+            bounced:
+              type: integer
+              minimum: 0
+          required:
+            - runs
+            - completed
+            - failed
+            - sent
+            - delivered
+            - opened
+            - clicked
+            - bounced
+          additionalProperties: false
+        range:
+          type: object
+          properties:
+            from:
+              type: string
+              format: date-time
+            to:
+              type: string
+              format: date-time
+          required:
+            - from
+            - to
+          additionalProperties: false
+      required:
+        - automations
+        - totals
+        - range
       additionalProperties: false
   parameters: {}
 paths:
@@ -5159,11 +5849,19 @@ paths:
       operationId: listAudiences
       tags:
         - Audiences
-      summary: List Audiences
-      description: Returns saved audiences for the current organization. Synthetic All Contacts is not included.
+      summary: List audiences OR get one (?audienceId=…)
+      description: "Always returns `{ audiences: Audience[] }` — list mode by default, or a single-element array when `?audienceId=…` is supplied. Each row carries its `filters`, cached member `count`, and ISO timestamps. The synthetic All Contacts audience is not included."
+      parameters:
+        - name: audienceId
+          in: query
+          required: false
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 64
       responses:
         "200":
-          description: Saved audiences for this organization.
+          description: Saved audiences for this brand.
           headers:
             x-request-id:
               schema:
@@ -5199,8 +5897,18 @@ paths:
                 $ref: "#/components/schemas/AudiencesListResponse"
               example:
                 audiences:
-                  - audienceId: jn7a8w4q8m9k2p1x7c3b5v6n9h7s2d4f
+                  - &a3
+                    audienceId: jn7a8w4q8m9k2p1x7c3b5v6n9h7s2d4f
                     audienceName: Nordic Founders
+                    filters:
+                      filters:
+                        - field: country
+                          operator: equals
+                          value: NO
+                      logicalOperator: and
+                    count: 1284
+                    createdAt: 2026-04-08T12:34:56.789Z
+                    updatedAt: 2026-04-08T12:34:56.789Z
         "401":
           description: The API key was missing, invalid, or revoked.
           headers:
@@ -5244,8 +5952,8 @@ paths:
                   suggestion: Use an API key or session with the required permission.
                   docs: https://docs.brew.new/api-reference/api/authentication
                   param: contacts
-        "500":
-          description: Unexpected internal error.
+        "404":
+          description: No audience with that id in this brand.
           headers:
             x-request-id:
               schema:
@@ -5258,23 +5966,196 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
+              example: &a4
                 error:
-                  code: INTERNAL_ERROR
-                  type: internal_error
-                  message: An unexpected error occurred.
-                  suggestion: Retry the request. If it keeps failing, contact support.
+                  code: AUDIENCE_NOT_FOUND
+                  type: not_found
+                  message: The requested audience 'aud_xxx' was not found.
+                  suggestion: Use GET /api/v1/audiences to list saved audiences.
                   docs: https://docs.brew.new/api-reference/api/errors
+                  param: audienceId
+    post:
+      operationId: createAudience
+      tags:
+        - Audiences
+      summary: Create or duplicate an audience
+      description: |-
+        Body is a 2-branch union:
+
+        - **Create** — `{ name, filters: { filters: [...], logicalOperator: "and" | "or" } }`.
+        - **Duplicate** — `{ duplicateFrom: audienceId }` clones an existing audience (name suffixed " (copy)").
+
+        Returns the uniform `{ audiences: [row] }` envelope.
+      parameters:
+        - *a2
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AudiencesPostRequest"
+            examples:
+              create:
+                summary: Create from filters
+                value:
+                  name: Nordic Founders
+                  filters:
+                    filters:
+                      - field: country
+                        operator: equals
+                        value: NO
+                    logicalOperator: and
+              duplicate:
+                summary: Duplicate an existing audience
+                value:
+                  duplicateFrom: aud_existing
+      responses:
+        "201":
+          description: "Created. One-element `{ audiences: [row] }`."
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AudiencesListResponse"
+              example:
+                audiences:
+                  - *a3
+        "404":
+          description: No audience with that id in this brand.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example: *a4
+    patch:
+      operationId: patchAudience
+      tags:
+        - Audiences
+      summary: Update an audience
+      description: "Update `name` and/or `filters`. At least one must be supplied. Returns the uniform `{ audiences: [row] }` envelope."
+      parameters:
+        - *a2
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AudiencesPatchRequest"
+            examples:
+              rename:
+                summary: Rename
+                value:
+                  audienceId: aud_xxx
+                  name: EU Founders
+      responses:
+        "200":
+          description: "Updated. One-element `{ audiences: [row] }`."
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AudiencesListResponse"
+              example:
+                audiences:
+                  - *a3
+        "404":
+          description: No audience with that id in this brand.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example: *a4
+    delete:
+      operationId: deleteAudience
+      tags:
+        - Audiences
+      summary: Delete an audience
+      description: "Idempotent — deleting an already-gone audience resolves with `deleted: false`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AudiencesDeleteRequest"
+            examples:
+              default:
+                summary: Delete by id
+                value:
+                  audienceId: aud_xxx
+      responses:
+        "200":
+          description: Deleted (or already gone).
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AudiencesDeleteResponse"
+              example:
+                audienceId: aud_xxx
+                deleted: true
   /v1/domains:
     get:
       operationId: listDomains
       tags:
         - Domains
-      summary: List Domains
-      description: Returns verified sending domains for the current organization.
+      summary: List domains OR get one (?domainId=…)
+      description: Lists ALL domains for the brand (so lifecycle callers see `pending` rows + their DNS `records`). Pass `?sendableOnly=true` for only verified, send-ready domains (the set valid for sends / automation `sendEmail` nodes), or `?domainId=` for a single-element array. Each row carries `status`, the derived `sendable` flag, `region`, and the DNS `records`.
+      parameters:
+        - name: domainId
+          in: query
+          required: false
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 64
+        - name: sendableOnly
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - "true"
+              - "false"
       responses:
         "200":
-          description: Verified sending domains for this organization.
+          description: Domains for this brand.
           headers:
             x-request-id:
               schema:
@@ -5310,8 +6191,23 @@ paths:
                 $ref: "#/components/schemas/DomainsListResponse"
               example:
                 domains:
-                  - domainId: jn7a8w4q8m9k2p1x7c3b5v6n9h7s2d4f
-                    domainUrl: https://example.com
+                  - &a5
+                    domainId: jn7a8w4q8m9k2p1x7c3b5v6n9h7s2d4f
+                    domainUrl: https://send.example.com
+                    name: send.example.com
+                    region: us-east-1
+                    status: pending
+                    sendingEnabled: true
+                    sendable: false
+                    records: &a6
+                      - record: DKIM
+                        name: resend._domainkey
+                        type: TXT
+                        ttl: Auto
+                        status: pending
+                        value: p=MIGfMA0...
+                    createdAt: 2026-04-08T12:34:56.789Z
+                    updatedAt: 2026-04-08T12:34:56.789Z
         "401":
           description: The API key was missing, invalid, or revoked.
           headers:
@@ -5355,8 +6251,67 @@ paths:
                   suggestion: Use an API key or session with the required permission.
                   docs: https://docs.brew.new/api-reference/api/authentication
                   param: emails
-        "500":
-          description: Unexpected internal error.
+        "404":
+          description: No domain with that id in this brand.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example: &a7
+                error:
+                  code: DOMAIN_NOT_FOUND
+                  type: not_found
+                  message: The requested domain 'dom_xxx' was not found.
+                  suggestion: Use GET /api/v1/domains to list domains.
+                  docs: https://docs.brew.new/api-reference/api/errors
+                  param: domainId
+    post:
+      operationId: createDomain
+      tags:
+        - Domains
+      summary: Add a sending domain
+      description: 'Registers a domain with the sending provider and returns the row with `status: "pending"` and the DNS `records` to publish. After publishing DNS, call `PATCH { domainId, verify: true }` to verify. `409` when the domain already exists or is verified in another workspace.'
+      parameters:
+        - *a2
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DomainsPostRequest"
+            examples:
+              add:
+                summary: Add a subdomain
+                value:
+                  name: send.example.com
+      responses:
+        "201":
+          description: "Created. One-element `{ domains: [row] }` (status pending)."
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DomainsListResponse"
+              example:
+                domains:
+                  - *a5
+        "409":
+          description: Domain already exists / verified elsewhere / other brand.
           headers:
             x-request-id:
               schema:
@@ -5371,11 +6326,137 @@ paths:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
               example:
                 error:
-                  code: INTERNAL_ERROR
-                  type: internal_error
-                  message: An unexpected error occurred.
-                  suggestion: Retry the request. If it keeps failing, contact support.
+                  code: DOMAIN_ALREADY_EXISTS
+                  type: conflict
+                  message: Domain already exists
+                  suggestion: Fetch it via GET /v1/domains.
                   docs: https://docs.brew.new/api-reference/api/errors
+                  param: name
+    patch:
+      operationId: patchDomain
+      tags:
+        - Domains
+      summary: Verify a domain OR update its sender defaults
+      description: "Body union: `{ domainId, verify: true }` re-checks DNS and persists the latest status; `{ domainId, defaultSenderName?|defaultFromEmail?|defaultReplyToEmail? }` updates sender defaults. Returns the uniform `{ domains: [row] }`."
+      parameters:
+        - *a2
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DomainsPatchRequest"
+            examples:
+              verify:
+                summary: Verify
+                value:
+                  domainId: dom_xxx
+                  verify: true
+              settings:
+                summary: Set sender defaults
+                value:
+                  domainId: dom_xxx
+                  defaultSenderName: Acme
+                  defaultFromEmail: hello@send.example.com
+      responses:
+        "200":
+          description: "Updated. One-element `{ domains: [row] }`."
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DomainsListResponse"
+              example:
+                domains:
+                  - domainId: jn7a8w4q8m9k2p1x7c3b5v6n9h7s2d4f
+                    domainUrl: https://send.example.com
+                    name: send.example.com
+                    region: us-east-1
+                    status: verified
+                    sendingEnabled: true
+                    sendable: true
+                    records: *a6
+                    createdAt: 2026-04-08T12:34:56.789Z
+                    updatedAt: 2026-04-08T12:34:56.789Z
+        "404":
+          description: No domain with that id in this brand.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example: *a7
+        "422":
+          description: Verification failed (DNS not yet propagated).
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: DOMAIN_VERIFICATION_FAILED
+                  type: invalid_request
+                  message: Verification failed
+                  suggestion: Confirm the DNS records are published, then retry.
+                  docs: https://docs.brew.new/api-reference/api/errors
+                  param: domainId
+    delete:
+      operationId: deleteDomain
+      tags:
+        - Domains
+      summary: Delete a domain
+      description: "Removes the domain from the provider and the local store. Idempotent — an unknown domain resolves with `deleted: false`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DomainsDeleteRequest"
+            examples:
+              default:
+                summary: Delete by id
+                value:
+                  domainId: dom_xxx
+      responses:
+        "200":
+          description: Deleted (or already gone).
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DomainsDeleteResponse"
+              example:
+                domainId: dom_xxx
+                deleted: true
   /v1/fields:
     get:
       operationId: listContactFields
@@ -6025,9 +7106,21 @@ paths:
       operationId: listEmails
       tags:
         - Emails
-      summary: List Emails
-      description: Returns the latest logical emails for the current organization. Historical versions are not exposed.
+      summary: List Emails (or get one + version history)
+      description: Lists the latest logical emails for the brand. `?emailId=` returns a one-element `emails[]` for a single email; add `&include=versions` to attach the sibling `versions[]` history (every persisted version of that email).
       parameters:
+        - schema:
+            type: string
+            minLength: 1
+            maxLength: 64
+          required: false
+          name: emailId
+          in: query
+        - schema:
+            type: string
+          required: false
+          name: include
+          in: query
         - schema:
             type: string
             enum:
@@ -6275,7 +7368,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EmailGenerateResponse"
-              examples: &a3
+              examples: &a8
                 generated:
                   summary: Generated email
                   value:
@@ -6499,6 +7592,125 @@ paths:
                   message: An unexpected error occurred.
                   suggestion: Retry the request. If it keeps failing, contact support.
                   docs: https://docs.brew.new/api-reference/api/errors
+    patch:
+      operationId: patchEmail
+      tags:
+        - Emails
+      summary: Edit an email (prompt) OR restore a version
+      description: 'Flat-shape PATCH. Body is a union: `{ emailId, prompt, … }` runs the AI edit lane (writes a new `version: "latest"`); `{ emailId, restoreVersion }` non-destructively clones a historical version into a new latest. Both return the generated-email shape.'
+      parameters:
+        - *a2
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailsPatchRequest"
+            examples:
+              edit:
+                summary: Prompt edit
+                value:
+                  emailId: eml_x
+                  prompt: Tighten the headline.
+              restore:
+                summary: Restore a historical version
+                value:
+                  emailId: eml_x
+                  restoreVersion: 5
+      responses:
+        "200":
+          description: Updated / restored email artifact.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmailGenerateResponse"
+              examples: *a8
+        "404":
+          description: Email or requested version not found in this brand.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: EMAIL_VERSION_NOT_FOUND
+                  type: not_found
+                  message: Email 'eml_x' has no version 5.
+                  suggestion: List versions via GET /v1/emails?emailId=…&include=versions.
+                  docs: https://docs.brew.new/api-reference/api/errors
+                  param: restoreVersion
+    delete:
+      operationId: deleteEmail
+      tags:
+        - Emails
+      summary: Delete an email
+      description: "Hard-deletes every version of the email + its grouping rows. Idempotent — an unknown / cross-brand id resolves with `deleted: false`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailsDeleteRequest"
+            examples:
+              default:
+                summary: Delete by id
+                value:
+                  emailId: eml_x
+      responses:
+        "200":
+          description: Deleted (or already gone).
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmailsDeleteResponse"
+              example:
+                emailId: eml_x
+                deleted: true
   /v1/emails/{emailId}:
     patch:
       operationId: editEmail
@@ -6559,7 +7771,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EmailGenerateResponse"
-              examples: *a3
+              examples: *a8
         "400":
           description: The JSON body shape was invalid. The request must NOT include a `brandId` or `emailId` field — the brand is resolved from the API key and the emailId is on the URL.
           headers:
@@ -7750,7 +8962,7 @@ paths:
                         required: false
       responses:
         "201":
-          description: Created. Returns the canonical trigger row.
+          description: "Created. Returns the uniform `{ triggers: [row] }` envelope (single-element array of the created row)."
           headers:
             x-request-id:
               schema:
@@ -7762,7 +8974,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/TriggerRow"
+                $ref: "#/components/schemas/TriggersListResponse"
         "400":
           description: Invalid payload (strict-mode body violation).
           headers:
@@ -7920,7 +9132,7 @@ paths:
                   title: Renamed
       responses:
         "200":
-          description: Updated row.
+          description: "Updated. Returns the uniform `{ triggers: [row] }` envelope (single-element array of the updated row)."
           headers:
             x-request-id:
               schema:
@@ -7932,7 +9144,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/TriggerRow"
+                $ref: "#/components/schemas/TriggersListResponse"
         "404":
           description: No trigger with that id in this brand.
           headers:
@@ -7996,7 +9208,7 @@ paths:
                   triggerEventId: tri_xxx
       responses:
         "200":
-          description: Deleted.
+          description: Deleted. Idempotent — already-gone ids resolve too.
           headers:
             x-request-id:
               schema:
@@ -8005,6 +9217,14 @@ paths:
                 example: req_8cac13fd94e6420cacdd75a1aa403a28
               required: true
               description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TriggersDeleteResponse"
+              example:
+                triggerEventId: tri_xxx
+                deletedAt: 2026-04-08T12:34:56.789Z
+                deletedRows: 1
         "409":
           description: Trigger has dependent automations.
           headers:
@@ -8055,13 +9275,13 @@ paths:
                   description: 3-step onboarding drip
                   triggerEventId: tri_signup
                   nodes:
-                    - &a4
+                    - &a9
                       id: trg
                       label: On signup
                       type: trigger
                       config:
                         actionType: trigger
-                    - &a5
+                    - &a10
                       id: send_welcome
                       label: Welcome
                       type: sendEmail
@@ -8083,7 +9303,7 @@ paths:
                   name: preview
                   triggerEventId: tri_signup
                   nodes:
-                    - *a4
+                    - *a9
                   connections: []
                   dryRun: true
       responses:
@@ -8274,8 +9494,8 @@ paths:
                   automationId: auto_abc
                   name: Renamed
                   nodes:
-                    - *a4
-                    - *a5
+                    - *a9
+                    - *a10
                   connections:
                     - from: trg
                       to: send_welcome
@@ -8393,8 +9613,8 @@ paths:
       description: |-
         POST body is a 3-branch union, dispatched by body shape:
 
-        - **Fire** — `{ triggerEventId, payload, idempotencyKey?, dryRun? }`. Starts one Vercel Workflow per published automation attached to the trigger and returns `{ automationRunIds[], triggerInstanceId, status: "triggered" | "idempotent_replay" }`.
-        - **Test** — `{ automationId, mode: "test", payload? }`. Suppression-aware test run; no real mail sent.
+        - **Fire** — `{ triggerEventId, payload, idempotencyKey? }`. Starts one Vercel Workflow per published automation attached to the trigger and returns the `FIRE_EVENT_RESPONSE` envelope `{ success, status: "triggered" | "idempotent_replay", code, message, receivedAt, details: { automationRunIds[], triggerInstanceId, counts, … } }`. Read `details.automationRunIds`.
+        - **Test** — `{ automationId, mode: "test", payload? }`. Suppression-aware test run; no real mail sent. Returns the flat `{ automationRunIds[], status: "test_started", … }` shape (top-level `automationRunIds`).
         - **Replay** — `{ automationId, triggerInstanceId, mode: "replay" }` (NOT_IMPLEMENTED, P7).
 
         Supports `Idempotency-Key` header on the fire branch — retries with the same key return the original `automationRunIds` without starting duplicate workflow runs.
@@ -8711,4 +9931,205 @@ paths:
                   message: This endpoint shell is ready, but the business logic is not implemented yet.
                   suggestion: Cancel is part of the P7 work; tracked in docs/email-automations-architecture.md §7.4.
                   docs: https://docs.brew.new/api-reference/api/errors
+  /v1/analytics/campaigns:
+    get:
+      operationId: getCampaignAnalytics
+      tags:
+        - Analytics
+      summary: Campaign performance (lifetime, per-campaign)
+      description: Lifetime per-campaign KPIs (sent / delivered / opened / clicked / bounced / complained / unsubscribed) for every campaign that has actually sent. Read-only. Requires the `emails` scope.
+      responses:
+        "200":
+          description: Per-campaign lifetime performance.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CampaignAnalyticsResponse"
+              example:
+                campaigns:
+                  - emailId: eml_launch
+                    title: Spring Launch
+                    sentAt: 2026-04-08T12:34:56.789Z
+                    stats:
+                      sent: 5000
+                      delivered: 4920
+                      opened: 2110
+                      clicked: 540
+                      bounced: 80
+                      complained: 3
+                      unsubscribed: 12
+        "403":
+          description: The caller does not have the required emails permission.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: INSUFFICIENT_PERMISSIONS
+                  type: authorization_error
+                  message: The caller does not have the required permission.
+                  suggestion: Use an API key or session with the required permission.
+                  docs: https://docs.brew.new/api-reference/api/authentication
+                  param: emails
+  /v1/analytics/automations:
+    get:
+      operationId: getAutomationAnalytics
+      tags:
+        - Analytics
+      summary: Automation performance (windowed, per-automation + totals)
+      description: Windowed per-automation performance + brand totals. Defaults to the last 30 days. Reflects LIVE runs only (test runs never contribute). Requires the `automations` scope.
+      parameters:
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: automationId
+          in: query
+          required: false
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 64
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+      responses:
+        "200":
+          description: Per-automation performance + totals for the window.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AutomationAnalyticsResponse"
+              example:
+                automations:
+                  - automationId: auto_welcome
+                    name: Welcome flow
+                    published: true
+                    triggerEventId: tri_signup
+                    runs: 1200
+                    completed: 1180
+                    failed: 5
+                    sent: 1180
+                    delivered: 1150
+                    opened: 690
+                    clicked: 210
+                    bounced: 18
+                    successRate: 0.983
+                    openRate: 0.6
+                    clickRate: 0.182
+                    lastRunAt: 2026-04-08T12:34:56.789Z
+                    lastRunStatus: completed
+                totals:
+                  runs: 1200
+                  completed: 1180
+                  failed: 5
+                  sent: 1180
+                  delivered: 1150
+                  opened: 690
+                  clicked: 210
+                  bounced: 18
+                range:
+                  from: 2026-03-09T12:34:56.789Z
+                  to: 2026-04-08T12:34:56.789Z
+        "403":
+          description: The caller does not have the required automations permission.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: INSUFFICIENT_PERMISSIONS
+                  type: authorization_error
+                  message: The caller does not have the required permission.
+                  suggestion: Use an API key or session with the required permission.
+                  docs: https://docs.brew.new/api-reference/api/authentication
+                  param: automations
 webhooks: {}

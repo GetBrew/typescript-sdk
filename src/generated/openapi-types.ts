@@ -46,16 +46,33 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List Audiences
-         * @description Returns saved audiences for the current organization. Synthetic All Contacts is not included.
+         * List audiences OR get one (?audienceId=…)
+         * @description Always returns `{ audiences: Audience[] }` — list mode by default, or a single-element array when `?audienceId=…` is supplied. Each row carries its `filters`, cached member `count`, and ISO timestamps. The synthetic All Contacts audience is not included.
          */
         get: operations["listAudiences"];
         put?: never;
-        post?: never;
-        delete?: never;
+        /**
+         * Create or duplicate an audience
+         * @description Body is a 2-branch union:
+         *
+         *     - **Create** — `{ name, filters: { filters: [...], logicalOperator: "and" | "or" } }`.
+         *     - **Duplicate** — `{ duplicateFrom: audienceId }` clones an existing audience (name suffixed " (copy)").
+         *
+         *     Returns the uniform `{ audiences: [row] }` envelope.
+         */
+        post: operations["createAudience"];
+        /**
+         * Delete an audience
+         * @description Idempotent — deleting an already-gone audience resolves with `deleted: false`.
+         */
+        delete: operations["deleteAudience"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Update an audience
+         * @description Update `name` and/or `filters`. At least one must be supplied. Returns the uniform `{ audiences: [row] }` envelope.
+         */
+        patch: operations["patchAudience"];
         trace?: never;
     };
     "/v1/domains": {
@@ -66,16 +83,28 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List Domains
-         * @description Returns verified sending domains for the current organization.
+         * List domains OR get one (?domainId=…)
+         * @description Lists ALL domains for the brand (so lifecycle callers see `pending` rows + their DNS `records`). Pass `?sendableOnly=true` for only verified, send-ready domains (the set valid for sends / automation `sendEmail` nodes), or `?domainId=` for a single-element array. Each row carries `status`, the derived `sendable` flag, `region`, and the DNS `records`.
          */
         get: operations["listDomains"];
         put?: never;
-        post?: never;
-        delete?: never;
+        /**
+         * Add a sending domain
+         * @description Registers a domain with the sending provider and returns the row with `status: "pending"` and the DNS `records` to publish. After publishing DNS, call `PATCH { domainId, verify: true }` to verify. `409` when the domain already exists or is verified in another workspace.
+         */
+        post: operations["createDomain"];
+        /**
+         * Delete a domain
+         * @description Removes the domain from the provider and the local store. Idempotent — an unknown domain resolves with `deleted: false`.
+         */
+        delete: operations["deleteDomain"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Verify a domain OR update its sender defaults
+         * @description Body union: `{ domainId, verify: true }` re-checks DNS and persists the latest status; `{ domainId, defaultSenderName?|defaultFromEmail?|defaultReplyToEmail? }` updates sender defaults. Returns the uniform `{ domains: [row] }`.
+         */
+        patch: operations["patchDomain"];
         trace?: never;
     };
     "/v1/fields": {
@@ -114,8 +143,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List Emails
-         * @description Returns the latest logical emails for the current organization. Historical versions are not exposed.
+         * List Emails (or get one + version history)
+         * @description Lists the latest logical emails for the brand. `?emailId=` returns a one-element `emails[]` for a single email; add `&include=versions` to attach the sibling `versions[]` history (every persisted version of that email).
          */
         get: operations["listEmails"];
         put?: never;
@@ -130,10 +159,18 @@ export interface paths {
          *     - `transactional` — system-triggered (welcome / receipt / reset).
          */
         post: operations["generateEmail"];
-        delete?: never;
+        /**
+         * Delete an email
+         * @description Hard-deletes every version of the email + its grouping rows. Idempotent — an unknown / cross-brand id resolves with `deleted: false`.
+         */
+        delete: operations["deleteEmail"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Edit an email (prompt) OR restore a version
+         * @description Flat-shape PATCH. Body is a union: `{ emailId, prompt, … }` runs the AI edit lane (writes a new `version: "latest"`); `{ emailId, restoreVersion }` non-destructively clones a historical version into a new latest. Both return the generated-email shape.
+         */
+        patch: operations["patchEmail"];
         trace?: never;
     };
     "/v1/emails/{emailId}": {
@@ -346,8 +383,8 @@ export interface paths {
          * Fire a trigger, test an automation, or replay a historical fire
          * @description POST body is a 3-branch union, dispatched by body shape:
          *
-         *     - **Fire** — `{ triggerEventId, payload, idempotencyKey?, dryRun? }`. Starts one Vercel Workflow per published automation attached to the trigger and returns `{ automationRunIds[], triggerInstanceId, status: "triggered" | "idempotent_replay" }`.
-         *     - **Test** — `{ automationId, mode: "test", payload? }`. Suppression-aware test run; no real mail sent.
+         *     - **Fire** — `{ triggerEventId, payload, idempotencyKey? }`. Starts one Vercel Workflow per published automation attached to the trigger and returns the `FIRE_EVENT_RESPONSE` envelope `{ success, status: "triggered" | "idempotent_replay", code, message, receivedAt, details: { automationRunIds[], triggerInstanceId, counts, … } }`. Read `details.automationRunIds`.
+         *     - **Test** — `{ automationId, mode: "test", payload? }`. Suppression-aware test run; no real mail sent. Returns the flat `{ automationRunIds[], status: "test_started", … }` shape (top-level `automationRunIds`).
          *     - **Replay** — `{ automationId, triggerInstanceId, mode: "replay" }` (NOT_IMPLEMENTED, P7).
          *
          *     Supports `Idempotency-Key` header on the fire branch — retries with the same key return the original `automationRunIds` without starting duplicate workflow runs.
@@ -361,6 +398,46 @@ export interface paths {
          * @description Currently returns `501 NOT_IMPLEMENTED`. The cancel hook (P7) wires into the wait-node Promise.race so long drips can be interrupted mid-flight.
          */
         patch: operations["patchAutomationRun"];
+        trace?: never;
+    };
+    "/v1/analytics/campaigns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Campaign performance (lifetime, per-campaign)
+         * @description Lifetime per-campaign KPIs (sent / delivered / opened / clicked / bounced / complained / unsubscribed) for every campaign that has actually sent. Read-only. Requires the `emails` scope.
+         */
+        get: operations["getCampaignAnalytics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/analytics/automations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Automation performance (windowed, per-automation + totals)
+         * @description Windowed per-automation performance + brand totals. Defaults to the last 30 days. Reflects LIVE runs only (test runs never contribute). Requires the `automations` scope.
+         */
+        get: operations["getAutomationAnalytics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
 }
@@ -732,7 +809,7 @@ export interface components {
         AutomationRunRow: {
             automationRunId: string;
             automationId: string;
-            automationVersionId: string;
+            automationVersionId?: string;
             triggerInstanceId?: string;
             /** @enum {string} */
             mode: "live" | "test";
@@ -740,8 +817,6 @@ export interface components {
             status: "pending" | "running" | "completed" | "failed" | "cancelled";
             /** Format: email */
             recipientEmail?: string;
-            workflowRunId?: string;
-            dedupKey?: string;
             /** Format: date-time */
             startedAt?: string;
             /** Format: date-time */
@@ -783,8 +858,10 @@ export interface components {
                 /** @default false */
                 suppressed: boolean;
                 suppressedReason?: string | null;
-                createdAt: number;
-                updatedAt: number;
+                /** Format: date-time */
+                createdAt: string;
+                /** Format: date-time */
+                updatedAt: string;
                 importId?: string | null;
                 /** @default {} */
                 customFields: {
@@ -805,8 +882,10 @@ export interface components {
                 /** @default false */
                 suppressed: boolean;
                 suppressedReason?: string | null;
-                createdAt: number;
-                updatedAt: number;
+                /** Format: date-time */
+                createdAt: string;
+                /** Format: date-time */
+                updatedAt: string;
                 importId?: string | null;
                 /** @default {} */
                 customFields: {
@@ -846,8 +925,10 @@ export interface components {
                 /** @default false */
                 suppressed: boolean;
                 suppressedReason?: string | null;
-                createdAt: number;
-                updatedAt: number;
+                /** Format: date-time */
+                createdAt: string;
+                /** Format: date-time */
+                updatedAt: string;
                 importId?: string | null;
                 /** @default {} */
                 customFields: {
@@ -922,8 +1003,10 @@ export interface components {
                 /** @default false */
                 suppressed: boolean;
                 suppressedReason?: string | null;
-                createdAt: number;
-                updatedAt: number;
+                /** Format: date-time */
+                createdAt: string;
+                /** Format: date-time */
+                updatedAt: string;
                 importId?: string | null;
                 /** @default {} */
                 customFields: {
@@ -953,14 +1036,113 @@ export interface components {
             audiences: {
                 audienceId: string;
                 audienceName: string;
+                filters: {
+                    filters: {
+                        field: string;
+                        operator: string;
+                        value?: unknown;
+                        type?: string;
+                    }[];
+                    /** @enum {string} */
+                    logicalOperator: "and" | "or";
+                };
+                count: number;
+                /** Format: date-time */
+                createdAt: string;
+                /** Format: date-time */
+                updatedAt: string;
             }[];
+        };
+        AudiencesPostRequest: {
+            name: string;
+            filters: {
+                filters: {
+                    field: string;
+                    operator: string;
+                    value?: unknown;
+                    type?: string;
+                }[];
+                /** @enum {string} */
+                logicalOperator: "and" | "or";
+            };
+        } | {
+            duplicateFrom: string;
+        };
+        AudiencesPatchRequest: {
+            audienceId: string;
+            name?: string;
+            filters?: {
+                filters: {
+                    field: string;
+                    operator: string;
+                    value?: unknown;
+                    type?: string;
+                }[];
+                /** @enum {string} */
+                logicalOperator: "and" | "or";
+            };
+        };
+        AudiencesDeleteResponse: {
+            audienceId: string;
+            deleted: boolean;
+        };
+        AudiencesDeleteRequest: {
+            audienceId: string;
         };
         DomainsListResponse: {
             domains: {
                 domainId: string;
                 /** Format: uri */
                 domainUrl: string;
+                name: string;
+                region: string;
+                /** @enum {string} */
+                status: "not_started" | "pending" | "verified" | "failed" | "temporary_failure" | "partially_verified" | "partially_failed";
+                sendingEnabled: boolean;
+                sendable: boolean;
+                records: {
+                    record: string;
+                    name: string;
+                    type: string;
+                    ttl: string;
+                    status: string;
+                    value: string;
+                    priority?: number;
+                }[];
+                openTracking?: boolean;
+                clickTracking?: boolean;
+                /** Format: date-time */
+                createdAt: string;
+                /** Format: date-time */
+                updatedAt: string;
+                /** Format: date-time */
+                verifiedAt?: string;
             }[];
+        };
+        DomainsPostRequest: {
+            name: string;
+            /** @enum {string} */
+            region?: "us-east-1";
+            customReturnPath?: string;
+        };
+        DomainsPatchRequest: {
+            domainId: string;
+            /** @enum {boolean} */
+            verify: true;
+        } | {
+            domainId: string;
+            defaultSenderName?: string;
+            /** Format: email */
+            defaultFromEmail?: string;
+            /** Format: email */
+            defaultReplyToEmail?: string;
+        };
+        DomainsDeleteResponse: {
+            domainId: string;
+            deleted: boolean;
+        };
+        DomainsDeleteRequest: {
+            domainId: string;
         };
         FieldsGetResponse: {
             fields: {
@@ -994,6 +1176,15 @@ export interface components {
                 /** @enum {string} */
                 emailType: "campaign" | "automation" | "transactional";
             }[];
+            versions?: {
+                emailVersionId: string;
+                version: number | "latest";
+                /** @enum {string} */
+                status: "streaming" | "complete" | "error";
+                lifecycleStatus: string;
+                /** Format: date-time */
+                updatedAt: string;
+            }[];
         };
         EmailGenerateResponse: {
             emailId: string;
@@ -1020,6 +1211,24 @@ export interface components {
             contentUrls?: string[];
             /** Format: uri */
             contentUrl?: string;
+        };
+        EmailsPatchRequest: {
+            emailId: string;
+            emailVersionId?: string;
+            prompt: string;
+            contentUrls?: string[];
+            /** Format: uri */
+            contentUrl?: string;
+        } | {
+            emailId: string;
+            restoreVersion: number;
+        };
+        EmailsDeleteResponse: {
+            emailId: string;
+            deleted: boolean;
+        };
+        EmailsDeleteRequest: {
+            emailId: string;
         };
         TemplatesListResponse: {
             templates: {
@@ -1089,7 +1298,7 @@ export interface components {
             };
         };
         FireEventRequest: {
-            /** @description Internal id of the published trigger event to fire. Returned by `POST /api/v1/triggers` and listed in `GET /api/v1/triggers`. The trigger title and providerEventKey are descriptors and are NEVER URL segments — the path is fixed at `/api/v1/automation/runs`. */
+            /** @description Internal id of the published trigger event to fire. Returned by `POST /api/v1/triggers` and listed in `GET /api/v1/triggers`. Accepts both custom `brew_api` ids and composite integration ids (≤ 256 chars). The trigger title and providerEventKey are descriptors and are NEVER URL segments — the path is fixed at `/api/v1/automation/runs`. */
             triggerEventId: string;
             /** @description Event payload — fields and types must match the trigger's `payloadSchema`. Unknown fields are accepted but reported as `unexpected_key` warnings. */
             payload: {
@@ -1097,28 +1306,6 @@ export interface components {
             };
             /** @description Legacy body-field alternative to the `Idempotency-Key` HTTP header. Prefer the header for new integrations. The token is namespaced server-side with the API key org so different tenants cannot collide. */
             idempotencyKey?: string;
-        };
-        TriggersPostRequest: {
-            title: string;
-            description?: string;
-            payloadSchema: {
-                /** @enum {string} */
-                type: "object";
-                fields: {
-                    /** @description Variable name used by emails and automations, e.g. email or firstName. Prefer self-descriptive keys; this column has no separate description field. */
-                    key: string;
-                    /** @enum {string} */
-                    type: "string" | "int" | "boolean";
-                    required: boolean;
-                    /** @description Substitution value when the inbound payload is missing this field. Also used as the email agent's `e.g. {{ key | fallback }}` example. */
-                    fallbackValue?: string | number | boolean;
-                    /**
-                     * @description PII classification for redaction. "high" auto-redacts the value in execution logs and the inbound log. "low" (default when omitted) preserves the value. "none" is an explicit marker that the field is non-personal.
-                     * @enum {string}
-                     */
-                    pii?: "none" | "low" | "high";
-                }[];
-            };
         };
         TriggersListResponse: {
             triggers: {
@@ -1152,6 +1339,28 @@ export interface components {
                 updatedAt: string;
             }[];
         };
+        TriggersPostRequest: {
+            title: string;
+            description?: string;
+            payloadSchema: {
+                /** @enum {string} */
+                type: "object";
+                fields: {
+                    /** @description Variable name used by emails and automations, e.g. email or firstName. Prefer self-descriptive keys; this column has no separate description field. */
+                    key: string;
+                    /** @enum {string} */
+                    type: "string" | "int" | "boolean";
+                    required: boolean;
+                    /** @description Substitution value when the inbound payload is missing this field. Also used as the email agent's `e.g. {{ key | fallback }}` example. */
+                    fallbackValue?: string | number | boolean;
+                    /**
+                     * @description PII classification for redaction. "high" auto-redacts the value in execution logs and the inbound log. "low" (default when omitted) preserves the value. "none" is an explicit marker that the field is non-personal.
+                     * @enum {string}
+                     */
+                    pii?: "none" | "low" | "high";
+                }[];
+            };
+        };
         TriggersPatchRequest: {
             triggerEventId: string;
             title?: string;
@@ -1174,6 +1383,12 @@ export interface components {
                     pii?: "none" | "low" | "high";
                 }[];
             };
+        };
+        TriggersDeleteResponse: {
+            triggerEventId: string;
+            /** Format: date-time */
+            deletedAt: string;
+            deletedRows: number;
         };
         TriggersDeleteRequest: {
             triggerEventId: string;
@@ -1627,6 +1842,45 @@ export interface components {
             automationId: string;
         };
         AutomationRunsPostResponse: {
+            success: boolean;
+            /**
+             * @description Discriminator for the response category. Pairs with `code`. A trigger with no published automation attached returns `status: "failed"` + `code: "NO_PUBLISHED_AUTOMATION"` (HTTP 422). Successful fires always return `status: "triggered"`.
+             * @enum {string}
+             */
+            status: "triggered" | "idempotent_replay" | "ready" | "invalid_api_key" | "invalid_json" | "failed" | "forbidden" | "payload_mismatch" | "trigger_event_not_found";
+            code: string;
+            message: string;
+            triggerEventId?: string;
+            /** @description ISO-8601 timestamp the request was processed at. */
+            receivedAt: string;
+            details?: {
+                resolvedPayload?: {
+                    [key: string]: unknown;
+                };
+                warnings?: unknown[];
+                idempotencyKey?: string;
+                /** @description Unique identifier for the persisted inbound row. Useful for support and replay. Set whenever an Idempotency-Key was provided. */
+                triggerInstanceId?: string;
+                publishedTransactionalEmails?: ({
+                    emailId: string;
+                } & {
+                    [key: string]: unknown;
+                })[];
+                publishedAutomations?: ({
+                    automationId: string;
+                    title?: string;
+                } & {
+                    [key: string]: unknown;
+                })[];
+                automationRunIds?: string[];
+                counts?: {
+                    transactionalEmails: number;
+                    automations: number;
+                };
+            } & {
+                [key: string]: unknown;
+            };
+        } | {
             triggerInstanceId?: string;
             automationRunIds: string[];
             /** @enum {string} */
@@ -1645,7 +1899,6 @@ export interface components {
                 [key: string]: unknown;
             };
             idempotencyKey?: string;
-            dryRun?: boolean;
         } | {
             automationId: string;
             /** @enum {string} */
@@ -1663,7 +1916,7 @@ export interface components {
             runs: {
                 automationRunId: string;
                 automationId: string;
-                automationVersionId: string;
+                automationVersionId?: string;
                 triggerInstanceId?: string;
                 /** @enum {string} */
                 mode: "live" | "test";
@@ -1671,8 +1924,6 @@ export interface components {
                 status: "pending" | "running" | "completed" | "failed" | "cancelled";
                 /** Format: email */
                 recipientEmail?: string;
-                workflowRunId?: string;
-                dedupKey?: string;
                 /** Format: date-time */
                 startedAt?: string;
                 /** Format: date-time */
@@ -1708,6 +1959,61 @@ export interface components {
             /** @enum {string} */
             status: "cancelled";
             reason?: string;
+        };
+        CampaignAnalyticsResponse: {
+            campaigns: {
+                emailId: string;
+                title: string;
+                /** Format: date-time */
+                sentAt?: string;
+                stats: {
+                    sent: number;
+                    delivered: number;
+                    opened: number;
+                    clicked: number;
+                    bounced: number;
+                    complained: number;
+                    unsubscribed: number;
+                };
+            }[];
+        };
+        AutomationAnalyticsResponse: {
+            automations: {
+                automationId: string;
+                name: string;
+                published: boolean;
+                triggerEventId?: string;
+                runs: number;
+                completed: number;
+                failed: number;
+                sent: number;
+                delivered: number;
+                opened: number;
+                clicked: number;
+                bounced: number;
+                successRate: number;
+                openRate: number;
+                clickRate: number;
+                /** Format: date-time */
+                lastRunAt?: string;
+                lastRunStatus?: string;
+            }[];
+            totals: {
+                runs: number;
+                completed: number;
+                failed: number;
+                sent: number;
+                delivered: number;
+                opened: number;
+                clicked: number;
+                bounced: number;
+            };
+            range: {
+                /** Format: date-time */
+                from: string;
+                /** Format: date-time */
+                to: string;
+            };
         };
     };
     responses: never;
@@ -2570,14 +2876,16 @@ export interface operations {
     };
     listAudiences: {
         parameters: {
-            query?: never;
+            query?: {
+                audienceId?: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description Saved audiences for this organization. */
+            /** @description Saved audiences for this brand. */
             200: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -2596,7 +2904,20 @@ export interface operations {
                      *       "audiences": [
                      *         {
                      *           "audienceId": "jn7a8w4q8m9k2p1x7c3b5v6n9h7s2d4f",
-                     *           "audienceName": "Nordic Founders"
+                     *           "audienceName": "Nordic Founders",
+                     *           "filters": {
+                     *             "filters": [
+                     *               {
+                     *                 "field": "country",
+                     *                 "operator": "equals",
+                     *                 "value": "NO"
+                     *               }
+                     *             ],
+                     *             "logicalOperator": "and"
+                     *           },
+                     *           "count": 1284,
+                     *           "createdAt": "2026-04-08T12:34:56.789Z",
+                     *           "updatedAt": "2026-04-08T12:34:56.789Z"
                      *         }
                      *       ]
                      *     }
@@ -2649,8 +2970,8 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description Unexpected internal error. */
-            500: {
+            /** @description No audience with that id in this brand. */
+            404: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
                     "x-request-id": string;
@@ -2660,11 +2981,200 @@ export interface operations {
                     /**
                      * @example {
                      *       "error": {
-                     *         "code": "INTERNAL_ERROR",
-                     *         "type": "internal_error",
-                     *         "message": "An unexpected error occurred.",
-                     *         "suggestion": "Retry the request. If it keeps failing, contact support.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *         "code": "AUDIENCE_NOT_FOUND",
+                     *         "type": "not_found",
+                     *         "message": "The requested audience 'aud_xxx' was not found.",
+                     *         "suggestion": "Use GET /api/v1/audiences to list saved audiences.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "audienceId"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    createAudience: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description Optional idempotency key for safe retries. Reusing the same key with the same request body returns the original response for 24 hours.
+                 * @example api-request-2026-04-08-001
+                 */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AudiencesPostRequest"];
+            };
+        };
+        responses: {
+            /** @description Created. One-element `{ audiences: [row] }`. */
+            201: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "audiences": [
+                     *         {
+                     *           "audienceId": "jn7a8w4q8m9k2p1x7c3b5v6n9h7s2d4f",
+                     *           "audienceName": "Nordic Founders",
+                     *           "filters": {
+                     *             "filters": [
+                     *               {
+                     *                 "field": "country",
+                     *                 "operator": "equals",
+                     *                 "value": "NO"
+                     *               }
+                     *             ],
+                     *             "logicalOperator": "and"
+                     *           },
+                     *           "count": 1284,
+                     *           "createdAt": "2026-04-08T12:34:56.789Z",
+                     *           "updatedAt": "2026-04-08T12:34:56.789Z"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["AudiencesListResponse"];
+                };
+            };
+            /** @description No audience with that id in this brand. */
+            404: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "AUDIENCE_NOT_FOUND",
+                     *         "type": "not_found",
+                     *         "message": "The requested audience 'aud_xxx' was not found.",
+                     *         "suggestion": "Use GET /api/v1/audiences to list saved audiences.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "audienceId"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    deleteAudience: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AudiencesDeleteRequest"];
+            };
+        };
+        responses: {
+            /** @description Deleted (or already gone). */
+            200: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "audienceId": "aud_xxx",
+                     *       "deleted": true
+                     *     }
+                     */
+                    "application/json": components["schemas"]["AudiencesDeleteResponse"];
+                };
+            };
+        };
+    };
+    patchAudience: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description Optional idempotency key for safe retries. Reusing the same key with the same request body returns the original response for 24 hours.
+                 * @example api-request-2026-04-08-001
+                 */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AudiencesPatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated. One-element `{ audiences: [row] }`. */
+            200: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "audiences": [
+                     *         {
+                     *           "audienceId": "jn7a8w4q8m9k2p1x7c3b5v6n9h7s2d4f",
+                     *           "audienceName": "Nordic Founders",
+                     *           "filters": {
+                     *             "filters": [
+                     *               {
+                     *                 "field": "country",
+                     *                 "operator": "equals",
+                     *                 "value": "NO"
+                     *               }
+                     *             ],
+                     *             "logicalOperator": "and"
+                     *           },
+                     *           "count": 1284,
+                     *           "createdAt": "2026-04-08T12:34:56.789Z",
+                     *           "updatedAt": "2026-04-08T12:34:56.789Z"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["AudiencesListResponse"];
+                };
+            };
+            /** @description No audience with that id in this brand. */
+            404: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "AUDIENCE_NOT_FOUND",
+                     *         "type": "not_found",
+                     *         "message": "The requested audience 'aud_xxx' was not found.",
+                     *         "suggestion": "Use GET /api/v1/audiences to list saved audiences.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "audienceId"
                      *       }
                      *     }
                      */
@@ -2675,14 +3185,17 @@ export interface operations {
     };
     listDomains: {
         parameters: {
-            query?: never;
+            query?: {
+                domainId?: string;
+                sendableOnly?: "true" | "false";
+            };
             header?: never;
             path?: never;
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description Verified sending domains for this organization. */
+            /** @description Domains for this brand. */
             200: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -2701,7 +3214,24 @@ export interface operations {
                      *       "domains": [
                      *         {
                      *           "domainId": "jn7a8w4q8m9k2p1x7c3b5v6n9h7s2d4f",
-                     *           "domainUrl": "https://example.com"
+                     *           "domainUrl": "https://send.example.com",
+                     *           "name": "send.example.com",
+                     *           "region": "us-east-1",
+                     *           "status": "pending",
+                     *           "sendingEnabled": true,
+                     *           "sendable": false,
+                     *           "records": [
+                     *             {
+                     *               "record": "DKIM",
+                     *               "name": "resend._domainkey",
+                     *               "type": "TXT",
+                     *               "ttl": "Auto",
+                     *               "status": "pending",
+                     *               "value": "p=MIGfMA0..."
+                     *             }
+                     *           ],
+                     *           "createdAt": "2026-04-08T12:34:56.789Z",
+                     *           "updatedAt": "2026-04-08T12:34:56.789Z"
                      *         }
                      *       ]
                      *     }
@@ -2754,8 +3284,8 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description Unexpected internal error. */
-            500: {
+            /** @description No domain with that id in this brand. */
+            404: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
                     "x-request-id": string;
@@ -2765,11 +3295,231 @@ export interface operations {
                     /**
                      * @example {
                      *       "error": {
-                     *         "code": "INTERNAL_ERROR",
-                     *         "type": "internal_error",
-                     *         "message": "An unexpected error occurred.",
-                     *         "suggestion": "Retry the request. If it keeps failing, contact support.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *         "code": "DOMAIN_NOT_FOUND",
+                     *         "type": "not_found",
+                     *         "message": "The requested domain 'dom_xxx' was not found.",
+                     *         "suggestion": "Use GET /api/v1/domains to list domains.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "domainId"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    createDomain: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description Optional idempotency key for safe retries. Reusing the same key with the same request body returns the original response for 24 hours.
+                 * @example api-request-2026-04-08-001
+                 */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DomainsPostRequest"];
+            };
+        };
+        responses: {
+            /** @description Created. One-element `{ domains: [row] }` (status pending). */
+            201: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "domains": [
+                     *         {
+                     *           "domainId": "jn7a8w4q8m9k2p1x7c3b5v6n9h7s2d4f",
+                     *           "domainUrl": "https://send.example.com",
+                     *           "name": "send.example.com",
+                     *           "region": "us-east-1",
+                     *           "status": "pending",
+                     *           "sendingEnabled": true,
+                     *           "sendable": false,
+                     *           "records": [
+                     *             {
+                     *               "record": "DKIM",
+                     *               "name": "resend._domainkey",
+                     *               "type": "TXT",
+                     *               "ttl": "Auto",
+                     *               "status": "pending",
+                     *               "value": "p=MIGfMA0..."
+                     *             }
+                     *           ],
+                     *           "createdAt": "2026-04-08T12:34:56.789Z",
+                     *           "updatedAt": "2026-04-08T12:34:56.789Z"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["DomainsListResponse"];
+                };
+            };
+            /** @description Domain already exists / verified elsewhere / other brand. */
+            409: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "DOMAIN_ALREADY_EXISTS",
+                     *         "type": "conflict",
+                     *         "message": "Domain already exists",
+                     *         "suggestion": "Fetch it via GET /v1/domains.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "name"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    deleteDomain: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DomainsDeleteRequest"];
+            };
+        };
+        responses: {
+            /** @description Deleted (or already gone). */
+            200: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "domainId": "dom_xxx",
+                     *       "deleted": true
+                     *     }
+                     */
+                    "application/json": components["schemas"]["DomainsDeleteResponse"];
+                };
+            };
+        };
+    };
+    patchDomain: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description Optional idempotency key for safe retries. Reusing the same key with the same request body returns the original response for 24 hours.
+                 * @example api-request-2026-04-08-001
+                 */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DomainsPatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated. One-element `{ domains: [row] }`. */
+            200: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "domains": [
+                     *         {
+                     *           "domainId": "jn7a8w4q8m9k2p1x7c3b5v6n9h7s2d4f",
+                     *           "domainUrl": "https://send.example.com",
+                     *           "name": "send.example.com",
+                     *           "region": "us-east-1",
+                     *           "status": "verified",
+                     *           "sendingEnabled": true,
+                     *           "sendable": true,
+                     *           "records": [
+                     *             {
+                     *               "record": "DKIM",
+                     *               "name": "resend._domainkey",
+                     *               "type": "TXT",
+                     *               "ttl": "Auto",
+                     *               "status": "pending",
+                     *               "value": "p=MIGfMA0..."
+                     *             }
+                     *           ],
+                     *           "createdAt": "2026-04-08T12:34:56.789Z",
+                     *           "updatedAt": "2026-04-08T12:34:56.789Z"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["DomainsListResponse"];
+                };
+            };
+            /** @description No domain with that id in this brand. */
+            404: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "DOMAIN_NOT_FOUND",
+                     *         "type": "not_found",
+                     *         "message": "The requested domain 'dom_xxx' was not found.",
+                     *         "suggestion": "Use GET /api/v1/domains to list domains.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "domainId"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Verification failed (DNS not yet propagated). */
+            422: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "DOMAIN_VERIFICATION_FAILED",
+                     *         "type": "invalid_request",
+                     *         "message": "Verification failed",
+                     *         "suggestion": "Confirm the DNS records are published, then retry.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "domainId"
                      *       }
                      *     }
                      */
@@ -3345,6 +4095,8 @@ export interface operations {
     listEmails: {
         parameters: {
             query?: {
+                emailId?: string;
+                include?: string;
                 emailType?: "campaign" | "automation" | "transactional";
                 status?: "streaming" | "complete" | "error";
                 createdAtFrom?: string;
@@ -3689,6 +4441,99 @@ export interface operations {
                      *         "message": "An unexpected error occurred.",
                      *         "suggestion": "Retry the request. If it keeps failing, contact support.",
                      *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    deleteEmail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailsDeleteRequest"];
+            };
+        };
+        responses: {
+            /** @description Deleted (or already gone). */
+            200: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "emailId": "eml_x",
+                     *       "deleted": true
+                     *     }
+                     */
+                    "application/json": components["schemas"]["EmailsDeleteResponse"];
+                };
+            };
+        };
+    };
+    patchEmail: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description Optional idempotency key for safe retries. Reusing the same key with the same request body returns the original response for 24 hours.
+                 * @example api-request-2026-04-08-001
+                 */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailsPatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated / restored email artifact. */
+            200: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmailGenerateResponse"];
+                };
+            };
+            /** @description Email or requested version not found in this brand. */
+            404: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "EMAIL_VERSION_NOT_FOUND",
+                     *         "type": "not_found",
+                     *         "message": "Email 'eml_x' has no version 5.",
+                     *         "suggestion": "List versions via GET /v1/emails?emailId=…&include=versions.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "restoreVersion"
                      *       }
                      *     }
                      */
@@ -4657,7 +5502,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Created. Returns the canonical trigger row. */
+            /** @description Created. Returns the uniform `{ triggers: [row] }` envelope (single-element array of the created row). */
             201: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -4665,7 +5510,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TriggerRow"];
+                    "application/json": components["schemas"]["TriggersListResponse"];
                 };
             };
             /** @description Invalid payload (strict-mode body violation). */
@@ -4729,14 +5574,23 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Deleted. */
+            /** @description Deleted. Idempotent — already-gone ids resolve too. */
             200: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
                     "x-request-id": string;
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    /**
+                     * @example {
+                     *       "triggerEventId": "tri_xxx",
+                     *       "deletedAt": "2026-04-08T12:34:56.789Z",
+                     *       "deletedRows": 1
+                     *     }
+                     */
+                    "application/json": components["schemas"]["TriggersDeleteResponse"];
+                };
             };
             /** @description Trigger has dependent automations. */
             409: {
@@ -4776,7 +5630,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Updated row. */
+            /** @description Updated. Returns the uniform `{ triggers: [row] }` envelope (single-element array of the updated row). */
             200: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -4784,7 +5638,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TriggerRow"];
+                    "application/json": components["schemas"]["TriggersListResponse"];
                 };
             };
             /** @description No trigger with that id in this brand. */
@@ -5277,6 +6131,172 @@ export interface operations {
                      *         "message": "This endpoint shell is ready, but the business logic is not implemented yet.",
                      *         "suggestion": "Cancel is part of the P7 work; tracked in docs/email-automations-architecture.md §7.4.",
                      *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    getCampaignAnalytics: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Per-campaign lifetime performance. */
+            200: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "campaigns": [
+                     *         {
+                     *           "emailId": "eml_launch",
+                     *           "title": "Spring Launch",
+                     *           "sentAt": "2026-04-08T12:34:56.789Z",
+                     *           "stats": {
+                     *             "sent": 5000,
+                     *             "delivered": 4920,
+                     *             "opened": 2110,
+                     *             "clicked": 540,
+                     *             "bounced": 80,
+                     *             "complained": 3,
+                     *             "unsubscribed": 12
+                     *           }
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["CampaignAnalyticsResponse"];
+                };
+            };
+            /** @description The caller does not have the required emails permission. */
+            403: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INSUFFICIENT_PERMISSIONS",
+                     *         "type": "authorization_error",
+                     *         "message": "The caller does not have the required permission.",
+                     *         "suggestion": "Use an API key or session with the required permission.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
+                     *         "param": "emails"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    getAutomationAnalytics: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+                automationId?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Per-automation performance + totals for the window. */
+            200: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "automations": [
+                     *         {
+                     *           "automationId": "auto_welcome",
+                     *           "name": "Welcome flow",
+                     *           "published": true,
+                     *           "triggerEventId": "tri_signup",
+                     *           "runs": 1200,
+                     *           "completed": 1180,
+                     *           "failed": 5,
+                     *           "sent": 1180,
+                     *           "delivered": 1150,
+                     *           "opened": 690,
+                     *           "clicked": 210,
+                     *           "bounced": 18,
+                     *           "successRate": 0.983,
+                     *           "openRate": 0.6,
+                     *           "clickRate": 0.182,
+                     *           "lastRunAt": "2026-04-08T12:34:56.789Z",
+                     *           "lastRunStatus": "completed"
+                     *         }
+                     *       ],
+                     *       "totals": {
+                     *         "runs": 1200,
+                     *         "completed": 1180,
+                     *         "failed": 5,
+                     *         "sent": 1180,
+                     *         "delivered": 1150,
+                     *         "opened": 690,
+                     *         "clicked": 210,
+                     *         "bounced": 18
+                     *       },
+                     *       "range": {
+                     *         "from": "2026-03-09T12:34:56.789Z",
+                     *         "to": "2026-04-08T12:34:56.789Z"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["AutomationAnalyticsResponse"];
+                };
+            };
+            /** @description The caller does not have the required automations permission. */
+            403: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INSUFFICIENT_PERMISSIONS",
+                     *         "type": "authorization_error",
+                     *         "message": "The caller does not have the required permission.",
+                     *         "suggestion": "Use an API key or session with the required permission.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
+                     *         "param": "automations"
                      *       }
                      *     }
                      */

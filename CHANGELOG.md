@@ -1,5 +1,68 @@
 # Changelog
 
+## Unreleased
+
+The v1 lifecycle expansion — full parity for audiences, domains, analytics,
+and the email version lifecycle, plus the triggers envelope normalization.
+Generated types were refreshed from the updated OpenAPI spec.
+
+### BREAKING — triggers create/patch now return `{ triggers: [row] }`
+
+`brew.triggers.create()` and `brew.triggers.patch()` now return the same
+uniform list envelope as `list()` / `get()` (a one-element array), instead of
+the singular `{ trigger }`.
+
+```diff
+- const { trigger } = await brew.triggers.create({ ... })
++ const { triggers } = await brew.triggers.create({ ... })
++ const trigger = triggers[0]!
+```
+
+### BREAKING — `automationRuns.fire()` returns the fire envelope
+
+`fire()` now returns the rich fire envelope; read the started run ids from
+`result.details.automationRunIds`. `test()` / `replay()` return the flat
+shape with top-level `automationRunIds`. The dead `dryRun` field was removed
+from the fire input (the API rejects it).
+
+```diff
+- const { automationRunIds } = await brew.automationRuns.fire({ ... })
++ const { details } = await brew.automationRuns.fire({ ... })
++ const runIds = details?.automationRunIds ?? []
+```
+
+### NEW — analytics resource
+
+```ts
+await brew.analytics.campaigns() // lifetime per-campaign KPIs (scope: emails)
+await brew.analytics.automations({ from, to, limit }) // windowed per-automation perf (scope: automations)
+```
+
+### NEW — audiences full CRUD
+
+`brew.audiences.create()`, `.update()`, `.delete()`, `.duplicate()`, `.get()`.
+Audience rows are enriched with `filters`, `count`, and ISO timestamps.
+
+### NEW — domains lifecycle
+
+`brew.domains.add()`, `.verify()`, `.updateSettings()`, `.delete()`, `.get()`,
+`.listSendable()`. `list()` now returns ALL domains (incl. `pending` + DNS
+`records`); use `listSendable()` for the verified, send-ready set. Rows gain
+`status`, `sendable`, `records`, and `region`.
+
+### NEW — email version lifecycle
+
+`brew.emails.get()`, `.versions()` (`?include=versions`), `.restore({ emailId,
+restoreVersion })`, `.delete()`. `generate()` / `edit()` now return the
+correct persisted `emailVersionId` (previously a phantom id that failed
+`sendEmail`-node validation).
+
+### Other
+
+- Contact `createdAt` / `updatedAt` are now ISO-8601 strings (were epoch-ms).
+- Automation-run rows dropped internal `workflowRunId` / `dedupKey`;
+  `automationVersionId` is now optional.
+
 ## 5.0.0
 
 The one-switch trigger refactor. Brew previously required two operator

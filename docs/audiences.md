@@ -1,10 +1,16 @@
 # `brew.audiences`
 
-One method for listing saved audiences.
+Full CRUD for saved audiences (named filter sets over the brand's contacts).
+An audience is the recipient target for `brew.sends.create(...)`.
 
-| Method          | HTTP                |
-| --------------- | ------------------- |
-| [`list`](#list) | `GET /v1/audiences` |
+| Method                    | HTTP                             |
+| ------------------------- | -------------------------------- |
+| [`list`](#list)           | `GET /v1/audiences`              |
+| [`get`](#get)             | `GET /v1/audiences?audienceId=…` |
+| [`create`](#create)       | `POST /v1/audiences`             |
+| [`duplicate`](#duplicate) | `POST /v1/audiences`             |
+| [`update`](#update)       | `PATCH /v1/audiences`            |
+| [`delete`](#delete)       | `DELETE /v1/audiences`           |
 
 ## Shared types
 
@@ -12,30 +18,69 @@ One method for listing saved audiences.
 type Audience = {
   readonly audienceId: string
   readonly audienceName: string
+  readonly filters: {
+    readonly filters: ReadonlyArray<{
+      field: string
+      operator: string
+      value?: unknown
+      type?: string
+    }>
+    readonly logicalOperator: 'and' | 'or'
+  }
+  readonly count: number
+  readonly createdAt: string // ISO-8601
+  readonly updatedAt: string // ISO-8601
 }
 ```
 
-The API returns only saved audiences. It does not include the synthetic
-`All Contacts` option that can exist in app UI flows.
+Every read AND write returns the uniform `{ audiences: Audience[] }` envelope
+(single fetch + create/update return a one-element array).
 
 ---
 
 ## `list`
 
-List saved audiences for the current organization.
-
-```ts
-type ListAudiencesResponse = {
-  readonly audiences: ReadonlyArray<Audience>
-}
-
-list(): Promise<ListAudiencesResponse>
-```
-
 ```ts
 const { audiences } = await brew.audiences.list()
+```
 
-for (const audience of audiences) {
-  console.log(audience.audienceId, audience.audienceName)
-}
+## `get`
+
+```ts
+const { audiences } = await brew.audiences.get({ audienceId })
+const audience = audiences[0] // or 404 AUDIENCE_NOT_FOUND
+```
+
+## `create`
+
+```ts
+const { audiences } = await brew.audiences.create({
+  name: 'Nordic Founders',
+  filters: {
+    filters: [{ field: 'country', operator: 'equals', value: 'NO' }],
+    logicalOperator: 'and',
+  },
+})
+```
+
+## `duplicate`
+
+```ts
+const { audiences } = await brew.audiences.duplicate({
+  duplicateFrom: audienceId,
+})
+```
+
+## `update`
+
+```ts
+await brew.audiences.update({ audienceId, name: 'EU Founders' })
+```
+
+## `delete`
+
+Idempotent — an unknown id resolves with `{ deleted: false }`.
+
+```ts
+const { deleted } = await brew.audiences.delete({ audienceId })
 ```

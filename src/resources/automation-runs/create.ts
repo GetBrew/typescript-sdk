@@ -1,7 +1,11 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
-import type { AutomationRunsPostResponse } from './types'
+import type {
+  AutomationRunsPostResponse,
+  FireTriggerResponse,
+  TestRunResponse,
+} from './types'
 
 /**
  * Discriminated body union for `POST /v1/automation/runs`. Hand-rolled
@@ -14,7 +18,6 @@ export type AutomationRunsPostInput =
       triggerEventId: string
       payload: Record<string, unknown>
       idempotencyKey?: string
-      dryRun?: boolean
     }
   | {
       automationId: string
@@ -68,22 +71,20 @@ export type FireTriggerInput = {
    * runs.
    */
   idempotencyKey?: string
-  /** When `true`, validates payload without firing — returns warnings/errors only. */
-  dryRun?: boolean
 }
 
 /**
- * Fire a trigger. Returns
- * `{ automationRunIds, triggerInstanceId, status }`.
+ * Fire a trigger. Returns the fire envelope — read started run ids from
+ * `result.details.automationRunIds`.
  */
 export function createFireTrigger(
   postAutomationRun: ReturnType<typeof createPostAutomationRun>
 ) {
-  return function fireTrigger(
+  return async function fireTrigger(
     input: FireTriggerInput,
     options?: RequestOptions
-  ): Promise<AutomationRunsPostResponse> {
-    return postAutomationRun(input, options)
+  ): Promise<FireTriggerResponse> {
+    return (await postAutomationRun(input, options)) as FireTriggerResponse
   }
 }
 
@@ -98,11 +99,14 @@ export type TestAutomationInput = {
 export function createTestAutomation(
   postAutomationRun: ReturnType<typeof createPostAutomationRun>
 ) {
-  return function testAutomation(
+  return async function testAutomation(
     input: TestAutomationInput,
     options?: RequestOptions
-  ): Promise<AutomationRunsPostResponse> {
-    return postAutomationRun({ ...input, mode: 'test' }, options)
+  ): Promise<TestRunResponse> {
+    return (await postAutomationRun(
+      { ...input, mode: 'test' },
+      options
+    )) as TestRunResponse
   }
 }
 
@@ -118,17 +122,17 @@ export type ReplayAutomationRunInput = {
 export function createReplayAutomationRun(
   postAutomationRun: ReturnType<typeof createPostAutomationRun>
 ) {
-  return function replayAutomationRun(
+  return async function replayAutomationRun(
     input: ReplayAutomationRunInput,
     options?: RequestOptions
-  ): Promise<AutomationRunsPostResponse> {
-    return postAutomationRun(
+  ): Promise<TestRunResponse> {
+    return (await postAutomationRun(
       {
         automationId: input.automationId,
         triggerInstanceId: input.triggerInstanceId,
         mode: 'replay',
       },
       options
-    )
+    )) as TestRunResponse
   }
 }
