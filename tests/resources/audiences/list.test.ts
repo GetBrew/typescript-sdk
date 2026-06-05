@@ -78,7 +78,7 @@ describe('audiences.list', () => {
     const { client } = makeTestHttpClient()
     const list = createListAudiences(client)
 
-    const raw = await list({ raw: true })
+    const raw = await list(undefined, { raw: true })
 
     expect(raw.status).toBe(200)
     expect(raw.requestId).toBe('req_raw_audiences')

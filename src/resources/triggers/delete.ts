@@ -1,13 +1,12 @@
+import type { components } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
 export type DeleteTriggerInput = { triggerEventId: string }
 
-export type DeleteTriggerResponse = {
-  triggerEventId: string
-  deletedAt: string
-  deletedRows: number
-}
+/** Delete result — carries `deleted: boolean` alongside `deletedAt`/`deletedRows`. */
+export type DeleteTriggerResponse =
+  components['schemas']['TriggersDeleteResponse']
 
 /**
  * `DELETE /v1/triggers` — destructive. Refuses with HTTP 409 +

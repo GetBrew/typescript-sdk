@@ -12,6 +12,10 @@ export { createBrewClient, type BrewClient } from './client'
 // ---------- Errors ----------
 export { BrewApiError } from './core/errors'
 
+// ---------- Pagination ----------
+export { autoPaginate } from './core/pagination'
+export type { Pagination, PaginationInput } from './core/pagination'
+
 // ---------- Public config + request types ----------
 export type {
   BrewClientConfig,
@@ -27,15 +31,18 @@ export type {
 export type { AnalyticsResource } from './resources/analytics/resource'
 export type { AudiencesResource } from './resources/audiences/resource'
 export type { AutomationsResource } from './resources/automations/resource'
+export type { BrandResource } from './resources/brand/resource'
 export type { ContactsResource } from './resources/contacts/resource'
 export type { DomainsResource } from './resources/domains/resource'
 export type { EmailsResource } from './resources/emails/resource'
 export type { AutomationRunsResource } from './resources/automation-runs/resource'
 export type { EventsResource } from './resources/events/resource'
 export type { FieldsResource } from './resources/fields/resource'
+export type { IntegrationsResource } from './resources/integrations/resource'
 export type { SendsResource } from './resources/sends/resource'
 export type { TemplatesResource } from './resources/templates/resource'
 export type { TriggersResource } from './resources/triggers/resource'
+export type { UsageResource } from './resources/usage/resource'
 
 // ---------- Triggers: domain types ----------
 export type { Trigger, TriggersListResponse } from './resources/triggers/types'
@@ -46,6 +53,7 @@ export type {
 export type {
   GetTriggerInput,
   GetTriggerResponse,
+  ListTriggersInput,
   ListTriggersResponse,
 } from './resources/triggers/list'
 export type {
@@ -77,6 +85,7 @@ export type {
 export type {
   GetAutomationInput,
   GetAutomationResponse,
+  ListAutomationsInput,
   ListAutomationsResponse,
 } from './resources/automations/list'
 export type {
@@ -102,6 +111,7 @@ export type {
   FireTriggerInput,
   TestAutomationInput,
   ReplayAutomationRunInput,
+  ReplayRunResponse,
 } from './resources/automation-runs/create'
 export type {
   ListAutomationRunsInput,
@@ -120,8 +130,15 @@ export type {
   CampaignAnalyticsRow,
   AutomationAnalyticsResponse,
   AutomationAnalyticsRow,
+  EventsAnalyticsResponse,
+  EventRow,
 } from './resources/analytics/types'
 export type { AutomationAnalyticsInput } from './resources/analytics/automations'
+export type { CampaignAnalyticsInput } from './resources/analytics/campaigns'
+export type {
+  EventsAnalyticsInput,
+  EventsAnalyticsAllInput,
+} from './resources/analytics/events'
 
 // ---------- Audiences: domain types ----------
 export type { Audience } from './resources/audiences/types'
@@ -136,11 +153,21 @@ export type {
 export type {
   SendAcceptedResponse,
   SendAcceptedStatus,
+  SendsPostRequest,
+  SendsListResponse,
+  SendsTestResponse,
+  Send,
+  SendStats,
+  SendStatus,
+  ListSendsInput,
 } from './resources/sends/types'
 export type { Template } from './resources/templates/types'
 
 // ---------- Audiences: method inputs + outputs ----------
-export type { ListAudiencesResponse } from './resources/audiences/list'
+export type {
+  ListAudiencesInput,
+  ListAudiencesResponse,
+} from './resources/audiences/list'
 export type {
   CreateAudienceInput,
   CreateAudienceResponse,
@@ -160,7 +187,10 @@ export type {
 } from './resources/audiences/get'
 
 // ---------- Domains: method inputs + outputs ----------
-export type { ListDomainsResponse } from './resources/domains/list'
+export type {
+  ListDomainsInput,
+  ListDomainsResponse,
+} from './resources/domains/list'
 export type { GetDomainInput, GetDomainResponse } from './resources/domains/get'
 export type { AddDomainInput, AddDomainResponse } from './resources/domains/add'
 export type {
@@ -204,6 +234,9 @@ export type {
   CreateSendInput,
   CreateSendResponse,
 } from './resources/sends/create'
+export type { TestSendInput, TestSendResponse } from './resources/sends/test'
+export type { GetSendInput, GetSendResponse } from './resources/sends/get'
+export type { ListAllSendsInput } from './resources/sends/list-all'
 export type {
   ListTemplatesInput,
   ListTemplatesResponse,
@@ -248,12 +281,41 @@ export type {
   ContactField,
   ContactFieldType,
   FieldsSuccessResponse,
+  FieldsMutationResponse,
 } from './resources/fields/types'
 
 // ---------- Fields: method inputs + outputs ----------
 export type { ListFieldsResponse } from './resources/fields/list'
-export type { CreateFieldInput } from './resources/fields/create'
+export type {
+  CreateFieldInput,
+  CreateFieldResponse,
+} from './resources/fields/create'
 export type { DeleteFieldInput } from './resources/fields/delete'
+
+// ---------- Brand: domain types + method outputs ----------
+export type {
+  Brand,
+  BrandStatus,
+  BrandGetResponse,
+} from './resources/brand/types'
+
+// ---------- Usage: domain types + method outputs ----------
+export type {
+  Usage,
+  UsageOverview,
+  UsageTrendPoint,
+  UsageRouteStat,
+  UsageGetResponse,
+} from './resources/usage/types'
+
+// ---------- Integrations: domain types + method inputs/outputs ----------
+export type {
+  Integration,
+  IntegrationEvent,
+  IntegrationProvider,
+  IntegrationsGetResponse,
+  ListIntegrationsInput,
+} from './resources/integrations/types'
 
 // ---------- Metadata ----------
 export { SDK_NAME, SDK_VERSION } from './version'

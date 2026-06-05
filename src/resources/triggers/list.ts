@@ -1,3 +1,4 @@
+import type { PaginationInput } from '../../core/pagination'
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
@@ -5,24 +6,34 @@ import type { TriggersListResponse } from './types'
 
 export type ListTriggersResponse = TriggersListResponse
 
+/** Input to `brew.triggers.list` — cursor pagination knobs. */
+export type ListTriggersInput = PaginationInput
+
 /**
  * `GET /v1/triggers` — list every trigger in the API key brand,
  * including both API-created customs (`provider: 'brew_api'`) and
  * integration-provisioned rows (`provider: 'clerk' | 'stripe' | …`).
- * For a single trigger use `brew.triggers.get(...)` — it returns a
+ * Returns `{ triggers, pagination }`; accepts `limit`/`cursor`. For a
+ * single trigger use `brew.triggers.get(...)` — it returns a
  * one-element list with the same wrapper shape.
  */
 export function createListTriggers(client: HttpClient) {
   function listTriggers(
+    input: ListTriggersInput | undefined,
     options: RequestOptions & { readonly raw: true }
   ): Promise<BrewRawResponse<ListTriggersResponse>>
-  function listTriggers(options?: RequestOptions): Promise<ListTriggersResponse>
+  function listTriggers(
+    input?: ListTriggersInput,
+    options?: RequestOptions
+  ): Promise<ListTriggersResponse>
   async function listTriggers(
+    input: ListTriggersInput = {},
     options?: RequestOptions
   ): Promise<ListTriggersResponse | BrewRawResponse<ListTriggersResponse>> {
     const response = await client.request<ListTriggersResponse>({
       method: 'GET',
       path: '/v1/triggers',
+      query: { limit: input.limit, cursor: input.cursor },
       ...(options ? { options } : {}),
     })
     return unwrapResponse(response, options)

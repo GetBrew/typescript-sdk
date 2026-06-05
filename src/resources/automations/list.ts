@@ -1,3 +1,4 @@
+import type { PaginationInput } from '../../core/pagination'
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
@@ -6,27 +7,49 @@ import type { AutomationsListResponse } from './types'
 export type ListAutomationsResponse = AutomationsListResponse
 
 /**
+ * Input to `brew.automations.list`. The list is lean by default — rows
+ * omit `nodes`/`connections` unless `include: ['graph']` is passed.
+ * `limit`/`cursor` page the result.
+ */
+export type ListAutomationsInput = PaginationInput & {
+  /** `'graph'` attaches `nodes`+`connections` to each list row. */
+  readonly include?: ReadonlyArray<'graph'>
+}
+
+/**
  * `GET /v1/automations` — list every latest automation row in the
- * brand. Always returns `{ automations: AutomationRow[] }`. For a
- * single row use `brew.automations.get(...)` — it returns the same
- * envelope shape (one-element array, or `404
+ * brand. Returns `{ automations, pagination }`. Rows are LEAN by
+ * default (no `nodes`/`connections`); pass `include: ['graph']` to
+ * attach the graph. For a single row use `brew.automations.get(...)` —
+ * it always returns the full graph (one-element array, or `404
  * AUTOMATION_NOT_FOUND`).
  */
 export function createListAutomations(client: HttpClient) {
   function listAutomations(
+    input: ListAutomationsInput | undefined,
     options: RequestOptions & { readonly raw: true }
   ): Promise<BrewRawResponse<ListAutomationsResponse>>
   function listAutomations(
+    input?: ListAutomationsInput,
     options?: RequestOptions
   ): Promise<ListAutomationsResponse>
   async function listAutomations(
+    input: ListAutomationsInput = {},
     options?: RequestOptions
   ): Promise<
     ListAutomationsResponse | BrewRawResponse<ListAutomationsResponse>
   > {
+    const query: Record<string, string | number | undefined> = {
+      limit: input.limit,
+      cursor: input.cursor,
+    }
+    if (input.include && input.include.length > 0) {
+      query.include = input.include.join(',')
+    }
     const response = await client.request<ListAutomationsResponse>({
       method: 'GET',
       path: '/v1/automations',
+      query,
       ...(options ? { options } : {}),
     })
     return unwrapResponse(response, options)

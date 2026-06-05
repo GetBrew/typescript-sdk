@@ -64,22 +64,26 @@ etc.).
 
 | Topic                       | File                                                                   |
 | --------------------------- | ---------------------------------------------------------------------- |
+| Analytics resource          | [`docs/analytics.md`](./docs/analytics.md)                             |
 | Audiences resource          | [`docs/audiences.md`](./docs/audiences.md)                             |
+| Brand resource              | [`docs/brand.md`](./docs/brand.md)                                     |
 | Client configuration        | [`docs/configuration.md`](./docs/configuration.md)                     |
 | Contacts resource           | [`docs/contacts.md`](./docs/contacts.md)                               |
 | Domains resource            | [`docs/domains.md`](./docs/domains.md)                                 |
 | Emails resource             | [`docs/emails.md`](./docs/emails.md)                                   |
 | Fields resource             | [`docs/fields.md`](./docs/fields.md)                                   |
+| Integrations resource       | [`docs/integrations.md`](./docs/integrations.md)                       |
 | Error handling              | [`docs/errors.md`](./docs/errors.md)                                   |
 | Retries + idempotency       | [`docs/retries-and-idempotency.md`](./docs/retries-and-idempotency.md) |
 | Sends resource              | [`docs/sends.md`](./docs/sends.md)                                     |
 | Templates resource          | [`docs/templates.md`](./docs/templates.md)                             |
+| Usage resource              | [`docs/usage.md`](./docs/usage.md)                                     |
 | Development + OpenAPI sync  | [`docs/development.md`](./docs/development.md)                         |
 | **Releasing a new version** | [`RELEASING.md`](./RELEASING.md)                                       |
 
-> Note: there is no `brew.brands` resource. Brand management lives in
-> the Brew dashboard, and the single brand bound to your API key is
-> the only brand the SDK can act on.
+> Note: there is no brand _management_ resource. `brew.brand.get()` is
+> read-only — it returns the single brand bound to your API key (selected
+> when the key is created in the dashboard) plus its extraction readiness.
 
 ## Development
 

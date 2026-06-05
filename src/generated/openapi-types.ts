@@ -202,7 +202,7 @@ export interface paths {
         };
         /**
          * List Templates
-         * @description Returns public email templates. Supports exact `brand` and `category` filters plus a lightweight text style `semantic` filter over template metadata.
+         * @description Returns public email templates. Lean by default (`{ emailId }` per row); pass `?include=html` to attach the heavy `emailHtml` + `emailPng` fields. Supports exact `brand` and `category` filters, a lightweight `semantic` text filter, and `?limit=` + `?cursor=` pagination.
          */
         get: operations["listTemplates"];
         put?: never;
@@ -220,7 +220,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List campaign sends OR get one (?emailId=…)
+         * @description Returns `{ sends: Send[] }` for the brand — every email that has an accepted send (status `scheduled | queued | sending | sent | failed`). `?emailId=` returns the single send for one email (or 404). Filter with `status`, `from`, `to`; paginate with `limit` + `cursor`.
+         */
+        get: operations["listSends"];
         put?: never;
         /**
          * Create Send
@@ -231,6 +235,66 @@ export interface paths {
          *     Brand scoping: API keys are bound to a single brand. The send is always recorded against the API key brand and you cannot pass a `brandId` body field. Resources (`emailId`, `audienceId`) that exist in a different brand within the same organization are intentionally surfaced as `404` (rather than `403`) so the API never confirms the existence of resources outside the caller brand.
          */
         post: operations["createSend"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/brand": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the brand bound to this API key
+         * @description Returns `{ brand }` — the single brand bound to the API key. Check `ready` (`status === "completed"`) before calling `POST /v1/emails`, which returns `422 BRAND_NOT_READY` until brand extraction finishes.
+         */
+        get: operations["getBrand"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get API usage for your org
+         * @description Returns `{ usage }` — api-key request usage for the caller’s org: a rolling 24h `overview` (requests, successRate, errors, rateLimited), a 30-day daily `trend`, and a 7-day per-`route` breakdown. Use it to self-monitor rate-limit pressure and error rates.
+         */
+        get: operations["getUsage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/integrations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Triggerable integration-event catalog
+         * @description Returns `{ integrations }` — every provider you can trigger automations from (Clerk, Stripe, Stytch, Supabase, WorkOS, Shopify, RevenueCat), whether it is `connected`, and each triggerable `event` (with payload `fieldKeys` + whether a brew trigger is already `provisioned`). Filter to one provider with `?provider=`. Requires the `automations` scope.
+         */
+        get: operations["listIntegrations"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -333,7 +397,7 @@ export interface paths {
         };
         /**
          * List automations OR get one (?automationId=…)
-         * @description Always returns `{ automations: AutomationRow[] }`. No query → list every latest row for the brand. `?automationId=…` → one-element list (or 404 when missing). `?include=versions` (single-row mode only) attaches the full `versions[]` history inline on the row.
+         * @description Always returns `{ automations: AutomationRow[] }`. List rows are LEAN by default (graph omitted) — pass `?include=graph` to attach `nodes`+`connections`. No query → list every latest row. `?automationId=…` → one-element list with the full graph (or 404). `?include=versions` (single-row mode only) attaches the `versions[]` history.
          */
         get: operations["listAutomations"];
         put?: never;
@@ -385,7 +449,7 @@ export interface paths {
          *
          *     - **Fire** — `{ triggerEventId, payload, idempotencyKey? }`. Starts one Vercel Workflow per published automation attached to the trigger and returns the `FIRE_EVENT_RESPONSE` envelope `{ success, status: "triggered" | "idempotent_replay", code, message, receivedAt, details: { automationRunIds[], triggerInstanceId, counts, … } }`. Read `details.automationRunIds`.
          *     - **Test** — `{ automationId, mode: "test", payload? }`. Suppression-aware test run; no real mail sent. Returns the flat `{ automationRunIds[], status: "test_started", … }` shape (top-level `automationRunIds`).
-         *     - **Replay** — `{ automationId, triggerInstanceId, mode: "replay" }` (NOT_IMPLEMENTED, P7).
+         *     - **Replay** — `{ automationRunId, mode: "replay" }`. Re-runs a prior run with the same payload + mode against the automation's current saved draft. Returns `EXECUTIONS_POST_RESPONSE` with `status: "replay_started"` + the new `automationRunIds`.
          *
          *     Supports `Idempotency-Key` header on the fire branch — retries with the same key return the original `automationRunIds` without starting duplicate workflow runs.
          */
@@ -409,7 +473,7 @@ export interface paths {
         };
         /**
          * Campaign performance (lifetime, per-campaign)
-         * @description Lifetime per-campaign KPIs (sent / delivered / opened / clicked / bounced / complained / unsubscribed) for every campaign that has actually sent. Read-only. Requires the `emails` scope.
+         * @description Lifetime per-campaign KPIs (sent / delivered / opened / clicked / bounced / complained / unsubscribed) for every campaign that has actually sent. Read-only. Cursor-paginated. Requires the `emails` scope.
          */
         get: operations["getCampaignAnalytics"];
         put?: never;
@@ -432,6 +496,26 @@ export interface paths {
          * @description Windowed per-automation performance + brand totals. Defaults to the last 30 days. Reflects LIVE runs only (test runs never contribute). Requires the `automations` scope.
          */
         get: operations["getAutomationAnalytics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/analytics/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Unified events feed (email + automation + trigger)
+         * @description Read-only window over the brand's analytics events. Defaults to the last 7 days. Optional equality filters `recipientEmail` / `eventType` / `automationId`. Cursor pagination: pass the returned `pagination.cursor` back as `?cursor=`. Requires the `emails` scope.
+         */
+        get: operations["getEventsAnalytics"];
         put?: never;
         post?: never;
         delete?: never;
@@ -584,7 +668,7 @@ export interface components {
             description?: string;
             version: number | "latest";
             published: boolean;
-            nodes: ({
+            nodes?: ({
                 id: string;
                 label: string;
                 description?: string;
@@ -675,7 +759,7 @@ export interface components {
                     }[];
                 };
             })[];
-            connections: {
+            connections?: {
                 from: string;
                 to: string;
                 /** @enum {string} */
@@ -683,7 +767,6 @@ export interface components {
             }[];
             emailIds: string[];
             createdBy?: string;
-            createdByUserId?: string;
             /** Format: date-time */
             createdAt?: string;
             /** Format: date-time */
@@ -698,7 +781,7 @@ export interface components {
                 description?: string;
                 version: number | "latest";
                 published: boolean;
-                nodes: ({
+                nodes?: ({
                     id: string;
                     label: string;
                     description?: string;
@@ -789,7 +872,7 @@ export interface components {
                         }[];
                     };
                 })[];
-                connections: {
+                connections?: {
                     from: string;
                     to: string;
                     /** @enum {string} */
@@ -797,7 +880,6 @@ export interface components {
                 }[];
                 emailIds: string[];
                 createdBy?: string;
-                createdByUserId?: string;
                 /** Format: date-time */
                 createdAt?: string;
                 /** Format: date-time */
@@ -1052,6 +1134,11 @@ export interface components {
                 /** Format: date-time */
                 updatedAt: string;
             }[];
+            pagination?: {
+                limit: number;
+                cursor: string | null;
+                hasMore: boolean;
+            };
         };
         AudiencesPostRequest: {
             name: string;
@@ -1118,6 +1205,11 @@ export interface components {
                 /** Format: date-time */
                 verifiedAt?: string;
             }[];
+            pagination?: {
+                limit: number;
+                cursor: string | null;
+                hasMore: boolean;
+            };
         };
         DomainsPostRequest: {
             name: string;
@@ -1156,14 +1248,26 @@ export interface components {
                 isSearchable?: boolean;
             }[];
         };
-        FieldsSuccessResponse: {
-            /** @enum {boolean} */
-            success: true;
+        FieldsMutationResponse: {
+            fields: {
+                fieldName: string;
+                /** @enum {string} */
+                fieldType: "string" | "number" | "date" | "bool";
+                label?: string;
+                isCore?: boolean;
+                isFilterable?: boolean;
+                isSortable?: boolean;
+                isSearchable?: boolean;
+            }[];
         };
         FieldsPostRequest: {
             fieldName: string;
             /** @enum {string} */
             fieldType: "string" | "number" | "date" | "bool";
+        };
+        FieldsSuccessResponse: {
+            /** @enum {boolean} */
+            success: true;
         };
         FieldsDeleteRequest: {
             fieldName: string;
@@ -1185,6 +1289,11 @@ export interface components {
                 /** Format: date-time */
                 updatedAt: string;
             }[];
+            pagination?: {
+                limit: number;
+                cursor: string | null;
+                hasMore: boolean;
+            };
         };
         EmailGenerateResponse: {
             emailId: string;
@@ -1233,10 +1342,59 @@ export interface components {
         TemplatesListResponse: {
             templates: {
                 emailId: string;
-                emailHtml: string;
+                emailHtml?: string;
                 /** Format: uri */
-                emailPng: string;
+                emailPng?: string;
             }[];
+            pagination?: {
+                limit: number;
+                cursor: string | null;
+                hasMore: boolean;
+            };
+        };
+        SendsListResponse: {
+            sends: {
+                emailId: string;
+                emailVersionId?: string;
+                /** @enum {string} */
+                status: "scheduled" | "queued" | "sending" | "sent" | "failed";
+                audienceId?: string;
+                audienceName?: string;
+                runId?: string;
+                /** Format: date-time */
+                scheduledAt?: string;
+                /** Format: date-time */
+                startedAt?: string;
+                /** Format: date-time */
+                completedAt?: string;
+                /** Format: date-time */
+                failedAt?: string;
+                error?: string;
+                stats?: {
+                    sent: number;
+                    delivered: number;
+                    opened: number;
+                    clicked: number;
+                    bounced: number;
+                    complained: number;
+                    unsubscribed: number;
+                };
+                /** Format: date-time */
+                createdAt: string;
+                /** Format: date-time */
+                updatedAt: string;
+            }[];
+            pagination?: {
+                limit: number;
+                cursor: string | null;
+                hasMore: boolean;
+            };
+        };
+        SendsTestResponse: {
+            /** @enum {string} */
+            status: "sent";
+            /** Format: email */
+            recipient: string;
         };
         SendsPostResponse: {
             /** @enum {string} */
@@ -1246,6 +1404,17 @@ export interface components {
             scheduledAt?: string;
         };
         SendsPostRequest: {
+            /** @enum {string} */
+            mode: "test";
+            emailId: string;
+            emailVersionId?: string;
+            subject: string;
+            previewText?: string;
+            /** Format: email */
+            to: string;
+            /** Format: email */
+            replyTo?: string;
+        } | {
             emailId: string;
             emailVersionId?: string;
             domainId: string;
@@ -1256,6 +1425,57 @@ export interface components {
             audienceId: string;
             /** Format: date-time */
             scheduledAt?: string;
+        };
+        BrandGetResponse: {
+            brand: {
+                brandId: string;
+                domain: string;
+                /** @enum {string} */
+                status: "extracting" | "completed" | "failed" | "deleting";
+                ready: boolean;
+                /** Format: date-time */
+                createdAt?: string;
+                /** Format: date-time */
+                updatedAt?: string;
+            };
+        };
+        UsageGetResponse: {
+            usage: {
+                overview: {
+                    requests: number;
+                    successRate: number;
+                    errors: number;
+                    rateLimited: number;
+                };
+                trend: {
+                    /** Format: date-time */
+                    date: string;
+                    requests: number;
+                    errors: number;
+                }[];
+                routes: {
+                    route: string;
+                    requests: number;
+                    successRate: number;
+                    topErrorCode: string | null;
+                }[];
+            };
+        };
+        IntegrationsGetResponse: {
+            integrations: {
+                /** @enum {string} */
+                provider: "clerk" | "stripe" | "stytch" | "supabase" | "workos" | "shopify" | "revenuecat";
+                connected: boolean;
+                events: {
+                    eventType: string;
+                    title: string;
+                    description?: string;
+                    category: string;
+                    fieldKeys: string[];
+                    requiredFieldKeys: string[];
+                    provisioned: boolean;
+                }[];
+            }[];
         };
         FireEventResponse: {
             success: boolean;
@@ -1338,6 +1558,11 @@ export interface components {
                 /** Format: date-time */
                 updatedAt: string;
             }[];
+            pagination?: {
+                limit: number;
+                cursor: string | null;
+                hasMore: boolean;
+            };
         };
         TriggersPostRequest: {
             title: string;
@@ -1386,6 +1611,7 @@ export interface components {
         };
         TriggersDeleteResponse: {
             triggerEventId: string;
+            deleted: boolean;
             /** Format: date-time */
             deletedAt: string;
             deletedRows: number;
@@ -1402,7 +1628,7 @@ export interface components {
                 description?: string;
                 version: number | "latest";
                 published: boolean;
-                nodes: ({
+                nodes?: ({
                     id: string;
                     label: string;
                     description?: string;
@@ -1493,7 +1719,7 @@ export interface components {
                         }[];
                     };
                 })[];
-                connections: {
+                connections?: {
                     from: string;
                     to: string;
                     /** @enum {string} */
@@ -1501,7 +1727,6 @@ export interface components {
                 }[];
                 emailIds: string[];
                 createdBy?: string;
-                createdByUserId?: string;
                 /** Format: date-time */
                 createdAt?: string;
                 /** Format: date-time */
@@ -1516,7 +1741,7 @@ export interface components {
                     description?: string;
                     version: number | "latest";
                     published: boolean;
-                    nodes: ({
+                    nodes?: ({
                         id: string;
                         label: string;
                         description?: string;
@@ -1607,7 +1832,7 @@ export interface components {
                             }[];
                         };
                     })[];
-                    connections: {
+                    connections?: {
                         from: string;
                         to: string;
                         /** @enum {string} */
@@ -1615,7 +1840,6 @@ export interface components {
                     }[];
                     emailIds: string[];
                     createdBy?: string;
-                    createdByUserId?: string;
                     /** Format: date-time */
                     createdAt?: string;
                     /** Format: date-time */
@@ -1624,6 +1848,11 @@ export interface components {
                     publishedAt?: string;
                 }[];
             }[];
+            pagination?: {
+                limit: number;
+                cursor: string | null;
+                hasMore: boolean;
+            };
         };
         AutomationsPostRequest: {
             name: string;
@@ -1831,6 +2060,7 @@ export interface components {
         };
         AutomationsDeleteResponse: {
             automationId: string;
+            deleted: boolean;
             deletedAutomations: number;
             deletedEmails: number;
             deletedEmailGroupings: number;
@@ -1907,8 +2137,7 @@ export interface components {
                 [key: string]: unknown;
             };
         } | {
-            automationId: string;
-            triggerInstanceId: string;
+            automationRunId: string;
             /** @enum {string} */
             mode: "replay";
         };
@@ -1976,6 +2205,11 @@ export interface components {
                     unsubscribed: number;
                 };
             }[];
+            pagination?: {
+                limit: number;
+                cursor: string | null;
+                hasMore: boolean;
+            };
         };
         AutomationAnalyticsResponse: {
             automations: {
@@ -2007,6 +2241,38 @@ export interface components {
                 opened: number;
                 clicked: number;
                 bounced: number;
+            };
+            range: {
+                /** Format: date-time */
+                from: string;
+                /** Format: date-time */
+                to: string;
+            };
+        };
+        EventsAnalyticsResponse: {
+            events: {
+                id: string;
+                /** Format: date-time */
+                occurredAt: string;
+                /** @enum {string} */
+                domain: "email" | "automation" | "trigger" | "inbound";
+                eventType: string;
+                recipientEmail?: string;
+                emailId?: string;
+                emailName?: string;
+                automationId?: string;
+                automationName?: string;
+                nodeId?: string;
+                triggerEventId?: string;
+                provider?: string;
+                /** @enum {string} */
+                mode?: "live" | "test";
+                summary?: string;
+            }[];
+            pagination: {
+                limit: number;
+                cursor: string | null;
+                hasMore: boolean;
             };
             range: {
                 /** Format: date-time */
@@ -2878,6 +3144,13 @@ export interface operations {
         parameters: {
             query?: {
                 audienceId?: string;
+                /**
+                 * @description Page size (1–100). Defaults to 100.
+                 * @example 50
+                 */
+                limit?: number;
+                /** @description Opaque pagination cursor echoed from the previous page’s `pagination.cursor`. Omit for the first page. */
+                cursor?: string;
             };
             header?: never;
             path?: never;
@@ -3188,6 +3461,13 @@ export interface operations {
             query?: {
                 domainId?: string;
                 sendableOnly?: "true" | "false";
+                /**
+                 * @description Page size (1–100). Defaults to 100.
+                 * @example 50
+                 */
+                limit?: number;
+                /** @description Opaque pagination cursor echoed from the previous page’s `pagination.cursor`. Omit for the first page. */
+                cursor?: string;
             };
             header?: never;
             path?: never;
@@ -3720,10 +4000,20 @@ export interface operations {
                 content: {
                     /**
                      * @example {
-                     *       "success": true
+                     *       "fields": [
+                     *         {
+                     *           "fieldName": "plan",
+                     *           "fieldType": "string",
+                     *           "label": "Plan",
+                     *           "isCore": false,
+                     *           "isFilterable": true,
+                     *           "isSortable": true,
+                     *           "isSearchable": false
+                     *         }
+                     *       ]
                      *     }
                      */
-                    "application/json": components["schemas"]["FieldsSuccessResponse"];
+                    "application/json": components["schemas"]["FieldsMutationResponse"];
                 };
             };
             /** @description The JSON body shape was invalid. */
@@ -4103,6 +4393,8 @@ export interface operations {
                 createdAtTo?: string;
                 updatedAtFrom?: string;
                 updatedAtTo?: string;
+                limit?: number | string;
+                cursor?: string;
             };
             header?: never;
             path?: never;
@@ -4760,6 +5052,9 @@ export interface operations {
                 brand?: string;
                 category?: string;
                 semantic?: string;
+                include?: string;
+                limit?: number | string;
+                cursor?: string;
             };
             header?: never;
             path?: never;
@@ -4785,11 +5080,14 @@ export interface operations {
                      * @example {
                      *       "templates": [
                      *         {
-                     *           "emailId": "seed-vercel-newsletter",
-                     *           "emailHtml": "<html><body>Frontend digest</body></html>",
-                     *           "emailPng": "https://cdn.brew.new/seed-vercel.com-seed-vercel-newsletter.png"
+                     *           "emailId": "seed-vercel-newsletter"
                      *         }
-                     *       ]
+                     *       ],
+                     *       "pagination": {
+                     *         "limit": 100,
+                     *         "cursor": null,
+                     *         "hasMore": false
+                     *       }
                      *     }
                      */
                     "application/json": components["schemas"]["TemplatesListResponse"];
@@ -4918,6 +5216,151 @@ export interface operations {
             };
         };
     };
+    listSends: {
+        parameters: {
+            query?: {
+                emailId?: string;
+                status?: "scheduled" | "queued" | "sending" | "sent" | "failed";
+                from?: string;
+                to?: string;
+                /**
+                 * @description Page size (1–100). Defaults to 100.
+                 * @example 50
+                 */
+                limit?: number;
+                /** @description Opaque pagination cursor echoed from the previous page’s `pagination.cursor`. Omit for the first page. */
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Campaign sends for this brand. */
+            200: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "sends": [
+                     *         {
+                     *           "emailId": "eml_promo",
+                     *           "status": "sent",
+                     *           "audienceId": "aud_subscribers",
+                     *           "runId": "wrun_abc",
+                     *           "completedAt": "2026-04-08T12:34:56.000Z",
+                     *           "stats": {
+                     *             "sent": 1200,
+                     *             "delivered": 1180,
+                     *             "opened": 540,
+                     *             "clicked": 96,
+                     *             "bounced": 20,
+                     *             "complained": 1,
+                     *             "unsubscribed": 4
+                     *           },
+                     *           "createdAt": "2026-04-08T12:00:00.000Z",
+                     *           "updatedAt": "2026-04-08T12:34:56.000Z"
+                     *         }
+                     *       ],
+                     *       "pagination": {
+                     *         "limit": 100,
+                     *         "cursor": null,
+                     *         "hasMore": false
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["SendsListResponse"];
+                };
+            };
+            /** @description The API key was missing, invalid, or revoked. */
+            401: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INVALID_API_KEY",
+                     *         "type": "authentication_error",
+                     *         "message": "The provided API key is invalid.",
+                     *         "suggestion": "Check the API key format and retry with a valid active key.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description No send exists for the requested email. */
+            404: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "SEND_NOT_FOUND",
+                     *         "type": "not_found",
+                     *         "message": "No campaign send was found for email 'eml_promo'.",
+                     *         "suggestion": "Start a send with POST /api/v1/sends, or list existing sends with GET /api/v1/sends.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "emailId"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The request hit the rolling rate limit window. */
+            429: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    /** @description Seconds to wait before retrying the request. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "RATE_LIMITED",
+                     *         "type": "rate_limit",
+                     *         "message": "Too many requests.",
+                     *         "suggestion": "Wait for the retry window before sending another request.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
+                     *         "retryAfter": 42
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
     createSend: {
         parameters: {
             query?: never;
@@ -4931,14 +5374,37 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        /** @description Campaign send request for a saved email + audience. */
+        /** @description Campaign send (audience-scoped, async 202) OR a test send (`{ mode: "test", emailId, subject, to }` — forced Brew sender, no domain/audience, sync 200). */
         requestBody: {
             content: {
                 "application/json": components["schemas"]["SendsPostRequest"];
             };
         };
         responses: {
-            /** @description The send was accepted and queued or scheduled. */
+            /** @description A test send completed (`mode: "test"`). */
+            200: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "status": "sent",
+                     *       "recipient": "qa@example.com"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["SendsTestResponse"];
+                };
+            };
+            /** @description The campaign send was accepted and queued or scheduled. */
             202: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -5122,6 +5588,361 @@ export interface operations {
                      *         "message": "An unexpected error occurred.",
                      *         "suggestion": "Retry the request. If it keeps failing, contact support.",
                      *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    getBrand: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The brand bound to this API key. */
+            200: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "brand": {
+                     *         "brandId": "kx7b3s7fapqz8mjm12ekz1kxdx87yceg",
+                     *         "domain": "vercel.com",
+                     *         "status": "completed",
+                     *         "ready": true,
+                     *         "createdAt": "2026-04-08T12:00:00.000Z",
+                     *         "updatedAt": "2026-04-08T12:05:00.000Z"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["BrandGetResponse"];
+                };
+            };
+            /** @description The API key was missing, invalid, or revoked. */
+            401: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INVALID_API_KEY",
+                     *         "type": "authentication_error",
+                     *         "message": "The provided API key is invalid.",
+                     *         "suggestion": "Check the API key format and retry with a valid active key.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The brand bound to this API key was not found. */
+            404: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "BRAND_NOT_FOUND",
+                     *         "type": "not_found",
+                     *         "message": "The brand bound to this API key was not found.",
+                     *         "suggestion": "Verify in the dashboard that the brand bound to this API key still exists.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The request hit the rolling rate limit window. */
+            429: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    /** @description Seconds to wait before retrying the request. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "RATE_LIMITED",
+                     *         "type": "rate_limit",
+                     *         "message": "Too many requests.",
+                     *         "suggestion": "Wait for the retry window before sending another request.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
+                     *         "retryAfter": 42
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    getUsage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description API usage snapshot for this org. */
+            200: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "usage": {
+                     *         "overview": {
+                     *           "requests": 1284,
+                     *           "successRate": 98,
+                     *           "errors": 21,
+                     *           "rateLimited": 3
+                     *         },
+                     *         "trend": [
+                     *           {
+                     *             "date": "2026-04-08T00:00:00.000Z",
+                     *             "requests": 142,
+                     *             "errors": 2
+                     *           }
+                     *         ],
+                     *         "routes": [
+                     *           {
+                     *             "route": "/api/v1/emails",
+                     *             "requests": 420,
+                     *             "successRate": 97,
+                     *             "topErrorCode": "RATE_LIMITED"
+                     *           }
+                     *         ]
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["UsageGetResponse"];
+                };
+            };
+            /** @description The API key was missing, invalid, or revoked. */
+            401: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INVALID_API_KEY",
+                     *         "type": "authentication_error",
+                     *         "message": "The provided API key is invalid.",
+                     *         "suggestion": "Check the API key format and retry with a valid active key.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The request hit the rolling rate limit window. */
+            429: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    /** @description Seconds to wait before retrying the request. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "RATE_LIMITED",
+                     *         "type": "rate_limit",
+                     *         "message": "Too many requests.",
+                     *         "suggestion": "Wait for the retry window before sending another request.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
+                     *         "retryAfter": 42
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    listIntegrations: {
+        parameters: {
+            query?: {
+                provider?: "clerk" | "stripe" | "stytch" | "supabase" | "workos" | "shopify" | "revenuecat";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Triggerable integration-event catalog. */
+            200: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "integrations": [
+                     *         {
+                     *           "provider": "clerk",
+                     *           "connected": true,
+                     *           "events": [
+                     *             {
+                     *               "eventType": "user.created",
+                     *               "title": "User created",
+                     *               "category": "users",
+                     *               "fieldKeys": [
+                     *                 "email",
+                     *                 "firstName",
+                     *                 "lastName"
+                     *               ],
+                     *               "requiredFieldKeys": [
+                     *                 "email"
+                     *               ],
+                     *               "provisioned": false
+                     *             }
+                     *           ]
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["IntegrationsGetResponse"];
+                };
+            };
+            /** @description The API key was missing, invalid, or revoked. */
+            401: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INVALID_API_KEY",
+                     *         "type": "authentication_error",
+                     *         "message": "The provided API key is invalid.",
+                     *         "suggestion": "Check the API key format and retry with a valid active key.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The caller does not have the required automations permission. */
+            403: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INSUFFICIENT_PERMISSIONS",
+                     *         "type": "authorization_error",
+                     *         "message": "The caller does not have the required permission.",
+                     *         "suggestion": "Use an API key or session with the required automations permission.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
+                     *         "param": "automations"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The request hit the rolling rate limit window. */
+            429: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    /** @description Seconds to wait before retrying the request. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "RATE_LIMITED",
+                     *         "type": "rate_limit",
+                     *         "message": "Too many requests.",
+                     *         "suggestion": "Wait for the retry window before sending another request.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
+                     *         "retryAfter": 42
                      *       }
                      *     }
                      */
@@ -5440,6 +6261,13 @@ export interface operations {
         parameters: {
             query?: {
                 triggerEventId?: string;
+                /**
+                 * @description Page size (1–100). Defaults to 100.
+                 * @example 50
+                 */
+                limit?: number;
+                /** @description Opaque pagination cursor echoed from the previous page’s `pagination.cursor`. Omit for the first page. */
+                cursor?: string;
             };
             header?: never;
             path?: never;
@@ -5585,6 +6413,7 @@ export interface operations {
                     /**
                      * @example {
                      *       "triggerEventId": "tri_xxx",
+                     *       "deleted": true,
                      *       "deletedAt": "2026-04-08T12:34:56.789Z",
                      *       "deletedRows": 1
                      *     }
@@ -5693,8 +6522,15 @@ export interface operations {
         parameters: {
             query?: {
                 automationId?: string;
-                /** @description Comma-separated list. Allowed: `versions`. */
+                /** @description Comma-separated list. Allowed: `versions` (single-row only), `graph` (attach `nodes`+`connections` to list rows). */
                 include?: string;
+                /**
+                 * @description Page size (1–100). Defaults to 100.
+                 * @example 50
+                 */
+                limit?: number;
+                /** @description Opaque pagination cursor echoed from the previous page’s `pagination.cursor`. Omit for the first page. */
+                cursor?: string;
             };
             header?: never;
             path?: never;
@@ -6024,7 +6860,7 @@ export interface operations {
                      *         "code": "INVALID_REQUEST",
                      *         "type": "invalid_request",
                      *         "message": "Invalid request payload.",
-                     *         "suggestion": "Send one of: { triggerEventId, payload } (fire), { automationId, mode: \"test\" }, { automationId, triggerInstanceId, mode: \"replay\" }.",
+                     *         "suggestion": "Send one of: { triggerEventId, payload } (fire), { automationId, mode: \"test\" }, { automationRunId, mode: \"replay\" }.",
                      *         "docs": "https://docs.brew.new/api-reference/api/errors"
                      *       }
                      *     }
@@ -6032,7 +6868,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description Automation not found for test / replay. */
+            /** @description Automation not found (test) OR automation run not found (replay). */
             404: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -6072,28 +6908,6 @@ export interface operations {
                      *         "suggestion": "Publish at least one automation bound to this trigger via POST /v1/automations/{automationId}/publish.",
                      *         "docs": "https://docs.brew.new/api-reference/api/errors",
                      *         "param": "triggerEventId"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description Replay branch is gated behind P7. */
-            501: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "NOT_IMPLEMENTED",
-                     *         "type": "not_implemented",
-                     *         "message": "This endpoint shell is ready, but the business logic is not implemented yet.",
-                     *         "suggestion": "Use the test branch to validate without delivering, OR the fire branch with a deduplicated idempotency key.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
                      *       }
                      *     }
                      */
@@ -6141,7 +6955,15 @@ export interface operations {
     };
     getCampaignAnalytics: {
         parameters: {
-            query?: never;
+            query?: {
+                /**
+                 * @description Page size (1–100). Defaults to 100.
+                 * @example 50
+                 */
+                limit?: number;
+                /** @description Opaque pagination cursor echoed from the previous page’s `pagination.cursor`. Omit for the first page. */
+                cursor?: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -6297,6 +7119,89 @@ export interface operations {
                      *         "suggestion": "Use an API key or session with the required permission.",
                      *         "docs": "https://docs.brew.new/api-reference/api/authentication",
                      *         "param": "automations"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    getEventsAnalytics: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+                recipientEmail?: string;
+                eventType?: string;
+                automationId?: string;
+                limit?: number;
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of unified analytics events. */
+            200: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "events": [
+                     *         {
+                     *           "id": "evt_abc",
+                     *           "occurredAt": "2026-04-08T12:34:56.789Z",
+                     *           "domain": "email",
+                     *           "eventType": "opened",
+                     *           "recipientEmail": "jane@example.com",
+                     *           "emailId": "eml_launch",
+                     *           "emailName": "Spring Launch"
+                     *         }
+                     *       ],
+                     *       "pagination": {
+                     *         "limit": 50,
+                     *         "cursor": null,
+                     *         "hasMore": false
+                     *       },
+                     *       "range": {
+                     *         "from": "2026-04-01T12:34:56.789Z",
+                     *         "to": "2026-04-08T12:34:56.789Z"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["EventsAnalyticsResponse"];
+                };
+            };
+            /** @description The caller does not have the required emails permission. */
+            403: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INSUFFICIENT_PERMISSIONS",
+                     *         "type": "authorization_error",
+                     *         "message": "The caller does not have the required permission.",
+                     *         "suggestion": "Use an API key or session with the required permission.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
+                     *         "param": "emails"
                      *       }
                      *     }
                      */

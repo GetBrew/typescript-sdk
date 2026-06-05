@@ -28,10 +28,14 @@ export type ContactField =
   components['schemas']['FieldsGetResponse']['fields'][number]
 
 /**
- * Generic success envelope returned by `create` and `delete`. Using a
- * typed envelope (rather than a bare `void` return) keeps the door
- * open for the API to start returning metadata later without breaking
- * consumers.
+ * `{ success: true }` envelope returned by `delete`.
  */
 export type FieldsSuccessResponse =
   components['schemas']['FieldsSuccessResponse']
+
+/**
+ * Envelope returned by `create` — the created/updated field definition
+ * as a one-element `{ fields: [ContactField] }`.
+ */
+export type FieldsMutationResponse =
+  components['schemas']['FieldsMutationResponse']
