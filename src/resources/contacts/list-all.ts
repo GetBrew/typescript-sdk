@@ -1,12 +1,9 @@
+import { autoPaginate } from '../../core/pagination'
 import type { HttpClient } from '../../core/http'
 import type { RequestOptions } from '../../types'
 
 import type { Contact } from './types'
-import {
-  createListContacts,
-  type ListContactsInput,
-  type ListContactsResponse,
-} from './list'
+import { createListContacts, type ListContactsInput } from './list'
 
 /**
  * Input to `brew.contacts.listAll(...)`. Same shape as
@@ -44,39 +41,20 @@ export type ListAllContactsInput = Readonly<Omit<ListContactsInput, 'cursor'>>
 export function createListAllContacts(client: HttpClient) {
   const list = createListContacts(client)
 
-  return async function* listAllContacts(
+  return function listAllContacts(
     input: ListAllContactsInput = {},
     options?: RequestOptions
   ): AsyncGenerator<Contact, void, void> {
-    /* eslint-disable no-await-in-loop --
-     * Sequential awaits are intentional: each page must come back from
-     * the server before we know the cursor for the next page, so
-     * parallelizing the requests is not even possible. The whole point
-     * of this loop is to issue requests strictly in order.
-     */
-    let cursor: string | null = null
-    while (true) {
-      if (options?.signal?.aborted === true) {
-        return
-      }
-
-      const pageInput: ListContactsInput = {
-        ...input,
-        ...(cursor !== null ? { cursor } : {}),
-      }
-
-      const response: ListContactsResponse = await list(pageInput, options)
-
-      for (const contact of response.contacts) {
-        yield contact
-      }
-
-      if (!response.pagination.hasMore || response.pagination.cursor === null) {
-        return
-      }
-
-      cursor = response.pagination.cursor
-    }
-    /* eslint-enable no-await-in-loop */
+    return autoPaginate<Contact>(
+      async (cursor) => {
+        const pageInput: ListContactsInput = {
+          ...input,
+          ...(cursor !== null ? { cursor } : {}),
+        }
+        const response = await list(pageInput, options)
+        return { items: response.contacts, pagination: response.pagination }
+      },
+      options?.signal ? { signal: options.signal } : undefined
+    )
   }
 }

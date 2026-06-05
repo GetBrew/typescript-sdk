@@ -1,17 +1,16 @@
+import type { components } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
 export type DeleteAutomationInput = { automationId: string }
 
-export type DeleteAutomationResponse = {
-  automationId: string
-  deletedAutomations: number
-  deletedEmails: number
-  deletedEmailGroupings: number
-  deletedCanvasLayouts: number
-  deletedExecutions: number
-  deletedExecutionLogs: number
-}
+/**
+ * Cascade-delete result. `deleted` is `true` when a row was removed and
+ * `false` for an idempotent no-op (already deleted), alongside the
+ * per-table counts.
+ */
+export type DeleteAutomationResponse =
+  components['schemas']['AutomationsDeleteResponse']
 
 /**
  * `DELETE /v1/automations` — cascade-delete. Idempotent (deleting

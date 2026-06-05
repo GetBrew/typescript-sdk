@@ -6,14 +6,17 @@ import { makeTestHttpClient } from '../../helpers/http-client'
 import { server } from '../../msw/server'
 
 describe('fields.create', () => {
-  it('sends POST /v1/fields with { fieldName, fieldType } body and returns the success envelope', async () => {
+  it('sends POST /v1/fields with { fieldName, fieldType } body and returns the created field row', async () => {
     let capturedRequest: Request | undefined
     let capturedBody: unknown
     server.use(
       http.post('https://brew.new/api/v1/fields', async ({ request }) => {
         capturedRequest = request.clone()
         capturedBody = await request.json()
-        return HttpResponse.json({ success: true }, { status: 201 })
+        return HttpResponse.json(
+          { fields: [{ fieldName: 'plan', fieldType: 'string' }] },
+          { status: 201 }
+        )
       })
     )
 
@@ -24,7 +27,8 @@ describe('fields.create', () => {
 
     expect(capturedRequest?.method).toBe('POST')
     expect(capturedBody).toEqual({ fieldName: 'plan', fieldType: 'string' })
-    expect(result.success).toBe(true)
+    expect(result.fields[0]?.fieldName).toBe('plan')
+    expect(result.fields[0]?.fieldType).toBe('string')
   })
 
   it('accepts the bool field type (note: not "boolean")', async () => {
@@ -32,7 +36,10 @@ describe('fields.create', () => {
     server.use(
       http.post('https://brew.new/api/v1/fields', async ({ request }) => {
         capturedBody = await request.json()
-        return HttpResponse.json({ success: true }, { status: 201 })
+        return HttpResponse.json(
+          { fields: [{ fieldName: 'isVip', fieldType: 'bool' }] },
+          { status: 201 }
+        )
       })
     )
 

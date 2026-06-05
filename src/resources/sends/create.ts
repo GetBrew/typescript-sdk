@@ -1,15 +1,21 @@
-import type { components } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
-export type CreateSendInput = components['schemas']['SendsPostRequest']
-export type CreateSendResponse = components['schemas']['SendsPostResponse']
+import type { SendAcceptedResponse, SendsPostRequest } from './types'
 
 /**
- * Start an async send for an existing saved email.
+ * Campaign-send body — the non-`test` branch of the `POST /v1/sends`
+ * discriminated union. For a one-off preview use `brew.sends.test(...)`.
+ */
+export type CreateSendInput = Exclude<SendsPostRequest, { mode: 'test' }>
+export type CreateSendResponse = SendAcceptedResponse
+
+/**
+ * Start an async campaign send for an existing saved email.
  *
- * This resolves when the API accepts the job for queueing or scheduling.
- * It does not wait for final delivery.
+ * This resolves when the API accepts the job for queueing or scheduling
+ * (HTTP 202). It does not wait for final delivery — poll
+ * `brew.sends.get(emailId)` for lifecycle + stats.
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<CreateSendResponse>` instead of the unwrapped

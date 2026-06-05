@@ -2,9 +2,10 @@ import type { components } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
-import type { FieldsSuccessResponse } from './types'
+import type { FieldsMutationResponse } from './types'
 
 export type CreateFieldInput = components['schemas']['FieldsPostRequest']
+export type CreateFieldResponse = FieldsMutationResponse
 
 /**
  * Define a new custom field on the contacts schema.
@@ -21,8 +22,10 @@ export type CreateFieldInput = components['schemas']['FieldsPostRequest']
  * failure surfaced as a `BrewApiError` is `422 CORE_FIELD_IMMUTABLE`
  * (when `fieldName` collides with a built-in core field).
  *
+ * Returns the created/updated definition as `{ fields: [field] }`.
+ *
  * Pass `{ raw: true }` in `options` to receive the full
- * `BrewRawResponse<FieldsSuccessResponse>` instead of the unwrapped
+ * `BrewRawResponse<CreateFieldResponse>` instead of the unwrapped
  * payload.
  *
  * Factory name note: `createCreateField` reads awkwardly, but it keeps
@@ -34,16 +37,16 @@ export function createCreateField(client: HttpClient) {
   function create(
     input: CreateFieldInput,
     options: RequestOptions & { readonly raw: true }
-  ): Promise<BrewRawResponse<FieldsSuccessResponse>>
+  ): Promise<BrewRawResponse<CreateFieldResponse>>
   function create(
     input: CreateFieldInput,
     options?: RequestOptions
-  ): Promise<FieldsSuccessResponse>
+  ): Promise<CreateFieldResponse>
   async function create(
     input: CreateFieldInput,
     options?: RequestOptions
-  ): Promise<FieldsSuccessResponse | BrewRawResponse<FieldsSuccessResponse>> {
-    const response = await client.request<FieldsSuccessResponse>({
+  ): Promise<CreateFieldResponse | BrewRawResponse<CreateFieldResponse>> {
+    const response = await client.request<CreateFieldResponse>({
       method: 'POST',
       path: '/v1/fields',
       body: input,

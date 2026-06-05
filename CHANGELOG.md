@@ -1,6 +1,99 @@
 # Changelog
 
-## Unreleased
+## Unreleased (6.0.0)
+
+The v1 hardening pass — 7 new endpoints, uniform cursor pagination, lean
+lists with opt-in `include=`, granular scopes, and several response-shape
+fixes. Generated types were refreshed from the updated OpenAPI spec. This
+section sits on top of the v1 lifecycle expansion (below); both ship together
+as `6.0.0`.
+
+### NEW — resources
+
+```ts
+await brew.brand.get() // GET /v1/brand — the key's brand + readiness (scope: emails)
+await brew.usage.get() // GET /v1/usage — request volume + trend (scope: emails)
+await brew.integrations.list({ provider }) // GET /v1/integrations (scope: automations)
+```
+
+### NEW — methods
+
+```ts
+await brew.sends.list({ status, from, to, limit, cursor }) // GET /v1/sends
+await brew.sends.get({ emailId }) // GET /v1/sends?emailId= (404 SEND_NOT_FOUND on miss)
+await brew.sends.test({ emailId, subject, to }) // POST /v1/sends { mode: 'test' } → { status: 'sent', recipient }
+await brew.analytics.events({ recipientEmail }) // GET /v1/analytics/events — unified event explorer
+```
+
+### NEW — auto-pagination
+
+A shared `Pagination` type and `autoPaginate()` helper now back per-resource
+`listAll` iterators (`contacts.listAll`, `sends.listAll`,
+`analytics.eventsAll`). Every list method accepts `{ limit, cursor }`.
+
+```ts
+for await (const send of brew.sends.listAll({ status: 'sent' })) {
+  console.log(send.emailId, send.stats?.delivered)
+}
+```
+
+### BREAKING — `automationRuns.replay` body + response changed
+
+Replay was never shipped on the old `{ automationId, triggerInstanceId }`
+shape. It now takes `{ automationRunId }` and returns the flat
+`{ status: 'replay_started', automationRunIds, receivedAt, warnings? }`
+envelope (404 `AUTOMATION_RUN_NOT_FOUND` for unknown/cross-brand ids).
+
+```diff
+- await brew.automationRuns.replay({ automationId, triggerInstanceId })
++ const { automationRunIds } = await brew.automationRuns.replay({ automationRunId })
+```
+
+### BREAKING — `fields.create` returns the created row
+
+`POST /v1/fields` now returns `{ fields: [field] }` instead of
+`{ success: true }`. `fields.delete` is unchanged (`{ success: true }`).
+
+```diff
+- const { success } = await brew.fields.create({ fieldName, fieldType })
++ const { fields } = await brew.fields.create({ fieldName, fieldType })
++ const field = fields[0]!
+```
+
+### BREAKING — lean lists + `include=`
+
+`automations.list` is lean by default (rows omit `nodes`/`connections`);
+pass `include: ['graph']` to attach the graph. `templates.list` rows omit
+`emailHtml`/`emailPng` unless `include: 'html'` is passed — those fields are
+now optional on the row type. Single-fetch and create/patch responses always
+include the full shape.
+
+### BREAKING — automation row drops `createdByUserId`
+
+The internal `createdByUserId` field was removed from the public automation
+row. Use `createdBy` (display name). `nodes`/`connections` are now optional on
+list rows.
+
+### Changed — delete responses carry `deleted`
+
+`triggers.delete` and `automations.delete` responses now include
+`deleted: boolean` alongside their existing counts.
+
+### Changed — list signatures accept pagination
+
+`audiences.list`, `domains.list` / `listSendable`, `triggers.list`, and
+`analytics.campaigns` now take `(input?, options?)` where `input` carries
+`{ limit, cursor }`. Callers that previously passed `{ raw: true }` as the
+sole argument must move it to the second `options` argument:
+
+```diff
+- await brew.audiences.list({ raw: true })
++ await brew.audiences.list(undefined, { raw: true })
+```
+
+---
+
+## v1 lifecycle expansion
 
 The v1 lifecycle expansion — full parity for audiences, domains, analytics,
 and the email version lifecycle, plus the triggers envelope normalization.

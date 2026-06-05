@@ -16,7 +16,7 @@ export type AutomationRunsResource = {
   readonly fire: ReturnType<typeof createFireTrigger>
   /** Sugar — test-fire a saved automation (mode: 'test'). */
   readonly test: ReturnType<typeof createTestAutomation>
-  /** Sugar — replay a historical fire (P7 — currently 501). */
+  /** Sugar — replay a prior run by id against the current saved draft. */
   readonly replay: ReturnType<typeof createReplayAutomationRun>
   /** `GET /v1/automation/runs` — list with filters. Returns `{ runs }`. */
   readonly list: ReturnType<typeof createListAutomationRuns>

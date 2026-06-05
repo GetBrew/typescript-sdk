@@ -25,8 +25,7 @@ export type AutomationRunsPostInput =
       payload?: Record<string, unknown>
     }
   | {
-      automationId: string
-      triggerInstanceId: string
+      automationRunId: string
       mode: 'replay'
     }
 
@@ -111,13 +110,21 @@ export function createTestAutomation(
 }
 
 export type ReplayAutomationRunInput = {
-  automationId: string
-  triggerInstanceId: string
+  automationRunId: string
 }
 
+/** Replay-branch response — flat envelope with `status: 'replay_started'`. */
+export type ReplayRunResponse = TestRunResponse
+
 /**
- * Replay a historical fire against the current automation version.
- * Currently returns `501 NOT_IMPLEMENTED` while P7 ships.
+ * Replay a prior automation run. Re-runs it with the SAME trigger
+ * payload + mode against the automation's CURRENT saved draft, minting
+ * one brand-new run (workflow runs are terminal, so replay is never a
+ * resume). Idempotency is supported via `options.idempotencyKey`.
+ *
+ * Returns `202 { status: 'replay_started', automationRunIds: [newRunId],
+ * receivedAt, warnings? }`. An unknown or cross-brand `automationRunId`
+ * is a `404 AUTOMATION_RUN_NOT_FOUND`.
  */
 export function createReplayAutomationRun(
   postAutomationRun: ReturnType<typeof createPostAutomationRun>
@@ -125,14 +132,13 @@ export function createReplayAutomationRun(
   return async function replayAutomationRun(
     input: ReplayAutomationRunInput,
     options?: RequestOptions
-  ): Promise<TestRunResponse> {
+  ): Promise<ReplayRunResponse> {
     return (await postAutomationRun(
       {
-        automationId: input.automationId,
-        triggerInstanceId: input.triggerInstanceId,
+        automationRunId: input.automationRunId,
         mode: 'replay',
       },
       options
-    )) as TestRunResponse
+    )) as ReplayRunResponse
   }
 }

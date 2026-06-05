@@ -765,8 +765,6 @@ components:
             maxLength: 64
         createdBy:
           type: string
-        createdByUserId:
-          type: string
         createdAt:
           type: string
           format: date-time
@@ -1085,8 +1083,6 @@ components:
                   maxLength: 64
               createdBy:
                 type: string
-              createdByUserId:
-                type: string
               createdAt:
                 type: string
                 format: date-time
@@ -1102,8 +1098,6 @@ components:
               - name
               - version
               - published
-              - nodes
-              - connections
               - emailIds
             additionalProperties: false
       required:
@@ -1112,8 +1106,6 @@ components:
         - name
         - version
         - published
-        - nodes
-        - connections
         - emailIds
       additionalProperties: false
     AutomationRunRow:
@@ -1787,6 +1779,24 @@ components:
               - createdAt
               - updatedAt
             additionalProperties: false
+        pagination:
+          type: object
+          properties:
+            limit:
+              type: integer
+              minimum: 1
+              maximum: 100
+            cursor:
+              type:
+                - string
+                - "null"
+            hasMore:
+              type: boolean
+          required:
+            - limit
+            - cursor
+            - hasMore
+          additionalProperties: false
       required:
         - audiences
       additionalProperties: false
@@ -1995,6 +2005,24 @@ components:
               - createdAt
               - updatedAt
             additionalProperties: false
+        pagination:
+          type: object
+          properties:
+            limit:
+              type: integer
+              minimum: 1
+              maximum: 100
+            cursor:
+              type:
+                - string
+                - "null"
+            hasMore:
+              type: boolean
+          required:
+            - limit
+            - cursor
+            - hasMore
+          additionalProperties: false
       required:
         - domains
       additionalProperties: false
@@ -2108,15 +2136,40 @@ components:
       required:
         - fields
       additionalProperties: false
-    FieldsSuccessResponse:
+    FieldsMutationResponse:
       type: object
       properties:
-        success:
-          type: boolean
-          enum:
-            - true
+        fields:
+          type: array
+          items:
+            type: object
+            properties:
+              fieldName:
+                type: string
+                minLength: 1
+              fieldType:
+                type: string
+                enum:
+                  - string
+                  - number
+                  - date
+                  - bool
+              label:
+                type: string
+              isCore:
+                type: boolean
+              isFilterable:
+                type: boolean
+              isSortable:
+                type: boolean
+              isSearchable:
+                type: boolean
+            required:
+              - fieldName
+              - fieldType
+            additionalProperties: false
       required:
-        - success
+        - fields
       additionalProperties: false
     FieldsPostRequest:
       type: object
@@ -2134,6 +2187,16 @@ components:
       required:
         - fieldName
         - fieldType
+      additionalProperties: false
+    FieldsSuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          enum:
+            - true
+      required:
+        - success
       additionalProperties: false
     FieldsDeleteRequest:
       type: object
@@ -2205,6 +2268,24 @@ components:
               - lifecycleStatus
               - updatedAt
             additionalProperties: false
+        pagination:
+          type: object
+          properties:
+            limit:
+              type: integer
+              minimum: 1
+              maximum: 100
+            cursor:
+              type:
+                - string
+                - "null"
+            hasMore:
+              type: boolean
+          required:
+            - limit
+            - cursor
+            - hasMore
+          additionalProperties: false
       required:
         - emails
       additionalProperties: false
@@ -2372,11 +2453,152 @@ components:
                 format: uri
             required:
               - emailId
-              - emailHtml
-              - emailPng
             additionalProperties: false
+        pagination:
+          type: object
+          properties:
+            limit:
+              type: integer
+              minimum: 1
+              maximum: 100
+            cursor:
+              type:
+                - string
+                - "null"
+            hasMore:
+              type: boolean
+          required:
+            - limit
+            - cursor
+            - hasMore
+          additionalProperties: false
       required:
         - templates
+      additionalProperties: false
+    SendsListResponse:
+      type: object
+      properties:
+        sends:
+          type: array
+          items:
+            type: object
+            properties:
+              emailId:
+                type: string
+                minLength: 1
+              emailVersionId:
+                type: string
+                minLength: 1
+              status:
+                type: string
+                enum:
+                  - scheduled
+                  - queued
+                  - sending
+                  - sent
+                  - failed
+              audienceId:
+                type: string
+                minLength: 1
+              audienceName:
+                type: string
+                minLength: 1
+              runId:
+                type: string
+                minLength: 1
+              scheduledAt:
+                type: string
+                format: date-time
+              startedAt:
+                type: string
+                format: date-time
+              completedAt:
+                type: string
+                format: date-time
+              failedAt:
+                type: string
+                format: date-time
+              error:
+                type: string
+              stats:
+                type: object
+                properties:
+                  sent:
+                    type: integer
+                    minimum: 0
+                  delivered:
+                    type: integer
+                    minimum: 0
+                  opened:
+                    type: integer
+                    minimum: 0
+                  clicked:
+                    type: integer
+                    minimum: 0
+                  bounced:
+                    type: integer
+                    minimum: 0
+                  complained:
+                    type: integer
+                    minimum: 0
+                  unsubscribed:
+                    type: integer
+                    minimum: 0
+                required:
+                  - sent
+                  - delivered
+                  - opened
+                  - clicked
+                  - bounced
+                  - complained
+                  - unsubscribed
+                additionalProperties: false
+              createdAt:
+                type: string
+                format: date-time
+              updatedAt:
+                type: string
+                format: date-time
+            required:
+              - emailId
+              - status
+              - createdAt
+              - updatedAt
+            additionalProperties: false
+        pagination:
+          type: object
+          properties:
+            limit:
+              type: integer
+              minimum: 1
+              maximum: 100
+            cursor:
+              type:
+                - string
+                - "null"
+            hasMore:
+              type: boolean
+          required:
+            - limit
+            - cursor
+            - hasMore
+          additionalProperties: false
+      required:
+        - sends
+      additionalProperties: false
+    SendsTestResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - sent
+        recipient:
+          type: string
+          format: email
+      required:
+        - status
+        - recipient
       additionalProperties: false
     SendsPostResponse:
       type: object
@@ -2397,37 +2619,244 @@ components:
         - runId
       additionalProperties: false
     SendsPostRequest:
+      anyOf:
+        - type: object
+          properties:
+            mode:
+              type: string
+              enum:
+                - test
+            emailId:
+              type: string
+              minLength: 1
+            emailVersionId:
+              type: string
+              minLength: 1
+            subject:
+              type: string
+              minLength: 1
+            previewText:
+              type: string
+              maxLength: 50
+            to:
+              type: string
+              format: email
+            replyTo:
+              type: string
+              format: email
+          required:
+            - mode
+            - emailId
+            - subject
+            - to
+          additionalProperties: false
+        - type: object
+          properties:
+            emailId:
+              type: string
+              minLength: 1
+            emailVersionId:
+              type: string
+              minLength: 1
+            domainId:
+              type: string
+              minLength: 1
+            subject:
+              type: string
+              minLength: 1
+            previewText:
+              type: string
+              maxLength: 50
+            replyTo:
+              type: string
+              format: email
+            audienceId:
+              type: string
+              minLength: 1
+            scheduledAt:
+              type: string
+              format: date-time
+          required:
+            - emailId
+            - domainId
+            - subject
+            - audienceId
+          additionalProperties: false
+    BrandGetResponse:
       type: object
       properties:
-        emailId:
-          type: string
-          minLength: 1
-        emailVersionId:
-          type: string
-          minLength: 1
-        domainId:
-          type: string
-          minLength: 1
-        subject:
-          type: string
-          minLength: 1
-        previewText:
-          type: string
-          maxLength: 50
-        replyTo:
-          type: string
-          format: email
-        audienceId:
-          type: string
-          minLength: 1
-        scheduledAt:
-          type: string
-          format: date-time
+        brand:
+          type: object
+          properties:
+            brandId:
+              type: string
+              minLength: 1
+            domain:
+              type: string
+              minLength: 1
+            status:
+              type: string
+              enum:
+                - extracting
+                - completed
+                - failed
+                - deleting
+            ready:
+              type: boolean
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type: string
+              format: date-time
+          required:
+            - brandId
+            - domain
+            - status
+            - ready
+          additionalProperties: false
       required:
-        - emailId
-        - domainId
-        - subject
-        - audienceId
+        - brand
+      additionalProperties: false
+    UsageGetResponse:
+      type: object
+      properties:
+        usage:
+          type: object
+          properties:
+            overview:
+              type: object
+              properties:
+                requests:
+                  type: integer
+                  minimum: 0
+                successRate:
+                  type: integer
+                  minimum: 0
+                  maximum: 100
+                errors:
+                  type: integer
+                  minimum: 0
+                rateLimited:
+                  type: integer
+                  minimum: 0
+              required:
+                - requests
+                - successRate
+                - errors
+                - rateLimited
+              additionalProperties: false
+            trend:
+              type: array
+              items:
+                type: object
+                properties:
+                  date:
+                    type: string
+                    format: date-time
+                  requests:
+                    type: integer
+                    minimum: 0
+                  errors:
+                    type: integer
+                    minimum: 0
+                required:
+                  - date
+                  - requests
+                  - errors
+                additionalProperties: false
+            routes:
+              type: array
+              items:
+                type: object
+                properties:
+                  route:
+                    type: string
+                    minLength: 1
+                  requests:
+                    type: integer
+                    minimum: 0
+                  successRate:
+                    type: integer
+                    minimum: 0
+                    maximum: 100
+                  topErrorCode:
+                    type:
+                      - string
+                      - "null"
+                required:
+                  - route
+                  - requests
+                  - successRate
+                  - topErrorCode
+                additionalProperties: false
+          required:
+            - overview
+            - trend
+            - routes
+          additionalProperties: false
+      required:
+        - usage
+      additionalProperties: false
+    IntegrationsGetResponse:
+      type: object
+      properties:
+        integrations:
+          type: array
+          items:
+            type: object
+            properties:
+              provider:
+                type: string
+                enum:
+                  - clerk
+                  - stripe
+                  - stytch
+                  - supabase
+                  - workos
+                  - shopify
+                  - revenuecat
+              connected:
+                type: boolean
+              events:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    eventType:
+                      type: string
+                      minLength: 1
+                    title:
+                      type: string
+                    description:
+                      type: string
+                    category:
+                      type: string
+                    fieldKeys:
+                      type: array
+                      items:
+                        type: string
+                    requiredFieldKeys:
+                      type: array
+                      items:
+                        type: string
+                    provisioned:
+                      type: boolean
+                  required:
+                    - eventType
+                    - title
+                    - category
+                    - fieldKeys
+                    - requiredFieldKeys
+                    - provisioned
+                  additionalProperties: false
+            required:
+              - provider
+              - connected
+              - events
+            additionalProperties: false
+      required:
+        - integrations
       additionalProperties: false
     FireEventResponse:
       type: object
@@ -2626,6 +3055,24 @@ components:
               - createdAt
               - updatedAt
             additionalProperties: false
+        pagination:
+          type: object
+          properties:
+            limit:
+              type: integer
+              minimum: 1
+              maximum: 100
+            cursor:
+              type:
+                - string
+                - "null"
+            hasMore:
+              type: boolean
+          required:
+            - limit
+            - cursor
+            - hasMore
+          additionalProperties: false
       required:
         - triggers
       additionalProperties: false
@@ -2755,6 +3202,8 @@ components:
           type: string
           minLength: 1
           maxLength: 256
+        deleted:
+          type: boolean
         deletedAt:
           type: string
           format: date-time
@@ -2763,6 +3212,7 @@ components:
           minimum: 0
       required:
         - triggerEventId
+        - deleted
         - deletedAt
         - deletedRows
       additionalProperties: false
@@ -3088,8 +3538,6 @@ components:
                   maxLength: 64
               createdBy:
                 type: string
-              createdByUserId:
-                type: string
               createdAt:
                 type: string
                 format: date-time
@@ -3408,8 +3856,6 @@ components:
                         maxLength: 64
                     createdBy:
                       type: string
-                    createdByUserId:
-                      type: string
                     createdAt:
                       type: string
                       format: date-time
@@ -3425,8 +3871,6 @@ components:
                     - name
                     - version
                     - published
-                    - nodes
-                    - connections
                     - emailIds
                   additionalProperties: false
             required:
@@ -3435,10 +3879,26 @@ components:
               - name
               - version
               - published
-              - nodes
-              - connections
               - emailIds
             additionalProperties: false
+        pagination:
+          type: object
+          properties:
+            limit:
+              type: integer
+              minimum: 1
+              maximum: 100
+            cursor:
+              type:
+                - string
+                - "null"
+            hasMore:
+              type: boolean
+          required:
+            - limit
+            - cursor
+            - hasMore
+          additionalProperties: false
       required:
         - automations
       additionalProperties: false
@@ -4061,6 +4521,8 @@ components:
           type: string
           minLength: 1
           maxLength: 64
+        deleted:
+          type: boolean
         deletedAutomations:
           type: integer
           minimum: 0
@@ -4081,6 +4543,7 @@ components:
           minimum: 0
       required:
         - automationId
+        - deleted
         - deletedAutomations
         - deletedEmails
         - deletedEmailGroupings
@@ -4266,21 +4729,16 @@ components:
           additionalProperties: false
         - type: object
           properties:
-            automationId:
+            automationRunId:
               type: string
               minLength: 1
-              maxLength: 64
-            triggerInstanceId:
-              type: string
-              minLength: 4
               maxLength: 64
             mode:
               type: string
               enum:
                 - replay
           required:
-            - automationId
-            - triggerInstanceId
+            - automationRunId
             - mode
           additionalProperties: false
     AutomationRunsListResponse:
@@ -4485,6 +4943,24 @@ components:
               - title
               - stats
             additionalProperties: false
+        pagination:
+          type: object
+          properties:
+            limit:
+              type: integer
+              minimum: 1
+              maximum: 100
+            cursor:
+              type:
+                - string
+                - "null"
+            hasMore:
+              type: boolean
+          required:
+            - limit
+            - cursor
+            - hasMore
+          additionalProperties: false
       required:
         - campaigns
       additionalProperties: false
@@ -4615,6 +5091,95 @@ components:
       required:
         - automations
         - totals
+        - range
+      additionalProperties: false
+    EventsAnalyticsResponse:
+      type: object
+      properties:
+        events:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                minLength: 1
+              occurredAt:
+                type: string
+                format: date-time
+              domain:
+                type: string
+                enum:
+                  - email
+                  - automation
+                  - trigger
+                  - inbound
+              eventType:
+                type: string
+                minLength: 1
+              recipientEmail:
+                type: string
+              emailId:
+                type: string
+              emailName:
+                type: string
+              automationId:
+                type: string
+              automationName:
+                type: string
+              nodeId:
+                type: string
+              triggerEventId:
+                type: string
+              provider:
+                type: string
+              mode:
+                type: string
+                enum:
+                  - live
+                  - test
+              summary:
+                type: string
+            required:
+              - id
+              - occurredAt
+              - domain
+              - eventType
+            additionalProperties: false
+        pagination:
+          type: object
+          properties:
+            limit:
+              type: integer
+              minimum: 1
+              maximum: 100
+            cursor:
+              type:
+                - string
+                - "null"
+            hasMore:
+              type: boolean
+          required:
+            - limit
+            - cursor
+            - hasMore
+          additionalProperties: false
+        range:
+          type: object
+          properties:
+            from:
+              type: string
+              format: date-time
+            to:
+              type: string
+              format: date-time
+          required:
+            - from
+            - to
+          additionalProperties: false
+      required:
+        - events
+        - pagination
         - range
       additionalProperties: false
   parameters: {}
@@ -5859,6 +6424,25 @@ paths:
             type: string
             minLength: 1
             maxLength: 64
+        - &a5
+          name: limit
+          in: query
+          required: false
+          description: Page size (1–100). Defaults to 100.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+          example: 50
+        - &a6
+          name: cursor
+          in: query
+          required: false
+          description: Opaque pagination cursor echoed from the previous page’s `pagination.cursor`. Omit for the first page.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 512
       responses:
         "200":
           description: Saved audiences for this brand.
@@ -6153,6 +6737,8 @@ paths:
             enum:
               - "true"
               - "false"
+        - *a5
+        - *a6
       responses:
         "200":
           description: Domains for this brand.
@@ -6191,7 +6777,7 @@ paths:
                 $ref: "#/components/schemas/DomainsListResponse"
               example:
                 domains:
-                  - &a5
+                  - &a7
                     domainId: jn7a8w4q8m9k2p1x7c3b5v6n9h7s2d4f
                     domainUrl: https://send.example.com
                     name: send.example.com
@@ -6199,7 +6785,7 @@ paths:
                     status: pending
                     sendingEnabled: true
                     sendable: false
-                    records: &a6
+                    records: &a8
                       - record: DKIM
                         name: resend._domainkey
                         type: TXT
@@ -6265,7 +6851,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
-              example: &a7
+              example: &a9
                 error:
                   code: DOMAIN_NOT_FOUND
                   type: not_found
@@ -6309,7 +6895,7 @@ paths:
                 $ref: "#/components/schemas/DomainsListResponse"
               example:
                 domains:
-                  - *a5
+                  - *a7
         "409":
           description: Domain already exists / verified elsewhere / other brand.
           headers:
@@ -6382,7 +6968,7 @@ paths:
                     status: verified
                     sendingEnabled: true
                     sendable: true
-                    records: *a6
+                    records: *a8
                     createdAt: 2026-04-08T12:34:56.789Z
                     updatedAt: 2026-04-08T12:34:56.789Z
         "404":
@@ -6399,7 +6985,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
-              example: *a7
+              example: *a9
         "422":
           description: Verification failed (DNS not yet propagated).
           headers:
@@ -6683,9 +7269,16 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/FieldsSuccessResponse"
+                $ref: "#/components/schemas/FieldsMutationResponse"
               example:
-                success: true
+                fields:
+                  - fieldName: plan
+                    fieldType: string
+                    label: Plan
+                    isCore: false
+                    isFilterable: true
+                    isSortable: true
+                    isSearchable: false
         "400":
           description: The JSON body shape was invalid.
           headers:
@@ -7163,6 +7756,20 @@ paths:
           required: false
           name: updatedAtTo
           in: query
+        - schema:
+            anyOf:
+              - type: number
+              - type: string
+          required: false
+          name: limit
+          in: query
+        - schema:
+            type: string
+            minLength: 1
+            maxLength: 512
+          required: false
+          name: cursor
+          in: query
       responses:
         "200":
           description: Latest logical emails for this organization.
@@ -7368,7 +7975,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EmailGenerateResponse"
-              examples: &a8
+              examples: &a10
                 generated:
                   summary: Generated email
                   value:
@@ -7653,7 +8260,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EmailGenerateResponse"
-              examples: *a8
+              examples: *a10
         "404":
           description: Email or requested version not found in this brand.
           headers:
@@ -7771,7 +8378,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EmailGenerateResponse"
-              examples: *a8
+              examples: *a10
         "400":
           description: The JSON body shape was invalid. The request must NOT include a `brandId` or `emailId` field — the brand is resolved from the API key and the emailId is on the URL.
           headers:
@@ -8004,7 +8611,7 @@ paths:
       tags:
         - Templates
       summary: List Templates
-      description: Returns public email templates. Supports exact `brand` and `category` filters plus a lightweight text style `semantic` filter over template metadata.
+      description: Returns public email templates. Lean by default (`{ emailId }` per row); pass `?include=html` to attach the heavy `emailHtml` + `emailPng` fields. Supports exact `brand` and `category` filters, a lightweight `semantic` text filter, and `?limit=` + `?cursor=` pagination.
       parameters:
         - schema:
             type: string
@@ -8023,6 +8630,25 @@ paths:
             minLength: 1
           required: false
           name: semantic
+          in: query
+        - schema:
+            type: string
+          required: false
+          name: include
+          in: query
+        - schema:
+            anyOf:
+              - type: number
+              - type: string
+          required: false
+          name: limit
+          in: query
+        - schema:
+            type: string
+            minLength: 1
+            maxLength: 512
+          required: false
+          name: cursor
           in: query
       responses:
         "200":
@@ -8063,8 +8689,10 @@ paths:
               example:
                 templates:
                   - emailId: seed-vercel-newsletter
-                    emailHtml: <html><body>Frontend digest</body></html>
-                    emailPng: https://cdn.brew.new/seed-vercel.com-seed-vercel-newsletter.png
+                pagination:
+                  limit: 100
+                  cursor: null
+                  hasMore: false
         "400":
           description: The query parameters were invalid.
           headers:
@@ -8202,6 +8830,194 @@ paths:
                   suggestion: Retry the request. If it keeps failing, contact support.
                   docs: https://docs.brew.new/api-reference/api/api-introduction
   /v1/sends:
+    get:
+      operationId: listSends
+      tags:
+        - Sends
+      summary: List campaign sends OR get one (?emailId=…)
+      description: "Returns `{ sends: Send[] }` for the brand — every email that has an accepted send (status `scheduled | queued | sending | sent | failed`). `?emailId=` returns the single send for one email (or 404). Filter with `status`, `from`, `to`; paginate with `limit` + `cursor`."
+      parameters:
+        - name: emailId
+          in: query
+          required: false
+          schema:
+            type: string
+            minLength: 1
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - scheduled
+              - queued
+              - sending
+              - sent
+              - failed
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - *a5
+        - *a6
+      responses:
+        "200":
+          description: Campaign sends for this brand.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SendsListResponse"
+              example:
+                sends:
+                  - emailId: eml_promo
+                    status: sent
+                    audienceId: aud_subscribers
+                    runId: wrun_abc
+                    completedAt: 2026-04-08T12:34:56.000Z
+                    stats:
+                      sent: 1200
+                      delivered: 1180
+                      opened: 540
+                      clicked: 96
+                      bounced: 20
+                      complained: 1
+                      unsubscribed: 4
+                    createdAt: 2026-04-08T12:00:00.000Z
+                    updatedAt: 2026-04-08T12:34:56.000Z
+                pagination:
+                  limit: 100
+                  cursor: null
+                  hasMore: false
+        "401":
+          description: The API key was missing, invalid, or revoked.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: INVALID_API_KEY
+                  type: authentication_error
+                  message: The provided API key is invalid.
+                  suggestion: Check the API key format and retry with a valid active key.
+                  docs: https://docs.brew.new/api-reference/api/authentication
+        "404":
+          description: No send exists for the requested email.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: SEND_NOT_FOUND
+                  type: not_found
+                  message: No campaign send was found for email 'eml_promo'.
+                  suggestion: Start a send with POST /api/v1/sends, or list existing sends with GET /api/v1/sends.
+                  docs: https://docs.brew.new/api-reference/api/errors
+                  param: emailId
+        "429":
+          description: The request hit the rolling rate limit window.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+            Retry-After:
+              schema:
+                type: integer
+                description: Seconds to wait before retrying the request.
+                example: 42
+              required: true
+              description: Seconds to wait before retrying the request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: RATE_LIMITED
+                  type: rate_limit
+                  message: Too many requests.
+                  suggestion: Wait for the retry window before sending another request.
+                  docs: https://docs.brew.new/api-reference/api/rate-limits
+                  retryAfter: 42
     post:
       operationId: createSend
       tags:
@@ -8217,7 +9033,7 @@ paths:
         - *a2
       requestBody:
         required: true
-        description: Campaign send request for a saved email + audience.
+        description: 'Campaign send (audience-scoped, async 202) OR a test send (`{ mode: "test", emailId, subject, to }` — forced Brew sender, no domain/audience, sync 200).'
         content:
           application/json:
             schema:
@@ -8240,8 +9056,46 @@ paths:
                   subject: Welcome to Brew
                   audienceId: audience_123
       responses:
+        "200":
+          description: 'A test send completed (`mode: "test"`).'
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SendsTestResponse"
+              example:
+                status: sent
+                recipient: qa@example.com
         "202":
-          description: The send was accepted and queued or scheduled.
+          description: The campaign send was accepted and queued or scheduled.
           headers:
             x-request-id:
               schema:
@@ -8506,6 +9360,444 @@ paths:
                   message: An unexpected error occurred.
                   suggestion: Retry the request. If it keeps failing, contact support.
                   docs: https://docs.brew.new/api-reference/api/errors
+  /v1/brand:
+    get:
+      operationId: getBrand
+      tags:
+        - Brand
+      summary: Get the brand bound to this API key
+      description: Returns `{ brand }` — the single brand bound to the API key. Check `ready` (`status === "completed"`) before calling `POST /v1/emails`, which returns `422 BRAND_NOT_READY` until brand extraction finishes.
+      responses:
+        "200":
+          description: The brand bound to this API key.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrandGetResponse"
+              example:
+                brand:
+                  brandId: kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                  domain: vercel.com
+                  status: completed
+                  ready: true
+                  createdAt: 2026-04-08T12:00:00.000Z
+                  updatedAt: 2026-04-08T12:05:00.000Z
+        "401":
+          description: The API key was missing, invalid, or revoked.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: INVALID_API_KEY
+                  type: authentication_error
+                  message: The provided API key is invalid.
+                  suggestion: Check the API key format and retry with a valid active key.
+                  docs: https://docs.brew.new/api-reference/api/authentication
+        "404":
+          description: The brand bound to this API key was not found.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: BRAND_NOT_FOUND
+                  type: not_found
+                  message: The brand bound to this API key was not found.
+                  suggestion: Verify in the dashboard that the brand bound to this API key still exists.
+                  docs: https://docs.brew.new/api-reference/api/errors
+        "429":
+          description: The request hit the rolling rate limit window.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+            Retry-After:
+              schema:
+                type: integer
+                description: Seconds to wait before retrying the request.
+                example: 42
+              required: true
+              description: Seconds to wait before retrying the request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: RATE_LIMITED
+                  type: rate_limit
+                  message: Too many requests.
+                  suggestion: Wait for the retry window before sending another request.
+                  docs: https://docs.brew.new/api-reference/api/rate-limits
+                  retryAfter: 42
+  /v1/usage:
+    get:
+      operationId: getUsage
+      tags:
+        - Usage
+      summary: Get API usage for your org
+      description: "Returns `{ usage }` — api-key request usage for the caller’s org: a rolling 24h `overview` (requests, successRate, errors, rateLimited), a 30-day daily `trend`, and a 7-day per-`route` breakdown. Use it to self-monitor rate-limit pressure and error rates."
+      responses:
+        "200":
+          description: API usage snapshot for this org.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UsageGetResponse"
+              example:
+                usage:
+                  overview:
+                    requests: 1284
+                    successRate: 98
+                    errors: 21
+                    rateLimited: 3
+                  trend:
+                    - date: 2026-04-08T00:00:00.000Z
+                      requests: 142
+                      errors: 2
+                  routes:
+                    - route: /api/v1/emails
+                      requests: 420
+                      successRate: 97
+                      topErrorCode: RATE_LIMITED
+        "401":
+          description: The API key was missing, invalid, or revoked.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: INVALID_API_KEY
+                  type: authentication_error
+                  message: The provided API key is invalid.
+                  suggestion: Check the API key format and retry with a valid active key.
+                  docs: https://docs.brew.new/api-reference/api/authentication
+        "429":
+          description: The request hit the rolling rate limit window.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+            Retry-After:
+              schema:
+                type: integer
+                description: Seconds to wait before retrying the request.
+                example: 42
+              required: true
+              description: Seconds to wait before retrying the request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: RATE_LIMITED
+                  type: rate_limit
+                  message: Too many requests.
+                  suggestion: Wait for the retry window before sending another request.
+                  docs: https://docs.brew.new/api-reference/api/rate-limits
+                  retryAfter: 42
+  /v1/integrations:
+    get:
+      operationId: listIntegrations
+      tags:
+        - Integrations
+      summary: Triggerable integration-event catalog
+      description: Returns `{ integrations }` — every provider you can trigger automations from (Clerk, Stripe, Stytch, Supabase, WorkOS, Shopify, RevenueCat), whether it is `connected`, and each triggerable `event` (with payload `fieldKeys` + whether a brew trigger is already `provisioned`). Filter to one provider with `?provider=`. Requires the `automations` scope.
+      parameters:
+        - name: provider
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - clerk
+              - stripe
+              - stytch
+              - supabase
+              - workos
+              - shopify
+              - revenuecat
+      responses:
+        "200":
+          description: Triggerable integration-event catalog.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IntegrationsGetResponse"
+              example:
+                integrations:
+                  - provider: clerk
+                    connected: true
+                    events:
+                      - eventType: user.created
+                        title: User created
+                        category: users
+                        fieldKeys:
+                          - email
+                          - firstName
+                          - lastName
+                        requiredFieldKeys:
+                          - email
+                        provisioned: false
+        "401":
+          description: The API key was missing, invalid, or revoked.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: INVALID_API_KEY
+                  type: authentication_error
+                  message: The provided API key is invalid.
+                  suggestion: Check the API key format and retry with a valid active key.
+                  docs: https://docs.brew.new/api-reference/api/authentication
+        "403":
+          description: The caller does not have the required automations permission.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: INSUFFICIENT_PERMISSIONS
+                  type: authorization_error
+                  message: The caller does not have the required permission.
+                  suggestion: Use an API key or session with the required automations permission.
+                  docs: https://docs.brew.new/api-reference/api/authentication
+                  param: automations
+        "429":
+          description: The request hit the rolling rate limit window.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+            Retry-After:
+              schema:
+                type: integer
+                description: Seconds to wait before retrying the request.
+                example: 42
+              required: true
+              description: Seconds to wait before retrying the request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: RATE_LIMITED
+                  type: rate_limit
+                  message: Too many requests.
+                  suggestion: Wait for the retry window before sending another request.
+                  docs: https://docs.brew.new/api-reference/api/rate-limits
+                  retryAfter: 42
   /v1/events:
     post:
       operationId: fireEvent
@@ -9033,6 +10325,8 @@ paths:
             type: string
             minLength: 1
             maxLength: 256
+        - *a5
+        - *a6
       responses:
         "200":
           description: List of trigger rows. Single-element array when `?triggerEventId=…` matched a row.
@@ -9223,6 +10517,7 @@ paths:
                 $ref: "#/components/schemas/TriggersDeleteResponse"
               example:
                 triggerEventId: tri_xxx
+                deleted: true
                 deletedAt: 2026-04-08T12:34:56.789Z
                 deletedRows: 1
         "409":
@@ -9275,13 +10570,13 @@ paths:
                   description: 3-step onboarding drip
                   triggerEventId: tri_signup
                   nodes:
-                    - &a9
+                    - &a11
                       id: trg
                       label: On signup
                       type: trigger
                       config:
                         actionType: trigger
-                    - &a10
+                    - &a12
                       id: send_welcome
                       label: Welcome
                       type: sendEmail
@@ -9303,7 +10598,7 @@ paths:
                   name: preview
                   triggerEventId: tri_signup
                   nodes:
-                    - *a9
+                    - *a11
                   connections: []
                   dryRun: true
       responses:
@@ -9402,7 +10697,7 @@ paths:
       tags:
         - Automations
       summary: List automations OR get one (?automationId=…)
-      description: "Always returns `{ automations: AutomationRow[] }`. No query → list every latest row for the brand. `?automationId=…` → one-element list (or 404 when missing). `?include=versions` (single-row mode only) attaches the full `versions[]` history inline on the row."
+      description: "Always returns `{ automations: AutomationRow[] }`. List rows are LEAN by default (graph omitted) — pass `?include=graph` to attach `nodes`+`connections`. No query → list every latest row. `?automationId=…` → one-element list with the full graph (or 404). `?include=versions` (single-row mode only) attaches the `versions[]` history."
       parameters:
         - name: automationId
           in: query
@@ -9414,9 +10709,11 @@ paths:
         - name: include
           in: query
           required: false
-          description: "Comma-separated list. Allowed: `versions`."
+          description: "Comma-separated list. Allowed: `versions` (single-row only), `graph` (attach `nodes`+`connections` to list rows)."
           schema:
             type: string
+        - *a5
+        - *a6
       responses:
         "200":
           description: List or single-row response.
@@ -9494,8 +10791,8 @@ paths:
                   automationId: auto_abc
                   name: Renamed
                   nodes:
-                    - *a9
-                    - *a10
+                    - *a11
+                    - *a12
                   connections:
                     - from: trg
                       to: send_welcome
@@ -9615,7 +10912,7 @@ paths:
 
         - **Fire** — `{ triggerEventId, payload, idempotencyKey? }`. Starts one Vercel Workflow per published automation attached to the trigger and returns the `FIRE_EVENT_RESPONSE` envelope `{ success, status: "triggered" | "idempotent_replay", code, message, receivedAt, details: { automationRunIds[], triggerInstanceId, counts, … } }`. Read `details.automationRunIds`.
         - **Test** — `{ automationId, mode: "test", payload? }`. Suppression-aware test run; no real mail sent. Returns the flat `{ automationRunIds[], status: "test_started", … }` shape (top-level `automationRunIds`).
-        - **Replay** — `{ automationId, triggerInstanceId, mode: "replay" }` (NOT_IMPLEMENTED, P7).
+        - **Replay** — `{ automationRunId, mode: "replay" }`. Re-runs a prior run with the same payload + mode against the automation's current saved draft. Returns `EXECUTIONS_POST_RESPONSE` with `status: "replay_started"` + the new `automationRunIds`.
 
         Supports `Idempotency-Key` header on the fire branch — retries with the same key return the original `automationRunIds` without starting duplicate workflow runs.
       parameters:
@@ -9643,10 +10940,9 @@ paths:
                   payload:
                     email: qa@example.com
               replay:
-                summary: Replay a historical fire (P7 — NOT_IMPLEMENTED)
+                summary: Replay a prior run
                 value:
-                  automationId: auto_abc
-                  triggerInstanceId: tin_01HZ
+                  automationRunId: run_01HZ
                   mode: replay
       responses:
         "200":
@@ -9696,10 +10992,10 @@ paths:
                   code: INVALID_REQUEST
                   type: invalid_request
                   message: Invalid request payload.
-                  suggestion: 'Send one of: { triggerEventId, payload } (fire), { automationId, mode: "test" }, { automationId, triggerInstanceId, mode: "replay" }.'
+                  suggestion: 'Send one of: { triggerEventId, payload } (fire), { automationId, mode: "test" }, { automationRunId, mode: "replay" }.'
                   docs: https://docs.brew.new/api-reference/api/errors
         "404":
-          description: Automation not found for test / replay.
+          description: Automation not found (test) OR automation run not found (replay).
           headers:
             x-request-id:
               schema:
@@ -9742,27 +11038,6 @@ paths:
                   suggestion: Publish at least one automation bound to this trigger via POST /v1/automations/{automationId}/publish.
                   docs: https://docs.brew.new/api-reference/api/errors
                   param: triggerEventId
-        "501":
-          description: Replay branch is gated behind P7.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: NOT_IMPLEMENTED
-                  type: not_implemented
-                  message: This endpoint shell is ready, but the business logic is not implemented yet.
-                  suggestion: Use the test branch to validate without delivering, OR the fire branch with a deduplicated idempotency key.
-                  docs: https://docs.brew.new/api-reference/api/errors
     get:
       operationId: listAutomationRuns
       tags:
@@ -9937,7 +11212,10 @@ paths:
       tags:
         - Analytics
       summary: Campaign performance (lifetime, per-campaign)
-      description: Lifetime per-campaign KPIs (sent / delivered / opened / clicked / bounced / complained / unsubscribed) for every campaign that has actually sent. Read-only. Requires the `emails` scope.
+      description: Lifetime per-campaign KPIs (sent / delivered / opened / clicked / bounced / complained / unsubscribed) for every campaign that has actually sent. Read-only. Cursor-paginated. Requires the `emails` scope.
+      parameters:
+        - *a5
+        - *a6
       responses:
         "200":
           description: Per-campaign lifetime performance.
@@ -10132,4 +11410,126 @@ paths:
                   suggestion: Use an API key or session with the required permission.
                   docs: https://docs.brew.new/api-reference/api/authentication
                   param: automations
+  /v1/analytics/events:
+    get:
+      operationId: getEventsAnalytics
+      tags:
+        - Analytics
+      summary: Unified events feed (email + automation + trigger)
+      description: "Read-only window over the brand's analytics events. Defaults to the last 7 days. Optional equality filters `recipientEmail` / `eventType` / `automationId`. Cursor pagination: pass the returned `pagination.cursor` back as `?cursor=`. Requires the `emails` scope."
+      parameters:
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - name: recipientEmail
+          in: query
+          required: false
+          schema:
+            type: string
+            format: email
+        - name: eventType
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: automationId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: A page of unified analytics events.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventsAnalyticsResponse"
+              example:
+                events:
+                  - id: evt_abc
+                    occurredAt: 2026-04-08T12:34:56.789Z
+                    domain: email
+                    eventType: opened
+                    recipientEmail: jane@example.com
+                    emailId: eml_launch
+                    emailName: Spring Launch
+                pagination:
+                  limit: 50
+                  cursor: null
+                  hasMore: false
+                range:
+                  from: 2026-04-01T12:34:56.789Z
+                  to: 2026-04-08T12:34:56.789Z
+        "403":
+          description: The caller does not have the required emails permission.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: INSUFFICIENT_PERMISSIONS
+                  type: authorization_error
+                  message: The caller does not have the required permission.
+                  suggestion: Use an API key or session with the required permission.
+                  docs: https://docs.brew.new/api-reference/api/authentication
+                  param: emails
 webhooks: {}
