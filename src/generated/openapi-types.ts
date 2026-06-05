@@ -46,7 +46,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List audiences OR get one (?audienceId=…)
+         * List or get audiences
          * @description Always returns `{ audiences: Audience[] }` — list mode by default, or a single-element array when `?audienceId=…` is supplied. Each row carries its `filters`, cached member `count`, and ISO timestamps. The synthetic All Contacts audience is not included.
          */
         get: operations["listAudiences"];
@@ -83,7 +83,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List domains OR get one (?domainId=…)
+         * List or get domains
          * @description Lists ALL domains for the brand (so lifecycle callers see `pending` rows + their DNS `records`). Pass `?sendableOnly=true` for only verified, send-ready domains (the set valid for sends / automation `sendEmail` nodes), or `?domainId=` for a single-element array. Each row carries `status`, the derived `sendable` flag, `region`, and the DNS `records`.
          */
         get: operations["listDomains"];
@@ -221,7 +221,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List campaign sends OR get one (?emailId=…)
+         * List or get campaign sends
          * @description Returns `{ sends: Send[] }` for the brand — every email that has an accepted send (status `scheduled | queued | sending | sent | failed`). `?emailId=` returns the single send for one email (or 404). Filter with `status`, `from`, `to`; paginate with `limit` + `cursor`.
          */
         get: operations["listSends"];
@@ -362,7 +362,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List triggers OR get one (?triggerEventId=…)
+         * List or get triggers
          * @description Always returns `{ triggers: TriggerRow[] }` — list mode by default, or a single-element array when `?triggerEventId=…` is supplied. Includes every trigger type for the brand — `provider: "brew_api"` for API-created customs and `provider: "clerk" | "stripe" | …` for integration-provisioned triggers.
          */
         get: operations["listTriggers"];
@@ -396,7 +396,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List automations OR get one (?automationId=…)
+         * List or get automations
          * @description Always returns `{ automations: AutomationRow[] }`. List rows are LEAN by default (graph omitted) — pass `?include=graph` to attach `nodes`+`connections`. No query → list every latest row. `?automationId=…` → one-element list with the full graph (or 404). `?include=versions` (single-row mode only) attaches the `versions[]` history.
          */
         get: operations["listAutomations"];
@@ -458,7 +458,7 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Cancel an in-flight automation run (P7 — NOT_IMPLEMENTED today)
+         * Cancel an in-flight automation run (not implemented yet)
          * @description Currently returns `501 NOT_IMPLEMENTED`. The cancel hook (P7) wires into the wait-node Promise.race so long drips can be interrupted mid-flight.
          */
         patch: operations["patchAutomationRun"];
