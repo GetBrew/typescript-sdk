@@ -7699,7 +7699,7 @@ paths:
       operationId: listEmails
       tags:
         - Emails
-      summary: List Emails (or get one + version history)
+      summary: List or get emails
       description: Lists the latest logical emails for the brand. `?emailId=` returns a one-element `emails[]` for a single email; add `&include=versions` to attach the sibling `versions[]` history (every persisted version of that email).
       parameters:
         - schema:
@@ -10769,7 +10769,7 @@ paths:
       operationId: patchAutomation
       tags:
         - Automations
-      summary: Update / publish / unpublish an automation
+      summary: Update publish or unpublish an automation
       description: |-
         PATCH body is a discriminated union (one of):
 
@@ -10906,7 +10906,7 @@ paths:
       operationId: createAutomationRun
       tags:
         - Automation Runs
-      summary: Fire a trigger, test an automation, or replay a historical fire
+      summary: Fire test or replay an automation run
       description: |-
         POST body is a 3-branch union, dispatched by body shape:
 
@@ -11211,7 +11211,7 @@ paths:
       operationId: getCampaignAnalytics
       tags:
         - Analytics
-      summary: Campaign performance (lifetime, per-campaign)
+      summary: Campaign performance
       description: Lifetime per-campaign KPIs (sent / delivered / opened / clicked / bounced / complained / unsubscribed) for every campaign that has actually sent. Read-only. Cursor-paginated. Requires the `emails` scope.
       parameters:
         - *a5
@@ -11292,7 +11292,7 @@ paths:
       operationId: getAutomationAnalytics
       tags:
         - Analytics
-      summary: Automation performance (windowed, per-automation + totals)
+      summary: Automation performance
       description: Windowed per-automation performance + brand totals. Defaults to the last 30 days. Reflects LIVE runs only (test runs never contribute). Requires the `automations` scope.
       parameters:
         - name: from
@@ -11415,7 +11415,7 @@ paths:
       operationId: getEventsAnalytics
       tags:
         - Analytics
-      summary: Unified events feed (email + automation + trigger)
+      summary: Unified events feed
       description: "Read-only window over the brand's analytics events. Defaults to the last 7 days. Optional equality filters `recipientEmail` / `eventType` / `automationId`. Cursor pagination: pass the returned `pagination.cursor` back as `?cursor=`. Requires the `emails` scope."
       parameters:
         - name: from

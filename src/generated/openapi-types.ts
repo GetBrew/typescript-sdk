@@ -143,7 +143,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List Emails (or get one + version history)
+         * List or get emails
          * @description Lists the latest logical emails for the brand. `?emailId=` returns a one-element `emails[]` for a single email; add `&include=versions` to attach the sibling `versions[]` history (every persisted version of that email).
          */
         get: operations["listEmails"];
@@ -418,7 +418,7 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Update / publish / unpublish an automation
+         * Update publish or unpublish an automation
          * @description PATCH body is a discriminated union (one of):
          *
          *     - **Update** — `{ automationId, name? | description? | nodes? | connections? | triggerEventId? }`.
@@ -444,7 +444,7 @@ export interface paths {
         get: operations["listAutomationRuns"];
         put?: never;
         /**
-         * Fire a trigger, test an automation, or replay a historical fire
+         * Fire test or replay an automation run
          * @description POST body is a 3-branch union, dispatched by body shape:
          *
          *     - **Fire** — `{ triggerEventId, payload, idempotencyKey? }`. Starts one Vercel Workflow per published automation attached to the trigger and returns the `FIRE_EVENT_RESPONSE` envelope `{ success, status: "triggered" | "idempotent_replay", code, message, receivedAt, details: { automationRunIds[], triggerInstanceId, counts, … } }`. Read `details.automationRunIds`.
@@ -472,7 +472,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Campaign performance (lifetime, per-campaign)
+         * Campaign performance
          * @description Lifetime per-campaign KPIs (sent / delivered / opened / clicked / bounced / complained / unsubscribed) for every campaign that has actually sent. Read-only. Cursor-paginated. Requires the `emails` scope.
          */
         get: operations["getCampaignAnalytics"];
@@ -492,7 +492,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Automation performance (windowed, per-automation + totals)
+         * Automation performance
          * @description Windowed per-automation performance + brand totals. Defaults to the last 30 days. Reflects LIVE runs only (test runs never contribute). Requires the `automations` scope.
          */
         get: operations["getAutomationAnalytics"];
@@ -512,7 +512,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Unified events feed (email + automation + trigger)
+         * Unified events feed
          * @description Read-only window over the brand's analytics events. Defaults to the last 7 days. Optional equality filters `recipientEmail` / `eventType` / `automationId`. Cursor pagination: pass the returned `pagination.cursor` back as `?cursor=`. Requires the `emails` scope.
          */
         get: operations["getEventsAnalytics"];
