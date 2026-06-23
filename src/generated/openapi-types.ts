@@ -13088,7 +13088,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The same `Idempotency-Key` was reused with a different request body. */
+            /** @description The field already exists with a different `fieldType` — redefinition is rejected to avoid corrupting stored values (re-creating with the SAME type is idempotent). An idempotency-key replay with a different body also returns `409`. */
             409: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -13099,11 +13099,12 @@ export interface operations {
                     /**
                      * @example {
                      *       "error": {
-                     *         "code": "IDEMPOTENCY_CONFLICT",
+                     *         "code": "FIELD_TYPE_MISMATCH",
                      *         "type": "conflict",
-                     *         "message": "The same idempotency key was reused with a different request payload.",
-                     *         "suggestion": "Reuse the original payload or send a new idempotency key.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/idempotency"
+                     *         "message": "Field 'plan' is type 'string' but received 'number'.",
+                     *         "suggestion": "Send a value that matches the field definition, or update the field definition first.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "plan"
                      *       }
                      *     }
                      */
