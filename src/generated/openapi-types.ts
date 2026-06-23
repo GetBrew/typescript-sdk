@@ -3949,6 +3949,31 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
+            /** @description The credit balance could not be verified (a transient billing dependency outage). The gate fails closed rather than do paid work it cannot meter. Retryable — `Retry-After` indicates when. */
+            503: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Seconds to wait before retrying the request. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "SERVICE_UNAVAILABLE",
+                     *         "type": "service_unavailable",
+                     *         "message": "Your credit balance could not be verified because a billing dependency is temporarily unavailable.",
+                     *         "suggestion": "Retry the request after a short delay.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/credits",
+                     *         "retryAfter": 2
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
         };
     };
     getEmail: {
@@ -4477,6 +4502,31 @@ export interface operations {
                      *         "message": "An unexpected error occurred.",
                      *         "suggestion": "Retry the request. If it keeps failing, contact support.",
                      *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The credit balance could not be verified (a transient billing dependency outage). The gate fails closed rather than do paid work it cannot meter. Retryable — `Retry-After` indicates when. */
+            503: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Seconds to wait before retrying the request. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "SERVICE_UNAVAILABLE",
+                     *         "type": "service_unavailable",
+                     *         "message": "Your credit balance could not be verified because a billing dependency is temporarily unavailable.",
+                     *         "suggestion": "Retry the request after a short delay.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/credits",
+                     *         "retryAfter": 2
                      *       }
                      *     }
                      */
@@ -5135,6 +5185,31 @@ export interface operations {
                      *         "message": "An unexpected error occurred.",
                      *         "suggestion": "Retry the request. If it keeps failing, contact support.",
                      *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The credit balance could not be verified (a transient billing dependency outage). The gate fails closed rather than do paid work it cannot meter. Retryable — `Retry-After` indicates when. */
+            503: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Seconds to wait before retrying the request. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "SERVICE_UNAVAILABLE",
+                     *         "type": "service_unavailable",
+                     *         "message": "Your credit balance could not be verified because a billing dependency is temporarily unavailable.",
+                     *         "suggestion": "Retry the request after a short delay.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/credits",
+                     *         "retryAfter": 2
                      *       }
                      *     }
                      */
@@ -17766,6 +17841,31 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
+            /** @description The credit balance could not be verified (a transient billing dependency outage). The gate fails closed rather than do paid work it cannot meter. Retryable — `Retry-After` indicates when. */
+            503: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Seconds to wait before retrying the request. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "SERVICE_UNAVAILABLE",
+                     *         "type": "service_unavailable",
+                     *         "message": "Your credit balance could not be verified because a billing dependency is temporarily unavailable.",
+                     *         "suggestion": "Retry the request after a short delay.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/credits",
+                     *         "retryAfter": 2
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
         };
     };
     generateContentGif: {
@@ -18004,6 +18104,31 @@ export interface operations {
                      *         "message": "An unexpected error occurred.",
                      *         "suggestion": "Retry the request. If it keeps failing, contact support.",
                      *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The credit balance could not be verified (a transient billing dependency outage). The gate fails closed rather than do paid work it cannot meter. Retryable — `Retry-After` indicates when. */
+            503: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Seconds to wait before retrying the request. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "SERVICE_UNAVAILABLE",
+                     *         "type": "service_unavailable",
+                     *         "message": "Your credit balance could not be verified because a billing dependency is temporarily unavailable.",
+                     *         "suggestion": "Retry the request after a short delay.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/credits",
+                     *         "retryAfter": 2
                      *       }
                      *     }
                      */
@@ -18264,6 +18389,31 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
+            /** @description The credit balance could not be verified (a transient billing dependency outage). The gate fails closed rather than do paid work it cannot meter. Retryable — `Retry-After` indicates when. */
+            503: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Seconds to wait before retrying the request. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "SERVICE_UNAVAILABLE",
+                     *         "type": "service_unavailable",
+                     *         "message": "Your credit balance could not be verified because a billing dependency is temporarily unavailable.",
+                     *         "suggestion": "Retry the request after a short delay.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/credits",
+                     *         "retryAfter": 2
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
         };
     };
     contentVideoToGif: {
@@ -18502,6 +18652,31 @@ export interface operations {
                      *         "message": "An unexpected error occurred.",
                      *         "suggestion": "Retry the request. If it keeps failing, contact support.",
                      *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The credit balance could not be verified (a transient billing dependency outage). The gate fails closed rather than do paid work it cannot meter. Retryable — `Retry-After` indicates when. */
+            503: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Seconds to wait before retrying the request. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "SERVICE_UNAVAILABLE",
+                     *         "type": "service_unavailable",
+                     *         "message": "Your credit balance could not be verified because a billing dependency is temporarily unavailable.",
+                     *         "suggestion": "Retry the request after a short delay.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/credits",
+                     *         "retryAfter": 2
                      *       }
                      *     }
                      */
@@ -18752,6 +18927,31 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
+            /** @description The credit balance could not be verified (a transient billing dependency outage). The gate fails closed rather than do paid work it cannot meter. Retryable — `Retry-After` indicates when. */
+            503: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Seconds to wait before retrying the request. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "SERVICE_UNAVAILABLE",
+                     *         "type": "service_unavailable",
+                     *         "message": "Your credit balance could not be verified because a billing dependency is temporarily unavailable.",
+                     *         "suggestion": "Retry the request after a short delay.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/credits",
+                     *         "retryAfter": 2
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
         };
     };
     contentResize: {
@@ -18996,6 +19196,31 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
+            /** @description The credit balance could not be verified (a transient billing dependency outage). The gate fails closed rather than do paid work it cannot meter. Retryable — `Retry-After` indicates when. */
+            503: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Seconds to wait before retrying the request. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "SERVICE_UNAVAILABLE",
+                     *         "type": "service_unavailable",
+                     *         "message": "Your credit balance could not be verified because a billing dependency is temporarily unavailable.",
+                     *         "suggestion": "Retry the request after a short delay.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/credits",
+                     *         "retryAfter": 2
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
         };
     };
     contentHtmlToPng: {
@@ -19234,6 +19459,31 @@ export interface operations {
                      *         "message": "An unexpected error occurred.",
                      *         "suggestion": "Retry the request. If it keeps failing, contact support.",
                      *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The credit balance could not be verified (a transient billing dependency outage). The gate fails closed rather than do paid work it cannot meter. Retryable — `Retry-After` indicates when. */
+            503: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Seconds to wait before retrying the request. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "SERVICE_UNAVAILABLE",
+                     *         "type": "service_unavailable",
+                     *         "message": "Your credit balance could not be verified because a billing dependency is temporarily unavailable.",
+                     *         "suggestion": "Retry the request after a short delay.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/credits",
+                     *         "retryAfter": 2
                      *       }
                      *     }
                      */

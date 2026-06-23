@@ -6766,6 +6766,35 @@ paths:
                   message: An unexpected error occurred.
                   suggestion: Retry the request. If it keeps failing, contact support.
                   docs: https://docs.brew.new/api-reference/api/errors
+        "503":
+          description: The credit balance could not be verified (a transient billing dependency outage). The gate fails closed rather than do paid work it cannot meter. Retryable — `Retry-After` indicates when.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            Retry-After:
+              schema:
+                type: integer
+                description: Seconds to wait before retrying the request.
+                example: 42
+              required: true
+              description: Seconds to wait before retrying the request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: SERVICE_UNAVAILABLE
+                  type: service_unavailable
+                  message: Your credit balance could not be verified because a billing dependency is temporarily unavailable.
+                  suggestion: Retry the request after a short delay.
+                  docs: https://docs.brew.new/api-reference/api/credits
+                  retryAfter: 2
   /v1/emails/{emailId}:
     get:
       operationId: getEmail
@@ -7339,6 +7368,35 @@ paths:
                   message: An unexpected error occurred.
                   suggestion: Retry the request. If it keeps failing, contact support.
                   docs: https://docs.brew.new/api-reference/api/errors
+        "503":
+          description: The credit balance could not be verified (a transient billing dependency outage). The gate fails closed rather than do paid work it cannot meter. Retryable — `Retry-After` indicates when.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            Retry-After:
+              schema:
+                type: integer
+                description: Seconds to wait before retrying the request.
+                example: 42
+              required: true
+              description: Seconds to wait before retrying the request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: SERVICE_UNAVAILABLE
+                  type: service_unavailable
+                  message: Your credit balance could not be verified because a billing dependency is temporarily unavailable.
+                  suggestion: Retry the request after a short delay.
+                  docs: https://docs.brew.new/api-reference/api/credits
+                  retryAfter: 2
     delete:
       operationId: deleteEmail
       tags:
@@ -8273,6 +8331,35 @@ paths:
                   message: An unexpected error occurred.
                   suggestion: Retry the request. If it keeps failing, contact support.
                   docs: https://docs.brew.new/api-reference/api/errors
+        "503":
+          description: The credit balance could not be verified (a transient billing dependency outage). The gate fails closed rather than do paid work it cannot meter. Retryable — `Retry-After` indicates when.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            Retry-After:
+              schema:
+                type: integer
+                description: Seconds to wait before retrying the request.
+                example: 42
+              required: true
+              description: Seconds to wait before retrying the request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: SERVICE_UNAVAILABLE
+                  type: service_unavailable
+                  message: Your credit balance could not be verified because a billing dependency is temporarily unavailable.
+                  suggestion: Retry the request after a short delay.
+                  docs: https://docs.brew.new/api-reference/api/credits
+                  retryAfter: 2
   /v1/emails/{emailId}/accessibility-audit:
     get:
       operationId: auditEmailAccessibility
@@ -22833,6 +22920,35 @@ paths:
                   message: An unexpected error occurred.
                   suggestion: Retry the request. If it keeps failing, contact support.
                   docs: https://docs.brew.new/api-reference/api/errors
+        "503":
+          description: The credit balance could not be verified (a transient billing dependency outage). The gate fails closed rather than do paid work it cannot meter. Retryable — `Retry-After` indicates when.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            Retry-After:
+              schema:
+                type: integer
+                description: Seconds to wait before retrying the request.
+                example: 42
+              required: true
+              description: Seconds to wait before retrying the request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: SERVICE_UNAVAILABLE
+                  type: service_unavailable
+                  message: Your credit balance could not be verified because a billing dependency is temporarily unavailable.
+                  suggestion: Retry the request after a short delay.
+                  docs: https://docs.brew.new/api-reference/api/credits
+                  retryAfter: 2
   /v1/content/generate-gif:
     post:
       operationId: generateContentGif
@@ -23126,6 +23242,35 @@ paths:
                   message: An unexpected error occurred.
                   suggestion: Retry the request. If it keeps failing, contact support.
                   docs: https://docs.brew.new/api-reference/api/errors
+        "503":
+          description: The credit balance could not be verified (a transient billing dependency outage). The gate fails closed rather than do paid work it cannot meter. Retryable — `Retry-After` indicates when.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            Retry-After:
+              schema:
+                type: integer
+                description: Seconds to wait before retrying the request.
+                example: 42
+              required: true
+              description: Seconds to wait before retrying the request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: SERVICE_UNAVAILABLE
+                  type: service_unavailable
+                  message: Your credit balance could not be verified because a billing dependency is temporarily unavailable.
+                  suggestion: Retry the request after a short delay.
+                  docs: https://docs.brew.new/api-reference/api/credits
+                  retryAfter: 2
   /v1/content/image-to-gif:
     post:
       operationId: contentImageToGif
@@ -23445,6 +23590,35 @@ paths:
                   message: An unexpected error occurred.
                   suggestion: Retry the request. If it keeps failing, contact support.
                   docs: https://docs.brew.new/api-reference/api/errors
+        "503":
+          description: The credit balance could not be verified (a transient billing dependency outage). The gate fails closed rather than do paid work it cannot meter. Retryable — `Retry-After` indicates when.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            Retry-After:
+              schema:
+                type: integer
+                description: Seconds to wait before retrying the request.
+                example: 42
+              required: true
+              description: Seconds to wait before retrying the request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: SERVICE_UNAVAILABLE
+                  type: service_unavailable
+                  message: Your credit balance could not be verified because a billing dependency is temporarily unavailable.
+                  suggestion: Retry the request after a short delay.
+                  docs: https://docs.brew.new/api-reference/api/credits
+                  retryAfter: 2
   /v1/content/video-to-gif:
     post:
       operationId: contentVideoToGif
@@ -23738,6 +23912,35 @@ paths:
                   message: An unexpected error occurred.
                   suggestion: Retry the request. If it keeps failing, contact support.
                   docs: https://docs.brew.new/api-reference/api/errors
+        "503":
+          description: The credit balance could not be verified (a transient billing dependency outage). The gate fails closed rather than do paid work it cannot meter. Retryable — `Retry-After` indicates when.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            Retry-After:
+              schema:
+                type: integer
+                description: Seconds to wait before retrying the request.
+                example: 42
+              required: true
+              description: Seconds to wait before retrying the request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: SERVICE_UNAVAILABLE
+                  type: service_unavailable
+                  message: Your credit balance could not be verified because a billing dependency is temporarily unavailable.
+                  suggestion: Retry the request after a short delay.
+                  docs: https://docs.brew.new/api-reference/api/credits
+                  retryAfter: 2
   /v1/content/optimize-image:
     post:
       operationId: contentOptimizeImage
@@ -24031,6 +24234,35 @@ paths:
                   message: An unexpected error occurred.
                   suggestion: Retry the request. If it keeps failing, contact support.
                   docs: https://docs.brew.new/api-reference/api/errors
+        "503":
+          description: The credit balance could not be verified (a transient billing dependency outage). The gate fails closed rather than do paid work it cannot meter. Retryable — `Retry-After` indicates when.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            Retry-After:
+              schema:
+                type: integer
+                description: Seconds to wait before retrying the request.
+                example: 42
+              required: true
+              description: Seconds to wait before retrying the request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: SERVICE_UNAVAILABLE
+                  type: service_unavailable
+                  message: Your credit balance could not be verified because a billing dependency is temporarily unavailable.
+                  suggestion: Retry the request after a short delay.
+                  docs: https://docs.brew.new/api-reference/api/credits
+                  retryAfter: 2
   /v1/content/resize:
     post:
       operationId: contentResize
@@ -24324,6 +24556,35 @@ paths:
                   message: An unexpected error occurred.
                   suggestion: Retry the request. If it keeps failing, contact support.
                   docs: https://docs.brew.new/api-reference/api/errors
+        "503":
+          description: The credit balance could not be verified (a transient billing dependency outage). The gate fails closed rather than do paid work it cannot meter. Retryable — `Retry-After` indicates when.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            Retry-After:
+              schema:
+                type: integer
+                description: Seconds to wait before retrying the request.
+                example: 42
+              required: true
+              description: Seconds to wait before retrying the request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: SERVICE_UNAVAILABLE
+                  type: service_unavailable
+                  message: Your credit balance could not be verified because a billing dependency is temporarily unavailable.
+                  suggestion: Retry the request after a short delay.
+                  docs: https://docs.brew.new/api-reference/api/credits
+                  retryAfter: 2
   /v1/content/html-to-png:
     post:
       operationId: contentHtmlToPng
@@ -24617,6 +24878,35 @@ paths:
                   message: An unexpected error occurred.
                   suggestion: Retry the request. If it keeps failing, contact support.
                   docs: https://docs.brew.new/api-reference/api/errors
+        "503":
+          description: The credit balance could not be verified (a transient billing dependency outage). The gate fails closed rather than do paid work it cannot meter. Retryable — `Retry-After` indicates when.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            Retry-After:
+              schema:
+                type: integer
+                description: Seconds to wait before retrying the request.
+                example: 42
+              required: true
+              description: Seconds to wait before retrying the request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: SERVICE_UNAVAILABLE
+                  type: service_unavailable
+                  message: Your credit balance could not be verified because a billing dependency is temporarily unavailable.
+                  suggestion: Retry the request after a short delay.
+                  docs: https://docs.brew.new/api-reference/api/credits
+                  retryAfter: 2
   /v1/content/host-image:
     post:
       operationId: contentHostImage
