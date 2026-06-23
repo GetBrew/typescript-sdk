@@ -2,12 +2,15 @@ import type { HttpClient } from '../../core/http'
 
 import { createCreateTrigger } from './create'
 import { createDeleteTrigger } from './delete'
+import { createFireTrigger } from './fire'
 import { createGetTrigger, createListTriggers } from './list'
 import { createPatchTrigger } from './patch'
 
 export type TriggersResource = {
   /** `POST /v1/triggers` — deterministic create. */
   readonly create: ReturnType<typeof createCreateTrigger>
+  /** `POST /v1/triggers/{triggerEventId}/fire` — fire a trigger; starts one run per published automation attached to it. */
+  readonly fire: ReturnType<typeof createFireTrigger>
   /** `GET /v1/triggers` — list every trigger in the brand. */
   readonly list: ReturnType<typeof createListTriggers>
   /** `GET /v1/triggers?triggerEventId=…` — single trigger + optional includes. */
@@ -27,6 +30,7 @@ export type TriggersResource = {
 export function createTriggersResource(client: HttpClient): TriggersResource {
   return {
     create: createCreateTrigger(client),
+    fire: createFireTrigger(client),
     list: createListTriggers(client),
     get: createGetTrigger(client),
     patch: createPatchTrigger(client),

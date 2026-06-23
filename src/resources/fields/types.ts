@@ -6,7 +6,7 @@
  * next `bun run generate:types`.
  */
 
-import type { components } from '../../generated/openapi-types'
+import type { components, operations } from '../../generated/openapi-types'
 
 /**
  * Supported custom-field types on contacts. Pinned to the OpenAPI enum.
@@ -24,18 +24,29 @@ export type ContactFieldType =
  * a `fieldType`, and optional metadata flags describing whether the
  * field can be filtered, sorted, or searched.
  */
-export type ContactField =
-  components['schemas']['FieldsGetResponse']['fields'][number]
+export type ContactField = components['schemas']['ContactFieldDefinition']
+
+/** Envelope returned by `GET /v1/fields` — `{ data, pagination }`. */
+export type FieldsGetResponse = components['schemas']['FieldsGetResponse']
+
+/** Opaque cursor pagination block on the list envelope. */
+export type FieldsPagination = FieldsGetResponse['pagination']
 
 /**
- * `{ success: true }` envelope returned by `delete`.
+ * Response from `POST /v1/fields` — the bare created/updated field
+ * definition (201), no wrapping envelope.
  */
-export type FieldsSuccessResponse =
-  components['schemas']['FieldsSuccessResponse']
+export type CreateFieldResponse =
+  components['schemas']['ContactFieldDefinition']
 
 /**
- * Envelope returned by `create` — the created/updated field definition
- * as a one-element `{ fields: [ContactField] }`.
+ * Response from `DELETE /v1/fields/{fieldName}` — `{ fieldName, deleted }`.
+ * Idempotent: deleting an unknown field resolves with `deleted: false`.
  */
-export type FieldsMutationResponse =
-  components['schemas']['FieldsMutationResponse']
+export type FieldsDeleteResponse =
+  components['schemas']['FieldsDeleteResponse']
+
+/** Query params accepted by `brew.fields.list(...)` (`limit`, `cursor`). */
+export type ListFieldsInput = NonNullable<
+  operations['listContactFields']['parameters']['query']
+>

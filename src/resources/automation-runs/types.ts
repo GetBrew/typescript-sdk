@@ -1,26 +1,18 @@
 import type { components } from '../../generated/openapi-types'
 
+/** A single automation run row (without per-node logs). */
 export type AutomationRun = components['schemas']['AutomationRunRow']
+
+/** One per-node execution log line on a run. */
 export type AutomationRunLog = components['schemas']['AutomationRunLogRow']
+
+/** Envelope returned by `GET /v1/analytics/automations/runs` (`{ data, pagination }`). */
 export type AutomationRunsListResponse =
   components['schemas']['AutomationRunsListResponse']
-export type AutomationRunsPostResponse =
-  components['schemas']['AutomationRunsPostResponse']
 
 /**
- * Fire-branch response — the rich envelope. Read the started run ids
- * from `details.automationRunIds` (a fire can match N automations).
+ * Bare run with its per-node `logs[]`, returned by
+ * `GET /v1/analytics/automations/runs/{automationRunId}`.
  */
-export type FireTriggerResponse = Extract<
-  AutomationRunsPostResponse,
-  { success: boolean }
->
-
-/**
- * Test / replay-branch response — the flat envelope with top-level
- * `automationRunIds`.
- */
-export type TestRunResponse = Exclude<
-  AutomationRunsPostResponse,
-  { success: boolean }
->
+export type AutomationRunDetailResponse =
+  components['schemas']['AutomationRunDetail']

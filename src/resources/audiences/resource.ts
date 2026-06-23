@@ -1,5 +1,6 @@
 import type { HttpClient } from '../../core/http'
 
+import { createGetAudienceCount } from './count'
 import { createCreateAudience, createDuplicateAudience } from './create'
 import { createDeleteAudience } from './delete'
 import { createGetAudience } from './get'
@@ -7,17 +8,19 @@ import { createListAudiences } from './list'
 import { createUpdateAudience } from './update'
 
 export type AudiencesResource = {
-  /** `GET /v1/audiences` — list saved audiences for the brand. */
+  /** `GET /v1/audiences` — list saved audiences ({ data, pagination }) (scope: `audiences`). */
   readonly list: ReturnType<typeof createListAudiences>
-  /** `GET /v1/audiences?audienceId=…` — single audience (one-element envelope). */
+  /** `GET /v1/audiences/{audienceId}` — single audience row (scope: `audiences`). */
   readonly get: ReturnType<typeof createGetAudience>
-  /** `POST /v1/audiences` — create from a filter set. */
+  /** `GET /v1/audiences/{audienceId}/count` — fresh member count (scope: `audiences`). */
+  readonly getCount: ReturnType<typeof createGetAudienceCount>
+  /** `POST /v1/audiences` — create from a filter set (scope: `audiences`). */
   readonly create: ReturnType<typeof createCreateAudience>
-  /** `POST /v1/audiences { duplicateFrom }` — clone an existing audience. */
+  /** `POST /v1/audiences/{audienceId}/duplicate` — clone an existing audience (scope: `audiences`). */
   readonly duplicate: ReturnType<typeof createDuplicateAudience>
-  /** `PATCH /v1/audiences` — update `name` / `filters`. */
+  /** `PATCH /v1/audiences/{audienceId}` — update `name` / `filters` (scope: `audiences`). */
   readonly update: ReturnType<typeof createUpdateAudience>
-  /** `DELETE /v1/audiences` — idempotent remove. */
+  /** `DELETE /v1/audiences/{audienceId}` — idempotent remove (scope: `audiences`). */
   readonly delete: ReturnType<typeof createDeleteAudience>
 }
 
@@ -25,6 +28,7 @@ export function createAudiencesResource(client: HttpClient): AudiencesResource {
   return {
     list: createListAudiences(client),
     get: createGetAudience(client),
+    getCount: createGetAudienceCount(client),
     create: createCreateAudience(client),
     duplicate: createDuplicateAudience(client),
     update: createUpdateAudience(client),

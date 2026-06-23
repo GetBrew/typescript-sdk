@@ -12,9 +12,9 @@ export type ListDomainsInput = PaginationInput
  * List ALL sending domains for the current organization — including
  * `pending` rows and their DNS `records` (so lifecycle callers can
  * complete verification). Each row carries `status` and the derived
- * `sendable` flag. Returns `{ domains, pagination }`; accepts
- * `limit`/`cursor`. For only the verified, send-ready set (the valid
- * picker source for `brew.sends.create(...)`), use
+ * `sendable` flag. Returns the uniform `{ data, pagination }` envelope;
+ * accepts `limit`/`cursor`. For only the verified, send-ready set (the
+ * valid picker source for `brew.sends.create(...)`), use
  * `brew.domains.listSendable()` or filter on `row.sendable`.
  *
  * Pass `{ raw: true }` in `options` to receive the full

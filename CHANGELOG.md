@@ -1,6 +1,77 @@
 # Changelog
 
-## Unreleased (6.0.0)
+## Unreleased (7.0.0)
+
+The full v1 surface — major expansion + the completion of the lean-lists
+migration. Supersedes the never-released 6.0.0 (its notes are retained below).
+Generated types refreshed from the complete v1 OpenAPI spec (19 → 63 routes).
+
+> **Status:** the SDK source compiles clean (`tsc` green) and exposes every new
+> method; the **MSW test-suite migration is in progress** (envelope + path +
+> moved-method updates) — this is a draft until the suite is green.
+
+### NEW — resources
+
+```ts
+await brew.account.get()                         // GET /v1/account — plan, credits, send quota
+await brew.me.get()                              // GET /v1/me — key identity, brand, scopes
+await brew.content.generateImage({ prompt })     // POST /v1/content/generate-image (+ 7 more media ops)
+```
+
+`brew.content.*`: `generateImage`, `generateGif`, `imageToGif`, `videoToGif`,
+`optimizeImage`, `resize`, `htmlToPng`, `hostImage` — all credit-metered with
+`dry_run` cost preview.
+
+### NEW — methods
+
+```ts
+// Brand design-context (read + write)
+brew.brand.getEmailDesign() / updateEmailDesign({ markdown })
+brew.brand.getImageStyle()  / updateImageStyle({ markdown })
+brew.brand.getIdentity()    / updateIdentity({ … })
+brew.brand.getLogos() / brew.brand.getImages({ limit?, cursor? })
+// Contacts
+brew.contacts.validate({ emails })               // POST /v1/contacts/validate (free deliverability check)
+brew.contacts.importCsv({ csv, mapping? })       // POST /v1/contacts/import-csv
+brew.contacts.search(input) / searchAll(input)   // POST /v1/contacts/search (filtering moved off list)
+// Emails
+brew.emails.preview({ emailId, device? })        // POST /v1/emails/{id}/preview (credit-metered)
+brew.emails.auditAccessibility({ emailId })      // GET /v1/emails/{id}/accessibility-audit (free)
+// Audiences / triggers / automations
+brew.audiences.getCount({ audienceId })          // GET /v1/audiences/{id}/count
+brew.triggers.fire({ triggerEventId, payload })  // POST /v1/triggers/{id}/fire
+brew.automations.test({ automationId, payload }) // POST /v1/automations/{id}/test
+```
+
+### BREAKING
+
+- **Uniform `{ data, pagination }` envelope.** Every list now returns `.data`
+  (was resource-named keys like `.contacts` / `.campaigns` / `.sends`). The
+  finished "lean lists" migration.
+- **`contacts.list()` is pagination-only.** Filtering/search/sort moved to
+  `contacts.search()` / `searchAll()` (`POST /v1/contacts/search`).
+- **`contacts.getByEmail()` returns the bare `Contact`** (the `{ contact }`
+  wrapper is gone); `delete`/`patch` take the email in the path;
+  `deleteMany` → `POST /v1/contacts/batch-delete`.
+- **`sends.get({ sendId })` returns a bare `Send`** (was `{ emailId }` →
+  envelope). An email's sends moved to `sends.listForEmail({ emailId })`;
+  per-recipient events to `sends.listEvents({ sendId })`.
+- **Automation runs are read-only** (`automationRuns.list/get` →
+  `/v1/analytics/automations/runs`). Fire/test moved to `triggers.fire()` /
+  `automations.test()`; public **replay/cancel removed**; the deprecated
+  `brew.events` resource is **removed**.
+- Type renames: `DeleteContactsResponse` → `DeleteContactResponse`; dropped
+  `EmailType`, `FieldsSuccessResponse`, `FieldsMutationResponse`,
+  `AutomationRunsPostResponse`, `FireTriggerResponse`, `TestRunResponse`.
+
+### Changed
+
+- `dry_run: true` is supported on every credit-metered op (email generate/edit,
+  email preview, all `content.*`) for a no-charge cost preview.
+
+---
+
+## Unreleased (6.0.0) — superseded by 7.0.0
 
 The v1 hardening pass — 7 new endpoints, uniform cursor pagination, lean
 lists with opt-in `include=`, granular scopes, and several response-shape

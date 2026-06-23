@@ -6,10 +6,14 @@ export type ListEmailsInput = operations['listEmails']['parameters']['query']
 export type ListEmailsResponse = components['schemas']['EmailsListResponse']
 
 /**
- * List latest logical emails for the current organization.
+ * `GET /v1/emails` (scope: `emails`) — list the latest version of each
+ * email design for the brand the API key is scoped to, newest first,
+ * under the uniform `{ data, pagination }` envelope.
  *
- * Filters map directly to the public API query params so SDK callers can
- * stay close to the wire contract when debugging request logs.
+ * Filters (`status`, the `createdAt*` / `updatedAt*` windows) and
+ * `limit` / `cursor` paging map directly to the public API query
+ * params so SDK callers can stay close to the wire contract when
+ * debugging request logs.
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<ListEmailsResponse>` instead of the unwrapped

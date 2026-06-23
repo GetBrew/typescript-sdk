@@ -1,26 +1,27 @@
+import type { components } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
-import type { ListAudiencesResponse } from './list'
 import type { Audience } from './types'
 
 /** Create body — a name + a filter set over the brand's contacts. */
-export type CreateAudienceInput = {
-  name: string
-  filters: Audience['filters']
-}
+export type CreateAudienceInput = components['schemas']['AudiencesPostRequest']
 
-/** Duplicate body — clones an existing audience (name suffixed " (copy)"). */
+/** Duplicate input — the id of the audience to clone. */
 export type DuplicateAudienceInput = {
-  duplicateFrom: string
+  /** The id of the existing audience to duplicate (name suffixed " (copy)"). */
+  readonly audienceId: string
 }
 
-/** Both create + duplicate return the uniform `{ audiences: [row] }`. */
-export type CreateAudienceResponse = ListAudiencesResponse
+/** Both create + duplicate return the bare created `Audience` row. */
+export type CreateAudienceResponse = Audience
 
 /**
  * `POST /v1/audiences` — create a saved audience from a filter set.
- * Returns the uniform `{ audiences: [row] }` envelope.
+ * Requires the `audiences` scope. Returns the created `Audience` row.
+ *
+ * Pass `{ raw: true }` in `options` to receive the full
+ * `BrewRawResponse<CreateAudienceResponse>` instead of the unwrapped row.
  */
 export function createCreateAudience(client: HttpClient) {
   function createAudience(
@@ -47,7 +48,12 @@ export function createCreateAudience(client: HttpClient) {
 }
 
 /**
- * `POST /v1/audiences { duplicateFrom }` — clone an existing audience.
+ * `POST /v1/audiences/{audienceId}/duplicate` — clone an existing
+ * audience. Requires the `audiences` scope. Returns the duplicated
+ * `Audience` row.
+ *
+ * Pass `{ raw: true }` in `options` to receive the full
+ * `BrewRawResponse<CreateAudienceResponse>` instead of the unwrapped row.
  */
 export function createDuplicateAudience(client: HttpClient) {
   function duplicateAudience(
@@ -64,8 +70,7 @@ export function createDuplicateAudience(client: HttpClient) {
   ): Promise<CreateAudienceResponse | BrewRawResponse<CreateAudienceResponse>> {
     const response = await client.request<CreateAudienceResponse>({
       method: 'POST',
-      path: '/v1/audiences',
-      body: input,
+      path: `/v1/audiences/${encodeURIComponent(input.audienceId)}/duplicate`,
       ...(options ? { options } : {}),
     })
     return unwrapResponse(response, options)

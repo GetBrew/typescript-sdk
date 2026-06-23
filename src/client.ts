@@ -1,6 +1,10 @@
 import { resolveConfig } from './core/config'
 import { createHttpClient, type HttpTuning } from './core/http'
 import {
+  createAccountResource,
+  type AccountResource,
+} from './resources/account/resource'
+import {
   createAnalyticsResource,
   type AnalyticsResource,
 } from './resources/analytics/resource'
@@ -21,6 +25,10 @@ import {
   type ContactsResource,
 } from './resources/contacts/resource'
 import {
+  createContentResource,
+  type ContentResource,
+} from './resources/content/resource'
+import {
   createDomainsResource,
   type DomainsResource,
 } from './resources/domains/resource'
@@ -33,10 +41,6 @@ import {
   type AutomationRunsResource,
 } from './resources/automation-runs/resource'
 import {
-  createEventsResource,
-  type EventsResource,
-} from './resources/events/resource'
-import {
   createFieldsResource,
   type FieldsResource,
 } from './resources/fields/resource'
@@ -44,6 +48,10 @@ import {
   createIntegrationsResource,
   type IntegrationsResource,
 } from './resources/integrations/resource'
+import {
+  createMeResource,
+  type MeResource,
+} from './resources/me/resource'
 import {
   createSendsResource,
   type SendsResource,
@@ -73,22 +81,26 @@ import type { BrewClientConfig } from './types'
  * key is created in the dashboard.
  */
 export type BrewClient = {
+  /** `GET /v1/account` — plan, credit balance, and email-send quota. */
+  readonly account: AccountResource
   /** Read-only campaign + automation analytics + the unified event explorer. */
   readonly analytics: AnalyticsResource
   readonly audiences: AudiencesResource
   readonly automations: AutomationsResource
   /** Canonical surface for trigger fires / automation tests / replays / cancels. */
   readonly automationRuns: AutomationRunsResource
-  /** `GET /v1/brand` — the key's brand + extraction readiness. */
+  /** `GET/PUT /v1/brand/*` — the key's brand: readiness, design system, identity, assets. */
   readonly brand: BrandResource
   readonly contacts: ContactsResource
+  /** `POST /v1/content/*` — credit-metered media generation + image/render ops. */
+  readonly content: ContentResource
   readonly domains: DomainsResource
   readonly emails: EmailsResource
-  /** @deprecated alias for `automationRuns.fire` — same shape; targets `POST /v1/automation/runs` under the hood. */
-  readonly events: EventsResource
   readonly fields: FieldsResource
   /** `GET /v1/integrations` — triggerable integration-event catalog. */
   readonly integrations: IntegrationsResource
+  /** `GET /v1/me` — the API key's identity, brand, and granted scopes. */
+  readonly me: MeResource
   readonly sends: SendsResource
   readonly templates: TemplatesResource
   readonly triggers: TriggersResource
@@ -126,17 +138,19 @@ export function createBrewClient(
   const config = resolveConfig({ userConfig })
   const httpClient = createHttpClient(config, tuning ?? {})
   return {
+    account: createAccountResource(httpClient),
     analytics: createAnalyticsResource(httpClient),
     audiences: createAudiencesResource(httpClient),
     automations: createAutomationsResource(httpClient),
     automationRuns: createAutomationRunsResource(httpClient),
     brand: createBrandResource(httpClient),
     contacts: createContactsResource(httpClient),
+    content: createContentResource(httpClient),
     domains: createDomainsResource(httpClient),
     emails: createEmailsResource(httpClient),
-    events: createEventsResource(httpClient),
     fields: createFieldsResource(httpClient),
     integrations: createIntegrationsResource(httpClient),
+    me: createMeResource(httpClient),
     sends: createSendsResource(httpClient),
     templates: createTemplatesResource(httpClient),
     triggers: createTriggersResource(httpClient),

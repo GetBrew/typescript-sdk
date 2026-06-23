@@ -1,4 +1,4 @@
-import type { components } from '../../generated/openapi-types'
+import type { components, operations } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
@@ -6,15 +6,22 @@ export type GetEmailInput = {
   emailId: string
 }
 
-/** Single-fetch returns the `{ emails: [item] }` one-element envelope. */
-export type GetEmailResponse = components['schemas']['EmailsListResponse']
+/** Single-fetch returns the bare design row (identity + `status` + `html`). */
+export type GetEmailResponse = components['schemas']['EmailDetail']
 
-/** Version history returns `{ emails: [item], versions: [...] }`. */
-export type EmailVersionsResponse = components['schemas']['EmailsListResponse']
+export type ListEmailVersionsInput = {
+  emailId: string
+} & operations['listEmailVersions']['parameters']['query']
+
+/** Version history returns the uniform `{ data, pagination }` envelope. */
+export type EmailVersionsResponse =
+  components['schemas']['EmailVersionsResponse']
 
 /**
- * `GET /v1/emails?emailId=…` — single email (one-element `emails[]`,
- * or `404 EMAIL_NOT_FOUND`).
+ * `GET /v1/emails/{emailId}` (scope: `emails`) — fetch one design row,
+ * including the rendered `html` of the current latest version (and
+ * `previewImage` when captured). Unknown / cross-brand ids surface as
+ * `404 EMAIL_NOT_FOUND`.
  */
 export function createGetEmail(client: HttpClient) {
   function getEmail(
@@ -31,8 +38,7 @@ export function createGetEmail(client: HttpClient) {
   ): Promise<GetEmailResponse | BrewRawResponse<GetEmailResponse>> {
     const response = await client.request<GetEmailResponse>({
       method: 'GET',
-      path: '/v1/emails',
-      query: { emailId: input.emailId },
+      path: `/v1/emails/${encodeURIComponent(input.emailId)}`,
       ...(options ? { options } : {}),
     })
     return unwrapResponse(response, options)
@@ -41,26 +47,29 @@ export function createGetEmail(client: HttpClient) {
 }
 
 /**
- * `GET /v1/emails?emailId=…&include=versions` — the email plus its
- * full `versions[]` history.
+ * `GET /v1/emails/{emailId}/versions` (scope: `emails`) — the email's
+ * version history under the uniform `{ data, pagination }` envelope,
+ * latest first. `version: 'latest'` is the current head; numeric
+ * versions are historical snapshots. Page with `limit` / `cursor`.
  */
 export function createListEmailVersions(client: HttpClient) {
   function emailVersions(
-    input: GetEmailInput,
+    input: ListEmailVersionsInput,
     options: RequestOptions & { readonly raw: true }
   ): Promise<BrewRawResponse<EmailVersionsResponse>>
   function emailVersions(
-    input: GetEmailInput,
+    input: ListEmailVersionsInput,
     options?: RequestOptions
   ): Promise<EmailVersionsResponse>
   async function emailVersions(
-    input: GetEmailInput,
+    input: ListEmailVersionsInput,
     options?: RequestOptions
   ): Promise<EmailVersionsResponse | BrewRawResponse<EmailVersionsResponse>> {
+    const { emailId, ...query } = input
     const response = await client.request<EmailVersionsResponse>({
       method: 'GET',
-      path: '/v1/emails',
-      query: { emailId: input.emailId, include: 'versions' },
+      path: `/v1/emails/${encodeURIComponent(emailId)}/versions`,
+      ...(Object.keys(query).length > 0 ? { query } : {}),
       ...(options ? { options } : {}),
     })
     return unwrapResponse(response, options)

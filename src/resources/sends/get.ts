@@ -1,22 +1,28 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
-import type { SendsListResponse } from './types'
+import type { Send } from './types'
 
 export type GetSendInput = {
-  emailId: string
+  /**
+   * The id of the send to fetch, as returned by `POST /v1/sends` and
+   * listed by `GET /v1/sends`. Cross-brand or unknown ids surface as
+   * `404 SEND_NOT_FOUND` from the server.
+   */
+  readonly sendId: string
 }
 
-/** Single-fetch returns the same `{ sends: [row] }` one-element envelope (no `pagination`). */
-export type GetSendResponse = SendsListResponse
+/** Single-fetch returns the bare `Send` row (lifecycle status + `stats`), not an envelope. */
+export type GetSendResponse = Send
 
 /**
- * `GET /v1/sends?emailId=…` — return a single-element `{ sends: [row] }`
- * envelope for one email's send (or `404 SEND_NOT_FOUND` on a miss).
- * Requires the `sends` scope.
+ * `GET /v1/sends/{sendId}` — return the bare send row: lifecycle status,
+ * the design + pinned version it delivered, audience, timestamps, and
+ * the aggregated `stats` block (or `404 SEND_NOT_FOUND` on a miss). Poll
+ * this after `brew.sends.create(...)`. Requires the `sends` scope.
  *
  * Pass `{ raw: true }` in `options` to receive the full
- * `BrewRawResponse<GetSendResponse>` instead of the unwrapped envelope.
+ * `BrewRawResponse<GetSendResponse>` instead of the unwrapped payload.
  */
 export function createGetSend(client: HttpClient) {
   function getSend(
@@ -33,8 +39,7 @@ export function createGetSend(client: HttpClient) {
   ): Promise<GetSendResponse | BrewRawResponse<GetSendResponse>> {
     const response = await client.request<GetSendResponse>({
       method: 'GET',
-      path: '/v1/sends',
-      query: { emailId: input.emailId },
+      path: `/v1/sends/${encodeURIComponent(input.sendId)}`,
       ...(options ? { options } : {}),
     })
     return unwrapResponse(response, options)

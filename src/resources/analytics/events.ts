@@ -17,8 +17,8 @@ export type EventsAnalyticsInput = NonNullable<
  * automation, trigger, and inbound domains. Requires the `emails` scope.
  *
  * Filters: `from`/`to` (ISO; default last 7d), `recipientEmail`,
- * `eventType`, `automationId`, plus `limit`/`cursor`. Returns
- * `{ events, pagination, range }`.
+ * `eventType`, `automationId`, `sendId`, plus `limit`/`cursor`. Returns
+ * `{ data, pagination, range }`.
  *
  * Per-contact engagement is just `{ recipientEmail }`. To page through
  * the whole feed use `brew.analytics.eventsAll`.
@@ -51,6 +51,7 @@ export function createEventsAnalytics(client: HttpClient) {
         recipientEmail: input.recipientEmail,
         eventType: input.eventType,
         automationId: input.automationId,
+        sendId: input.sendId,
         limit: input.limit,
         cursor: input.cursor,
       },
@@ -88,7 +89,7 @@ export function createEventsAnalyticsAll(client: HttpClient) {
           ...(cursor !== null ? { cursor } : {}),
         }
         const response = await events(pageInput, options)
-        return { items: response.events, pagination: response.pagination }
+        return { items: response.data, pagination: response.pagination }
       },
       options?.signal ? { signal: options.signal } : undefined
     )

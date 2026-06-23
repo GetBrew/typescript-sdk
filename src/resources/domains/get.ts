@@ -1,18 +1,19 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
-import type { ListDomainsResponse } from './list'
+import type { Domain } from './types'
 
 export type GetDomainInput = {
   domainId: string
 }
 
-/** Single-fetch returns the same `{ domains: [row] }` one-element envelope. */
-export type GetDomainResponse = ListDomainsResponse
+/** Single-fetch returns the bare `Domain` row. */
+export type GetDomainResponse = Domain
 
 /**
- * `GET /v1/domains?domainId=…` — return a single-element
- * `{ domains: [row] }` envelope (or `404 DOMAIN_NOT_FOUND`).
+ * `GET /v1/domains/{domainId}` — return the bare `Domain` row (`status`,
+ * the derived `sendable` flag, and the full DNS `records` array) or
+ * `404 DOMAIN_NOT_FOUND`. Requires the `domains` scope.
  */
 export function createGetDomain(client: HttpClient) {
   function getDomain(
@@ -29,8 +30,7 @@ export function createGetDomain(client: HttpClient) {
   ): Promise<GetDomainResponse | BrewRawResponse<GetDomainResponse>> {
     const response = await client.request<GetDomainResponse>({
       method: 'GET',
-      path: '/v1/domains',
-      query: { domainId: input.domainId },
+      path: `/v1/domains/${encodeURIComponent(input.domainId)}`,
       ...(options ? { options } : {}),
     })
     return unwrapResponse(response, options)

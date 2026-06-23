@@ -10,8 +10,11 @@ export type ListAudiencesResponse =
 export type ListAudiencesInput = PaginationInput
 
 /**
- * List saved audiences for the current organization. Returns
- * `{ audiences, pagination }`. Accepts `limit`/`cursor` for paging.
+ * `GET /v1/audiences` — list saved audiences for the brand the API key
+ * is scoped to. Requires the `audiences` scope.
+ *
+ * Returns the uniform `{ data, pagination }` envelope. Accepts
+ * `limit`/`cursor` for cursor paging.
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<ListAudiencesResponse>` (including `status`,

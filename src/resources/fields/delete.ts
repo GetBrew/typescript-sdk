@@ -1,39 +1,42 @@
-import type { components } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
-import type { FieldsSuccessResponse } from './types'
+import type { FieldsDeleteResponse } from './types'
 
-export type DeleteFieldInput = components['schemas']['FieldsDeleteRequest']
+export type { FieldsDeleteResponse }
+
+/** Input for `brew.fields.delete(...)` — the field name to drop. */
+export type DeleteFieldInput = { readonly fieldName: string }
 
 /**
- * Remove a custom field from the contacts schema. **Destructive**: this
+ * `DELETE /v1/fields/{fieldName}` — remove a custom field from the
+ * contacts schema. Requires the `contacts` scope. **Destructive**: this
  * drops the column from every existing contact.
  *
- * DELETE retries on transient failures by default. Re-deleting a field
- * that no longer exists is safe — the server treats it as success.
+ * DELETE retries on transient failures by default. Idempotent:
+ * re-deleting a field that no longer exists resolves with
+ * `{ deleted: false }` rather than throwing.
  *
  * Pass `{ raw: true }` in `options` to receive the full
- * `BrewRawResponse<FieldsSuccessResponse>` instead of the unwrapped
+ * `BrewRawResponse<FieldsDeleteResponse>` instead of the unwrapped
  * payload.
  */
 export function createDeleteField(client: HttpClient) {
   function deleteField(
     input: DeleteFieldInput,
     options: RequestOptions & { readonly raw: true }
-  ): Promise<BrewRawResponse<FieldsSuccessResponse>>
+  ): Promise<BrewRawResponse<FieldsDeleteResponse>>
   function deleteField(
     input: DeleteFieldInput,
     options?: RequestOptions
-  ): Promise<FieldsSuccessResponse>
+  ): Promise<FieldsDeleteResponse>
   async function deleteField(
     input: DeleteFieldInput,
     options?: RequestOptions
-  ): Promise<FieldsSuccessResponse | BrewRawResponse<FieldsSuccessResponse>> {
-    const response = await client.request<FieldsSuccessResponse>({
+  ): Promise<FieldsDeleteResponse | BrewRawResponse<FieldsDeleteResponse>> {
+    const response = await client.request<FieldsDeleteResponse>({
       method: 'DELETE',
-      path: '/v1/fields',
-      body: input,
+      path: `/v1/fields/${encodeURIComponent(input.fieldName)}`,
       ...(options ? { options } : {}),
     })
     return unwrapResponse(response, options)

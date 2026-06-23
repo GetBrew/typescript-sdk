@@ -9,9 +9,9 @@ export type { IntegrationsGetResponse, ListIntegrationsInput }
  * `GET /v1/integrations` — the triggerable integration-event catalog
  * for the brand. Requires the `automations` scope.
  *
- * Returns `{ integrations }`, one entry per provider. The catalog lists
- * EVERY triggerable event even when the provider is not connected, so an
- * agent can discover what is possible:
+ * Returns the uniform `{ data, pagination }` envelope, one `data[]` entry
+ * per provider. The catalog lists EVERY triggerable event even when the
+ * provider is not connected, so an agent can discover what is possible:
  * - `connected` — an active integration connection exists for the brand.
  * - each event's `provisioned` — a Brew trigger for that event already
  *   exists on the brand.

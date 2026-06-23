@@ -7,18 +7,19 @@ import { createListContacts, type ListContactsInput } from './list'
 
 /**
  * Input to `brew.contacts.listAll(...)`. Same shape as
- * `ListContactsInput` (filters, search, sort, order) but without
- * `cursor` — the iterator owns the cursor state internally and would
- * happily collide with a caller-supplied one.
+ * `ListContactsInput` (pagination only) but without `cursor` — the
+ * iterator owns the cursor state internally and would happily collide
+ * with a caller-supplied one.
  *
  * `limit` here is the **per-page** limit (1–100, default 50 per the
  * API). It is not the total cap; iterate the result to stop at any
- * count you want.
+ * count you want. To iterate a *filtered* result set use
+ * `brew.contacts.searchAll` instead.
  */
 export type ListAllContactsInput = Readonly<Omit<ListContactsInput, 'cursor'>>
 
 /**
- * Async iterator helper that pages through every matching contact.
+ * Async iterator helper that pages through every contact (newest first).
  *
  * Behavior:
  * - Yields `Contact` objects one at a time (not pages). Use a normal
@@ -31,9 +32,12 @@ export type ListAllContactsInput = Readonly<Omit<ListContactsInput, 'cursor'>>
  *   from `list` are still yielded by the loop, but no further fetches
  *   are issued.
  *
+ * `list` is pagination-only, so this iterator has no filter/search knobs.
+ * Use `brew.contacts.searchAll` to walk a filtered query.
+ *
  * Example:
  * ```ts
- * for await (const contact of brew.contacts.listAll({ search: 'jane' })) {
+ * for await (const contact of brew.contacts.listAll()) {
  *   console.log(contact.email)
  * }
  * ```
@@ -52,7 +56,7 @@ export function createListAllContacts(client: HttpClient) {
           ...(cursor !== null ? { cursor } : {}),
         }
         const response = await list(pageInput, options)
-        return { items: response.contacts, pagination: response.pagination }
+        return { items: response.data, pagination: response.pagination }
       },
       options?.signal ? { signal: options.signal } : undefined
     )

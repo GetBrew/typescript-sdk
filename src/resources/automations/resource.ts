@@ -8,10 +8,13 @@ import {
   createPublishAutomation,
   createUnpublishAutomation,
 } from './patch'
+import { createTestAutomation } from './test'
 
 export type AutomationsResource = {
   /** `POST /v1/automations` — deterministic create (or dry-run via `dryRun: true`). */
   readonly create: ReturnType<typeof createCreateAutomation>
+  /** `POST /v1/automations/{automationId}/test` — start a suppression-aware TEST run (no real mail). */
+  readonly test: ReturnType<typeof createTestAutomation>
   /** `GET /v1/automations` — list every automation in the brand. */
   readonly list: ReturnType<typeof createListAutomations>
   /** `GET /v1/automations?automationId=…` — single automation + optional includes. */
@@ -32,6 +35,7 @@ export function createAutomationsResource(
   const patch = createPatchAutomation(client)
   return {
     create: createCreateAutomation(client),
+    test: createTestAutomation(client),
     list: createListAutomations(client),
     get: createGetAutomation(client),
     patch,

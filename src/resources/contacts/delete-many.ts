@@ -1,39 +1,45 @@
+import type { components } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
-
-import type { DeleteContactsResponse } from './delete'
 
 export type DeleteManyContactsInput = {
   readonly emails: ReadonlyArray<string>
 }
 
+/** `{ deleted, notFound }` — the deleted count plus emails that had no contact. */
+export type DeleteManyContactsResponse =
+  components['schemas']['ContactsBatchDeleteResponse']
+
 /**
- * Batch delete multiple contacts by email.
+ * `POST /v1/contacts/batch-delete` (scope: `contacts`) — delete up to
+ * 1000 contacts by email in one request.
  *
- * Reuses `DeleteContactsResponse` from the single-delete module so the
- * two methods stay in sync — any change to the deletion response shape
- * ripples through both sites automatically.
+ * Batch delete moved to its own endpoint with a `{ emails: [...] }` body
+ * (single delete now lives at `DELETE /v1/contacts/{email}`). Returns the
+ * deleted count plus a `notFound[]` array for emails that had no contact.
  *
  * Pass `{ raw: true }` in `options` to receive the full
- * `BrewRawResponse<DeleteContactsResponse>` instead of the unwrapped
+ * `BrewRawResponse<DeleteManyContactsResponse>` instead of the unwrapped
  * payload.
  */
 export function createDeleteManyContacts(client: HttpClient) {
   function deleteMany(
     input: DeleteManyContactsInput,
     options: RequestOptions & { readonly raw: true }
-  ): Promise<BrewRawResponse<DeleteContactsResponse>>
+  ): Promise<BrewRawResponse<DeleteManyContactsResponse>>
   function deleteMany(
     input: DeleteManyContactsInput,
     options?: RequestOptions
-  ): Promise<DeleteContactsResponse>
+  ): Promise<DeleteManyContactsResponse>
   async function deleteMany(
     input: DeleteManyContactsInput,
     options?: RequestOptions
-  ): Promise<DeleteContactsResponse | BrewRawResponse<DeleteContactsResponse>> {
-    const response = await client.request<DeleteContactsResponse>({
-      method: 'DELETE',
-      path: '/v1/contacts',
+  ): Promise<
+    DeleteManyContactsResponse | BrewRawResponse<DeleteManyContactsResponse>
+  > {
+    const response = await client.request<DeleteManyContactsResponse>({
+      method: 'POST',
+      path: '/v1/contacts/batch-delete',
       body: input,
       ...(options ? { options } : {}),
     })

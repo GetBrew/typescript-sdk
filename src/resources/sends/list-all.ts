@@ -38,7 +38,7 @@ export function createListAllSends(client: HttpClient) {
           ...(cursor !== null ? { cursor } : {}),
         }
         const response = await list(pageInput, options)
-        return { items: response.sends, pagination: response.pagination }
+        return { items: response.data, pagination: response.pagination }
       },
       options?.signal ? { signal: options.signal } : undefined
     )

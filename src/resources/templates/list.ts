@@ -1,16 +1,24 @@
-import type { components, operations } from '../../generated/openapi-types'
+import type { operations } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
+import type { TemplatesListResponse } from './types'
+
 export type ListTemplatesInput =
   operations['listTemplates']['parameters']['query']
-export type ListTemplatesResponse =
-  components['schemas']['TemplatesListResponse']
+export type ListTemplatesResponse = TemplatesListResponse
+
+export type { TemplatesListResponse }
 
 /**
- * List public templates.
+ * `GET /v1/templates` — list public email templates (scope: `emails`).
  *
- * Filters map directly to the public API query params.
+ * Returns the uniform `{ data, pagination }` envelope. Each `data` row is a
+ * lean reference (`{ emailId }`); call `get(emailId)` for `html` +
+ * `previewImage`. Supports exact `brand`/`category` filters, a lightweight
+ * `semantic` text filter, plus `limit`/`cursor` pagination. Templates are
+ * organization-wide references (use one as `referenceEmailId` on
+ * `POST /v1/emails`).
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<ListTemplatesResponse>` instead of the unwrapped

@@ -1,4 +1,4 @@
 import type { components } from '../../generated/openapi-types'
 
-export type Audience =
-  components['schemas']['AudiencesListResponse']['audiences'][number]
+/** A single saved audience row (id, name, filter set, cached count). */
+export type Audience = components['schemas']['Audience']

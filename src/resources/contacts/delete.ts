@@ -6,38 +6,39 @@ export type DeleteContactInput = {
   readonly email: string
 }
 
-export type DeleteContactsResponse =
-  components['schemas']['ContactsDeleteResponse']
+/** `{ email, deleted }` — `deleted: false` when the email had no contact. */
+export type DeleteContactResponse =
+  components['schemas']['ContactDeleteResponse']
 
 /**
- * Delete a single contact by email.
+ * `DELETE /v1/contacts/{email}` (scope: `contacts`) — delete a single
+ * contact by email.
  *
- * The wire format carries the email in the request body (not the URL)
- * because the raw API multiplexes single- and batch-delete on the same
- * endpoint via body shape. The SDK keeps single vs. batch as two
- * explicit methods so call sites stay self-documenting.
+ * Email now travels in the path (not the request body). Idempotent: an
+ * unknown email resolves `200` with `{ deleted: false }` rather than a
+ * `404`. For bulk deletion use `brew.contacts.deleteMany`
+ * (`POST /v1/contacts/batch-delete`).
  *
  * Pass `{ raw: true }` in `options` to receive the full
- * `BrewRawResponse<DeleteContactsResponse>` instead of the unwrapped
+ * `BrewRawResponse<DeleteContactResponse>` instead of the unwrapped
  * payload.
  */
 export function createDeleteContact(client: HttpClient) {
   function deleteContact(
     input: DeleteContactInput,
     options: RequestOptions & { readonly raw: true }
-  ): Promise<BrewRawResponse<DeleteContactsResponse>>
+  ): Promise<BrewRawResponse<DeleteContactResponse>>
   function deleteContact(
     input: DeleteContactInput,
     options?: RequestOptions
-  ): Promise<DeleteContactsResponse>
+  ): Promise<DeleteContactResponse>
   async function deleteContact(
     input: DeleteContactInput,
     options?: RequestOptions
-  ): Promise<DeleteContactsResponse | BrewRawResponse<DeleteContactsResponse>> {
-    const response = await client.request<DeleteContactsResponse>({
+  ): Promise<DeleteContactResponse | BrewRawResponse<DeleteContactResponse>> {
+    const response = await client.request<DeleteContactResponse>({
       method: 'DELETE',
-      path: '/v1/contacts',
-      body: input,
+      path: `/v1/contacts/${encodeURIComponent(input.email)}`,
       ...(options ? { options } : {}),
     })
     return unwrapResponse(response, options)

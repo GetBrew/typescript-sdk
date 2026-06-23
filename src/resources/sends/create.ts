@@ -4,18 +4,22 @@ import type { BrewRawResponse, RequestOptions } from '../../types'
 import type { SendAcceptedResponse, SendsPostRequest } from './types'
 
 /**
- * Campaign-send body — the non-`test` branch of the `POST /v1/sends`
- * discriminated union. For a one-off preview use `brew.sends.test(...)`.
+ * Campaign-send body for `POST /v1/sends`. Provide EXACTLY ONE recipient
+ * target — `audienceId` (a saved audience) or `to` (a single inline
+ * address or an array, max 50). Test deliveries live on their own
+ * endpoint — use `brew.sends.test(...)`.
  */
-export type CreateSendInput = Exclude<SendsPostRequest, { mode: 'test' }>
+export type CreateSendInput = SendsPostRequest
 export type CreateSendResponse = SendAcceptedResponse
 
 /**
- * Start an async campaign send for an existing saved email.
+ * `POST /v1/sends` — start an async campaign send for an existing saved
+ * design. A design can be sent unlimited times; every call mints a new
+ * send. Requires the `sends` scope.
  *
  * This resolves when the API accepts the job for queueing or scheduling
  * (HTTP 202). It does not wait for final delivery — poll
- * `brew.sends.get(emailId)` for lifecycle + stats.
+ * `brew.sends.get({ sendId })` for lifecycle + stats.
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<CreateSendResponse>` instead of the unwrapped

@@ -1,11 +1,11 @@
 import type { components, operations } from '../../generated/openapi-types'
 
-/** Envelope returned by `GET /v1/integrations`. */
+/** Envelope returned by `GET /v1/integrations` (`{ data, pagination }`). */
 export type IntegrationsGetResponse =
   components['schemas']['IntegrationsGetResponse']
 
-/** One provider entry in the triggerable-event catalog. */
-export type Integration = IntegrationsGetResponse['integrations'][number]
+/** One provider entry from the triggerable-event catalog `data[]`. */
+export type Integration = IntegrationsGetResponse['data'][number]
 
 /** A single triggerable event exposed by a provider. */
 export type IntegrationEvent = Integration['events'][number]

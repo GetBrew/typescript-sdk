@@ -2,13 +2,15 @@ import type { components } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
-import type { FieldsMutationResponse } from './types'
+import type { CreateFieldResponse } from './types'
+
+export type { CreateFieldResponse }
 
 export type CreateFieldInput = components['schemas']['FieldsPostRequest']
-export type CreateFieldResponse = FieldsMutationResponse
 
 /**
- * Define a new custom field on the contacts schema.
+ * `POST /v1/fields` — define a new custom field on the contacts schema.
+ * Requires the `contacts` scope.
  *
  * Note the wire field names: `fieldName` (not `name`) and `fieldType`
  * (not `type`). The boolean type is `'bool'`, not `'boolean'`. These
@@ -16,13 +18,13 @@ export type CreateFieldResponse = FieldsMutationResponse
  *
  * The transport auto-attaches an `Idempotency-Key` header on POST, so
  * retries on transient failures are safe. `POST /v1/fields` is upsert-
- * shaped: a duplicate create for the same `fieldName` resolves with
- * `{ success: true }` instead of throwing, so this method is safe to
+ * shaped: a duplicate create for the same `fieldName` resolves with the
+ * existing definition instead of throwing, so this method is safe to
  * call lazily to ensure a custom field exists. The only validation
  * failure surfaced as a `BrewApiError` is `422 CORE_FIELD_IMMUTABLE`
  * (when `fieldName` collides with a built-in core field).
  *
- * Returns the created/updated definition as `{ fields: [field] }`.
+ * Returns `201` with the bare created/updated `ContactFieldDefinition`.
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<CreateFieldResponse>` instead of the unwrapped

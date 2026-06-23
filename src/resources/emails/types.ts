@@ -1,18 +1,22 @@
 import type { components, operations } from '../../generated/openapi-types'
 
-export type EmailSummary =
-  components['schemas']['EmailsListResponse']['emails'][number]
 /**
- * Three-way classification surfaced on every email row + accepted as
- * a filter on `brew.emails.list({ emailType })`:
- *
- * - `campaign` — one-shot send to an audience / contact list
- *   (canvas-board default).
- * - `automation` — body referenced by `sendEmail` nodes inside an
- *   automation graph. NEVER shows on the /emails canvas.
- * - `transactional` — system-triggered (welcome / receipt / reset).
+ * One row of the `data[]` array returned by `brew.emails.list(...)`
+ * (`GET /v1/emails`). The list is intentionally lean — just enough to
+ * identify and link to a design; fetch `brew.emails.get({ emailId })`
+ * for the rendered `html` + `status`.
  */
-export type EmailType = components['schemas']['EmailType']
+export type EmailSummary =
+  components['schemas']['EmailsListResponse']['data'][number]
+
+/**
+ * The full design row returned by `brew.emails.get({ emailId })`
+ * (`GET /v1/emails/{emailId}`): identity + render `status`, the
+ * rendered `html` of the current latest version, and `previewImage`
+ * when one has been captured.
+ */
+export type EmailDetail = components['schemas']['EmailDetail']
+
 export type EmailStatus =
   operations['listEmails']['parameters']['query'] extends infer Query
     ? Query extends { status?: infer Status }
@@ -29,10 +33,10 @@ export type GeneratedEmailTextResponse = Extract<
 >
 
 /**
- * One persisted version of an email — returned in the `versions[]`
- * sibling array of `brew.emails.versions({ emailId })`. `version:
- * 'latest'` is the current head; numeric versions are historical.
+ * One persisted version of an email — returned in the `data[]` array
+ * of `brew.emails.versions({ emailId })`
+ * (`GET /v1/emails/{emailId}/versions`). `version: 'latest'` is the
+ * current head; numeric versions are historical snapshots.
  */
-export type EmailVersion = NonNullable<
-  components['schemas']['EmailsListResponse']['versions']
->[number]
+export type EmailVersion =
+  components['schemas']['EmailVersionsResponse']['data'][number]

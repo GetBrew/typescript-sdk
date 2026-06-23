@@ -28,21 +28,28 @@ export type {
 } from './types'
 
 // ---------- Resource shapes ----------
+export type { AccountResource } from './resources/account/resource'
 export type { AnalyticsResource } from './resources/analytics/resource'
 export type { AudiencesResource } from './resources/audiences/resource'
 export type { AutomationsResource } from './resources/automations/resource'
 export type { BrandResource } from './resources/brand/resource'
 export type { ContactsResource } from './resources/contacts/resource'
+export type { ContentResource } from './resources/content/resource'
 export type { DomainsResource } from './resources/domains/resource'
 export type { EmailsResource } from './resources/emails/resource'
 export type { AutomationRunsResource } from './resources/automation-runs/resource'
-export type { EventsResource } from './resources/events/resource'
 export type { FieldsResource } from './resources/fields/resource'
 export type { IntegrationsResource } from './resources/integrations/resource'
+export type { MeResource } from './resources/me/resource'
 export type { SendsResource } from './resources/sends/resource'
 export type { TemplatesResource } from './resources/templates/resource'
 export type { TriggersResource } from './resources/triggers/resource'
 export type { UsageResource } from './resources/usage/resource'
+
+// ---------- New v1 resource domain types ----------
+export type * from './resources/account/types'
+export type * from './resources/me/types'
+export type * from './resources/content/types'
 
 // ---------- Triggers: domain types ----------
 export type { Trigger, TriggersListResponse } from './resources/triggers/types'
@@ -97,32 +104,21 @@ export type {
   DeleteAutomationResponse,
 } from './resources/automations/delete'
 
-// ---------- Automation runs: domain types ----------
+// ---------- Automation runs: read-only run history ----------
+// (Run history relocated to /v1/analytics/automations/runs. Fire/test now live
+// on `triggers.fire()` / `automations.test()`; public replay/cancel removed.)
 export type {
   AutomationRun,
   AutomationRunLog,
   AutomationRunsListResponse,
-  AutomationRunsPostResponse,
-  FireTriggerResponse,
-  TestRunResponse,
+  AutomationRunDetailResponse,
 } from './resources/automation-runs/types'
-export type {
-  AutomationRunsPostInput,
-  FireTriggerInput,
-  TestAutomationInput,
-  ReplayAutomationRunInput,
-  ReplayRunResponse,
-} from './resources/automation-runs/create'
 export type {
   ListAutomationRunsInput,
   ListAutomationRunsResponse,
   GetAutomationRunInput,
   GetAutomationRunResponse,
 } from './resources/automation-runs/list'
-export type {
-  CancelAutomationRunInput,
-  CancelAutomationRunResponse,
-} from './resources/automation-runs/cancel'
 
 // ---------- Analytics: domain types + method outputs ----------
 export type {
@@ -146,7 +142,6 @@ export type { Domain } from './resources/domains/types'
 export type {
   EmailStatus,
   EmailSummary,
-  EmailType,
   GeneratedEmailArtifact,
   GeneratedEmailTextResponse,
 } from './resources/emails/types'
@@ -272,16 +267,19 @@ export type {
 } from './resources/contacts/patch'
 export type {
   DeleteContactInput,
-  DeleteContactsResponse,
+  DeleteContactResponse,
 } from './resources/contacts/delete'
 export type { DeleteManyContactsInput } from './resources/contacts/delete-many'
+export type {
+  SearchContactsInput,
+  SearchContactsResponse,
+} from './resources/contacts/search'
+export type { SearchAllContactsInput } from './resources/contacts/search-all'
 
 // ---------- Fields: domain types ----------
 export type {
   ContactField,
   ContactFieldType,
-  FieldsSuccessResponse,
-  FieldsMutationResponse,
 } from './resources/fields/types'
 
 // ---------- Fields: method inputs + outputs ----------

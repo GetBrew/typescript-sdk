@@ -13,7 +13,7 @@ export type CampaignAnalyticsInput = PaginationInput
  * `GET /v1/analytics/campaigns` — lifetime per-campaign performance
  * (sent / delivered / opened / clicked / bounced / complained /
  * unsubscribed) for every campaign that has actually sent. Returns
- * `{ campaigns, pagination }`; accepts `limit`/`cursor`. Read-only;
+ * `{ data, pagination }`; accepts `limit`/`cursor`. Read-only;
  * requires the `emails` scope.
  */
 export function createCampaignAnalytics(client: HttpClient) {

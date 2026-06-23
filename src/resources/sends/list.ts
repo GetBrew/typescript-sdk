@@ -6,12 +6,13 @@ import type { ListSendsInput, SendsListResponse } from './types'
 export type { ListSendsInput, SendsListResponse }
 
 /**
- * `GET /v1/sends` — list campaign sends for the brand, newest first,
- * with their lifecycle status and aggregate `stats`. Requires the
- * `sends` scope.
+ * `GET /v1/sends` — list the brand's campaign sends, newest first, with
+ * their lifecycle status and aggregate `stats`. Brand-wide: there is no
+ * `emailId` filter here — for one design's send history use
+ * `brew.sends.listForEmail(...)`. Requires the `sends` scope.
  *
  * Filters: `status`, `from`/`to` (ISO-8601), plus `limit`/`cursor` for
- * pagination. Returns `{ sends, pagination }`. To page through every
+ * pagination. Returns `{ data, pagination }`. To page through every
  * matching send without juggling the cursor, use `brew.sends.listAll`.
  *
  * For a single send by id, use `brew.sends.get(...)`.
@@ -37,7 +38,6 @@ export function createListSends(client: HttpClient) {
       method: 'GET',
       path: '/v1/sends',
       query: {
-        emailId: input.emailId,
         status: input.status,
         from: input.from,
         to: input.to,

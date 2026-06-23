@@ -1,7 +1,10 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
-import type { AutomationRunsListResponse } from './types'
+import type {
+  AutomationRunDetailResponse,
+  AutomationRunsListResponse,
+} from './types'
 
 export type ListAutomationRunsInput = {
   automationId?: string
@@ -14,11 +17,25 @@ export type ListAutomationRunsInput = {
   to?: string
   limit?: number
   cursor?: string
-  include?: ReadonlyArray<'logs'>
 }
 
 export type ListAutomationRunsResponse = AutomationRunsListResponse
 
+/**
+ * `GET /v1/analytics/automations/runs` — list recent automation runs
+ * (newest first) under a `{ data, pagination }` envelope. Requires the
+ * `automations` scope.
+ *
+ * Filter with `automationId`, `triggerEventId`, `triggerInstanceId`,
+ * `recipientEmail`, `status` (pending | running | completed | failed |
+ * cancelled), `mode` (live | test), and the `from` / `to` ISO-8601
+ * window. List rows omit per-node logs — fetch a single run with `get`
+ * to read its `logs[]`.
+ *
+ * Pass `{ raw: true }` in `options` to receive the full
+ * `BrewRawResponse<ListAutomationRunsResponse>` instead of the
+ * unwrapped payload.
+ */
 export function createListAutomationRuns(client: HttpClient) {
   function listAutomationRuns(
     input: ListAutomationRunsInput,
@@ -37,9 +54,7 @@ export function createListAutomationRuns(client: HttpClient) {
     const query: Record<string, string> = {}
     for (const [key, value] of Object.entries(input)) {
       if (value === undefined) continue
-      if (key === 'include' && Array.isArray(value)) {
-        query[key] = value.join(',')
-      } else if (typeof value === 'string') {
+      if (typeof value === 'string') {
         query[key] = value
       } else if (typeof value === 'number') {
         query[key] = String(value)
@@ -47,7 +62,7 @@ export function createListAutomationRuns(client: HttpClient) {
     }
     const response = await client.request<ListAutomationRunsResponse>({
       method: 'GET',
-      path: '/v1/automation/runs',
+      path: '/v1/analytics/automations/runs',
       query,
       ...(options ? { options } : {}),
     })
@@ -58,17 +73,28 @@ export function createListAutomationRuns(client: HttpClient) {
 
 export type GetAutomationRunInput = {
   automationRunId: string
-  include?: ReadonlyArray<'logs'>
 }
 
 /**
- * Single-row fetch returns the same `{ runs: [...] }` envelope as
- * list mode — a one-element array (or `404
- * AUTOMATION_RUN_NOT_FOUND` when missing). Use `result.runs[0]` to
- * destructure the row.
+ * Single-run fetch returns the bare run with its per-node `logs[]`
+ * always attached — one log row per executed node (`trigger | wait |
+ * filter | split | sendEmail`) with status, branch, timing, and error
+ * detail.
  */
-export type GetAutomationRunResponse = ListAutomationRunsResponse
+export type GetAutomationRunResponse = AutomationRunDetailResponse
 
+/**
+ * `GET /v1/analytics/automations/runs/{automationRunId}` — fetch one
+ * automation run with its per-node `logs[]`. Requires the `automations`
+ * scope.
+ *
+ * An unknown or cross-brand `automationRunId` is a `404
+ * AUTOMATION_RUN_NOT_FOUND`.
+ *
+ * Pass `{ raw: true }` in `options` to receive the full
+ * `BrewRawResponse<GetAutomationRunResponse>` instead of the unwrapped
+ * payload.
+ */
 export function createGetAutomationRun(client: HttpClient) {
   function getAutomationRun(
     input: GetAutomationRunInput,
@@ -84,16 +110,9 @@ export function createGetAutomationRun(client: HttpClient) {
   ): Promise<
     GetAutomationRunResponse | BrewRawResponse<GetAutomationRunResponse>
   > {
-    const query: Record<string, string> = {
-      automationRunId: input.automationRunId,
-    }
-    if (input.include && input.include.length > 0) {
-      query.include = input.include.join(',')
-    }
     const response = await client.request<GetAutomationRunResponse>({
       method: 'GET',
-      path: '/v1/automation/runs',
-      query,
+      path: `/v1/analytics/automations/runs/${encodeURIComponent(input.automationRunId)}`,
       ...(options ? { options } : {}),
     })
     return unwrapResponse(response, options)

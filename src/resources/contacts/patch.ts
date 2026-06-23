@@ -3,13 +3,13 @@ import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
 /**
- * Patchable fields on a contact. The wire shape per the OpenAPI spec is
- * `{ email, fields: { ... } }` — `fields` is an open object containing
- * any combination of writable core fields (`firstName`, `lastName`,
- * `subscribed`) and custom fields (keys like `'customFields.plan'`).
+ * Patchable fields on a contact. Email travels in the path now; the wire
+ * body is just `{ fields: { ... } }` — an open object containing any
+ * combination of writable core fields (`firstName`, `lastName`,
+ * `subscribed`) and custom fields.
  *
- * The SDK exposes the same shape directly to keep DX honest to the wire
- * format. Callers know what they are sending.
+ * The SDK keeps `email` on the input object (so callers pass one record)
+ * and splits it out into the path / body at the request boundary.
  */
 export type PatchContactInput = {
   readonly email: string
@@ -20,8 +20,10 @@ export type PatchContactResponse =
   components['schemas']['ContactsPatchResponse']
 
 /**
- * Partially update a contact by email.
+ * `PATCH /v1/contacts/{email}` (scope: `contacts`) — partially update a
+ * contact by email.
  *
+ * Email moved into the path; only `{ fields }` is sent in the body.
  * Returns the full envelope which includes the updated contact AND an
  * `updated` array of field names that actually changed — useful for
  * confirming whether a no-op patch (e.g. setting a field to its existing
@@ -49,8 +51,8 @@ export function createPatchContact(client: HttpClient) {
   ): Promise<PatchContactResponse | BrewRawResponse<PatchContactResponse>> {
     const response = await client.request<PatchContactResponse>({
       method: 'PATCH',
-      path: '/v1/contacts',
-      body: input,
+      path: `/v1/contacts/${encodeURIComponent(input.email)}`,
+      body: { fields: input.fields },
       ...(options ? { options } : {}),
     })
     return unwrapResponse(response, options)

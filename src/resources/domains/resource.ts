@@ -12,15 +12,15 @@ export type DomainsResource = {
   readonly list: ReturnType<typeof createListDomains>
   /** `GET /v1/domains?sendableOnly=true` — only verified, send-ready domains. */
   readonly listSendable: ReturnType<typeof createListSendableDomains>
-  /** `GET /v1/domains?domainId=…` — single domain (one-element envelope). */
+  /** `GET /v1/domains/{domainId}` — single domain (bare row). */
   readonly get: ReturnType<typeof createGetDomain>
   /** `POST /v1/domains` — add a domain (returns pending + DNS records). */
   readonly add: ReturnType<typeof createAddDomain>
-  /** `PATCH /v1/domains { domainId, verify: true }` — re-check DNS + persist status. */
+  /** `POST /v1/domains/{domainId}/verify` — re-check DNS + persist status. */
   readonly verify: ReturnType<typeof createVerifyDomain>
-  /** `PATCH /v1/domains { domainId, default*… }` — set sender defaults. */
+  /** `PATCH /v1/domains/{domainId} { default*… }` — set sender defaults. */
   readonly updateSettings: ReturnType<typeof createUpdateDomainSettings>
-  /** `DELETE /v1/domains` — idempotent remove. */
+  /** `DELETE /v1/domains/{domainId}` — idempotent remove. */
   readonly delete: ReturnType<typeof createDeleteDomain>
 }
 

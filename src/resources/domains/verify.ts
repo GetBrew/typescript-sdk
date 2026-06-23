@@ -1,19 +1,21 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
-import type { ListDomainsResponse } from './list'
+import type { Domain } from './types'
 
 export type VerifyDomainInput = {
   domainId: string
 }
 
-/** Returns the uniform `{ domains: [row] }` with the refreshed status. */
-export type VerifyDomainResponse = ListDomainsResponse
+/** Returns the bare `Domain` row with the refreshed status. */
+export type VerifyDomainResponse = Domain
 
 /**
- * `PATCH /v1/domains { domainId, verify: true }` — re-check DNS with the
- * sending provider and persist the latest status / records. Returns
- * `422 DOMAIN_VERIFICATION_FAILED` while DNS is still propagating.
+ * `POST /v1/domains/{domainId}/verify` — re-check the DNS records with
+ * the sending provider and refresh the row (empty body). Safe to poll —
+ * keep calling until `sendable: true` (DNS propagation can take minutes
+ * to hours). Returns the bare refreshed `Domain` row. Requires the
+ * `domains` scope.
  */
 export function createVerifyDomain(client: HttpClient) {
   function verifyDomain(
@@ -29,9 +31,8 @@ export function createVerifyDomain(client: HttpClient) {
     options?: RequestOptions
   ): Promise<VerifyDomainResponse | BrewRawResponse<VerifyDomainResponse>> {
     const response = await client.request<VerifyDomainResponse>({
-      method: 'PATCH',
-      path: '/v1/domains',
-      body: { domainId: input.domainId, verify: true },
+      method: 'POST',
+      path: `/v1/domains/${encodeURIComponent(input.domainId)}/verify`,
       ...(options ? { options } : {}),
     })
     return unwrapResponse(response, options)

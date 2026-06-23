@@ -12,16 +12,20 @@
  * stays an implementation detail of this module.
  */
 
-import type { components, paths } from '../../generated/openapi-types'
+import type { components } from '../../generated/openapi-types'
 
 /**
- * A Brew contact as returned by the public API.
+ * A Brew contact as returned by the public API — core columns,
+ * suppression state, and `customFields`.
  *
- * Note: `createdAt` and `updatedAt` are UNIX millisecond timestamps
- * (`number`), NOT ISO strings. Convert with `new Date(contact.createdAt)`
- * if you need a Date object.
+ * Note: `createdAt` and `updatedAt` are ISO-8601 date-time strings.
+ * Convert with `new Date(contact.createdAt)` if you need a Date object.
+ *
+ * Sourced from the top-level `Contact` schema, which `GET
+ * /v1/contacts/{email}` returns bare and the list / search pages return
+ * as each element of `data[]`.
  */
-export type Contact = components['schemas']['ContactsLookupResponse']['contact']
+export type Contact = components['schemas']['Contact']
 
 /**
  * Arbitrary key/value pairs attached to a contact. Values are typed as
@@ -32,41 +36,22 @@ export type Contact = components['schemas']['ContactsLookupResponse']['contact']
 export type ContactCustomFields = Contact['customFields']
 
 /**
- * Filter object for `list` and `count`. Uses the OpenAPI `deepObject`
- * style: keys are field names (use dotted notation for custom fields like
- * `'customFields.plan'`), values are either a string shorthand or an
- * `{ operator: value }` object.
+ * One typed filter clause for `search` / `count`. Filtering moved off the
+ * `GET /v1/contacts` query string onto `POST /v1/contacts/search`, which
+ * carries a flat `filters` array combined by `logic` instead of the old
+ * deep-object query style.
  *
- * Supported operator names per the Brew API server:
- *   equals, not_equals, contains, not_contains, contains_any,
- *   not_contains_any, starts_with, ends_with, is_empty, is_not_empty,
- *   in, not_in, exists, not_exists
+ * `field` is a core column (`subscribed`, `firstName`, …) or a custom
+ * field (e.g. `'customFields.plan'`). `operator` is one of the Brew
+ * server's predicate names — the spec types it as a bare `string`, so a
+ * typo like `eq` instead of `equals` compiles but the server returns
+ * `400`. See `docs/contacts.md` for the source-of-truth operator list.
  *
- * The OpenAPI type is intentionally permissive (`[key: string]`) so
- * the SDK does not type-check the operator name. A typo like `eq`
- * instead of `equals` will compile fine but the server will 400. See
- * `docs/contacts.md` for the source-of-truth operator list.
- *
- * Examples:
+ * Example:
  *
  * ```ts
- * // Shorthand equality
- * { subscribed: 'true' }
- *
- * // Explicit operator
- * { 'customFields.plan': { equals: 'enterprise' } }
- *
- * // Multi-clause with logic
- * {
- *   _logic: 'and',
- *   subscribed: 'true',
- *   'customFields.plan': { equals: 'enterprise' },
- * }
+ * { field: 'customFields.plan', operator: 'equals', value: 'enterprise' }
  * ```
- *
- * Sourced from the generated operation parameters so any spec change
- * to the filter shape will surface as a tsc error here.
  */
-export type ContactsFilter = NonNullable<
-  NonNullable<paths['/v1/contacts']['get']['parameters']['query']>['filter']
->
+export type ContactsFilter =
+  components['schemas']['ContactsSearchRequest']['filters'][number]

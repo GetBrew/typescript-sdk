@@ -1,24 +1,20 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
-import type { SendsPostRequest, SendsTestResponse } from './types'
+import type { SendsTestRequest, SendsTestResponse } from './types'
 
-/**
- * Test-send body — the `mode: 'test'` branch of the `POST /v1/sends`
- * discriminated union, minus the literal `mode` (the method adds it).
- */
-export type TestSendInput = Omit<
-  Extract<SendsPostRequest, { mode: 'test' }>,
-  'mode'
->
+/** Test-send body for `POST /v1/sends/test` — fires to a single `to` address. */
+export type TestSendInput = SendsTestRequest
 export type TestSendResponse = SendsTestResponse
 
 /**
- * Send a one-off test/preview of a saved email to a single recipient.
+ * `POST /v1/sends/test` — fire a one-off [TEST] delivery of a design's
+ * current (or pinned) body to a single caller-supplied address. Requires
+ * the `sends` scope.
  *
  * Forces the Brew default sender (no verified domain or audience
- * required) and does NOT consume the email's single live-send slot.
- * Resolves synchronously (HTTP 200) with `{ status: 'sent', recipient }`.
+ * required) and never creates a send row. Resolves synchronously
+ * (HTTP 200) with `{ status: 'sent', recipient }`.
  *
  * Errors: `400` (missing `to` / invalid body), `404 EMAIL_NOT_FOUND`,
  * `422 EMAIL_NOT_READY`.
@@ -41,8 +37,8 @@ export function createTestSend(client: HttpClient) {
   ): Promise<TestSendResponse | BrewRawResponse<TestSendResponse>> {
     const response = await client.request<TestSendResponse>({
       method: 'POST',
-      path: '/v1/sends',
-      body: { ...input, mode: 'test' },
+      path: '/v1/sends/test',
+      body: input,
       ...(options ? { options } : {}),
     })
     return unwrapResponse(response, options)

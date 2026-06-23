@@ -2,16 +2,27 @@ import type { components } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
-import type { ListAudiencesResponse } from './list'
+import type { Audience } from './types'
 
-/** Update body — `audienceId` + at least one of `name` / `filters`. */
-export type UpdateAudienceInput = components['schemas']['AudiencesPatchRequest']
+/** PATCH body — at least one of `name` / `filters`. */
+export type UpdateAudienceBody = components['schemas']['AudiencesPatchRequest']
 
-export type UpdateAudienceResponse = ListAudiencesResponse
+/** Update input — the `audienceId` (path) plus the fields to change. */
+export type UpdateAudienceInput = {
+  /** The id of the audience to update (path parameter). */
+  readonly audienceId: string
+} & UpdateAudienceBody
+
+/** Update returns the updated `Audience` row. */
+export type UpdateAudienceResponse = Audience
 
 /**
- * `PATCH /v1/audiences` — update an audience's `name` and/or `filters`.
- * Returns the uniform `{ audiences: [row] }` envelope.
+ * `PATCH /v1/audiences/{audienceId}` — update an audience's `name`
+ * and/or `filters`. Requires the `audiences` scope. Returns the updated
+ * `Audience` row.
+ *
+ * Pass `{ raw: true }` in `options` to receive the full
+ * `BrewRawResponse<UpdateAudienceResponse>` instead of the unwrapped row.
  */
 export function createUpdateAudience(client: HttpClient) {
   function updateAudience(
@@ -26,10 +37,11 @@ export function createUpdateAudience(client: HttpClient) {
     input: UpdateAudienceInput,
     options?: RequestOptions
   ): Promise<UpdateAudienceResponse | BrewRawResponse<UpdateAudienceResponse>> {
+    const { audienceId, ...body } = input
     const response = await client.request<UpdateAudienceResponse>({
       method: 'PATCH',
-      path: '/v1/audiences',
-      body: input,
+      path: `/v1/audiences/${encodeURIComponent(audienceId)}`,
+      body,
       ...(options ? { options } : {}),
     })
     return unwrapResponse(response, options)

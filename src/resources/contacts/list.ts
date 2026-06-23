@@ -1,40 +1,31 @@
-import type { components, paths } from '../../generated/openapi-types'
+import type { components, operations } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
-import { flattenFilter } from './_filter'
-
-type GetContactsQuery = NonNullable<
-  paths['/v1/contacts']['get']['parameters']['query']
->
-
 /**
- * Input to `brew.contacts.list`. Mirrors the OpenAPI query parameters
- * minus the `email` and `count` mode-switches (those have their own
- * SDK methods, `getByEmail` and `count`).
+ * Input to `brew.contacts.list`. The `GET /v1/contacts` query is now
+ * pagination-ONLY — `limit` (1–100, default 50) and `cursor` are the
+ * only knobs. Search, typed filters, sort, and count moved to
+ * `brew.contacts.search` (`POST /v1/contacts/search`).
  *
- * Sourced from the generated query type so any new pagination or
- * filtering knob upstream surfaces as a compile error in the SDK.
+ * Sourced from the generated query type so any new pagination knob
+ * upstream surfaces as a compile error in the SDK.
  */
 export type ListContactsInput = Readonly<
-  Pick<
-    GetContactsQuery,
-    'limit' | 'cursor' | 'search' | 'sort' | 'order' | 'filter'
-  >
+  NonNullable<operations['listContacts']['parameters']['query']>
 >
 
+/** The uniform `{ data, pagination }` page returned by `GET /v1/contacts`. */
 export type ListContactsResponse = components['schemas']['ContactsListResponse']
 
 /**
- * List contacts with optional cursor-based pagination, sort, search, and
- * filter predicates.
+ * `GET /v1/contacts` (scope: `contacts`) — list contacts newest-first
+ * under the uniform `{ data, pagination }` envelope with native
+ * cursor-based pagination.
  *
- * Filters use the OpenAPI `deepObject` style — `flattenFilter` converts
- * the structured `filter` input into bracket-notation query keys
- * (`filter[subscribed]=true`,
- * `filter[customFields.plan][equals]=enterprise`) before they reach
- * the transport. See `docs/contacts.md` for the full list of supported
- * operator names.
+ * This endpoint no longer accepts search / filter / sort params. Use
+ * `brew.contacts.search` for structured queries and
+ * `brew.contacts.searchAll` to iterate a filtered result set.
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<ListContactsResponse>` instead of the unwrapped
@@ -53,19 +44,12 @@ export function createListContacts(client: HttpClient) {
     input: ListContactsInput = {},
     options?: RequestOptions
   ): Promise<ListContactsResponse | BrewRawResponse<ListContactsResponse>> {
-    const filterQuery: Record<string, string> =
-      input.filter === undefined ? {} : flattenFilter(input.filter)
-
     const response = await client.request<ListContactsResponse>({
       method: 'GET',
       path: '/v1/contacts',
       query: {
         limit: input.limit,
         cursor: input.cursor,
-        search: input.search,
-        sort: input.sort,
-        order: input.order,
-        ...filterQuery,
       },
       ...(options ? { options } : {}),
     })
