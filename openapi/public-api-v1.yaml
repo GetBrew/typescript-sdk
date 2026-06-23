@@ -1219,7 +1219,32 @@ components:
                     minLength: 1
                   operator:
                     type: string
-                    minLength: 1
+                    enum:
+                      - equals
+                      - not_equals
+                      - contains
+                      - not_contains
+                      - contains_any
+                      - not_contains_any
+                      - starts_with
+                      - ends_with
+                      - gt
+                      - gte
+                      - lt
+                      - lte
+                      - between
+                      - is_true
+                      - is_false
+                      - in
+                      - not_in
+                      - is_empty
+                      - not_exists
+                      - is_not_empty
+                      - exists
+                      - is_set
+                      - before
+                      - after
+                      - on_date
                   value: {}
                   type:
                     type: string
@@ -5014,7 +5039,32 @@ components:
                           minLength: 1
                         operator:
                           type: string
-                          minLength: 1
+                          enum:
+                            - equals
+                            - not_equals
+                            - contains
+                            - not_contains
+                            - contains_any
+                            - not_contains_any
+                            - starts_with
+                            - ends_with
+                            - gt
+                            - gte
+                            - lt
+                            - lte
+                            - between
+                            - is_true
+                            - is_false
+                            - in
+                            - not_in
+                            - is_empty
+                            - not_exists
+                            - is_not_empty
+                            - exists
+                            - is_set
+                            - before
+                            - after
+                            - on_date
                         value: {}
                         type:
                           type: string
@@ -5090,7 +5140,32 @@ components:
                     minLength: 1
                   operator:
                     type: string
-                    minLength: 1
+                    enum:
+                      - equals
+                      - not_equals
+                      - contains
+                      - not_contains
+                      - contains_any
+                      - not_contains_any
+                      - starts_with
+                      - ends_with
+                      - gt
+                      - gte
+                      - lt
+                      - lte
+                      - between
+                      - is_true
+                      - is_false
+                      - in
+                      - not_in
+                      - is_empty
+                      - not_exists
+                      - is_not_empty
+                      - exists
+                      - is_set
+                      - before
+                      - after
+                      - on_date
                   value: {}
                   type:
                     type: string
@@ -5145,7 +5220,32 @@ components:
                     minLength: 1
                   operator:
                     type: string
-                    minLength: 1
+                    enum:
+                      - equals
+                      - not_equals
+                      - contains
+                      - not_contains
+                      - contains_any
+                      - not_contains_any
+                      - starts_with
+                      - ends_with
+                      - gt
+                      - gte
+                      - lt
+                      - lte
+                      - between
+                      - is_true
+                      - is_false
+                      - in
+                      - not_in
+                      - is_empty
+                      - not_exists
+                      - is_not_empty
+                      - exists
+                      - is_set
+                      - before
+                      - after
+                      - on_date
                   value: {}
                   type:
                     type: string
@@ -8917,6 +9017,7 @@ paths:
                 data:
                   - &a5
                     sendId: snd_8fK2mQ4p
+                    kind: campaign
                     emailId: eml_welcome
                     emailVersionId: emv_welcome_v3
                     status: sent
@@ -22459,7 +22560,7 @@ paths:
       tags:
         - Integrations
       summary: Triggerable integration-event catalog
-      description: Returns `{ integrations }` — every provider you can trigger automations from (Clerk, Stripe, Stytch, Supabase, WorkOS, Shopify, RevenueCat), whether it is `connected`, and each triggerable `event` (with payload `fieldKeys` + whether a brew trigger is already `provisioned`). Filter to one provider with `?provider=`. Requires the `automations` scope.
+      description: Returns `{ data, pagination }` — every provider you can trigger automations from (Clerk, Stripe, Stytch, Supabase, WorkOS, Shopify, RevenueCat), whether it is `connected`, and each triggerable `event` (with payload `fieldKeys` + whether a brew trigger is already `provisioned`). Filter to one provider with `?provider=`. Requires the `automations` scope.
       parameters:
         - name: provider
           in: query
@@ -22511,7 +22612,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/IntegrationsGetResponse"
               example:
-                integrations:
+                data:
                   - provider: clerk
                     connected: true
                     events:
@@ -22525,6 +22626,10 @@ paths:
                         requiredFieldKeys:
                           - email
                         provisioned: false
+                pagination:
+                  limit: 100
+                  cursor: null
+                  hasMore: false
         "401":
           description: The API key was missing, invalid, or revoked.
           headers:
@@ -25462,7 +25567,7 @@ paths:
                 type: string
                 description: Unique request identifier. Share this with support when debugging a request.
                 example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
+              required: false
               description: Unique request identifier. Share this with support when debugging a request.
           content:
             application/json:

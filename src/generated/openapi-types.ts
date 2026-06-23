@@ -1162,7 +1162,7 @@ export interface paths {
         };
         /**
          * Triggerable integration-event catalog
-         * @description Returns `{ integrations }` — every provider you can trigger automations from (Clerk, Stripe, Stytch, Supabase, WorkOS, Shopify, RevenueCat), whether it is `connected`, and each triggerable `event` (with payload `fieldKeys` + whether a brew trigger is already `provisioned`). Filter to one provider with `?provider=`. Requires the `automations` scope.
+         * @description Returns `{ data, pagination }` — every provider you can trigger automations from (Clerk, Stripe, Stytch, Supabase, WorkOS, Shopify, RevenueCat), whether it is `connected`, and each triggerable `event` (with payload `fieldKeys` + whether a brew trigger is already `provisioned`). Filter to one provider with `?provider=`. Requires the `automations` scope.
          */
         get: operations["listIntegrations"];
         put?: never;
@@ -1793,7 +1793,8 @@ export interface components {
             filters: {
                 filters: {
                     field: string;
-                    operator: string;
+                    /** @enum {string} */
+                    operator: "equals" | "not_equals" | "contains" | "not_contains" | "contains_any" | "not_contains_any" | "starts_with" | "ends_with" | "gt" | "gte" | "lt" | "lte" | "between" | "is_true" | "is_false" | "in" | "not_in" | "is_empty" | "not_exists" | "is_not_empty" | "exists" | "is_set" | "before" | "after" | "on_date";
                     value?: unknown;
                     type?: string;
                 }[];
@@ -3096,7 +3097,8 @@ export interface components {
                 filters: {
                     filters: {
                         field: string;
-                        operator: string;
+                        /** @enum {string} */
+                        operator: "equals" | "not_equals" | "contains" | "not_contains" | "contains_any" | "not_contains_any" | "starts_with" | "ends_with" | "gt" | "gte" | "lt" | "lte" | "between" | "is_true" | "is_false" | "in" | "not_in" | "is_empty" | "not_exists" | "is_not_empty" | "exists" | "is_set" | "before" | "after" | "on_date";
                         value?: unknown;
                         type?: string;
                     }[];
@@ -3120,7 +3122,8 @@ export interface components {
             filters: {
                 filters: {
                     field: string;
-                    operator: string;
+                    /** @enum {string} */
+                    operator: "equals" | "not_equals" | "contains" | "not_contains" | "contains_any" | "not_contains_any" | "starts_with" | "ends_with" | "gt" | "gte" | "lt" | "lte" | "between" | "is_true" | "is_false" | "in" | "not_in" | "is_empty" | "not_exists" | "is_not_empty" | "exists" | "is_set" | "before" | "after" | "on_date";
                     value?: unknown;
                     type?: string;
                 }[];
@@ -3137,7 +3140,8 @@ export interface components {
             filters?: {
                 filters: {
                     field: string;
-                    operator: string;
+                    /** @enum {string} */
+                    operator: "equals" | "not_equals" | "contains" | "not_contains" | "contains_any" | "not_contains_any" | "starts_with" | "ends_with" | "gt" | "gte" | "lt" | "lte" | "between" | "is_true" | "is_false" | "in" | "not_in" | "is_empty" | "not_exists" | "is_not_empty" | "exists" | "is_set" | "before" | "after" | "on_date";
                     value?: unknown;
                     type?: string;
                 }[];
@@ -5638,6 +5642,7 @@ export interface operations {
                      *       "data": [
                      *         {
                      *           "sendId": "snd_8fK2mQ4p",
+                     *           "kind": "campaign",
                      *           "emailId": "eml_welcome",
                      *           "emailVersionId": "emv_welcome_v3",
                      *           "status": "sent",
@@ -6283,6 +6288,7 @@ export interface operations {
                     /**
                      * @example {
                      *       "sendId": "snd_8fK2mQ4p",
+                     *       "kind": "campaign",
                      *       "emailId": "eml_welcome",
                      *       "emailVersionId": "emv_welcome_v3",
                      *       "status": "sent",
@@ -17494,7 +17500,7 @@ export interface operations {
                 content: {
                     /**
                      * @example {
-                     *       "integrations": [
+                     *       "data": [
                      *         {
                      *           "provider": "clerk",
                      *           "connected": true,
@@ -17515,7 +17521,12 @@ export interface operations {
                      *             }
                      *           ]
                      *         }
-                     *       ]
+                     *       ],
+                     *       "pagination": {
+                     *         "limit": 100,
+                     *         "cursor": null,
+                     *         "hasMore": false
+                     *       }
                      *     }
                      */
                     "application/json": components["schemas"]["IntegrationsGetResponse"];
@@ -19975,7 +19986,7 @@ export interface operations {
             200: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
+                    "x-request-id"?: string;
                     [name: string]: unknown;
                 };
                 content: {
