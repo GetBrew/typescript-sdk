@@ -51,6 +51,34 @@ describe('emails.import', () => {
     expect(result.html).toContain('Welcome to Brew')
   })
 
+  it('forwards mjml + jsx formats', async () => {
+    let body: unknown
+    server.use(
+      http.post('https://brew.new/api/v1/emails/import', async ({ request }) => {
+        body = await request.json()
+        return HttpResponse.json(
+          {
+            emailId: 'eml_imported',
+            emailVersionId: 'emv_imported_v1',
+            html: '<!DOCTYPE html><html><body>x</body></html>',
+          },
+          { status: 201 }
+        )
+      })
+    )
+    const { client } = makeTestHttpClient()
+    const importEmail = createImportEmail(client)
+
+    await importEmail({
+      format: 'mjml',
+      content: '<mjml><mj-body><mj-section><mj-column><mj-text>Hi</mj-text></mj-column></mj-section></mj-body></mjml>',
+    })
+    expect((body as { format?: string })?.format).toBe('mjml')
+
+    await importEmail({ format: 'jsx', content: '<Html><Body><Text>x</Text></Body></Html>' })
+    expect((body as { format?: string })?.format).toBe('jsx')
+  })
+
   it('honors a caller-supplied idempotency key', async () => {
     let captured: Request | undefined
     server.use(

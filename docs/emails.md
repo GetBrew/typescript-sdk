@@ -177,16 +177,17 @@ if ('emailId' in result) {
 
 ## `import`
 
-Import an existing email from raw `html` or react-email `jsx` into a
-saved Brew email, without running the generation agent. Returns the same
+Import existing markup — raw `html`, `mjml`, or react-email `jsx` — into a
+saved, editable Brew email. The markup is transcribed into a clean design
+and every external image is re-hosted on the Brew CDN. Returns the same
 artifact shape as [`generate`](#generate) (HTTP 201). POST requests get an
 auto-generated `Idempotency-Key`, so retries never double-import; you can
 also supply your own via `RequestOptions.idempotencyKey`.
 
 ```ts
 type ImportEmailInput = {
-  readonly format: 'html' | 'jsx'
-  readonly content: string
+  readonly format: 'html' | 'mjml' | 'jsx'
+  readonly content: string // the raw markup as a string
   readonly title?: string
   readonly baseUrl?: string // base for resolving relative asset URLs
 }
