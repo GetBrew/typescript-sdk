@@ -13,15 +13,17 @@ Three methods for listing saved emails, generating new ones, and editing existin
 ```ts
 type EmailSummary = {
   readonly emailId: string
-  readonly emailTitle: string
+  readonly emailVersionId?: string
+  readonly title: string
 }
 
 type EmailStatus = 'streaming' | 'complete' | 'error'
 
 type GeneratedEmailArtifact = {
   readonly emailId: string
-  readonly emailHtml: string
-  readonly emailPng?: string
+  readonly emailVersionId: string
+  readonly html: string
+  readonly previewImage?: string // rendered screenshot URL
 }
 
 type GeneratedEmailTextResponse = {
@@ -44,17 +46,26 @@ type ListEmailsInput = {
   readonly updatedAtTo?: string
 }
 
-type ListEmailsResponse = {
-  readonly emails: ReadonlyArray<EmailSummary>
+type EmailsListResponse = {
+  readonly data: ReadonlyArray<EmailSummary>
+  readonly pagination: {
+    readonly limit: number
+    readonly cursor: string | null
+    readonly hasMore: boolean
+  }
 }
 
-list(input?: ListEmailsInput): Promise<ListEmailsResponse>
+list(input?: ListEmailsInput): Promise<EmailsListResponse>
 ```
 
 ```ts
-const { emails } = await brew.emails.list({
+const { data } = await brew.emails.list({
   status: 'complete',
 })
+
+for (const email of data) {
+  console.log(email.emailId, email.title)
+}
 ```
 
 ---
@@ -69,7 +80,7 @@ accept a `brandId` field — sending one returns `400 INVALID_REQUEST`.
 ```ts
 type GenerateEmailInput = {
   readonly prompt: string
-  readonly contentUrl?: string
+  readonly contentUrls?: ReadonlyArray<string>
   readonly referenceEmailId?: string
 }
 
@@ -115,8 +126,8 @@ const result = await brew.emails.generate({
 
 if ('emailId' in result) {
   console.log(result.emailId)
-  console.log(result.emailHtml)
-  // result.emailPng is the storage URL of the rendered screenshot
+  console.log(result.html)
+  // result.previewImage is the storage URL of the rendered screenshot
 } else {
   // The agent answered with prose instead of an artifact (rare —
   // happens when the prompt asks a question rather than asking for
@@ -143,7 +154,7 @@ URL path. `EditEmailInput` does **not** accept a `brandId` or an
 type EditEmailInput = {
   readonly emailId: string // path parameter
   readonly prompt: string
-  readonly contentUrl?: string
+  readonly contentUrls?: ReadonlyArray<string>
 }
 
 type EditEmailResponse =
@@ -171,7 +182,7 @@ if ('emailId' in generated) {
 
   if ('emailId' in edited) {
     // Same emailId, new latest version stored in Convex.
-    console.log(edited.emailId, edited.emailHtml)
+    console.log(edited.emailId, edited.html)
   }
 }
 ```
@@ -202,7 +213,7 @@ await brew.emails.edit(
 
 | Status | Code                   | Cause                                                                                                                      |
 | ------ | ---------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| 400    | `INVALID_REQUEST`      | Missing `prompt`, invalid `contentUrl`, or unsupported field (e.g. `brandId`, `emailId` in body)                           |
+| 400    | `INVALID_REQUEST`      | Missing `prompt`, invalid `contentUrls`, or unsupported field (e.g. `brandId`, `emailId` in body)                          |
 | 404    | `EMAIL_NOT_FOUND`      | The email doesn't exist for the brand bound to your key. Cross-brand ids surface here (not 403) to avoid leaking existence |
 | 409    | `EMAIL_IN_PROGRESS`    | The target email is currently being generated. Retry shortly                                                               |
 | 409    | `IDEMPOTENCY_CONFLICT` | Reused `Idempotency-Key` with a different request body                                                                     |

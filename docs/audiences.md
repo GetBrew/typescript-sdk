@@ -3,14 +3,15 @@
 Full CRUD for saved audiences (named filter sets over the brand's contacts).
 An audience is the recipient target for `brew.sends.create(...)`.
 
-| Method                    | HTTP                             |
-| ------------------------- | -------------------------------- |
-| [`list`](#list)           | `GET /v1/audiences`              |
-| [`get`](#get)             | `GET /v1/audiences?audienceId=…` |
-| [`create`](#create)       | `POST /v1/audiences`             |
-| [`duplicate`](#duplicate) | `POST /v1/audiences`             |
-| [`update`](#update)       | `PATCH /v1/audiences`            |
-| [`delete`](#delete)       | `DELETE /v1/audiences`           |
+| Method                    | HTTP                                       |
+| ------------------------- | ------------------------------------------ |
+| [`list`](#list)           | `GET /v1/audiences`                        |
+| [`get`](#get)             | `GET /v1/audiences/{audienceId}`           |
+| [`getCount`](#getcount)   | `GET /v1/audiences/{audienceId}/count`     |
+| [`create`](#create)       | `POST /v1/audiences`                       |
+| [`duplicate`](#duplicate) | `POST /v1/audiences/{audienceId}/duplicate` |
+| [`update`](#update)       | `PATCH /v1/audiences/{audienceId}`         |
+| [`delete`](#delete)       | `DELETE /v1/audiences/{audienceId}`        |
 
 ## Shared types
 
@@ -33,28 +34,45 @@ type Audience = {
 }
 ```
 
-Every read AND write returns the uniform `{ audiences: Audience[] }` envelope
-(single fetch + create/update return a one-element array).
+`list` returns the uniform `{ data, pagination }` envelope. `get`,
+`create`, `duplicate`, and `update` return the **bare** `Audience` row.
 
 ---
 
 ## `list`
 
+Returns `{ data, pagination }`; accepts `{ limit, cursor }`.
+
 ```ts
-const { audiences } = await brew.audiences.list()
+const { data } = await brew.audiences.list()
+for (const audience of data) {
+  console.log(audience.audienceId, audience.count)
+}
 ```
 
 ## `get`
 
+Returns the bare `Audience` row, or `404 AUDIENCE_NOT_FOUND` on a miss.
+
 ```ts
-const { audiences } = await brew.audiences.get({ audienceId })
-const audience = audiences[0] // or 404 AUDIENCE_NOT_FOUND
+const audience = await brew.audiences.get({ audienceId })
+console.log(audience.audienceName, audience.count)
+```
+
+## `getCount`
+
+Fetch a fresh member count for one audience — `{ audienceId, count }`.
+
+```ts
+const { count } = await brew.audiences.getCount({ audienceId })
 ```
 
 ## `create`
 
+Returns the created `Audience` row.
+
 ```ts
-const { audiences } = await brew.audiences.create({
+const audience = await brew.audiences.create({
   name: 'Nordic Founders',
   filters: {
     filters: [{ field: 'country', operator: 'equals', value: 'NO' }],
@@ -65,16 +83,20 @@ const { audiences } = await brew.audiences.create({
 
 ## `duplicate`
 
+Clones an existing audience (name suffixed `" (copy)"`). Returns the
+duplicated `Audience` row.
+
 ```ts
-const { audiences } = await brew.audiences.duplicate({
-  duplicateFrom: audienceId,
-})
+const copy = await brew.audiences.duplicate({ audienceId })
 ```
 
 ## `update`
 
+Pass `audienceId` plus at least one of `name` / `filters`. Returns the
+updated `Audience` row.
+
 ```ts
-await brew.audiences.update({ audienceId, name: 'EU Founders' })
+const updated = await brew.audiences.update({ audienceId, name: 'EU Founders' })
 ```
 
 ## `delete`

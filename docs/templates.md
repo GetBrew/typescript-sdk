@@ -11,13 +11,19 @@ One method for listing public templates.
 ```ts
 type Template = {
   readonly emailId: string
-  readonly emailHtml: string
-  readonly emailPng: string
+  readonly title: string
+  readonly category?: string
+  readonly brand?: string
+  readonly html: string
+  readonly previewImage: string // rendered screenshot URL
+  readonly updatedAt: string
 }
 ```
 
-Templates are public starter emails. You can use the returned `emailId`
-as `referenceEmailId` in `brew.emails.generate(...)`.
+Templates are public starter emails. Each row carries the rendered
+`html` + `previewImage` directly — no per-template fetch is needed. You
+can use the returned `emailId` as `referenceEmailId` in
+`brew.emails.generate(...)`.
 
 ---
 
@@ -30,19 +36,30 @@ type ListTemplatesInput = {
   readonly brand?: string
   readonly category?: string
   readonly semantic?: string
+  readonly limit?: number
+  readonly cursor?: string
 }
 
-type ListTemplatesResponse = {
-  readonly templates: ReadonlyArray<Template>
+type TemplatesListResponse = {
+  readonly data: ReadonlyArray<Template>
+  readonly pagination: {
+    readonly limit: number
+    readonly cursor: string | null
+    readonly hasMore: boolean
+  }
 }
 
-list(input?: ListTemplatesInput): Promise<ListTemplatesResponse>
+list(input?: ListTemplatesInput): Promise<TemplatesListResponse>
 ```
 
 ```ts
-const { templates } = await brew.templates.list({
+const { data } = await brew.templates.list({
   brand: 'vercel.com',
   category: 'newsletter',
   semantic: 'frontend',
 })
+
+for (const template of data) {
+  console.log(template.emailId, template.title)
+}
 ```

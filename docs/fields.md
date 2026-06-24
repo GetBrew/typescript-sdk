@@ -4,11 +4,11 @@ Three methods for managing the custom-field schema attached to
 contacts. Custom fields let you store arbitrary structured data on
 each contact (plan, signup date, lifetime value, etc.).
 
-| Method              | HTTP                |
-| ------------------- | ------------------- |
-| [`list`](#list)     | `GET /v1/fields`    |
-| [`create`](#create) | `POST /v1/fields`   |
-| [`delete`](#delete) | `DELETE /v1/fields` |
+| Method              | HTTP                            |
+| ------------------- | ------------------------------- |
+| [`list`](#list)     | `GET /v1/fields`                |
+| [`create`](#create) | `POST /v1/fields`               |
+| [`delete`](#delete) | `DELETE /v1/fields/{fieldName}` |
 
 ## Shared types
 
@@ -25,8 +25,9 @@ type ContactField = {
   readonly isSearchable?: boolean
 }
 
-type FieldsSuccessResponse = {
-  readonly success: true
+type FieldsDeleteResponse = {
+  readonly fieldName: string
+  readonly deleted: boolean
 }
 ```
 
@@ -52,24 +53,34 @@ supports.
 List every contact field definition (both core and custom).
 
 ```ts
-type ListFieldsResponse = {
-  readonly fields: ReadonlyArray<ContactField>
+type ListFieldsInput = {
+  readonly limit?: number // 1–100, default 100
+  readonly cursor?: string
 }
 
-list(): Promise<ListFieldsResponse>
+type FieldsGetResponse = {
+  readonly data: ReadonlyArray<ContactField>
+  readonly pagination: {
+    readonly limit: number
+    readonly cursor: string | null
+    readonly hasMore: boolean
+  }
+}
+
+list(input?: ListFieldsInput): Promise<FieldsGetResponse>
 ```
 
 ```ts
-const { fields } = await brew.fields.list()
+const { data } = await brew.fields.list()
 
-const customOnly = fields.filter((field) => field.isCore !== true)
+const customOnly = data.filter((field) => field.isCore !== true)
 for (const field of customOnly) {
   console.log(`${field.fieldName} (${field.fieldType})`)
 }
 ```
 
-The full envelope (not just the array) is returned so the API can
-grow metadata like pagination later without a breaking change.
+The uniform `{ data, pagination }` envelope is returned — page with
+`limit` and the opaque `cursor` echoed from `pagination.cursor`.
 
 ---
 
@@ -86,7 +97,7 @@ type CreateFieldInput = {
 create(
   input: CreateFieldInput,
   options?: RequestOptions
-): Promise<FieldsSuccessResponse>
+): Promise<ContactField>
 ```
 
 ```ts
@@ -98,9 +109,10 @@ await brew.fields.create({ fieldName: 'isVip', fieldType: 'bool' })
 
 POST requests get an auto-generated `Idempotency-Key`, so retrying a
 transient failure is safe. `POST /v1/fields` is upsert-shaped: a
-duplicate create for the same `fieldName` returns `200 { success: true }`
-instead of throwing, so it is safe to call this method to lazily ensure
-a custom field exists.
+duplicate create for the same `fieldName` returns the existing field
+definition instead of throwing, so it is safe to call this method to
+lazily ensure a custom field exists. The created/updated field
+definition is returned bare (no wrapping envelope).
 
 The only validation failure surfaced as a `BrewApiError` here is
 `422 CORE_FIELD_IMMUTABLE` (when `fieldName` collides with a
@@ -119,12 +131,13 @@ type DeleteFieldInput = { readonly fieldName: string }
 delete(
   input: DeleteFieldInput,
   options?: RequestOptions
-): Promise<FieldsSuccessResponse>
+): Promise<FieldsDeleteResponse>
 ```
 
 ```ts
-await brew.fields.delete({ fieldName: 'plan' })
+const { deleted } = await brew.fields.delete({ fieldName: 'plan' })
 ```
 
 DELETE retries on transient failures by default. Re-deleting a field
-that no longer exists is safe — the server treats it as success.
+that no longer exists is safe — the server resolves with
+`{ fieldName, deleted: false }` rather than throwing.
