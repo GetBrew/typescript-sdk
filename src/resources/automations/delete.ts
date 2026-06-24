@@ -13,8 +13,9 @@ export type DeleteAutomationResponse =
   components['schemas']['AutomationsDeleteResponse']
 
 /**
- * `DELETE /v1/automations` — cascade-delete. Idempotent (deleting
- * an already-deleted automation returns all zeros, not 404).
+ * `DELETE /v1/automations/{automationId}` — cascade-delete. The id
+ * travels in the PATH (no body). Idempotent (deleting an
+ * already-deleted automation returns all zeros, not 404).
  */
 export function createDeleteAutomation(client: HttpClient) {
   function deleteAutomation(
@@ -33,8 +34,7 @@ export function createDeleteAutomation(client: HttpClient) {
   > {
     const response = await client.request<DeleteAutomationResponse>({
       method: 'DELETE',
-      path: '/v1/automations',
-      body: input,
+      path: `/v1/automations/${encodeURIComponent(input.automationId)}`,
       ...(options ? { options } : {}),
     })
     return unwrapResponse(response, options)

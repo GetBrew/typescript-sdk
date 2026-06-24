@@ -17,6 +17,7 @@ import {
   createTriggersResource,
   type TriggersResource,
 } from './triggers/resource'
+import { createListAutomationVersions } from './versions'
 
 export type AutomationsResource = {
   /** `POST /v1/automations` — deterministic create. */
@@ -25,15 +26,17 @@ export type AutomationsResource = {
   readonly test: ReturnType<typeof createTestAutomation>
   /** `GET /v1/automations` — list every automation in the brand. */
   readonly list: ReturnType<typeof createListAutomations>
-  /** `GET /v1/automations?automationId=…` — single automation + optional includes. */
+  /** `GET /v1/automations/{automationId}` — single automation (bare `AutomationRow`, full graph). */
   readonly get: ReturnType<typeof createGetAutomation>
-  /** `PATCH /v1/automations` — update OR publish / unpublish. */
+  /** `PATCH /v1/automations/{automationId}` — update metadata and/or the graph. */
   readonly patch: ReturnType<typeof createPatchAutomation>
-  /** Sugar over `patch({ published: true })`. Pass `automationVersionId` to publish a specific historical version. */
+  /** `POST /v1/automations/{automationId}/publish`. Pass `automationVersionId` to publish a specific historical version. */
   readonly publish: ReturnType<typeof createPublishAutomation>
-  /** Sugar over `patch({ published: false })`. */
+  /** `POST /v1/automations/{automationId}/unpublish`. */
   readonly unpublish: ReturnType<typeof createUnpublishAutomation>
-  /** `DELETE /v1/automations` — cascade. */
+  /** `GET /v1/automations/{automationId}/versions` — paged version history (`{ data, pagination }`). */
+  readonly versions: ReturnType<typeof createListAutomationVersions>
+  /** `DELETE /v1/automations/{automationId}` — cascade. */
   readonly delete: ReturnType<typeof createDeleteAutomation>
   /** `/v1/automations/triggers(/{triggerEventId}(/fire))` — trigger CRUD + fire. */
   readonly triggers: TriggersResource
@@ -44,15 +47,15 @@ export type AutomationsResource = {
 export function createAutomationsResource(
   client: HttpClient
 ): AutomationsResource {
-  const patch = createPatchAutomation(client)
   return {
     create: createCreateAutomation(client),
     test: createTestAutomation(client),
     list: createListAutomations(client),
     get: createGetAutomation(client),
-    patch,
-    publish: createPublishAutomation(patch),
-    unpublish: createUnpublishAutomation(patch),
+    patch: createPatchAutomation(client),
+    publish: createPublishAutomation(client),
+    unpublish: createUnpublishAutomation(client),
+    versions: createListAutomationVersions(client),
     delete: createDeleteAutomation(client),
     triggers: createTriggersResource(client),
     runs: createAutomationRunsResource(client),

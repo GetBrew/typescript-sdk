@@ -2,7 +2,7 @@ import type { PaginationInput } from '../../core/pagination'
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
-import type { AutomationsListResponse } from './types'
+import type { Automation, AutomationsListResponse } from './types'
 
 export type ListAutomationsResponse = AutomationsListResponse
 
@@ -21,7 +21,7 @@ export type ListAutomationsInput = PaginationInput & {
  * brand. Returns `{ automations, pagination }`. Rows are LEAN by
  * default (no `nodes`/`connections`); pass `include: ['graph']` to
  * attach the graph. For a single row use `brew.automations.get(...)` —
- * it always returns the full graph (one-element array, or `404
+ * it always returns the full graph as a bare `AutomationRow` (or `404
  * AUTOMATION_NOT_FOUND`).
  */
 export function createListAutomations(client: HttpClient) {
@@ -59,21 +59,17 @@ export function createListAutomations(client: HttpClient) {
 
 export type GetAutomationInput = {
   automationId: string
-  /**
-   * Optional include token. `'versions'` attaches the full version
-   * history on the row inline (`automations[0].versions[]`).
-   */
-  include?: ReadonlyArray<'versions'>
 }
 
 /**
- * Single-row get returns the same `{ automations: [...] }` envelope
- * as list mode — a one-element array (or `404
- * AUTOMATION_NOT_FOUND` when missing). Use
- * `result.automations[0]` to destructure the row; the optional
- * `versions[]` history (when `?include=versions`) is on that row.
+ * `GET /v1/automations/{automationId}` returns the BARE
+ * `AutomationRow` with the full graph (`nodes` + `connections`),
+ * lifecycle (`published`), and derived `emailIds` — NOT the
+ * `{ automations: [...] }` list envelope. Missing / cross-brand ids
+ * surface as `404 AUTOMATION_NOT_FOUND`. For version history use
+ * `brew.automations.versions(...)`.
  */
-export type GetAutomationResponse = AutomationsListResponse
+export type GetAutomationResponse = Automation
 
 export function createGetAutomation(client: HttpClient) {
   function getAutomation(
@@ -88,16 +84,9 @@ export function createGetAutomation(client: HttpClient) {
     input: GetAutomationInput,
     options?: RequestOptions
   ): Promise<GetAutomationResponse | BrewRawResponse<GetAutomationResponse>> {
-    const query: Record<string, string> = {
-      automationId: input.automationId,
-    }
-    if (input.include && input.include.length > 0) {
-      query.include = input.include.join(',')
-    }
     const response = await client.request<GetAutomationResponse>({
       method: 'GET',
-      path: '/v1/automations',
-      query,
+      path: `/v1/automations/${encodeURIComponent(input.automationId)}`,
       ...(options ? { options } : {}),
     })
     return unwrapResponse(response, options)

@@ -111,6 +111,10 @@ export type {
   PatchAutomationResponse,
 } from './resources/automations/patch'
 export type {
+  ListAutomationVersionsInput,
+  AutomationVersionsResponse,
+} from './resources/automations/versions'
+export type {
   DeleteAutomationInput,
   DeleteAutomationResponse,
 } from './resources/automations/delete'
