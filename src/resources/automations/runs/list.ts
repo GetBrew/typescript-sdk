@@ -1,5 +1,5 @@
-import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import { unwrapResponse, type HttpClient } from '../../../core/http'
+import type { BrewRawResponse, RequestOptions } from '../../../types'
 
 import type {
   AutomationRunDetailResponse,
@@ -22,7 +22,7 @@ export type ListAutomationRunsInput = {
 export type ListAutomationRunsResponse = AutomationRunsListResponse
 
 /**
- * `GET /v1/analytics/automations/runs` — list recent automation runs
+ * `GET /v1/automations/runs` — list recent automation runs
  * (newest first) under a `{ data, pagination }` envelope. Requires the
  * `automations` scope.
  *
@@ -62,7 +62,7 @@ export function createListAutomationRuns(client: HttpClient) {
     }
     const response = await client.request<ListAutomationRunsResponse>({
       method: 'GET',
-      path: '/v1/analytics/automations/runs',
+      path: '/v1/automations/runs',
       query,
       ...(options ? { options } : {}),
     })
@@ -84,7 +84,7 @@ export type GetAutomationRunInput = {
 export type GetAutomationRunResponse = AutomationRunDetailResponse
 
 /**
- * `GET /v1/analytics/automations/runs/{automationRunId}` — fetch one
+ * `GET /v1/automations/runs/{automationRunId}` — fetch one
  * automation run with its per-node `logs[]`. Requires the `automations`
  * scope.
  *

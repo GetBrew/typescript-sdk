@@ -1,5 +1,85 @@
 # Changelog
 
+## 8.0.0
+
+**BREAKING.** The v1 API was consolidated into three domains
+(`automations`, `analytics`, plus the per-resource roots). The SDK surface
+moves to match, several resources are removed, and the `dry_run` cost-preview
+feature is gone. Generated types refreshed from the resynced
+`openapi/public-api-v1.yaml`.
+
+### Breaking — resources removed
+
+- **`brew.me`** removed — `GET /v1/me` was deleted from the API.
+- **`brew.usage`** removed — `GET /v1/usage` was deleted from the API.
+- **`brew.integrations`** removed — `GET /v1/integrations` was deleted from
+  the API.
+- **`brew.templates.get`** removed — `GET /v1/templates/{emailId}` was deleted.
+  The single-template fetch is gone; **`brew.templates.list`** rows now carry
+  the rendered `html` + `previewImage` inline, so no follow-up call is needed.
+
+### Breaking — namespace moves
+
+Trigger and automation-run management moved under `automations`; send reads and
+fired-trigger history moved under `analytics`:
+
+```ts
+// Triggers — now under automations (RESTful, id-on-path)
+brew.triggers.list()        →  brew.automations.triggers.list()
+brew.triggers.get(...)      →  brew.automations.triggers.get(...)
+brew.triggers.create(...)   →  brew.automations.triggers.create(...)   // returns the bare row (201)
+brew.triggers.patch(...)    →  brew.automations.triggers.patch(...)     // { triggerEventId, …fields }
+brew.triggers.delete(...)   →  brew.automations.triggers.delete(...)
+brew.triggers.fire(...)     →  brew.automations.triggers.fire(...)
+
+// Automation runs — now under automations
+brew.automationRuns.list()  →  brew.automations.runs.list()
+brew.automationRuns.get(...) →  brew.automations.runs.get(...)
+
+// Send reads — now under analytics (create + test stay on `sends`)
+brew.sends.list()           →  brew.analytics.sends.list()
+brew.sends.listAll()        →  brew.analytics.sends.listAll()
+brew.sends.get(...)         →  brew.analytics.sends.get(...)
+brew.sends.listEvents(...)  →  brew.analytics.sends.listEvents(...)
+brew.sends.listForEmail(...) → brew.analytics.sends.listForEmail(...)
+
+// Trigger instances (the old `events` reads) — now under analytics
+brew.events.list()          →  brew.analytics.triggerInstances.list()
+brew.events.get(...)        →  brew.analytics.triggerInstances.get(...)
+```
+
+The top-level **`brew.sends`** keeps only the writes:
+`brew.sends.create` (`POST /v1/sends`) and `brew.sends.test`
+(`POST /v1/sends/test`).
+
+Underlying paths changed too: triggers now hit
+`/v1/automations/triggers(/{triggerEventId}(/fire))`, runs hit
+`/v1/automations/runs(/{automationRunId})`, send reads hit
+`/v1/analytics/sends(/{sendId}(/events))`, and trigger instances hit
+`/v1/analytics/trigger-instances(/{triggerInstanceId})`.
+
+### Breaking — `dry_run` removed
+
+The `dry_run` cost-preview flag is gone from the API and from every SDK method
+input/options (`emails.generate` / `emails.edit` / `emails.preview`, all
+`content.*` methods, and `automations.create` / `automations.patch`). The
+dry-run preview return-type union on `automations.create` was dropped — it now
+always returns `{ automations: [row] }`.
+
+### Added
+
+- **`brew.help.get()`** → `GET /v1/help` — the no-auth, machine-readable API
+  catalog (auth, scopes, rate limits, flat credit costs, error envelope, and
+  the full endpoint list) an MCP server or agent can parse to self-discover the
+  API.
+
+### Final client surface
+
+`account`, `analytics` (`campaigns` / `automations` / `events` / `sends` /
+`triggerInstances`), `audiences`, `automations` (+ `triggers` + `runs`),
+`brand`, `contacts`, `content`, `domains`, `emails`, `fields`, `help`, `sends`
+(create / test), `templates`.
+
 ## Unreleased (7.0.0)
 
 The full v1 surface — major expansion + the completion of the lean-lists

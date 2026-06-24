@@ -37,40 +37,51 @@ export type { ContactsResource } from './resources/contacts/resource'
 export type { ContentResource } from './resources/content/resource'
 export type { DomainsResource } from './resources/domains/resource'
 export type { EmailsResource } from './resources/emails/resource'
-export type { AutomationRunsResource } from './resources/automation-runs/resource'
 export type { FieldsResource } from './resources/fields/resource'
-export type { IntegrationsResource } from './resources/integrations/resource'
-export type { MeResource } from './resources/me/resource'
+export type { HelpResource } from './resources/help/resource'
 export type { SendsResource } from './resources/sends/resource'
 export type { TemplatesResource } from './resources/templates/resource'
-export type { TriggersResource } from './resources/triggers/resource'
-export type { UsageResource } from './resources/usage/resource'
+
+// ---------- Nested resource shapes ----------
+export type { TriggersResource } from './resources/automations/triggers/resource'
+export type { AutomationRunsResource } from './resources/automations/runs/resource'
+export type { AnalyticsSendsResource } from './resources/analytics/sends/resource'
+export type { AnalyticsTriggerInstancesResource } from './resources/analytics/trigger-instances/resource'
 
 // ---------- New v1 resource domain types ----------
 export type * from './resources/account/types'
-export type * from './resources/me/types'
 export type * from './resources/content/types'
 
-// ---------- Triggers: domain types ----------
-export type { Trigger, TriggersListResponse } from './resources/triggers/types'
+// ---------- Help: domain types ----------
+export type { HelpResponse, GetHelpResponse } from './resources/help/get'
+
+// ---------- Automations › triggers: domain types ----------
+export type {
+  Trigger,
+  TriggersListResponse,
+} from './resources/automations/triggers/types'
 export type {
   CreateTriggerInput,
   CreateTriggerResponse,
-} from './resources/triggers/create'
+} from './resources/automations/triggers/create'
 export type {
   GetTriggerInput,
   GetTriggerResponse,
   ListTriggersInput,
   ListTriggersResponse,
-} from './resources/triggers/list'
+} from './resources/automations/triggers/list'
 export type {
   PatchTriggerInput,
   PatchTriggerResponse,
-} from './resources/triggers/patch'
+} from './resources/automations/triggers/patch'
 export type {
   DeleteTriggerInput,
   DeleteTriggerResponse,
-} from './resources/triggers/delete'
+} from './resources/automations/triggers/delete'
+export type {
+  FireTriggerInput,
+  FireTriggerResponse,
+} from './resources/automations/triggers/fire'
 
 // ---------- Automations: domain types ----------
 export type {
@@ -104,21 +115,20 @@ export type {
   DeleteAutomationResponse,
 } from './resources/automations/delete'
 
-// ---------- Automation runs: read-only run history ----------
-// (Run history relocated to /v1/analytics/automations/runs. Fire/test now live
-// on `triggers.fire()` / `automations.test()`; public replay/cancel removed.)
+// ---------- Automations › runs: read-only run history ----------
+// (Exposed as `client.automations.runs.*` against /v1/automations/runs.)
 export type {
   AutomationRun,
   AutomationRunLog,
   AutomationRunsListResponse,
   AutomationRunDetailResponse,
-} from './resources/automation-runs/types'
+} from './resources/automations/runs/types'
 export type {
   ListAutomationRunsInput,
   ListAutomationRunsResponse,
   GetAutomationRunInput,
   GetAutomationRunResponse,
-} from './resources/automation-runs/list'
+} from './resources/automations/runs/list'
 
 // ---------- Analytics: domain types + method outputs ----------
 export type {
@@ -136,6 +146,46 @@ export type {
   EventsAnalyticsAllInput,
 } from './resources/analytics/events'
 
+// ---------- Analytics › sends: send reads + per-recipient event feeds ----------
+export type {
+  Send,
+  SendStats,
+  SendStatus,
+  SendEvent,
+  SendsListResponse,
+  SendEventsResponse,
+  ListSendsInput,
+  ListEmailSendsInput,
+  ListSendEventsInput,
+} from './resources/analytics/sends/types'
+export type { ListAllSendsInput } from './resources/analytics/sends/list'
+export type {
+  GetSendInput,
+  GetSendResponse,
+} from './resources/analytics/sends/get'
+export type {
+  ListSendEventsForSendInput,
+  ListAllSendEventsInput,
+} from './resources/analytics/sends/list-events'
+export type {
+  ListSendsForEmailInput,
+  ListAllSendsForEmailInput,
+} from './resources/analytics/sends/list-for-email'
+
+// ---------- Analytics › trigger-instances: fired-trigger history ----------
+export type {
+  TriggerInstance,
+  TriggerInstanceDetail,
+  TriggerInstancesListResponse,
+  ListTriggerInstancesInput,
+} from './resources/analytics/trigger-instances/types'
+export type {
+  ListAllTriggerInstancesInput,
+  ListTriggerInstancesResponse,
+  GetTriggerInstanceInput,
+  GetTriggerInstanceResponse,
+} from './resources/analytics/trigger-instances/list'
+
 // ---------- Audiences: domain types ----------
 export type { Audience } from './resources/audiences/types'
 export type { Domain } from './resources/domains/types'
@@ -145,16 +195,14 @@ export type {
   GeneratedEmailArtifact,
   GeneratedEmailTextResponse,
 } from './resources/emails/types'
+// Send domain reads (`Send`, `SendStats`, `SendsListResponse`, …) are
+// exported from the `analytics/sends` block above; the top-level `sends`
+// resource keeps only the create + test request/response shapes.
 export type {
   SendAcceptedResponse,
   SendAcceptedStatus,
   SendsPostRequest,
-  SendsListResponse,
   SendsTestResponse,
-  Send,
-  SendStats,
-  SendStatus,
-  ListSendsInput,
 } from './resources/sends/types'
 export type { Template } from './resources/templates/types'
 
@@ -230,8 +278,6 @@ export type {
   CreateSendResponse,
 } from './resources/sends/create'
 export type { TestSendInput, TestSendResponse } from './resources/sends/test'
-export type { GetSendInput, GetSendResponse } from './resources/sends/get'
-export type { ListAllSendsInput } from './resources/sends/list-all'
 export type {
   ListTemplatesInput,
   ListTemplatesResponse,
@@ -296,24 +342,6 @@ export type {
   BrandStatus,
   BrandGetResponse,
 } from './resources/brand/types'
-
-// ---------- Usage: domain types + method outputs ----------
-export type {
-  Usage,
-  UsageOverview,
-  UsageTrendPoint,
-  UsageRouteStat,
-  UsageGetResponse,
-} from './resources/usage/types'
-
-// ---------- Integrations: domain types + method inputs/outputs ----------
-export type {
-  Integration,
-  IntegrationEvent,
-  IntegrationProvider,
-  IntegrationsGetResponse,
-  ListIntegrationsInput,
-} from './resources/integrations/types'
 
 // ---------- Metadata ----------
 export { SDK_NAME, SDK_VERSION } from './version'

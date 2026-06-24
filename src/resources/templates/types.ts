@@ -4,8 +4,9 @@ import type { components } from '../../generated/openapi-types'
 export type TemplatesListResponse =
   components['schemas']['TemplatesListResponse']
 
-/** One lean template row from the list envelope (`{ emailId, … }`). */
+/**
+ * One template row from the list envelope. Each row now carries the
+ * rendered `html` + `previewImage` directly — the single-template
+ * `GET /v1/templates/{emailId}` endpoint was removed.
+ */
 export type Template = TemplatesListResponse['data'][number]
-
-/** A single template with rendered `html` + `previewImage` (`GET /v1/templates/{emailId}`). */
-export type TemplateDetail = components['schemas']['Template']

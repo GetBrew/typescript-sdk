@@ -24,7 +24,7 @@ export type EmailsResource = {
   readonly versions: ReturnType<typeof createListEmailVersions>
   /** `DELETE /v1/emails/{emailId}` — idempotent hard-delete of all versions. */
   readonly delete: ReturnType<typeof createDeleteEmail>
-  /** `POST /v1/emails/{emailId}/preview` — render the latest version to a hosted PNG at one/both device widths (credit-metered, `dry_run`-aware) (scope: `emails`). */
+  /** `POST /v1/emails/{emailId}/preview` — render the latest version to a hosted PNG at one/both device widths (credit-metered) (scope: `emails`). */
   readonly preview: ReturnType<typeof createPreviewEmail>
   /** `GET /v1/emails/{emailId}/accessibility-audit` — free WCAG 2.1 rule-based audit (`score`, `summary`, `issues`) (scope: `emails`). */
   readonly auditAccessibility: ReturnType<typeof createAuditEmailAccessibility>

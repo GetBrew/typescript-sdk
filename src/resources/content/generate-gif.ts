@@ -11,10 +11,7 @@ export type { ContentGenerateGifRequest, ContentGifResponse }
  *
  * Returns a `ContentGifResponse` (`{ gifUrl, videoUrl, altText,
  * duration, fps, aspectRatio, loop }`). This operation is credit-metered.
- * Pass `dry_run: true` on the input to preview the cost without
- * generating — the server then spends nothing and returns a credit-cost
- * preview envelope instead. An insufficient balance surfaces as
- * `402 INSUFFICIENT_CREDITS`.
+ * An insufficient balance surfaces as `402 INSUFFICIENT_CREDITS`.
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<ContentGifResponse>` instead of the unwrapped

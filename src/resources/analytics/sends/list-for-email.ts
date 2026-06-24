@@ -1,19 +1,15 @@
-import { autoPaginate } from '../../core/pagination'
-import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import { autoPaginate } from '../../../core/pagination'
+import { unwrapResponse, type HttpClient } from '../../../core/http'
+import type { BrewRawResponse, RequestOptions } from '../../../types'
 
-import type {
-  ListEmailSendsInput,
-  Send,
-  SendsListResponse,
-} from './types'
+import type { ListEmailSendsInput, Send, SendsListResponse } from './types'
 
 export type { ListEmailSendsInput, SendsListResponse }
 
 /**
- * Input to `brew.sends.listForEmail(...)`. The `emailId` is sent on the
- * URL path; the rest mirror the `GET /v1/sends` filters (`status`,
- * `from`/`to`, `limit`/`cursor`).
+ * Input to `brew.analytics.sends.listForEmail(...)`. The `emailId` is
+ * sent on the URL path; the rest mirror the `GET /v1/analytics/sends`
+ * filters (`status`, `from`/`to`, `limit`/`cursor`).
  */
 export type ListSendsForEmailInput = ListEmailSendsInput & {
   /**
@@ -30,9 +26,9 @@ export type ListSendsForEmailInput = ListEmailSendsInput & {
  * an unknown design so an empty history is distinguishable from a bad
  * id. Requires the `sends` scope.
  *
- * Same filters as `brew.sends.list(...)` (`status`, `from`/`to`) plus
- * `limit`/`cursor`. To page through every send use
- * `brew.sends.listAllForEmail`.
+ * Same filters as `brew.analytics.sends.list(...)` (`status`, `from`/`to`)
+ * plus `limit`/`cursor`. To page through every send use
+ * `brew.analytics.sends.listAllForEmail`.
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<SendsListResponse>` instead of the unwrapped
@@ -70,7 +66,7 @@ export function createListSendsForEmail(client: HttpClient) {
 }
 
 /**
- * Input to `brew.sends.listAllForEmail(...)`. Same as
+ * Input to `brew.analytics.sends.listAllForEmail(...)`. Same as
  * `ListSendsForEmailInput` minus `cursor` — the iterator owns cursor
  * state internally. `limit` is the per-page size, not a total cap.
  */
@@ -85,7 +81,7 @@ export type ListAllSendsForEmailInput = Readonly<
  * `options.signal` between pages.
  *
  * ```ts
- * for await (const send of brew.sends.listAllForEmail({ emailId: 'eml_x' })) {
+ * for await (const send of brew.analytics.sends.listAllForEmail({ emailId: 'eml_x' })) {
  *   console.log(send.sendId, send.stats?.delivered)
  * }
  * ```

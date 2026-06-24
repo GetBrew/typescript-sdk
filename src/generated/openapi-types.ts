@@ -114,7 +114,7 @@ export interface paths {
         put?: never;
         /**
          * Render the email to a PNG preview
-         * @description Render the email’s latest version to a hosted PNG screenshot at one or both device widths (`desktop` = 600px, `mobile` = 375px). Credit-metered (low). `dry_run: true` previews the cost without rendering.
+         * @description Render the email’s latest version to a hosted PNG screenshot at one or both device widths (`desktop` = 600px, `mobile` = 375px). Credit-metered (low).
          */
         post: operations["previewEmail"];
         delete?: never;
@@ -152,9 +152,29 @@ export interface paths {
         };
         /**
          * List sends of an email design
-         * @description The design’s send history under `{ data, pagination }` — a design can be sent unlimited times, and each campaign send is its own `Send` row. Same filters as `GET /v1/sends` (`status`, `from`, `to`). 404s on an unknown design so an empty history is distinguishable from a bad id. Requires the `sends` scope.
+         * @description The design’s send history under `{ data, pagination }` — a design can be sent unlimited times, and each campaign send is its own `Send` row. Same filters as `GET /v1/analytics/sends` (`status`, `from`, `to`). 404s on an unknown design so an empty history is distinguishable from a bad id. Requires the `sends` scope.
          */
         get: operations["listEmailSends"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/analytics/sends": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List sends
+         * @description Lists the brand’s campaign sends (newest first) under `{ data, pagination }`. A send is the unit of delivery + analytics: one design delivered to one audience via one domain. Filter with `?status=` (scheduled | queued | sending | sent | failed | canceled) and the `from`/`to` ISO-8601 window.
+         */
+        get: operations["listSends"];
         put?: never;
         post?: never;
         delete?: never;
@@ -170,15 +190,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /**
-         * List sends
-         * @description Lists the brand’s campaign sends (newest first) under `{ data, pagination }`. A send is the unit of delivery + analytics: one design delivered to one audience via one domain. Filter with `?status=` (scheduled | queued | sending | sent | failed | canceled) and the `from`/`to` ISO-8601 window.
-         */
-        get: operations["listSends"];
+        get?: never;
         put?: never;
         /**
          * Create a campaign send
-         * @description Starts an async campaign send: one design (`emailId`, optionally pinned to an exact `emailVersionId`) via a verified domain. A design can be sent unlimited times — every call mints a new send. Returns `202` with the `sendId` to poll via `GET /v1/sends/{sendId}`.
+         * @description Starts an async campaign send: one design (`emailId`, optionally pinned to an exact `emailVersionId`) via a verified domain. A design can be sent unlimited times — every call mints a new send. Returns `202` with the `sendId` to poll via `GET /v1/analytics/sends/{sendId}`.
          *
          *     Recipients — provide EXACTLY ONE of:
          *     - `audienceId` — a saved audience (any size), or
@@ -186,7 +202,7 @@ export interface paths {
          *
          *     Inline recipients face the same unsubscribe/suppression gate and per-recipient send quota as audience sends.
          *
-         *     Test deliveries live on their own endpoint (`POST /v1/sends/test`) — there is no mode discriminator in this body. For per-recipient event-driven delivery, publish an automation and fire its trigger (`POST /v1/triggers/{triggerEventId}/fire`).
+         *     Test deliveries live on their own endpoint (`POST /v1/sends/test`) — there is no mode discriminator in this body. For per-recipient event-driven delivery, publish an automation and fire its trigger (`POST /v1/automations/triggers/{triggerEventId}/fire`).
          *
          *     Brand scoping: resources (`emailId`, `domainId`, `audienceId`) living in a different brand surface as `404` so the API never confirms cross-brand existence.
          */
@@ -217,7 +233,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/sends/{sendId}": {
+    "/v1/analytics/sends/{sendId}": {
         parameters: {
             query?: never;
             header?: never;
@@ -237,7 +253,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/sends/{sendId}/events": {
+    "/v1/analytics/sends/{sendId}/events": {
         parameters: {
             query?: never;
             header?: never;
@@ -266,7 +282,7 @@ export interface paths {
         };
         /**
          * Campaign performance
-         * @description Lifetime KPIs per campaign SEND (one row per `sendId` — a design sent twice has two rows): sent / delivered / opened / clicked / bounced / complained / unsubscribed. Read-only, cursor-paginated under `{ data, pagination }`. Requires the `emails` scope. For a single send, `GET /v1/sends/{sendId}` carries the same `stats`.
+         * @description Lifetime KPIs per campaign SEND (one row per `sendId` — a design sent twice has two rows): sent / delivered / opened / clicked / bounced / complained / unsubscribed. Read-only, cursor-paginated under `{ data, pagination }`. Requires the `emails` scope. For a single send, `GET /v1/analytics/sends/{sendId}` carries the same `stats`.
          */
         get: operations["getCampaignAnalytics"];
         put?: never;
@@ -306,7 +322,7 @@ export interface paths {
         };
         /**
          * Unified events feed
-         * @description Read-only window over the brand’s analytics events across domains (email, automation, trigger, inbound). Defaults to the last 7 days. Equality filters: `recipientEmail`, `eventType`, `automationId`, `sendId` (join back to `/v1/sends/{sendId}`). Cursor pagination — pass `pagination.cursor` back as `?cursor=`; loop `while (cursor !== null)`. Requires the `emails` scope.
+         * @description Read-only window over the brand’s analytics events across domains (email, automation, trigger, inbound). Defaults to the last 7 days. Equality filters: `recipientEmail`, `eventType`, `automationId`, `sendId` (join back to `/v1/analytics/sends/{sendId}`). Cursor pagination — pass `pagination.cursor` back as `?cursor=`; loop `while (cursor !== null)`. Requires the `emails` scope.
          */
         get: operations["getEventsAnalytics"];
         put?: never;
@@ -446,7 +462,7 @@ export interface paths {
         put?: never;
         /**
          * Test an automation
-         * @description Starts a suppression-aware TEST run of the saved automation — no real mail is delivered and test runs never count against analytics rollups. Body optionally carries a `payload` matching the trigger’s schema. Returns `202` with the started run id; follow it via `GET /v1/analytics/automations/runs/{automationRunId}`.
+         * @description Starts a suppression-aware TEST run of the saved automation — no real mail is delivered and test runs never count against analytics rollups. Body optionally carries a `payload` matching the trigger’s schema. Returns `202` with the started run id; follow it via `GET /v1/automations/runs/{automationRunId}`.
          */
         post: operations["testAutomation"];
         delete?: never;
@@ -455,7 +471,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/analytics/automations/runs": {
+    "/v1/automations/runs": {
         parameters: {
             query?: never;
             header?: never;
@@ -475,7 +491,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/analytics/automations/runs/{automationRunId}": {
+    "/v1/automations/runs/{automationRunId}": {
         parameters: {
             query?: never;
             header?: never;
@@ -495,7 +511,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/triggers": {
+    "/v1/automations/triggers": {
         parameters: {
             query?: never;
             header?: never;
@@ -521,7 +537,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/triggers/{triggerEventId}": {
+    "/v1/automations/triggers/{triggerEventId}": {
         parameters: {
             query?: never;
             header?: never;
@@ -549,7 +565,7 @@ export interface paths {
         patch: operations["updateTrigger"];
         trace?: never;
     };
-    "/v1/triggers/{triggerEventId}/fire": {
+    "/v1/automations/triggers/{triggerEventId}/fire": {
         parameters: {
             query?: never;
             header?: never;
@@ -560,7 +576,7 @@ export interface paths {
         put?: never;
         /**
          * Fire a trigger
-         * @description Fires the trigger: validates `payload` against the trigger’s `payloadSchema`, upserts the contact derived from the payload, and starts one run per published automation attached to the trigger. Read `details.automationRunIds[]` and follow each via `GET /v1/analytics/automations/runs/{automationRunId}`.
+         * @description Fires the trigger: validates `payload` against the trigger’s `payloadSchema`, upserts the contact derived from the payload, and starts one run per published automation attached to the trigger. Read `details.automationRunIds[]` and follow each via `GET /v1/automations/runs/{automationRunId}`.
          *
          *     **Idempotency** — send a stable `Idempotency-Key` header on every retry (the body field `idempotencyKey` is a legacy alternative). Replays return the original run ids with `status: "idempotent_replay"` instead of starting duplicates.
          *
@@ -573,7 +589,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/events": {
+    "/v1/analytics/trigger-instances": {
         parameters: {
             query?: never;
             header?: never;
@@ -582,7 +598,7 @@ export interface paths {
         };
         /**
          * List fired trigger events
-         * @description Lists fired trigger-event instances (newest first) under `{ data, pagination }` — the audit log of every inbound fire, whether from the API (`source: "api"`) or an integration webhook (`source: "integration"`). Each row links the fire to the automations it matched and the runs it started (`automationRunIds[]` → `GET /v1/analytics/automations/runs/{automationRunId}`). Filter with `?triggerEventId=`.
+         * @description Lists fired trigger-event instances (newest first) under `{ data, pagination }` — the audit log of every inbound fire, whether from the API (`source: "api"`) or an integration webhook (`source: "integration"`). Each row links the fire to the automations it matched and the runs it started (`automationRunIds[]` → `GET /v1/automations/runs/{automationRunId}`). Filter with `?triggerEventId=`.
          */
         get: operations["listEvents"];
         put?: never;
@@ -593,7 +609,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/events/{triggerInstanceId}": {
+    "/v1/analytics/trigger-instances/{triggerInstanceId}": {
         parameters: {
             query?: never;
             header?: never;
@@ -966,29 +982,9 @@ export interface paths {
         };
         /**
          * List templates
-         * @description Lists public email templates under `{ data, pagination }` — lean rows (`{ emailId }`). Fetch one template for its `html` + `previewImage`. Supports exact `?brand=` and `?category=` filters and a lightweight `?semantic=` text filter. Templates are organization-wide references (use one as `referenceEmailId` on `POST /v1/emails`).
+         * @description Lists public email templates under `{ data, pagination }`. Each row is FULL — it carries the rendered `html` + `previewImage` plus the display metadata (`title`, `category`, `brand`, `updatedAt`), so you never need a follow-up get-one round-trip. Supports exact `?brand=` and `?category=` filters and a lightweight `?semantic=` text filter. Templates are organization-wide references (use one as `referenceEmailId` on `POST /v1/emails`).
          */
         get: operations["listTemplates"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/templates/{emailId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get a template
-         * @description Returns the bare template row WITH the heavy `html` + `previewImage` fields (the readback the lean list omits).
-         */
-        get: operations["getTemplate"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1133,46 +1129,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/usage": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get API usage for your org
-         * @description Returns `{ usage }` — api-key request usage for the caller’s org: a rolling 24h `overview` (requests, successRate, errors, rateLimited), a 30-day daily `trend`, and a 7-day per-`route` breakdown. Use it to self-monitor rate-limit pressure and error rates.
-         */
-        get: operations["getUsage"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/integrations": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Triggerable integration-event catalog
-         * @description Returns `{ data, pagination }` — every provider you can trigger automations from (Clerk, Stripe, Stytch, Supabase, WorkOS, Shopify, RevenueCat), whether it is `connected`, and each triggerable `event` (with payload `fieldKeys` + whether a brew trigger is already `provisioned`). Filter to one provider with `?provider=`. Requires the `automations` scope.
-         */
-        get: operations["listIntegrations"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/content/generate-image": {
         parameters: {
             query?: never;
@@ -1184,7 +1140,7 @@ export interface paths {
         put?: never;
         /**
          * Generate an image
-         * @description Generates an image via the Brew AI image pipeline. `text-to-image` (default) creates from a prompt; `image-editing` edits `image1` (required) guided by the prompt. Returns a CDN-hosted URL. Credit-metered — preview with `dry_run: true`.
+         * @description Generates an image via the Brew AI image pipeline. `text-to-image` (default) creates from a prompt; `image-editing` edits `image1` (required) guided by the prompt. Returns a CDN-hosted URL. Credit-metered.
          */
         post: operations["generateContentImage"];
         delete?: never;
@@ -1204,7 +1160,7 @@ export interface paths {
         put?: never;
         /**
          * Generate an animated GIF
-         * @description Generates a looping animated GIF from a text prompt (via short video generation). Returns CDN-hosted `gifUrl` + source `videoUrl`. Credit-metered — preview with `dry_run: true`.
+         * @description Generates a looping animated GIF from a text prompt (via short video generation). Returns CDN-hosted `gifUrl` + source `videoUrl`. Credit-metered.
          */
         post: operations["generateContentGif"];
         delete?: never;
@@ -1224,7 +1180,7 @@ export interface paths {
         put?: never;
         /**
          * Animate an image into a GIF
-         * @description Animates a source image into a looping GIF; motion is inferred from the image (and an optional prompt). Credit-metered — preview with `dry_run: true`.
+         * @description Animates a source image into a looping GIF; motion is inferred from the image (and an optional prompt). Credit-metered.
          */
         post: operations["contentImageToGif"];
         delete?: never;
@@ -1244,7 +1200,7 @@ export interface paths {
         put?: never;
         /**
          * Convert a video to a GIF
-         * @description Converts a source MP4 video URL into a CDN-hosted GIF. Credit-metered — preview with `dry_run: true`.
+         * @description Converts a source MP4 video URL into a CDN-hosted GIF. Credit-metered.
          */
         post: operations["contentVideoToGif"];
         delete?: never;
@@ -1264,7 +1220,7 @@ export interface paths {
         put?: never;
         /**
          * Optimize an image for email
-         * @description Fetches a source image, optimizes it (resize ≤1200px, palette PNG via Sharp), and rehosts it to the CDN. Credit-metered — preview with `dry_run: true`.
+         * @description Fetches a source image, optimizes it (resize ≤1200px, palette PNG via Sharp), and rehosts it to the CDN. Credit-metered.
          */
         post: operations["contentOptimizeImage"];
         delete?: never;
@@ -1284,7 +1240,7 @@ export interface paths {
         put?: never;
         /**
          * Resize an image (intelligent)
-         * @description Resizes an image to exact dimensions using a vision-LLM-guided fal pipeline (deterministic Sharp cover-crop fallback). Credit-metered — preview with `dry_run: true`.
+         * @description Resizes an image to exact dimensions using a vision-LLM-guided fal pipeline (deterministic Sharp cover-crop fallback). Credit-metered.
          */
         post: operations["contentResize"];
         delete?: never;
@@ -1304,7 +1260,7 @@ export interface paths {
         put?: never;
         /**
          * Render HTML to a PNG
-         * @description Renders an HTML document to a PNG screenshot hosted on the CDN. Credit-metered — preview with `dry_run: true`.
+         * @description Renders an HTML document to a PNG screenshot hosted on the CDN. Credit-metered.
          */
         post: operations["contentHtmlToPng"];
         delete?: never;
@@ -1323,8 +1279,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Host an image on the CDN
-         * @description Rehosts a public image URL onto cdn.brew.new and returns the durable URL. FREE — no credits charged.
+         * Host an image in the brand library
+         * @description Fetches a public image URL, optimizes it (resize ≤1200px, palette PNG via Sharp), saves it to the brand image library, and vector-indexes it for the email agent to find. Returns the durable cdn.brew.new URL plus dimensions. Credit-metered.
          */
         post: operations["contentHostImage"];
         delete?: never;
@@ -1342,29 +1298,9 @@ export interface paths {
         };
         /**
          * Get plan, credit balance, and email-send quota
-         * @description Returns the org BILLING surface: current plan, AI credit balance (limit/used/remaining — `null` = unlimited), monthly email-send quota, and the current billing period window. Distinct from `GET /v1/usage` (API-request telemetry). Use it to budget before a credit-metered call (the same balance a `dry_run` preview returns).
+         * @description Returns the org BILLING surface: current plan, AI credit balance (limit/used/remaining — `null` = unlimited), monthly email-send quota, and the current billing period window. Use it to budget before a credit-metered call.
          */
         get: operations["getAccount"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/me": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get the calling key’s context
-         * @description Bootstrap call — returns the brand the key is pinned to, the org, the granted scopes, and the auth mode, WITHOUT probing 403s. Scope-agnostic: any authenticated key may call it (it still requires a valid key → 401 otherwise).
-         */
-        get: operations["getMe"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1385,6 +1321,26 @@ export interface paths {
          * @description No auth, no rate limit — a public liveness surface a dependent service (e.g. the Brew MCP server) can poll. Returns `{ status: "ok", version }`.
          */
         get: operations["getHealth"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/help": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Machine-readable API catalog
+         * @description No auth, no rate limit — a structured-JSON catalog an MCP server (or any agent) can parse to self-discover how to use Brew: auth, permission scopes, rate limits, flat credit costs, the error envelope, and the full endpoint list (derived from this same OpenAPI document, so it never drifts). Returns a generic JSON object; read the live response for the concrete shape.
+         */
+        get: operations["getHelp"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1837,9 +1793,13 @@ export interface components {
         };
         Template: {
             emailId: string;
-            html?: string;
+            title: string;
+            category?: string;
+            brand?: string;
+            html: string;
             /** Format: uri */
-            previewImage?: string;
+            previewImage: string;
+            updatedAt: string;
         };
         EmailsListResponse: {
             data: {
@@ -1872,17 +1832,6 @@ export interface components {
         EmailGenerateTextResponse: {
             response: string;
         };
-        CreditDryRunPreview: {
-            /** @enum {boolean} */
-            dry_run: true;
-            operation: string;
-            cost: number;
-            balance: {
-                remaining: number;
-                planKey: string;
-            };
-            sufficient: boolean;
-        };
         EmailGenerateGeneratedResponse: {
             emailId: string;
             emailVersionId: string;
@@ -1894,15 +1843,20 @@ export interface components {
             prompt: string;
             contentUrls?: string[];
             referenceEmailId?: string;
-            /** @default false */
-            dry_run: boolean;
+        };
+        EmailGenerateResponse: {
+            emailId: string;
+            emailVersionId: string;
+            html: string;
+            /** Format: uri */
+            previewImage?: string;
+        } | {
+            response: string;
         };
         EmailEditRequest: {
             prompt: string;
             emailVersionId?: string;
             contentUrls?: string[];
-            /** @default false */
-            dry_run: boolean;
         };
         EmailJsxSaveRequest: {
             jsx: string;
@@ -1926,15 +1880,6 @@ export interface components {
                 hasMore: boolean;
             };
         };
-        EmailGenerateResponse: {
-            emailId: string;
-            emailVersionId: string;
-            html: string;
-            /** Format: uri */
-            previewImage?: string;
-        } | {
-            response: string;
-        };
         EmailRestoreRequest: {
             version: number;
         };
@@ -1952,8 +1897,6 @@ export interface components {
              * @enum {string}
              */
             device: "desktop" | "mobile" | "all";
-            /** @default false */
-            dry_run: boolean;
         };
         EmailAccessibilityAuditResponse: {
             score: number;
@@ -3208,9 +3151,13 @@ export interface components {
         TemplatesListResponse: {
             data: {
                 emailId: string;
-                html?: string;
+                title: string;
+                category?: string;
+                brand?: string;
+                html: string;
                 /** Format: uri */
-                previewImage?: string;
+                previewImage: string;
+                updatedAt: string;
             }[];
             pagination: {
                 limit: number;
@@ -3292,49 +3239,6 @@ export interface components {
                 hasMore: boolean;
             };
         };
-        UsageGetResponse: {
-            usage: {
-                overview: {
-                    requests: number;
-                    successRate: number;
-                    errors: number;
-                    rateLimited: number;
-                };
-                trend: {
-                    /** Format: date-time */
-                    date: string;
-                    requests: number;
-                    errors: number;
-                }[];
-                routes: {
-                    route: string;
-                    requests: number;
-                    successRate: number;
-                    topErrorCode: string | null;
-                }[];
-            };
-        };
-        IntegrationsGetResponse: {
-            data: {
-                /** @enum {string} */
-                provider: "clerk" | "stripe" | "stytch" | "supabase" | "workos" | "shopify" | "revenuecat";
-                connected: boolean;
-                events: {
-                    eventType: string;
-                    title: string;
-                    description?: string;
-                    category: string;
-                    fieldKeys: string[];
-                    requiredFieldKeys: string[];
-                    provisioned: boolean;
-                }[];
-            }[];
-            pagination: {
-                limit: number;
-                cursor: string | null;
-                hasMore: boolean;
-            };
-        };
         ContentImageResponse: {
             /** Format: uri */
             url: string;
@@ -3354,8 +3258,6 @@ export interface components {
             image1?: string;
             /** Format: uri */
             image2?: string;
-            /** @default false */
-            dry_run: boolean;
         };
         ContentGifResponse: {
             /** Format: uri */
@@ -3375,8 +3277,6 @@ export interface components {
             /** @enum {string} */
             aspectRatio?: "16:9" | "4:3" | "1:1" | "3:4" | "9:16" | "21:9" | "9:21";
             loop?: boolean;
-            /** @default false */
-            dry_run: boolean;
         };
         ContentImageToGifRequest: {
             /** Format: uri */
@@ -3387,8 +3287,6 @@ export interface components {
             /** @enum {string} */
             aspectRatio?: "16:9" | "4:3" | "1:1" | "3:4" | "9:16" | "21:9" | "9:21";
             loop?: boolean;
-            /** @default false */
-            dry_run: boolean;
         };
         ContentVideoToGifResponse: {
             /** Format: uri */
@@ -3399,8 +3297,6 @@ export interface components {
             videoUrl: string;
             fps?: number;
             width?: number;
-            /** @default false */
-            dry_run: boolean;
         };
         ContentOptimizedImageResponse: {
             /** Format: uri */
@@ -3413,8 +3309,6 @@ export interface components {
         ContentOptimizeImageRequest: {
             /** Format: uri */
             imageUrl: string;
-            /** @default false */
-            dry_run: boolean;
         };
         ContentResizeResponse: {
             /** Format: uri */
@@ -3433,8 +3327,6 @@ export interface components {
             resolution?: "1K" | "2K" | "4K";
             /** @enum {string} */
             outputFormat?: "png" | "jpeg" | "webp";
-            /** @default false */
-            dry_run: boolean;
         };
         ContentPngResponse: {
             /** Format: uri */
@@ -3445,12 +3337,13 @@ export interface components {
             html: string;
             width?: number;
             maxHeight?: number;
-            /** @default false */
-            dry_run: boolean;
         };
         ContentHostedImageResponse: {
             /** Format: uri */
             url: string;
+            width: number;
+            height: number;
+            aspectRatio: string;
         };
         ContentHostImageRequest: {
             /** Format: uri */
@@ -3478,17 +3371,13 @@ export interface components {
                 end: string | null;
             };
         };
-        MeGetResponse: {
-            /** @enum {string} */
-            authType: "api_key" | "session";
-            orgId: string;
-            brandId: string;
-            scopes: string[];
-        };
         HealthResponse: {
             /** @enum {string} */
             status: "ok";
             version: string;
+        };
+        HelpResponse: {
+            [key: string]: unknown;
         };
     };
     responses: never;
@@ -3697,7 +3586,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Either the agent answered in prose without writing a design (`{ response }`), OR — when called with `dry_run: true` — a credit cost PREVIEW (`{ dry_run: true, operation, cost, balance, sufficient }`) that generated nothing and spent nothing. */
+            /** @description The agent answered in prose without writing a design (`{ response }`). */
             200: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -3711,7 +3600,12 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EmailGenerateTextResponse"] | components["schemas"]["CreditDryRunPreview"];
+                    /**
+                     * @example {
+                     *       "response": "No email was generated."
+                     *     }
+                     */
+                    "application/json": components["schemas"]["EmailGenerateTextResponse"];
                 };
             };
             /** @description A design was persisted (credits charged). `emailVersionId` pins the exact version for sends + automation `sendEmail` nodes. The `X-Credit-Cost` / `X-Credits-Remaining` headers report the charge. */
@@ -3784,7 +3678,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; retry with `dry_run: true` to preview cost + balance without spending. No `Retry-After` — credits reset at the billing-period boundary. */
+            /** @description The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/account`. No `Retry-After` — credits reset at the billing-period boundary. */
             402: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -3798,7 +3692,7 @@ export interface operations {
                      *         "code": "INSUFFICIENT_CREDITS",
                      *         "type": "payment_required",
                      *         "message": "This operation costs 10 credit(s) but only 0 remain on the 'free' plan.",
-                     *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Retry with \"dry_run\": true to preview cost without spending.",
+                     *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/account.",
                      *         "docs": "https://docs.brew.new/api-reference/api/credits",
                      *         "details": {
                      *           "cost": 10,
@@ -4294,7 +4188,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Updated design (a new `latest` version row was written, credits charged) or a text response if the agent returned prose without JSX. When the AI-edit body carried `dry_run: true`, this is instead a credit cost PREVIEW that edited nothing and spent nothing. The deterministic `jsx` save branch is FREE and does not accept `dry_run`. */
+            /** @description Updated design (a new `latest` version row was written, credits charged) or a text response if the agent returned prose without JSX. The deterministic `jsx` save branch is FREE. */
             200: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -4308,15 +4202,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        emailId: string;
-                        emailVersionId: string;
-                        html: string;
-                        /** Format: uri */
-                        previewImage?: string;
-                    } | {
-                        response: string;
-                    } | components["schemas"]["CreditDryRunPreview"];
+                    "application/json": components["schemas"]["EmailGenerateResponse"];
                 };
             };
             /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
@@ -4364,7 +4250,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; retry with `dry_run: true` to preview cost + balance without spending. No `Retry-After` — credits reset at the billing-period boundary. */
+            /** @description The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/account`. No `Retry-After` — credits reset at the billing-period boundary. */
             402: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -4378,7 +4264,7 @@ export interface operations {
                      *         "code": "INSUFFICIENT_CREDITS",
                      *         "type": "payment_required",
                      *         "message": "This operation costs 10 credit(s) but only 0 remain on the 'free' plan.",
-                     *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Retry with \"dry_run\": true to preview cost without spending.",
+                     *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/account.",
                      *         "docs": "https://docs.brew.new/api-reference/api/credits",
                      *         "details": {
                      *           "cost": 10,
@@ -4964,7 +4850,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description The rendered preview URL(s) — OR, when called with `dry_run: true`, a credit cost PREVIEW that rendered nothing and spent nothing. */
+            /** @description The rendered preview URL(s). */
             200: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -4978,7 +4864,23 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EmailPreviewResponse"] | components["schemas"]["CreditDryRunPreview"];
+                    /**
+                     * @example {
+                     *       "previews": [
+                     *         {
+                     *           "device": "desktop",
+                     *           "url": "https://cdn.brew.new/api-preview-eml_welcome-desktop-abc.png",
+                     *           "width": 600
+                     *         },
+                     *         {
+                     *           "device": "mobile",
+                     *           "url": "https://cdn.brew.new/api-preview-eml_welcome-mobile-def.png",
+                     *           "width": 375
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["EmailPreviewResponse"];
                 };
             };
             /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
@@ -5026,7 +4928,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; retry with `dry_run: true` to preview cost + balance without spending. No `Retry-After` — credits reset at the billing-period boundary. */
+            /** @description The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/account`. No `Retry-After` — credits reset at the billing-period boundary. */
             402: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -5040,7 +4942,7 @@ export interface operations {
                      *         "code": "INSUFFICIENT_CREDITS",
                      *         "type": "payment_required",
                      *         "message": "This operation costs 10 credit(s) but only 0 remain on the 'free' plan.",
-                     *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Retry with \"dry_run\": true to preview cost without spending.",
+                     *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/account.",
                      *         "docs": "https://docs.brew.new/api-reference/api/credits",
                      *         "details": {
                      *           "cost": 10,
@@ -5719,7 +5621,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The caller does not have the required `sends` permission. */
+            /** @description The caller does not have the required `emails` permission. */
             403: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -5735,7 +5637,7 @@ export interface operations {
                      *         "message": "The caller does not have the required permission.",
                      *         "suggestion": "Use an API key or session with the required permission.",
                      *         "docs": "https://docs.brew.new/api-reference/api/authentication",
-                     *         "param": "sends"
+                     *         "param": "emails"
                      *       }
                      *     }
                      */
@@ -6335,7 +6237,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The caller does not have the required `sends` permission. */
+            /** @description The caller does not have the required `emails` permission. */
             403: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -6351,7 +6253,7 @@ export interface operations {
                      *         "message": "The caller does not have the required permission.",
                      *         "suggestion": "Use an API key or session with the required permission.",
                      *         "docs": "https://docs.brew.new/api-reference/api/authentication",
-                     *         "param": "sends"
+                     *         "param": "emails"
                      *       }
                      *     }
                      */
@@ -6372,7 +6274,7 @@ export interface operations {
                      *         "code": "SEND_NOT_FOUND",
                      *         "type": "not_found",
                      *         "message": "No send was found with id 'snd_xxx'.",
-                     *         "suggestion": "List sends with GET /v1/sends, or start one with POST /v1/sends.",
+                     *         "suggestion": "List sends with GET /v1/analytics/sends, or start one with POST /v1/sends.",
                      *         "docs": "https://docs.brew.new/api-reference/api/errors",
                      *         "param": "sendId"
                      *       }
@@ -6513,7 +6415,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The caller does not have the required `sends` permission. */
+            /** @description The caller does not have the required `emails` permission. */
             403: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -6529,7 +6431,7 @@ export interface operations {
                      *         "message": "The caller does not have the required permission.",
                      *         "suggestion": "Use an API key or session with the required permission.",
                      *         "docs": "https://docs.brew.new/api-reference/api/authentication",
-                     *         "param": "sends"
+                     *         "param": "emails"
                      *       }
                      *     }
                      */
@@ -6550,7 +6452,7 @@ export interface operations {
                      *         "code": "SEND_NOT_FOUND",
                      *         "type": "not_found",
                      *         "message": "No send was found with id 'snd_xxx'.",
-                     *         "suggestion": "List sends with GET /v1/sends, or start one with POST /v1/sends.",
+                     *         "suggestion": "List sends with GET /v1/analytics/sends, or start one with POST /v1/sends.",
                      *         "docs": "https://docs.brew.new/api-reference/api/errors",
                      *         "param": "sendId"
                      *       }
@@ -7516,7 +7418,7 @@ export interface operations {
                      *         "code": "TRIGGER_EVENT_NOT_FOUND",
                      *         "type": "not_found",
                      *         "message": "Trigger event 'tri_unknown' was not found in this brand.",
-                     *         "suggestion": "Pass a triggerEventId returned by POST /v1/triggers.",
+                     *         "suggestion": "Pass a triggerEventId returned by POST /v1/automations/triggers.",
                      *         "docs": "https://docs.brew.new/api-reference/api/errors",
                      *         "param": "triggerEventId"
                      *       }
@@ -9218,7 +9120,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description Run id — returned in `details.automationRunIds[]` by a trigger fire, by `POST /v1/automations/{automationId}/test`, and listed by `GET /v1/analytics/automations/runs`. */
+                /** @description Run id — returned in `details.automationRunIds[]` by a trigger fire, by `POST /v1/automations/{automationId}/test`, and listed by `GET /v1/automations/runs`. */
                 automationRunId: string;
             };
             cookie?: never;
@@ -9338,7 +9240,7 @@ export interface operations {
                      *         "code": "AUTOMATION_RUN_NOT_FOUND",
                      *         "type": "not_found",
                      *         "message": "Automation run 'run_xxx' was not found.",
-                     *         "suggestion": "List runs with GET /v1/analytics/automations/runs.",
+                     *         "suggestion": "List runs with GET /v1/automations/runs.",
                      *         "docs": "https://docs.brew.new/api-reference/api/errors",
                      *         "param": "automationRunId"
                      *       }
@@ -9825,7 +9727,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description Trigger id returned by `POST /v1/triggers`. Custom triggers use `tri_…` ids; integration triggers use composite ids (e.g. `clerk:org_…:brand_…:user.created`, URL-encode the colons). */
+                /** @description Trigger id returned by `POST /v1/automations/triggers`. Custom triggers use `tri_…` ids; integration triggers use composite ids (e.g. `clerk:org_…:brand_…:user.created`, URL-encode the colons). */
                 triggerEventId: string;
             };
             cookie?: never;
@@ -9933,7 +9835,7 @@ export interface operations {
                      *         "code": "TRIGGER_EVENT_NOT_FOUND",
                      *         "type": "not_found",
                      *         "message": "Trigger event 'tri_xxx' was not found.",
-                     *         "suggestion": "List triggers with GET /v1/triggers.",
+                     *         "suggestion": "List triggers with GET /v1/automations/triggers.",
                      *         "docs": "https://docs.brew.new/api-reference/api/errors",
                      *         "param": "triggerEventId"
                      *       }
@@ -10002,7 +9904,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description Trigger id returned by `POST /v1/triggers`. Custom triggers use `tri_…` ids; integration triggers use composite ids (e.g. `clerk:org_…:brand_…:user.created`, URL-encode the colons). */
+                /** @description Trigger id returned by `POST /v1/automations/triggers`. Custom triggers use `tri_…` ids; integration triggers use composite ids (e.g. `clerk:org_…:brand_…:user.created`, URL-encode the colons). */
                 triggerEventId: string;
             };
             cookie?: never;
@@ -10171,7 +10073,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description Trigger id returned by `POST /v1/triggers`. Custom triggers use `tri_…` ids; integration triggers use composite ids (e.g. `clerk:org_…:brand_…:user.created`, URL-encode the colons). */
+                /** @description Trigger id returned by `POST /v1/automations/triggers`. Custom triggers use `tri_…` ids; integration triggers use composite ids (e.g. `clerk:org_…:brand_…:user.created`, URL-encode the colons). */
                 triggerEventId: string;
             };
             cookie?: never;
@@ -10311,7 +10213,7 @@ export interface operations {
                      *         "code": "TRIGGER_EVENT_NOT_FOUND",
                      *         "type": "not_found",
                      *         "message": "Trigger event 'tri_xxx' was not found.",
-                     *         "suggestion": "List triggers with GET /v1/triggers.",
+                     *         "suggestion": "List triggers with GET /v1/automations/triggers.",
                      *         "docs": "https://docs.brew.new/api-reference/api/errors",
                      *         "param": "triggerEventId"
                      *       }
@@ -10409,7 +10311,7 @@ export interface operations {
                 "Idempotency-Key"?: string;
             };
             path: {
-                /** @description Trigger id returned by `POST /v1/triggers`. Custom triggers use `tri_…` ids; integration triggers use composite ids (e.g. `clerk:org_…:brand_…:user.created`, URL-encode the colons). */
+                /** @description Trigger id returned by `POST /v1/automations/triggers`. Custom triggers use `tri_…` ids; integration triggers use composite ids (e.g. `clerk:org_…:brand_…:user.created`, URL-encode the colons). */
                 triggerEventId: string;
             };
             cookie?: never;
@@ -10928,7 +10830,7 @@ export interface operations {
                      *         "code": "EVENT_NOT_FOUND",
                      *         "type": "not_found",
                      *         "message": "No fired event was found with id 'tin_xxx'.",
-                     *         "suggestion": "List fired events with GET /v1/events.",
+                     *         "suggestion": "List fired events with GET /v1/analytics/trigger-instances.",
                      *         "docs": "https://docs.brew.new/api-reference/api/errors",
                      *         "param": "triggerInstanceId"
                      *       }
@@ -15768,7 +15670,13 @@ export interface operations {
                      * @example {
                      *       "data": [
                      *         {
-                     *           "emailId": "seed-vercel-newsletter"
+                     *           "emailId": "seed-vercel-newsletter",
+                     *           "title": "Vercel Newsletter",
+                     *           "category": "newsletter",
+                     *           "brand": "vercel.com",
+                     *           "html": "<!DOCTYPE html><html><body>…</body></html>",
+                     *           "previewImage": "https://storage.example.com/templates/seed.png",
+                     *           "updatedAt": "2026-04-08T00:00:00.000Z"
                      *         }
                      *       ],
                      *       "pagination": {
@@ -15843,165 +15751,6 @@ export interface operations {
                      *         "suggestion": "Use an API key or session with the required permission.",
                      *         "docs": "https://docs.brew.new/api-reference/api/authentication",
                      *         "param": "emails"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The request hit the rolling rate limit window. */
-            429: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    /** @description Requests allowed in the current rolling rate limit window. */
-                    "X-RateLimit-Limit": number;
-                    /** @description Requests remaining in the current rolling rate limit window. */
-                    "X-RateLimit-Remaining": number;
-                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
-                    "X-RateLimit-Reset": number;
-                    /** @description Seconds to wait before retrying the request. */
-                    "Retry-After": number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "RATE_LIMITED",
-                     *         "type": "rate_limit",
-                     *         "message": "Too many requests.",
-                     *         "suggestion": "Wait for the retry window before sending another request.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
-                     *         "retryAfter": 42
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description Unexpected internal error. */
-            500: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INTERNAL_ERROR",
-                     *         "type": "internal_error",
-                     *         "message": "An unexpected error occurred.",
-                     *         "suggestion": "Retry the request. If it keeps failing, contact support.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-        };
-    };
-    getTemplate: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Template id from `GET /v1/templates`. */
-                emailId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description The template with rendered content. */
-            200: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    /** @description Requests allowed in the current rolling rate limit window. */
-                    "X-RateLimit-Limit": number;
-                    /** @description Requests remaining in the current rolling rate limit window. */
-                    "X-RateLimit-Remaining": number;
-                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
-                    "X-RateLimit-Reset": number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "emailId": "seed-vercel-newsletter",
-                     *       "html": "<!DOCTYPE html><html><body>…</body></html>",
-                     *       "previewImage": "https://storage.example.com/templates/seed.png"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["Template"];
-                };
-            };
-            /** @description The API key was missing, invalid, or revoked. */
-            401: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INVALID_API_KEY",
-                     *         "type": "authentication_error",
-                     *         "message": "The provided API key is invalid.",
-                     *         "suggestion": "Check the API key format and retry with a valid active key.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The caller does not have the required `emails` permission. */
-            403: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INSUFFICIENT_PERMISSIONS",
-                     *         "type": "authorization_error",
-                     *         "message": "The caller does not have the required permission.",
-                     *         "suggestion": "Use an API key or session with the required permission.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
-                     *         "param": "emails"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description Template not found in the API-key brand. Cross-brand ids intentionally surface as 404 (never 403) so the API does not leak cross-brand existence. */
-            404: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "TEMPLATE_NOT_FOUND",
-                     *         "type": "not_found",
-                     *         "message": "No template exists with id 'seed-xxx'.",
-                     *         "suggestion": "List templates with GET /v1/templates.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
-                     *         "param": "emailId"
                      *       }
                      *     }
                      */
@@ -17366,251 +17115,6 @@ export interface operations {
             };
         };
     };
-    getUsage: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description API usage snapshot for this org. */
-            200: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    /** @description Requests allowed in the current rolling rate limit window. */
-                    "X-RateLimit-Limit": number;
-                    /** @description Requests remaining in the current rolling rate limit window. */
-                    "X-RateLimit-Remaining": number;
-                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
-                    "X-RateLimit-Reset": number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "usage": {
-                     *         "overview": {
-                     *           "requests": 1284,
-                     *           "successRate": 98,
-                     *           "errors": 21,
-                     *           "rateLimited": 3
-                     *         },
-                     *         "trend": [
-                     *           {
-                     *             "date": "2026-04-08T00:00:00.000Z",
-                     *             "requests": 142,
-                     *             "errors": 2
-                     *           }
-                     *         ],
-                     *         "routes": [
-                     *           {
-                     *             "route": "/api/v1/emails",
-                     *             "requests": 420,
-                     *             "successRate": 97,
-                     *             "topErrorCode": "RATE_LIMITED"
-                     *           }
-                     *         ]
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["UsageGetResponse"];
-                };
-            };
-            /** @description The API key was missing, invalid, or revoked. */
-            401: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INVALID_API_KEY",
-                     *         "type": "authentication_error",
-                     *         "message": "The provided API key is invalid.",
-                     *         "suggestion": "Check the API key format and retry with a valid active key.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The request hit the rolling rate limit window. */
-            429: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    /** @description Requests allowed in the current rolling rate limit window. */
-                    "X-RateLimit-Limit": number;
-                    /** @description Requests remaining in the current rolling rate limit window. */
-                    "X-RateLimit-Remaining": number;
-                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
-                    "X-RateLimit-Reset": number;
-                    /** @description Seconds to wait before retrying the request. */
-                    "Retry-After": number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "RATE_LIMITED",
-                     *         "type": "rate_limit",
-                     *         "message": "Too many requests.",
-                     *         "suggestion": "Wait for the retry window before sending another request.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
-                     *         "retryAfter": 42
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-        };
-    };
-    listIntegrations: {
-        parameters: {
-            query?: {
-                provider?: "clerk" | "stripe" | "stytch" | "supabase" | "workos" | "shopify" | "revenuecat";
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Triggerable integration-event catalog. */
-            200: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    /** @description Requests allowed in the current rolling rate limit window. */
-                    "X-RateLimit-Limit": number;
-                    /** @description Requests remaining in the current rolling rate limit window. */
-                    "X-RateLimit-Remaining": number;
-                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
-                    "X-RateLimit-Reset": number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "data": [
-                     *         {
-                     *           "provider": "clerk",
-                     *           "connected": true,
-                     *           "events": [
-                     *             {
-                     *               "eventType": "user.created",
-                     *               "title": "User created",
-                     *               "category": "users",
-                     *               "fieldKeys": [
-                     *                 "email",
-                     *                 "firstName",
-                     *                 "lastName"
-                     *               ],
-                     *               "requiredFieldKeys": [
-                     *                 "email"
-                     *               ],
-                     *               "provisioned": false
-                     *             }
-                     *           ]
-                     *         }
-                     *       ],
-                     *       "pagination": {
-                     *         "limit": 100,
-                     *         "cursor": null,
-                     *         "hasMore": false
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["IntegrationsGetResponse"];
-                };
-            };
-            /** @description The API key was missing, invalid, or revoked. */
-            401: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INVALID_API_KEY",
-                     *         "type": "authentication_error",
-                     *         "message": "The provided API key is invalid.",
-                     *         "suggestion": "Check the API key format and retry with a valid active key.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The caller does not have the required automations permission. */
-            403: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INSUFFICIENT_PERMISSIONS",
-                     *         "type": "authorization_error",
-                     *         "message": "The caller does not have the required permission.",
-                     *         "suggestion": "Use an API key or session with the required automations permission.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
-                     *         "param": "automations"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The request hit the rolling rate limit window. */
-            429: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    /** @description Requests allowed in the current rolling rate limit window. */
-                    "X-RateLimit-Limit": number;
-                    /** @description Requests remaining in the current rolling rate limit window. */
-                    "X-RateLimit-Remaining": number;
-                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
-                    "X-RateLimit-Reset": number;
-                    /** @description Seconds to wait before retrying the request. */
-                    "Retry-After": number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "RATE_LIMITED",
-                     *         "type": "rate_limit",
-                     *         "message": "Too many requests.",
-                     *         "suggestion": "Wait for the retry window before sending another request.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
-                     *         "retryAfter": 42
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-        };
-    };
     generateContentImage: {
         parameters: {
             query?: never;
@@ -17631,7 +17135,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description The operation result, OR — when called with `dry_run: true` — a credit cost preview that did no work and spent nothing. */
+            /** @description The operation result. */
             200: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -17645,17 +17149,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ContentImageResponse"] | {
-                        /** @enum {boolean} */
-                        dry_run: true;
-                        operation: string;
-                        cost: number;
-                        balance: {
-                            remaining: number;
-                            planKey: string;
-                        };
-                        sufficient: boolean;
-                    };
+                    "application/json": components["schemas"]["ContentImageResponse"];
                 };
             };
             /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
@@ -17702,7 +17196,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; retry with `dry_run: true` to preview cost + balance without spending. No `Retry-After` — credits reset at the billing-period boundary. */
+            /** @description The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/account`. No `Retry-After` — credits reset at the billing-period boundary. */
             402: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -17716,7 +17210,7 @@ export interface operations {
                      *         "code": "INSUFFICIENT_CREDITS",
                      *         "type": "payment_required",
                      *         "message": "This operation costs 10 credit(s) but only 0 remain on the 'free' plan.",
-                     *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Retry with \"dry_run\": true to preview cost without spending.",
+                     *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/account.",
                      *         "docs": "https://docs.brew.new/api-reference/api/credits",
                      *         "details": {
                      *           "cost": 10,
@@ -17900,7 +17394,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description The operation result, OR — when called with `dry_run: true` — a credit cost preview that did no work and spent nothing. */
+            /** @description The operation result. */
             200: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -17914,17 +17408,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ContentGifResponse"] | {
-                        /** @enum {boolean} */
-                        dry_run: true;
-                        operation: string;
-                        cost: number;
-                        balance: {
-                            remaining: number;
-                            planKey: string;
-                        };
-                        sufficient: boolean;
-                    };
+                    "application/json": components["schemas"]["ContentGifResponse"];
                 };
             };
             /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
@@ -17971,7 +17455,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; retry with `dry_run: true` to preview cost + balance without spending. No `Retry-After` — credits reset at the billing-period boundary. */
+            /** @description The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/account`. No `Retry-After` — credits reset at the billing-period boundary. */
             402: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -17985,7 +17469,7 @@ export interface operations {
                      *         "code": "INSUFFICIENT_CREDITS",
                      *         "type": "payment_required",
                      *         "message": "This operation costs 10 credit(s) but only 0 remain on the 'free' plan.",
-                     *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Retry with \"dry_run\": true to preview cost without spending.",
+                     *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/account.",
                      *         "docs": "https://docs.brew.new/api-reference/api/credits",
                      *         "details": {
                      *           "cost": 10,
@@ -18169,7 +17653,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description The operation result, OR — when called with `dry_run: true` — a credit cost preview that did no work and spent nothing. */
+            /** @description The operation result. */
             200: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -18193,16 +17677,6 @@ export interface operations {
                         fps: number;
                         aspectRatio: string;
                         loop: boolean;
-                    } | {
-                        /** @enum {boolean} */
-                        dry_run: true;
-                        operation: string;
-                        cost: number;
-                        balance: {
-                            remaining: number;
-                            planKey: string;
-                        };
-                        sufficient: boolean;
                     };
                 };
             };
@@ -18250,7 +17724,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; retry with `dry_run: true` to preview cost + balance without spending. No `Retry-After` — credits reset at the billing-period boundary. */
+            /** @description The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/account`. No `Retry-After` — credits reset at the billing-period boundary. */
             402: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -18264,7 +17738,7 @@ export interface operations {
                      *         "code": "INSUFFICIENT_CREDITS",
                      *         "type": "payment_required",
                      *         "message": "This operation costs 10 credit(s) but only 0 remain on the 'free' plan.",
-                     *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Retry with \"dry_run\": true to preview cost without spending.",
+                     *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/account.",
                      *         "docs": "https://docs.brew.new/api-reference/api/credits",
                      *         "details": {
                      *           "cost": 10,
@@ -18448,7 +17922,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description The operation result, OR — when called with `dry_run: true` — a credit cost preview that did no work and spent nothing. */
+            /** @description The operation result. */
             200: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -18462,17 +17936,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ContentVideoToGifResponse"] | {
-                        /** @enum {boolean} */
-                        dry_run: true;
-                        operation: string;
-                        cost: number;
-                        balance: {
-                            remaining: number;
-                            planKey: string;
-                        };
-                        sufficient: boolean;
-                    };
+                    "application/json": components["schemas"]["ContentVideoToGifResponse"];
                 };
             };
             /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
@@ -18519,7 +17983,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; retry with `dry_run: true` to preview cost + balance without spending. No `Retry-After` — credits reset at the billing-period boundary. */
+            /** @description The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/account`. No `Retry-After` — credits reset at the billing-period boundary. */
             402: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -18533,7 +17997,7 @@ export interface operations {
                      *         "code": "INSUFFICIENT_CREDITS",
                      *         "type": "payment_required",
                      *         "message": "This operation costs 10 credit(s) but only 0 remain on the 'free' plan.",
-                     *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Retry with \"dry_run\": true to preview cost without spending.",
+                     *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/account.",
                      *         "docs": "https://docs.brew.new/api-reference/api/credits",
                      *         "details": {
                      *           "cost": 10,
@@ -18717,7 +18181,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description The operation result, OR — when called with `dry_run: true` — a credit cost preview that did no work and spent nothing. */
+            /** @description The operation result. */
             200: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -18731,17 +18195,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ContentOptimizedImageResponse"] | {
-                        /** @enum {boolean} */
-                        dry_run: true;
-                        operation: string;
-                        cost: number;
-                        balance: {
-                            remaining: number;
-                            planKey: string;
-                        };
-                        sufficient: boolean;
-                    };
+                    "application/json": components["schemas"]["ContentOptimizedImageResponse"];
                 };
             };
             /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
@@ -18788,7 +18242,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; retry with `dry_run: true` to preview cost + balance without spending. No `Retry-After` — credits reset at the billing-period boundary. */
+            /** @description The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/account`. No `Retry-After` — credits reset at the billing-period boundary. */
             402: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -18802,7 +18256,7 @@ export interface operations {
                      *         "code": "INSUFFICIENT_CREDITS",
                      *         "type": "payment_required",
                      *         "message": "This operation costs 10 credit(s) but only 0 remain on the 'free' plan.",
-                     *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Retry with \"dry_run\": true to preview cost without spending.",
+                     *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/account.",
                      *         "docs": "https://docs.brew.new/api-reference/api/credits",
                      *         "details": {
                      *           "cost": 10,
@@ -18986,7 +18440,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description The operation result, OR — when called with `dry_run: true` — a credit cost preview that did no work and spent nothing. */
+            /** @description The operation result. */
             200: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -19000,17 +18454,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ContentResizeResponse"] | {
-                        /** @enum {boolean} */
-                        dry_run: true;
-                        operation: string;
-                        cost: number;
-                        balance: {
-                            remaining: number;
-                            planKey: string;
-                        };
-                        sufficient: boolean;
-                    };
+                    "application/json": components["schemas"]["ContentResizeResponse"];
                 };
             };
             /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
@@ -19057,7 +18501,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; retry with `dry_run: true` to preview cost + balance without spending. No `Retry-After` — credits reset at the billing-period boundary. */
+            /** @description The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/account`. No `Retry-After` — credits reset at the billing-period boundary. */
             402: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -19071,7 +18515,7 @@ export interface operations {
                      *         "code": "INSUFFICIENT_CREDITS",
                      *         "type": "payment_required",
                      *         "message": "This operation costs 10 credit(s) but only 0 remain on the 'free' plan.",
-                     *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Retry with \"dry_run\": true to preview cost without spending.",
+                     *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/account.",
                      *         "docs": "https://docs.brew.new/api-reference/api/credits",
                      *         "details": {
                      *           "cost": 10,
@@ -19255,7 +18699,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description The operation result, OR — when called with `dry_run: true` — a credit cost preview that did no work and spent nothing. */
+            /** @description The operation result. */
             200: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -19269,17 +18713,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ContentPngResponse"] | {
-                        /** @enum {boolean} */
-                        dry_run: true;
-                        operation: string;
-                        cost: number;
-                        balance: {
-                            remaining: number;
-                            planKey: string;
-                        };
-                        sufficient: boolean;
-                    };
+                    "application/json": components["schemas"]["ContentPngResponse"];
                 };
             };
             /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
@@ -19326,7 +18760,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; retry with `dry_run: true` to preview cost + balance without spending. No `Retry-After` — credits reset at the billing-period boundary. */
+            /** @description The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/account`. No `Retry-After` — credits reset at the billing-period boundary. */
             402: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -19340,7 +18774,7 @@ export interface operations {
                      *         "code": "INSUFFICIENT_CREDITS",
                      *         "type": "payment_required",
                      *         "message": "This operation costs 10 credit(s) but only 0 remain on the 'free' plan.",
-                     *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Retry with \"dry_run\": true to preview cost without spending.",
+                     *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/account.",
                      *         "docs": "https://docs.brew.new/api-reference/api/credits",
                      *         "details": {
                      *           "cost": 10,
@@ -19517,14 +18951,14 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        /** @description Public `imageUrl` to rehost. */
+        /** @description Public `imageUrl` to optimize, save to the brand library, and rehost. */
         requestBody: {
             content: {
                 "application/json": components["schemas"]["ContentHostImageRequest"];
             };
         };
         responses: {
-            /** @description The image was rehosted; `url` is a durable cdn.brew.new URL. */
+            /** @description The image was optimized, saved to the brand library, and rehosted; `url` is a durable cdn.brew.new URL. */
             200: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -19538,6 +18972,14 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
+                    /**
+                     * @example {
+                     *       "url": "https://cdn.brew.new/api-host-3f2c8d9a-1b4e-4c7a-9e21-7d6f0a5b1c34.png",
+                     *       "width": 1200,
+                     *       "height": 675,
+                     *       "aspectRatio": "wide"
+                     *     }
+                     */
                     "application/json": components["schemas"]["ContentHostedImageResponse"];
                 };
             };
@@ -19579,6 +19021,33 @@ export interface operations {
                      *         "message": "The provided API key is invalid.",
                      *         "suggestion": "Check the API key format and retry with a valid active key.",
                      *         "docs": "https://docs.brew.new/api-reference/api/authentication"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/account`. No `Retry-After` — credits reset at the billing-period boundary. */
+            402: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INSUFFICIENT_CREDITS",
+                     *         "type": "payment_required",
+                     *         "message": "This operation costs 10 credit(s) but only 0 remain on the 'free' plan.",
+                     *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/account.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/credits",
+                     *         "details": {
+                     *           "cost": 10,
+                     *           "remaining": 0,
+                     *           "planKey": "free"
+                     *         }
                      *       }
                      *     }
                      */
@@ -19703,6 +19172,31 @@ export interface operations {
                      *         "message": "An unexpected error occurred.",
                      *         "suggestion": "Retry the request. If it keeps failing, contact support.",
                      *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The credit balance could not be verified (a transient billing dependency outage). The gate fails closed rather than do paid work it cannot meter. Retryable — `Retry-After` indicates when. */
+            503: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Seconds to wait before retrying the request. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "SERVICE_UNAVAILABLE",
+                     *         "type": "service_unavailable",
+                     *         "message": "Your credit balance could not be verified because a billing dependency is temporarily unavailable.",
+                     *         "suggestion": "Retry the request after a short delay.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/credits",
+                     *         "retryAfter": 2
                      *       }
                      *     }
                      */
@@ -19859,121 +19353,6 @@ export interface operations {
             };
         };
     };
-    getMe: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Key / session context. */
-            200: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    /** @description Requests allowed in the current rolling rate limit window. */
-                    "X-RateLimit-Limit": number;
-                    /** @description Requests remaining in the current rolling rate limit window. */
-                    "X-RateLimit-Remaining": number;
-                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
-                    "X-RateLimit-Reset": number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "authType": "api_key",
-                     *       "orgId": "org_3Czs4kJwUThlgFCmYKjEThhb199",
-                     *       "brandId": "jh7bq9n5spapmh1vj058we0qqs88yhxb",
-                     *       "scopes": [
-                     *         "emails",
-                     *         "contacts",
-                     *         "sends"
-                     *       ]
-                     *     }
-                     */
-                    "application/json": components["schemas"]["MeGetResponse"];
-                };
-            };
-            /** @description The API key was missing, invalid, or revoked. */
-            401: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INVALID_API_KEY",
-                     *         "type": "authentication_error",
-                     *         "message": "The provided API key is invalid.",
-                     *         "suggestion": "Check the API key format and retry with a valid active key.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The request hit the rolling rate limit window. */
-            429: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    /** @description Requests allowed in the current rolling rate limit window. */
-                    "X-RateLimit-Limit": number;
-                    /** @description Requests remaining in the current rolling rate limit window. */
-                    "X-RateLimit-Remaining": number;
-                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
-                    "X-RateLimit-Reset": number;
-                    /** @description Seconds to wait before retrying the request. */
-                    "Retry-After": number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "RATE_LIMITED",
-                     *         "type": "rate_limit",
-                     *         "message": "Too many requests.",
-                     *         "suggestion": "Wait for the retry window before sending another request.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
-                     *         "retryAfter": 42
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description Unexpected internal error. */
-            500: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INTERNAL_ERROR",
-                     *         "type": "internal_error",
-                     *         "message": "An unexpected error occurred.",
-                     *         "suggestion": "Retry the request. If it keeps failing, contact support.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-        };
-    };
     getHealth: {
         parameters: {
             query?: never;
@@ -19998,6 +19377,28 @@ export interface operations {
                      *     }
                      */
                     "application/json": components["schemas"]["HealthResponse"];
+                };
+            };
+        };
+    };
+    getHelp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The API catalog. */
+            200: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HelpResponse"];
                 };
             };
         };

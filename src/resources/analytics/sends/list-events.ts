@@ -1,6 +1,6 @@
-import { autoPaginate } from '../../core/pagination'
-import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import { autoPaginate } from '../../../core/pagination'
+import { unwrapResponse, type HttpClient } from '../../../core/http'
+import type { BrewRawResponse, RequestOptions } from '../../../types'
 
 import type {
   ListSendEventsInput,
@@ -11,8 +11,9 @@ import type {
 export type { ListSendEventsInput, SendEventsResponse }
 
 /**
- * Input to `brew.sends.listEvents(...)`. The `sendId` is sent on the URL
- * path; `eventType` filters the feed and `limit`/`cursor` page it.
+ * Input to `brew.analytics.sends.listEvents(...)`. The `sendId` is sent
+ * on the URL path; `eventType` filters the feed and `limit`/`cursor`
+ * page it.
  */
 export type ListSendEventsForSendInput = ListSendEventsInput & {
   /**
@@ -23,14 +24,15 @@ export type ListSendEventsForSendInput = ListSendEventsInput & {
 }
 
 /**
- * `GET /v1/sends/{sendId}/events` — per-recipient analytics event feed
- * for one send under `{ data, pagination }`
+ * `GET /v1/analytics/sends/{sendId}/events` — per-recipient analytics
+ * event feed for one send under `{ data, pagination }`
  * (`sent | delivered | opened | clicked | bounced | complained |
  * unsubscribed`), each with `occurredAt`, `recipientEmail`, and the
  * click `url` when known. Requires the `emails` scope.
  *
  * Filter with `eventType`. Uses a native feed cursor (longer than list
- * cursors). To page through every event use `brew.sends.listAllEvents`.
+ * cursors). To page through every event use
+ * `brew.analytics.sends.listAllEvents`.
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<SendEventsResponse>` instead of the unwrapped
@@ -52,7 +54,7 @@ export function createListSendEvents(client: HttpClient) {
     const { sendId, ...query } = input
     const response = await client.request<SendEventsResponse>({
       method: 'GET',
-      path: `/v1/sends/${encodeURIComponent(sendId)}/events`,
+      path: `/v1/analytics/sends/${encodeURIComponent(sendId)}/events`,
       query: {
         eventType: query.eventType,
         limit: query.limit,
@@ -66,7 +68,7 @@ export function createListSendEvents(client: HttpClient) {
 }
 
 /**
- * Input to `brew.sends.listAllEvents(...)`. Same as
+ * Input to `brew.analytics.sends.listAllEvents(...)`. Same as
  * `ListSendEventsForSendInput` minus `cursor` — the iterator owns cursor
  * state internally. `limit` is the per-page size, not a total cap.
  */
@@ -75,13 +77,13 @@ export type ListAllSendEventsInput = Readonly<
 >
 
 /**
- * Async iterator over `GET /v1/sends/{sendId}/events` that pages through
- * every event of one send, yielding one `SendEvent` at a time. Follows
- * `pagination.cursor` until `hasMore` is `false`; honors `options.signal`
- * between pages.
+ * Async iterator over `GET /v1/analytics/sends/{sendId}/events` that
+ * pages through every event of one send, yielding one `SendEvent` at a
+ * time. Follows `pagination.cursor` until `hasMore` is `false`; honors
+ * `options.signal` between pages.
  *
  * ```ts
- * for await (const ev of brew.sends.listAllEvents({ sendId: 'snd_x' })) {
+ * for await (const ev of brew.analytics.sends.listAllEvents({ sendId: 'snd_x' })) {
  *   console.log(ev.eventType, ev.recipientEmail)
  * }
  * ```

@@ -1,21 +1,21 @@
-import type { PaginationInput } from '../../core/pagination'
-import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { PaginationInput } from '../../../core/pagination'
+import { unwrapResponse, type HttpClient } from '../../../core/http'
+import type { BrewRawResponse, RequestOptions } from '../../../types'
 
-import type { TriggersListResponse } from './types'
+import type { Trigger, TriggersListResponse } from './types'
 
 export type ListTriggersResponse = TriggersListResponse
 
-/** Input to `brew.triggers.list` — cursor pagination knobs. */
+/** Input to `brew.automations.triggers.list` — cursor pagination knobs. */
 export type ListTriggersInput = PaginationInput
 
 /**
- * `GET /v1/triggers` — list every trigger in the API key brand,
- * including both API-created customs (`provider: 'brew_api'`) and
+ * `GET /v1/automations/triggers` — list every trigger in the API key
+ * brand, including both API-created customs (`provider: 'brew_api'`) and
  * integration-provisioned rows (`provider: 'clerk' | 'stripe' | …`).
- * Returns `{ triggers, pagination }`; accepts `limit`/`cursor`. For a
- * single trigger use `brew.triggers.get(...)` — it returns a
- * one-element list with the same wrapper shape.
+ * Returns the uniform `{ data, pagination }` envelope; accepts
+ * `limit`/`cursor`. For a single trigger use
+ * `brew.automations.triggers.get(...)`.
  */
 export function createListTriggers(client: HttpClient) {
   function listTriggers(
@@ -32,7 +32,7 @@ export function createListTriggers(client: HttpClient) {
   ): Promise<ListTriggersResponse | BrewRawResponse<ListTriggersResponse>> {
     const response = await client.request<ListTriggersResponse>({
       method: 'GET',
-      path: '/v1/triggers',
+      path: '/v1/automations/triggers',
       query: { limit: input.limit, cursor: input.cursor },
       ...(options ? { options } : {}),
     })
@@ -46,16 +46,14 @@ export type GetTriggerInput = {
 }
 
 /**
- * Single-row get returns the same `{ triggers: [...] }` envelope as
- * list mode — a one-element array (or `404
- * TRIGGER_EVENT_NOT_FOUND` when missing). Use `result.triggers[0]`
- * to destructure the row.
+ * Single-row get returns the bare `Trigger` row (or `404
+ * TRIGGER_EVENT_NOT_FOUND` when missing).
  */
-export type GetTriggerResponse = TriggersListResponse
+export type GetTriggerResponse = Trigger
 
 /**
- * `GET /v1/triggers?triggerEventId=…` — return a single-element
- * `{ triggers: [row] }` envelope.
+ * `GET /v1/automations/triggers/{triggerEventId}` — fetch a single
+ * trigger by id, returning the bare row.
  */
 export function createGetTrigger(client: HttpClient) {
   function getTrigger(
@@ -72,8 +70,7 @@ export function createGetTrigger(client: HttpClient) {
   ): Promise<GetTriggerResponse | BrewRawResponse<GetTriggerResponse>> {
     const response = await client.request<GetTriggerResponse>({
       method: 'GET',
-      path: '/v1/triggers',
-      query: { triggerEventId: input.triggerEventId },
+      path: `/v1/automations/triggers/${encodeURIComponent(input.triggerEventId)}`,
       ...(options ? { options } : {}),
     })
     return unwrapResponse(response, options)

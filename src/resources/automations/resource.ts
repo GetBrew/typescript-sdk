@@ -8,10 +8,18 @@ import {
   createPublishAutomation,
   createUnpublishAutomation,
 } from './patch'
+import {
+  createAutomationRunsResource,
+  type AutomationRunsResource,
+} from './runs/resource'
 import { createTestAutomation } from './test'
+import {
+  createTriggersResource,
+  type TriggersResource,
+} from './triggers/resource'
 
 export type AutomationsResource = {
-  /** `POST /v1/automations` — deterministic create (or dry-run via `dryRun: true`). */
+  /** `POST /v1/automations` — deterministic create. */
   readonly create: ReturnType<typeof createCreateAutomation>
   /** `POST /v1/automations/{automationId}/test` — start a suppression-aware TEST run (no real mail). */
   readonly test: ReturnType<typeof createTestAutomation>
@@ -27,6 +35,10 @@ export type AutomationsResource = {
   readonly unpublish: ReturnType<typeof createUnpublishAutomation>
   /** `DELETE /v1/automations` — cascade. */
   readonly delete: ReturnType<typeof createDeleteAutomation>
+  /** `/v1/automations/triggers(/{triggerEventId}(/fire))` — trigger CRUD + fire. */
+  readonly triggers: TriggersResource
+  /** `/v1/automations/runs(/{automationRunId})` — read-only run history. */
+  readonly runs: AutomationRunsResource
 }
 
 export function createAutomationsResource(
@@ -42,5 +54,7 @@ export function createAutomationsResource(
     publish: createPublishAutomation(patch),
     unpublish: createUnpublishAutomation(patch),
     delete: createDeleteAutomation(client),
+    triggers: createTriggersResource(client),
+    runs: createAutomationRunsResource(client),
   }
 }

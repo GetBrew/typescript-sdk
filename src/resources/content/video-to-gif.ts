@@ -13,9 +13,7 @@ export type { ContentVideoToGifRequest, ContentVideoToGifResponse }
  * GIF at an optional `fps` / `width`. Requires the `emails` scope.
  *
  * Returns a `ContentVideoToGifResponse` (`{ gifUrl }`). This operation
- * is credit-metered. Pass `dry_run: true` on the input to preview the
- * cost without transcoding — the server then spends nothing and returns
- * a credit-cost preview envelope instead. An insufficient balance
+ * is credit-metered. An insufficient balance
  * surfaces as `402 INSUFFICIENT_CREDITS`.
  *
  * Pass `{ raw: true }` in `options` to receive the full

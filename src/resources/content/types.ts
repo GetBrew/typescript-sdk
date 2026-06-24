@@ -2,8 +2,7 @@ import type { components, paths } from '../../generated/openapi-types'
 
 /**
  * Request body for `POST /v1/content/generate-image`. Carries the
- * `prompt`, optional `mode` / `aspectRatio` / `model` / source images,
- * and the shared `dry_run` flag.
+ * `prompt`, optional `mode` / `aspectRatio` / `model` / source images.
  */
 export type ContentGenerateImageRequest =
   components['schemas']['ContentGenerateImageRequest']
@@ -14,8 +13,7 @@ export type ContentImageResponse =
 
 /**
  * Request body for `POST /v1/content/generate-gif`. Carries the
- * `prompt`, optional `duration` / `fps` / `aspectRatio` / `loop`, and
- * the shared `dry_run` flag.
+ * `prompt`, optional `duration` / `fps` / `aspectRatio` / `loop`.
  */
 export type ContentGenerateGifRequest =
   components['schemas']['ContentGenerateGifRequest']
@@ -26,7 +24,7 @@ export type ContentGifResponse = components['schemas']['ContentGifResponse']
 /**
  * Request body for `POST /v1/content/image-to-gif`. Carries the source
  * `imageUrl`, optional motion `prompt` / `duration` / `fps` /
- * `aspectRatio` / `loop`, and the shared `dry_run` flag.
+ * `aspectRatio` / `loop`.
  */
 export type ContentImageToGifRequest =
   components['schemas']['ContentImageToGifRequest']
@@ -41,7 +39,7 @@ export type ContentImageToGifResponse =
 
 /**
  * Request body for `POST /v1/content/video-to-gif`. Carries the source
- * `videoUrl`, optional `fps` / `width`, and the shared `dry_run` flag.
+ * `videoUrl`, optional `fps` / `width`.
  */
 export type ContentVideoToGifRequest =
   components['schemas']['ContentVideoToGifRequest']
@@ -52,7 +50,7 @@ export type ContentVideoToGifResponse =
 
 /**
  * Request body for `POST /v1/content/optimize-image`. Carries the source
- * `imageUrl` and the shared `dry_run` flag.
+ * `imageUrl`.
  */
 export type ContentOptimizeImageRequest =
   components['schemas']['ContentOptimizeImageRequest']
@@ -64,7 +62,7 @@ export type ContentOptimizedImageResponse =
 /**
  * Request body for `POST /v1/content/resize`. Carries the source
  * `imageUrl`, target `width` / `height`, optional `prompt` /
- * `resolution` / `outputFormat`, and the shared `dry_run` flag.
+ * `resolution` / `outputFormat`.
  */
 export type ContentResizeRequest =
   components['schemas']['ContentResizeRequest']
@@ -75,7 +73,7 @@ export type ContentResizeResponse =
 
 /**
  * Request body for `POST /v1/content/html-to-png`. Carries the `html`,
- * optional `width` / `maxHeight`, and the shared `dry_run` flag.
+ * optional `width` / `maxHeight`.
  */
 export type ContentHtmlToPngRequest =
   components['schemas']['ContentHtmlToPngRequest']

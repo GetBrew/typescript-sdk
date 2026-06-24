@@ -13,11 +13,8 @@ export type { ContentOptimizeImageRequest, ContentOptimizedImageResponse }
  * an email-optimized asset. Requires the `emails` scope.
  *
  * Returns a `ContentOptimizedImageResponse` (`{ url, width, height,
- * aspectRatio, bytes }`). This operation is credit-metered. Pass
- * `dry_run: true` on the input to preview the cost without optimizing —
- * the server then spends nothing and returns a credit-cost preview
- * envelope instead. An insufficient balance surfaces as
- * `402 INSUFFICIENT_CREDITS`.
+ * aspectRatio, bytes }`). This operation is credit-metered. An
+ * insufficient balance surfaces as `402 INSUFFICIENT_CREDITS`.
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<ContentOptimizedImageResponse>` instead of the

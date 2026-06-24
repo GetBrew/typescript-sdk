@@ -15,12 +15,6 @@ export type PreviewEmailInput = {
    * the server default to `all`.
    */
   readonly device?: 'desktop' | 'mobile' | 'all'
-  /**
-   * Preview the credit cost without rendering. When `true` the server
-   * spends nothing and returns a `CreditDryRunPreview` envelope instead
-   * of the rendered URLs. Defaults to `false`.
-   */
-  readonly dry_run?: boolean
 }
 
 /** The rendered preview URL(s) returned by `POST /v1/emails/{emailId}/preview`. */
@@ -37,9 +31,7 @@ export type PreviewEmailResponse =
  * `400 INVALID_REQUEST`.
  *
  * Returns `{ previews: [{ device, url, width }] }`. This operation is
- * credit-metered (low). Pass `dry_run: true` to preview the cost
- * without rendering — the server then returns a `CreditDryRunPreview`
- * envelope and spends nothing. An insufficient balance surfaces as
+ * credit-metered (low). An insufficient balance surfaces as
  * `402 INSUFFICIENT_CREDITS`.
  *
  * Pass `{ raw: true }` in `options` to receive the full

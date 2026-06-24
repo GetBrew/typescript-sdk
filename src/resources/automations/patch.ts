@@ -8,7 +8,7 @@ import type { Automation } from './types'
  * `PATCH /v1/automations` body union — update | publish.
  *
  * - **Update**: any combination of `name | description | nodes |
- *   connections | triggerEventId | dryRun` alongside `automationId`.
+ *   connections | triggerEventId` alongside `automationId`.
  * - **Publish / unpublish**: `{ automationId, published, automationVersionId? }`.
  *
  * Bodies that mix branches (e.g. `nodes` + `published`) or include
@@ -24,7 +24,6 @@ export type PatchAutomationInput = {
   nodes?: ReadonlyArray<AutomationNodeInput>
   connections?: ReadonlyArray<AutomationConnectionInput>
   triggerEventId?: string
-  dryRun?: boolean
   // publish branch
   published?: boolean
   automationVersionId?: string

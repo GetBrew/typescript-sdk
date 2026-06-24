@@ -136,14 +136,10 @@ export type AutomationConnectionInput = {
  * (`nodes`, `connections`) and a `triggerEventId` to bind. Returns
  * the canonical `Automation` row.
  *
- * Add `dryRun: true` to validate-without-persist (returns
- * `{ valid, blockers, warnings, nodeCounts }` from
- * `validateAutomationForPublish` — no Convex writes).
- *
  * The public API is deterministic-only — pre-mint email bodies via
- * `brew.emails.generate({ emailType: 'automation', … })` and reference
- * the returned `emailId` in `sendEmail.config.emailId`. AI authoring
- * stays on the chat-side orchestrator.
+ * `brew.emails.generate(...)` and reference the returned `emailId` in
+ * `sendEmail.config.emailId`. AI authoring stays on the chat-side
+ * orchestrator.
  *
  * Hand-rolled rather than `Extract<>` from the OpenAPI union — see
  * `triggers/create.ts` for the same rationale.
@@ -154,34 +150,19 @@ export type CreateAutomationInput = {
   triggerEventId: string
   nodes: ReadonlyArray<AutomationNodeInput>
   connections: ReadonlyArray<AutomationConnectionInput>
-  dryRun?: boolean
 }
 
 /**
- * `POST /v1/automations` response. Branches:
- *  - **Created** (default): `{ automations: [row] }` — same wrapper
- *    every other automations endpoint uses. Destructure via
- *    `result.automations[0]`.
- *  - **Dry-run** (`dryRun: true`): `{ valid, blockers, warnings,
- *    nodeCounts }` — same shape `validateAutomationForPublish`
- *    returns; no Convex writes happened.
+ * `POST /v1/automations` response — `{ automations: [row] }`, the same
+ * wrapper every other automations endpoint uses. Destructure via
+ * `result.automations[0]`.
  */
-export type CreateAutomationResponse =
-  | { automations: ReadonlyArray<Automation> }
-  | {
-      valid: boolean
-      blockers: ReadonlyArray<{ message: string; severity: string }>
-      warnings: ReadonlyArray<{ message: string; severity: string }>
-      nodeCounts: {
-        sendEmail: number
-        wait: number
-        filter: number
-        split: number
-      }
-    }
+export type CreateAutomationResponse = {
+  automations: ReadonlyArray<Automation>
+}
 
 /**
- * `POST /v1/automations` — deterministic create OR dry-run validate.
+ * `POST /v1/automations` — deterministic create.
  */
 export function createCreateAutomation(client: HttpClient) {
   function createAutomation(

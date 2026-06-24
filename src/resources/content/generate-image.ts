@@ -14,9 +14,7 @@ export type { ContentGenerateImageRequest, ContentImageResponse }
  * `emails` scope.
  *
  * Returns a `ContentImageResponse` (`{ url, prompt, description?,
- * warnings? }`). This operation is credit-metered. Pass `dry_run: true`
- * on the input to preview the cost without generating — the server then
- * spends nothing and returns a credit-cost preview envelope instead. An
+ * warnings? }`). This operation is credit-metered. An
  * insufficient balance surfaces as `402 INSUFFICIENT_CREDITS`.
  *
  * Pass `{ raw: true }` in `options` to receive the full

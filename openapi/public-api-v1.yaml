@@ -7,7 +7,7 @@ info:
 
     ## Resource paths
 
-    Identity lives in the URL path (`/v1/sends/{sendId}`) — never in a query param or request body. Collections are plural top-level segments (`/v1/emails`); query params exist only for collection pagination + simple filters. Relationships are sub-resources (`/v1/emails/{emailId}/sends`), and non-CRUD operations are explicit action sub-paths (`/v1/automations/{automationId}/publish`).
+    Identity lives in the URL path (`/v1/analytics/sends/{sendId}`) — never in a query param or request body. Collections are plural top-level segments (`/v1/emails`); query params exist only for collection pagination + simple filters. Relationships are sub-resources (`/v1/emails/{emailId}/sends`), and non-CRUD operations are explicit action sub-paths (`/v1/automations/{automationId}/publish`).
 
     ## Response envelopes
 
@@ -15,7 +15,7 @@ info:
     - Get-one and writes: the bare resource (creates return `201`; async sends `202`).
     - Deletes: `{ <idField>, deleted: boolean }` — idempotent (already-gone ids resolve with `deleted: false`).
     - Errors: `{ error: { code, type, message, param?, suggestion, docs } }` — branch on the stable `code`.
-    - ONE exception: `POST /v1/triggers/{triggerEventId}/fire` responds with the legacy fire envelope `{ success, status, code, message, receivedAt, details }` (shared with internal webhook infrastructure).
+    - ONE exception: `POST /v1/automations/triggers/{triggerEventId}/fire` responds with the legacy fire envelope `{ success, status, code, message, receivedAt, details }` (shared with internal webhook infrastructure).
 
     ## Brand scoping
 
@@ -40,17 +40,11 @@ tags:
   - name: Emails
     description: Email designs — generate with the Brew email agent, edit, version, restore. A design carries no send state; deliver it via Sends or an automation.
   - name: Sends
-    description: "The unit of delivery + analytics: one design to one audience via one domain. Create campaign sends, fire test deliveries, poll status, read per-send event feeds."
+    description: "The unit of delivery: one design to one audience via one domain. Create campaign sends and fire test deliveries. Send reads (list, status, per-send event feeds) live under Analytics (`/v1/analytics/sends`)."
   - name: Analytics
-    description: "Read-only cross-resource analytics: lifetime per-send campaign KPIs, windowed automation performance, and the unified event feed."
+    description: "Read-only cross-resource analytics: lifetime per-send campaign KPIs, windowed automation performance, the unified event feed, campaign send reads (`/v1/analytics/sends`), and the fired-trigger audit log (`/v1/analytics/trigger-instances`)."
   - name: Automations
-    description: Automation graphs — deterministic create from explicit `nodes` + `connections`, update, version, publish / unpublish, test.
-  - name: Runs
-    description: Automation run history (under `/v1/analytics/automations/runs`) — one per (automation, fire). List with filters, read one with per-node logs.
-  - name: Triggers
-    description: Trigger event definitions (the schema + lifecycle automations subscribe to) and the fire endpoint that starts published automations.
-  - name: Events
-    description: Read-only audit log of fired trigger-event instances (API fires + integration webhooks) with links to the runs they started.
+    description: Automation graphs — deterministic create from explicit `nodes` + `connections`, update, version, publish / unpublish, test. Includes trigger event definitions + the fire endpoint (`/v1/automations/triggers`) and run history (`/v1/automations/runs`).
   - name: Contacts
     description: Create, search, patch, and delete contacts. Email is the primary key.
   - name: Contact Fields
@@ -63,10 +57,8 @@ tags:
     description: Public template gallery (read-only) usable as generation references.
   - name: Brand
     description: The single brand bound to the API key.
-  - name: Usage
-    description: API usage self-monitoring for the caller’s org.
-  - name: Integrations
-    description: Triggerable integration-event catalog (providers, events, connection state).
+  - name: Meta
+    description: "Public discovery surface (no auth): the machine-readable API catalog (`/v1/help`)."
 components:
   securitySchemes:
     bearerAuth:
@@ -1366,14 +1358,30 @@ components:
         emailId:
           type: string
           minLength: 1
+        title:
+          type: string
+          minLength: 1
+        category:
+          type: string
+          minLength: 1
+        brand:
+          type: string
+          minLength: 1
         html:
           type: string
           minLength: 1
         previewImage:
           type: string
           format: uri
+        updatedAt:
+          type: string
+          minLength: 1
       required:
         - emailId
+        - title
+        - html
+        - previewImage
+        - updatedAt
       additionalProperties: false
     EmailsListResponse:
       type: object
@@ -1475,40 +1483,6 @@ components:
       required:
         - response
       additionalProperties: false
-    CreditDryRunPreview:
-      type: object
-      properties:
-        dry_run:
-          type: boolean
-          enum:
-            - true
-        operation:
-          type: string
-          minLength: 1
-        cost:
-          type: integer
-          minimum: 0
-        balance:
-          type: object
-          properties:
-            remaining:
-              type: number
-            planKey:
-              type: string
-              minLength: 1
-          required:
-            - remaining
-            - planKey
-          additionalProperties: false
-        sufficient:
-          type: boolean
-      required:
-        - dry_run
-        - operation
-        - cost
-        - balance
-        - sufficient
-      additionalProperties: false
     EmailGenerateGeneratedResponse:
       type: object
       properties:
@@ -1542,12 +1516,37 @@ components:
           maxItems: 8
         referenceEmailId:
           type: string
-        dry_run:
-          type: boolean
-          default: false
       required:
         - prompt
       additionalProperties: false
+    EmailGenerateResponse:
+      anyOf:
+        - type: object
+          properties:
+            emailId:
+              type: string
+              minLength: 1
+            emailVersionId:
+              type: string
+              minLength: 1
+            html:
+              type: string
+            previewImage:
+              type: string
+              format: uri
+          required:
+            - emailId
+            - emailVersionId
+            - html
+          additionalProperties: false
+        - type: object
+          properties:
+            response:
+              type: string
+              minLength: 1
+          required:
+            - response
+          additionalProperties: false
     EmailEditRequest:
       type: object
       properties:
@@ -1564,9 +1563,6 @@ components:
             type: string
             format: uri
           maxItems: 8
-        dry_run:
-          type: boolean
-          default: false
       required:
         - prompt
       additionalProperties: false
@@ -1646,34 +1642,6 @@ components:
         - data
         - pagination
       additionalProperties: false
-    EmailGenerateResponse:
-      anyOf:
-        - type: object
-          properties:
-            emailId:
-              type: string
-              minLength: 1
-            emailVersionId:
-              type: string
-              minLength: 1
-            html:
-              type: string
-            previewImage:
-              type: string
-              format: uri
-          required:
-            - emailId
-            - emailVersionId
-            - html
-          additionalProperties: false
-        - type: object
-          properties:
-            response:
-              type: string
-              minLength: 1
-          required:
-            - response
-          additionalProperties: false
     EmailRestoreRequest:
       type: object
       properties:
@@ -1719,9 +1687,6 @@ components:
             - mobile
             - all
           default: all
-        dry_run:
-          type: boolean
-          default: false
       additionalProperties: false
     EmailAccessibilityAuditResponse:
       type: object
@@ -5440,14 +5405,30 @@ components:
               emailId:
                 type: string
                 minLength: 1
+              title:
+                type: string
+                minLength: 1
+              category:
+                type: string
+                minLength: 1
+              brand:
+                type: string
+                minLength: 1
               html:
                 type: string
                 minLength: 1
               previewImage:
                 type: string
                 format: uri
+              updatedAt:
+                type: string
+                minLength: 1
             required:
               - emailId
+              - title
+              - html
+              - previewImage
+              - updatedAt
             additionalProperties: false
         pagination:
           type: object
@@ -5657,165 +5638,6 @@ components:
         - data
         - pagination
       additionalProperties: false
-    UsageGetResponse:
-      type: object
-      properties:
-        usage:
-          type: object
-          properties:
-            overview:
-              type: object
-              properties:
-                requests:
-                  type: integer
-                  minimum: 0
-                successRate:
-                  type: integer
-                  minimum: 0
-                  maximum: 100
-                errors:
-                  type: integer
-                  minimum: 0
-                rateLimited:
-                  type: integer
-                  minimum: 0
-              required:
-                - requests
-                - successRate
-                - errors
-                - rateLimited
-              additionalProperties: false
-            trend:
-              type: array
-              items:
-                type: object
-                properties:
-                  date:
-                    type: string
-                    format: date-time
-                  requests:
-                    type: integer
-                    minimum: 0
-                  errors:
-                    type: integer
-                    minimum: 0
-                required:
-                  - date
-                  - requests
-                  - errors
-                additionalProperties: false
-            routes:
-              type: array
-              items:
-                type: object
-                properties:
-                  route:
-                    type: string
-                    minLength: 1
-                  requests:
-                    type: integer
-                    minimum: 0
-                  successRate:
-                    type: integer
-                    minimum: 0
-                    maximum: 100
-                  topErrorCode:
-                    type:
-                      - string
-                      - "null"
-                required:
-                  - route
-                  - requests
-                  - successRate
-                  - topErrorCode
-                additionalProperties: false
-          required:
-            - overview
-            - trend
-            - routes
-          additionalProperties: false
-      required:
-        - usage
-      additionalProperties: false
-    IntegrationsGetResponse:
-      type: object
-      properties:
-        data:
-          type: array
-          items:
-            type: object
-            properties:
-              provider:
-                type: string
-                enum:
-                  - clerk
-                  - stripe
-                  - stytch
-                  - supabase
-                  - workos
-                  - shopify
-                  - revenuecat
-              connected:
-                type: boolean
-              events:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    eventType:
-                      type: string
-                      minLength: 1
-                    title:
-                      type: string
-                    description:
-                      type: string
-                    category:
-                      type: string
-                    fieldKeys:
-                      type: array
-                      items:
-                        type: string
-                    requiredFieldKeys:
-                      type: array
-                      items:
-                        type: string
-                    provisioned:
-                      type: boolean
-                  required:
-                    - eventType
-                    - title
-                    - category
-                    - fieldKeys
-                    - requiredFieldKeys
-                    - provisioned
-                  additionalProperties: false
-            required:
-              - provider
-              - connected
-              - events
-            additionalProperties: false
-        pagination:
-          type: object
-          properties:
-            limit:
-              type: integer
-              minimum: 1
-              maximum: 100
-            cursor:
-              type:
-                - string
-                - "null"
-            hasMore:
-              type: boolean
-          required:
-            - limit
-            - cursor
-            - hasMore
-          additionalProperties: false
-      required:
-        - data
-        - pagination
-      additionalProperties: false
     ContentImageResponse:
       type: object
       properties:
@@ -5873,9 +5695,6 @@ components:
         image2:
           type: string
           format: uri
-        dry_run:
-          type: boolean
-          default: false
       required:
         - prompt
       additionalProperties: false
@@ -5934,9 +5753,6 @@ components:
             - 9:21
         loop:
           type: boolean
-        dry_run:
-          type: boolean
-          default: false
       required:
         - prompt
       additionalProperties: false
@@ -5970,9 +5786,6 @@ components:
             - 9:21
         loop:
           type: boolean
-        dry_run:
-          type: boolean
-          default: false
       required:
         - imageUrl
       additionalProperties: false
@@ -5999,9 +5812,6 @@ components:
           type: integer
           minimum: 16
           maximum: 2000
-        dry_run:
-          type: boolean
-          default: false
       required:
         - videoUrl
       additionalProperties: false
@@ -6035,9 +5845,6 @@ components:
         imageUrl:
           type: string
           format: uri
-        dry_run:
-          type: boolean
-          default: false
       required:
         - imageUrl
       additionalProperties: false
@@ -6089,9 +5896,6 @@ components:
             - png
             - jpeg
             - webp
-        dry_run:
-          type: boolean
-          default: false
       required:
         - imageUrl
         - width
@@ -6125,9 +5929,6 @@ components:
           type: integer
           minimum: 50
           maximum: 20000
-        dry_run:
-          type: boolean
-          default: false
       required:
         - html
       additionalProperties: false
@@ -6137,8 +5938,19 @@ components:
         url:
           type: string
           format: uri
+        width:
+          type: integer
+          minimum: 0
+        height:
+          type: integer
+          minimum: 0
+        aspectRatio:
+          type: string
       required:
         - url
+        - width
+        - height
+        - aspectRatio
       additionalProperties: false
     ContentHostImageRequest:
       type: object
@@ -6228,30 +6040,6 @@ components:
         - emailSends
         - period
       additionalProperties: false
-    MeGetResponse:
-      type: object
-      properties:
-        authType:
-          type: string
-          enum:
-            - api_key
-            - session
-        orgId:
-          type: string
-          minLength: 1
-        brandId:
-          type: string
-          minLength: 1
-        scopes:
-          type: array
-          items:
-            type: string
-      required:
-        - authType
-        - orgId
-        - brandId
-        - scopes
-      additionalProperties: false
     HealthResponse:
       type: object
       properties:
@@ -6265,6 +6053,9 @@ components:
         - status
         - version
       additionalProperties: false
+    HelpResponse:
+      type: object
+      additionalProperties: {}
   parameters: {}
 paths:
   /v1/emails:
@@ -6544,14 +6335,9 @@ paths:
                   prompt: Summarize this month’s product updates into a newsletter.
                   contentUrls:
                     - https://example.com/blog/product-launch
-              preview:
-                summary: Preview the credit cost without generating
-                value:
-                  prompt: Create a welcome email for new customers who joined Brew today.
-                  dry_run: true
       responses:
         "200":
-          description: "Either the agent answered in prose without writing a design (`{ response }`), OR — when called with `dry_run: true` — a credit cost PREVIEW (`{ dry_run: true, operation, cost, balance, sufficient }`) that generated nothing and spent nothing."
+          description: The agent answered in prose without writing a design (`{ response }`).
           headers:
             x-request-id:
               schema:
@@ -6584,24 +6370,9 @@ paths:
           content:
             application/json:
               schema:
-                anyOf:
-                  - $ref: "#/components/schemas/EmailGenerateTextResponse"
-                  - $ref: "#/components/schemas/CreditDryRunPreview"
-              examples:
-                textOnly: &a2
-                  summary: Text response (no design written)
-                  value:
-                    response: No email was generated.
-                dryRun:
-                  summary: "Dry-run cost preview (dry_run: true)"
-                  value:
-                    dry_run: true
-                    operation: email.generate
-                    cost: 10
-                    balance:
-                      remaining: 240
-                      planKey: pro
-                    sufficient: true
+                $ref: "#/components/schemas/EmailGenerateTextResponse"
+              example: &a2
+                response: No email was generated.
         "201":
           description: A design was persisted (credits charged). `emailVersionId` pins the exact version for sends + automation `sendEmail` nodes. The `X-Credit-Cost` / `X-Credits-Remaining` headers report the charge.
           headers:
@@ -6686,7 +6457,7 @@ paths:
                   suggestion: Check the API key format and retry with a valid active key.
                   docs: https://docs.brew.new/api-reference/api/authentication
         "402":
-          description: "The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; retry with `dry_run: true` to preview cost + balance without spending. No `Retry-After` — credits reset at the billing-period boundary."
+          description: The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/account`. No `Retry-After` — credits reset at the billing-period boundary.
           headers:
             x-request-id:
               schema:
@@ -6704,7 +6475,7 @@ paths:
                   code: INSUFFICIENT_CREDITS
                   type: payment_required
                   message: This operation costs 10 credit(s) but only 0 remain on the 'free' plan.
-                  suggestion: 'Upgrade your plan or wait for the next billing period to reset. Retry with "dry_run": true to preview cost without spending.'
+                  suggestion: Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/account.
                   docs: https://docs.brew.new/api-reference/api/credits
                   details:
                     cost: 10
@@ -7133,14 +6904,9 @@ paths:
                 summary: Manual JSX save (hand-authored React-Email markup)
                 value:
                   jsx: <Html><Body><Container><Text>Welcome to Brew.</Text></Container></Body></Html>
-              previewEdit:
-                summary: Preview the AI-edit credit cost without editing (prompt branch only)
-                value:
-                  prompt: Tighten the headline.
-                  dry_run: true
       responses:
         "200":
-          description: "Updated design (a new `latest` version row was written, credits charged) or a text response if the agent returned prose without JSX. When the AI-edit body carried `dry_run: true`, this is instead a credit cost PREVIEW that edited nothing and spent nothing. The deterministic `jsx` save branch is FREE and does not accept `dry_run`."
+          description: Updated design (a new `latest` version row was written, credits charged) or a text response if the agent returned prose without JSX. The deterministic `jsx` save branch is FREE.
           headers:
             x-request-id:
               schema:
@@ -7173,49 +6939,14 @@ paths:
           content:
             application/json:
               schema:
-                anyOf:
-                  - type: object
-                    properties:
-                      emailId:
-                        type: string
-                        minLength: 1
-                      emailVersionId:
-                        type: string
-                        minLength: 1
-                      html:
-                        type: string
-                      previewImage:
-                        type: string
-                        format: uri
-                    required:
-                      - emailId
-                      - emailVersionId
-                      - html
-                    additionalProperties: false
-                  - type: object
-                    properties:
-                      response:
-                        type: string
-                        minLength: 1
-                    required:
-                      - response
-                    additionalProperties: false
-                  - $ref: "#/components/schemas/CreditDryRunPreview"
+                $ref: "#/components/schemas/EmailGenerateResponse"
               examples:
                 generated:
                   summary: Generated design
                   value: *a1
-                textOnly: *a2
-                dryRun:
-                  summary: "Dry-run cost preview (AI edit, dry_run: true)"
-                  value:
-                    dry_run: true
-                    operation: email.edit
-                    cost: 5
-                    balance:
-                      remaining: 240
-                      planKey: pro
-                    sufficient: true
+                textOnly:
+                  summary: Text response (no design written)
+                  value: *a2
         "400":
           description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
           headers:
@@ -7260,7 +6991,7 @@ paths:
                   suggestion: Check the API key format and retry with a valid active key.
                   docs: https://docs.brew.new/api-reference/api/authentication
         "402":
-          description: "The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; retry with `dry_run: true` to preview cost + balance without spending. No `Retry-After` — credits reset at the billing-period boundary."
+          description: The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/account`. No `Retry-After` — credits reset at the billing-period boundary.
           headers:
             x-request-id:
               schema:
@@ -7278,7 +7009,7 @@ paths:
                   code: INSUFFICIENT_CREDITS
                   type: payment_required
                   message: This operation costs 10 credit(s) but only 0 remain on the 'free' plan.
-                  suggestion: 'Upgrade your plan or wait for the next billing period to reset. Retry with "dry_run": true to preview cost without spending.'
+                  suggestion: Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/account.
                   docs: https://docs.brew.new/api-reference/api/credits
                   details:
                     cost: 10
@@ -8127,7 +7858,7 @@ paths:
       tags:
         - Emails
       summary: Render the email to a PNG preview
-      description: "Render the email’s latest version to a hosted PNG screenshot at one or both device widths (`desktop` = 600px, `mobile` = 375px). Credit-metered (low). `dry_run: true` previews the cost without rendering."
+      description: Render the email’s latest version to a hosted PNG screenshot at one or both device widths (`desktop` = 600px, `mobile` = 375px). Credit-metered (low).
       parameters:
         - *a4
         - schema:
@@ -8150,7 +7881,7 @@ paths:
               device: all
       responses:
         "200":
-          description: "The rendered preview URL(s) — OR, when called with `dry_run: true`, a credit cost PREVIEW that rendered nothing and spent nothing."
+          description: The rendered preview URL(s).
           headers:
             x-request-id:
               schema:
@@ -8183,30 +7914,15 @@ paths:
           content:
             application/json:
               schema:
-                anyOf:
-                  - $ref: "#/components/schemas/EmailPreviewResponse"
-                  - $ref: "#/components/schemas/CreditDryRunPreview"
-              examples:
-                rendered:
-                  summary: Rendered previews
-                  value:
-                    previews:
-                      - device: desktop
-                        url: https://cdn.brew.new/api-preview-eml_welcome-desktop-abc.png
-                        width: 600
-                      - device: mobile
-                        url: https://cdn.brew.new/api-preview-eml_welcome-mobile-def.png
-                        width: 375
-                dryRun:
-                  summary: "Dry-run cost preview (dry_run: true)"
-                  value:
-                    dry_run: true
-                    operation: email.preview
-                    cost: 1
-                    balance:
-                      remaining: 240
-                      planKey: pro
-                    sufficient: true
+                $ref: "#/components/schemas/EmailPreviewResponse"
+              example:
+                previews:
+                  - device: desktop
+                    url: https://cdn.brew.new/api-preview-eml_welcome-desktop-abc.png
+                    width: 600
+                  - device: mobile
+                    url: https://cdn.brew.new/api-preview-eml_welcome-mobile-def.png
+                    width: 375
         "400":
           description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
           headers:
@@ -8251,7 +7967,7 @@ paths:
                   suggestion: Check the API key format and retry with a valid active key.
                   docs: https://docs.brew.new/api-reference/api/authentication
         "402":
-          description: "The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; retry with `dry_run: true` to preview cost + balance without spending. No `Retry-After` — credits reset at the billing-period boundary."
+          description: The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/account`. No `Retry-After` — credits reset at the billing-period boundary.
           headers:
             x-request-id:
               schema:
@@ -8269,7 +7985,7 @@ paths:
                   code: INSUFFICIENT_CREDITS
                   type: payment_required
                   message: This operation costs 10 credit(s) but only 0 remain on the 'free' plan.
-                  suggestion: 'Upgrade your plan or wait for the next billing period to reset. Retry with "dry_run": true to preview cost without spending.'
+                  suggestion: Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/account.
                   docs: https://docs.brew.new/api-reference/api/credits
                   details:
                     cost: 10
@@ -8687,7 +8403,7 @@ paths:
       tags:
         - Emails
       summary: List sends of an email design
-      description: The design’s send history under `{ data, pagination }` — a design can be sent unlimited times, and each campaign send is its own `Send` row. Same filters as `GET /v1/sends` (`status`, `from`, `to`). 404s on an unknown design so an empty history is distinguishable from a bad id. Requires the `sends` scope.
+      description: The design’s send history under `{ data, pagination }` — a design can be sent unlimited times, and each campaign send is its own `Send` row. Same filters as `GET /v1/analytics/sends` (`status`, `from`, `to`). 404s on an unknown design so an empty history is distinguishable from a bad id. Requires the `sends` scope.
       parameters:
         - name: status
           in: query
@@ -8926,11 +8642,11 @@ paths:
                   message: An unexpected error occurred.
                   suggestion: Retry the request. If it keeps failing, contact support.
                   docs: https://docs.brew.new/api-reference/api/errors
-  /v1/sends:
+  /v1/analytics/sends:
     get:
       operationId: listSends
       tags:
-        - Sends
+        - Analytics
       summary: List sends
       description: "Lists the brand’s campaign sends (newest first) under `{ data, pagination }`. A send is the unit of delivery + analytics: one design delivered to one audience via one domain. Filter with `?status=` (scheduled | queued | sending | sent | failed | canceled) and the `from`/`to` ISO-8601 window."
       parameters:
@@ -9084,7 +8800,7 @@ paths:
                   suggestion: Check the API key format and retry with a valid active key.
                   docs: https://docs.brew.new/api-reference/api/authentication
         "403":
-          description: The caller does not have the required `sends` permission.
+          description: The caller does not have the required `emails` permission.
           headers:
             x-request-id:
               schema:
@@ -9104,7 +8820,7 @@ paths:
                   message: The caller does not have the required permission.
                   suggestion: Use an API key or session with the required permission.
                   docs: https://docs.brew.new/api-reference/api/authentication
-                  param: sends
+                  param: emails
         "429":
           description: The request hit the rolling rate limit window.
           headers:
@@ -9176,13 +8892,14 @@ paths:
                   message: An unexpected error occurred.
                   suggestion: Retry the request. If it keeps failing, contact support.
                   docs: https://docs.brew.new/api-reference/api/errors
+  /v1/sends:
     post:
       operationId: createSend
       tags:
         - Sends
       summary: Create a campaign send
       description: |-
-        Starts an async campaign send: one design (`emailId`, optionally pinned to an exact `emailVersionId`) via a verified domain. A design can be sent unlimited times — every call mints a new send. Returns `202` with the `sendId` to poll via `GET /v1/sends/{sendId}`.
+        Starts an async campaign send: one design (`emailId`, optionally pinned to an exact `emailVersionId`) via a verified domain. A design can be sent unlimited times — every call mints a new send. Returns `202` with the `sendId` to poll via `GET /v1/analytics/sends/{sendId}`.
 
         Recipients — provide EXACTLY ONE of:
         - `audienceId` — a saved audience (any size), or
@@ -9190,7 +8907,7 @@ paths:
 
         Inline recipients face the same unsubscribe/suppression gate and per-recipient send quota as audience sends.
 
-        Test deliveries live on their own endpoint (`POST /v1/sends/test`) — there is no mode discriminator in this body. For per-recipient event-driven delivery, publish an automation and fire its trigger (`POST /v1/triggers/{triggerEventId}/fire`).
+        Test deliveries live on their own endpoint (`POST /v1/sends/test`) — there is no mode discriminator in this body. For per-recipient event-driven delivery, publish an automation and fire its trigger (`POST /v1/automations/triggers/{triggerEventId}/fire`).
 
         Brand scoping: resources (`emailId`, `domainId`, `audienceId`) living in a different brand surface as `404` so the API never confirms cross-brand existence.
       parameters:
@@ -9741,11 +9458,11 @@ paths:
                   message: An unexpected error occurred.
                   suggestion: Retry the request. If it keeps failing, contact support.
                   docs: https://docs.brew.new/api-reference/api/errors
-  /v1/sends/{sendId}:
+  /v1/analytics/sends/{sendId}:
     get:
       operationId: getSend
       tags:
-        - Sends
+        - Analytics
       summary: Get a send
       description: "Returns the bare send row: lifecycle status, the design + pinned version it delivered, audience, timestamps, and the aggregated `stats` block (sent / delivered / opened / clicked / bounced / complained / unsubscribed). Poll this after `POST /v1/sends`."
       parameters:
@@ -9818,7 +9535,7 @@ paths:
                   suggestion: Check the API key format and retry with a valid active key.
                   docs: https://docs.brew.new/api-reference/api/authentication
         "403":
-          description: The caller does not have the required `sends` permission.
+          description: The caller does not have the required `emails` permission.
           headers:
             x-request-id:
               schema:
@@ -9838,7 +9555,7 @@ paths:
                   message: The caller does not have the required permission.
                   suggestion: Use an API key or session with the required permission.
                   docs: https://docs.brew.new/api-reference/api/authentication
-                  param: sends
+                  param: emails
         "404":
           description: Send not found in the API-key brand. Cross-brand ids intentionally surface as 404 (never 403) so the API does not leak cross-brand existence.
           headers:
@@ -9858,7 +9575,7 @@ paths:
                   code: SEND_NOT_FOUND
                   type: not_found
                   message: No send was found with id 'snd_xxx'.
-                  suggestion: List sends with GET /v1/sends, or start one with POST /v1/sends.
+                  suggestion: List sends with GET /v1/analytics/sends, or start one with POST /v1/sends.
                   docs: https://docs.brew.new/api-reference/api/errors
                   param: sendId
         "429":
@@ -9932,11 +9649,11 @@ paths:
                   message: An unexpected error occurred.
                   suggestion: Retry the request. If it keeps failing, contact support.
                   docs: https://docs.brew.new/api-reference/api/errors
-  /v1/sends/{sendId}/events:
+  /v1/analytics/sends/{sendId}/events:
     get:
       operationId: listSendEvents
       tags:
-        - Sends
+        - Analytics
       summary: List events of a send
       description: Per-recipient analytics event feed for one send under `{ data, pagination }` — `sent | delivered | opened | clicked | bounced | complained | unsubscribed`, each with `occurredAt`, `recipientEmail`, and the click `url` when known. Filter with `?eventType=`. Uses a native feed cursor (longer than list cursors) — loop `while (cursor !== null)`.
       parameters:
@@ -10048,7 +9765,7 @@ paths:
                   suggestion: Check the API key format and retry with a valid active key.
                   docs: https://docs.brew.new/api-reference/api/authentication
         "403":
-          description: The caller does not have the required `sends` permission.
+          description: The caller does not have the required `emails` permission.
           headers:
             x-request-id:
               schema:
@@ -10068,7 +9785,7 @@ paths:
                   message: The caller does not have the required permission.
                   suggestion: Use an API key or session with the required permission.
                   docs: https://docs.brew.new/api-reference/api/authentication
-                  param: sends
+                  param: emails
         "404":
           description: Send not found in the API-key brand. Cross-brand ids intentionally surface as 404 (never 403) so the API does not leak cross-brand existence.
           headers:
@@ -10161,7 +9878,7 @@ paths:
       tags:
         - Analytics
       summary: Campaign performance
-      description: "Lifetime KPIs per campaign SEND (one row per `sendId` — a design sent twice has two rows): sent / delivered / opened / clicked / bounced / complained / unsubscribed. Read-only, cursor-paginated under `{ data, pagination }`. Requires the `emails` scope. For a single send, `GET /v1/sends/{sendId}` carries the same `stats`."
+      description: "Lifetime KPIs per campaign SEND (one row per `sendId` — a design sent twice has two rows): sent / delivered / opened / clicked / bounced / complained / unsubscribed. Read-only, cursor-paginated under `{ data, pagination }`. Requires the `emails` scope. For a single send, `GET /v1/analytics/sends/{sendId}` carries the same `stats`."
       parameters:
         - *a7
         - *a8
@@ -10600,7 +10317,7 @@ paths:
       tags:
         - Analytics
       summary: Unified events feed
-      description: "Read-only window over the brand’s analytics events across domains (email, automation, trigger, inbound). Defaults to the last 7 days. Equality filters: `recipientEmail`, `eventType`, `automationId`, `sendId` (join back to `/v1/sends/{sendId}`). Cursor pagination — pass `pagination.cursor` back as `?cursor=`; loop `while (cursor !== null)`. Requires the `emails` scope."
+      description: "Read-only window over the brand’s analytics events across domains (email, automation, trigger, inbound). Defaults to the last 7 days. Equality filters: `recipientEmail`, `eventType`, `automationId`, `sendId` (join back to `/v1/analytics/sends/{sendId}`). Cursor pagination — pass `pagination.cursor` back as `?cursor=`; loop `while (cursor !== null)`. Requires the `emails` scope."
       parameters:
         - name: from
           in: query
@@ -11072,7 +10789,7 @@ paths:
                   code: TRIGGER_EVENT_NOT_FOUND
                   type: not_found
                   message: Trigger event 'tri_unknown' was not found in this brand.
-                  suggestion: Pass a triggerEventId returned by POST /v1/triggers.
+                  suggestion: Pass a triggerEventId returned by POST /v1/automations/triggers.
                   docs: https://docs.brew.new/api-reference/api/errors
                   param: triggerEventId
         "409":
@@ -12601,7 +12318,7 @@ paths:
       tags:
         - Automations
       summary: Test an automation
-      description: Starts a suppression-aware TEST run of the saved automation — no real mail is delivered and test runs never count against analytics rollups. Body optionally carries a `payload` matching the trigger’s schema. Returns `202` with the started run id; follow it via `GET /v1/analytics/automations/runs/{automationRunId}`.
+      description: Starts a suppression-aware TEST run of the saved automation — no real mail is delivered and test runs never count against analytics rollups. Body optionally carries a `payload` matching the trigger’s schema. Returns `202` with the started run id; follow it via `GET /v1/automations/runs/{automationRunId}`.
       parameters:
         - *a4
         - schema:
@@ -12836,11 +12553,11 @@ paths:
                   message: An unexpected error occurred.
                   suggestion: Retry the request. If it keeps failing, contact support.
                   docs: https://docs.brew.new/api-reference/api/errors
-  /v1/analytics/automations/runs:
+  /v1/automations/runs:
     get:
       operationId: listAutomationRuns
       tags:
-        - Runs
+        - Automations
       summary: List automation runs
       description: "Lists recent automation runs (newest first) under `{ data, pagination }`. Filters: `automationId`, `triggerEventId`, `triggerInstanceId`, `recipientEmail`, `status` (pending | running | completed | failed | cancelled), `mode` (live | test), and the `from`/`to` ISO-8601 window. List rows omit per-node logs — fetch one run for them."
       parameters:
@@ -13103,11 +12820,11 @@ paths:
                   message: An unexpected error occurred.
                   suggestion: Retry the request. If it keeps failing, contact support.
                   docs: https://docs.brew.new/api-reference/api/errors
-  /v1/analytics/automations/runs/{automationRunId}:
+  /v1/automations/runs/{automationRunId}:
     get:
       operationId: getAutomationRun
       tags:
-        - Runs
+        - Automations
       summary: Get an automation run
       description: Returns the bare run with its per-node `logs[]` always attached — one log row per executed node (`trigger | wait | filter | split | sendEmail`) with status, branch, timing, and error detail.
       parameters:
@@ -13115,10 +12832,10 @@ paths:
             type: string
             minLength: 1
             maxLength: 64
-            description: Run id — returned in `details.automationRunIds[]` by a trigger fire, by `POST /v1/automations/{automationId}/test`, and listed by `GET /v1/analytics/automations/runs`.
+            description: Run id — returned in `details.automationRunIds[]` by a trigger fire, by `POST /v1/automations/{automationId}/test`, and listed by `GET /v1/automations/runs`.
             example: run_01HZ
           required: true
-          description: Run id — returned in `details.automationRunIds[]` by a trigger fire, by `POST /v1/automations/{automationId}/test`, and listed by `GET /v1/analytics/automations/runs`.
+          description: Run id — returned in `details.automationRunIds[]` by a trigger fire, by `POST /v1/automations/{automationId}/test`, and listed by `GET /v1/automations/runs`.
           name: automationRunId
           in: path
       responses:
@@ -13248,7 +12965,7 @@ paths:
                   code: AUTOMATION_RUN_NOT_FOUND
                   type: not_found
                   message: Automation run 'run_xxx' was not found.
-                  suggestion: List runs with GET /v1/analytics/automations/runs.
+                  suggestion: List runs with GET /v1/automations/runs.
                   docs: https://docs.brew.new/api-reference/api/errors
                   param: automationRunId
         "429":
@@ -13322,11 +13039,11 @@ paths:
                   message: An unexpected error occurred.
                   suggestion: Retry the request. If it keeps failing, contact support.
                   docs: https://docs.brew.new/api-reference/api/errors
-  /v1/triggers:
+  /v1/automations/triggers:
     post:
       operationId: createTrigger
       tags:
-        - Triggers
+        - Automations
       summary: Create a trigger
       description: |-
         Creates a custom trigger event definition — the contract automations subscribe to. Body carries `{ title, description?, payloadSchema }`; the server mints `triggerEventId` and hardcodes `provider: "brew_api"`. Integration triggers (clerk, stripe, shopify, …) are provisioned by the corresponding integration only.
@@ -13564,7 +13281,7 @@ paths:
     get:
       operationId: listTriggers
       tags:
-        - Triggers
+        - Automations
       summary: List triggers
       description: 'Lists every trigger the brand has under `{ data, pagination }` — `provider: "brew_api"` for API-created customs and `provider: "clerk" | "stripe" | …` for integration-provisioned triggers.'
       parameters:
@@ -13749,11 +13466,11 @@ paths:
                   message: An unexpected error occurred.
                   suggestion: Retry the request. If it keeps failing, contact support.
                   docs: https://docs.brew.new/api-reference/api/errors
-  /v1/triggers/{triggerEventId}:
+  /v1/automations/triggers/{triggerEventId}:
     get:
       operationId: getTrigger
       tags:
-        - Triggers
+        - Automations
       summary: Get a trigger
       description: Returns the bare trigger row.
       parameters:
@@ -13761,10 +13478,10 @@ paths:
             type: string
             minLength: 1
             maxLength: 256
-            description: Trigger id returned by `POST /v1/triggers`. Custom triggers use `tri_…` ids; integration triggers use composite ids (e.g. `clerk:org_…:brand_…:user.created`, URL-encode the colons).
+            description: Trigger id returned by `POST /v1/automations/triggers`. Custom triggers use `tri_…` ids; integration triggers use composite ids (e.g. `clerk:org_…:brand_…:user.created`, URL-encode the colons).
             example: tri_signup
           required: true
-          description: Trigger id returned by `POST /v1/triggers`. Custom triggers use `tri_…` ids; integration triggers use composite ids (e.g. `clerk:org_…:brand_…:user.created`, URL-encode the colons).
+          description: Trigger id returned by `POST /v1/automations/triggers`. Custom triggers use `tri_…` ids; integration triggers use composite ids (e.g. `clerk:org_…:brand_…:user.created`, URL-encode the colons).
           name: triggerEventId
           in: path
       responses:
@@ -13866,7 +13583,7 @@ paths:
                   code: TRIGGER_EVENT_NOT_FOUND
                   type: not_found
                   message: Trigger event 'tri_xxx' was not found.
-                  suggestion: List triggers with GET /v1/triggers.
+                  suggestion: List triggers with GET /v1/automations/triggers.
                   docs: https://docs.brew.new/api-reference/api/errors
                   param: triggerEventId
         "429":
@@ -13943,7 +13660,7 @@ paths:
     patch:
       operationId: updateTrigger
       tags:
-        - Triggers
+        - Automations
       summary: Update a trigger
       description: Updates one or more editable fields (`title`, `description`, `payloadSchema`). Whether a trigger fires is governed solely by `automation.published` on each wired automation — there is no per-trigger off-switch. Integration-provisioned triggers are immutable here (`422 TRIGGER_IMMUTABLE`). Returns the bare updated row.
       parameters:
@@ -13951,10 +13668,10 @@ paths:
             type: string
             minLength: 1
             maxLength: 256
-            description: Trigger id returned by `POST /v1/triggers`. Custom triggers use `tri_…` ids; integration triggers use composite ids (e.g. `clerk:org_…:brand_…:user.created`, URL-encode the colons).
+            description: Trigger id returned by `POST /v1/automations/triggers`. Custom triggers use `tri_…` ids; integration triggers use composite ids (e.g. `clerk:org_…:brand_…:user.created`, URL-encode the colons).
             example: tri_signup
           required: true
-          description: Trigger id returned by `POST /v1/triggers`. Custom triggers use `tri_…` ids; integration triggers use composite ids (e.g. `clerk:org_…:brand_…:user.created`, URL-encode the colons).
+          description: Trigger id returned by `POST /v1/automations/triggers`. Custom triggers use `tri_…` ids; integration triggers use composite ids (e.g. `clerk:org_…:brand_…:user.created`, URL-encode the colons).
           name: triggerEventId
           in: path
       requestBody:
@@ -14178,7 +13895,7 @@ paths:
     delete:
       operationId: deleteTrigger
       tags:
-        - Triggers
+        - Automations
       summary: Delete a trigger
       description: "Deletes a custom trigger. Refused with `409 TRIGGER_HAS_DEPENDENT_AUTOMATIONS` while automations still reference it (`details.referencingAutomations` lists each blocker). Idempotent — an already-gone trigger resolves with `deleted: false`."
       parameters:
@@ -14186,10 +13903,10 @@ paths:
             type: string
             minLength: 1
             maxLength: 256
-            description: Trigger id returned by `POST /v1/triggers`. Custom triggers use `tri_…` ids; integration triggers use composite ids (e.g. `clerk:org_…:brand_…:user.created`, URL-encode the colons).
+            description: Trigger id returned by `POST /v1/automations/triggers`. Custom triggers use `tri_…` ids; integration triggers use composite ids (e.g. `clerk:org_…:brand_…:user.created`, URL-encode the colons).
             example: tri_signup
           required: true
-          description: Trigger id returned by `POST /v1/triggers`. Custom triggers use `tri_…` ids; integration triggers use composite ids (e.g. `clerk:org_…:brand_…:user.created`, URL-encode the colons).
+          description: Trigger id returned by `POST /v1/automations/triggers`. Custom triggers use `tri_…` ids; integration triggers use composite ids (e.g. `clerk:org_…:brand_…:user.created`, URL-encode the colons).
           name: triggerEventId
           in: path
       responses:
@@ -14397,14 +14114,14 @@ paths:
                   message: An unexpected error occurred.
                   suggestion: Retry the request. If it keeps failing, contact support.
                   docs: https://docs.brew.new/api-reference/api/errors
-  /v1/triggers/{triggerEventId}/fire:
+  /v1/automations/triggers/{triggerEventId}/fire:
     post:
       operationId: fireTrigger
       tags:
-        - Triggers
+        - Automations
       summary: Fire a trigger
       description: |-
-        Fires the trigger: validates `payload` against the trigger’s `payloadSchema`, upserts the contact derived from the payload, and starts one run per published automation attached to the trigger. Read `details.automationRunIds[]` and follow each via `GET /v1/analytics/automations/runs/{automationRunId}`.
+        Fires the trigger: validates `payload` against the trigger’s `payloadSchema`, upserts the contact derived from the payload, and starts one run per published automation attached to the trigger. Read `details.automationRunIds[]` and follow each via `GET /v1/automations/runs/{automationRunId}`.
 
         **Idempotency** — send a stable `Idempotency-Key` header on every retry (the body field `idempotencyKey` is a legacy alternative). Replays return the original run ids with `status: "idempotent_replay"` instead of starting duplicates.
 
@@ -14415,10 +14132,10 @@ paths:
             type: string
             minLength: 1
             maxLength: 256
-            description: Trigger id returned by `POST /v1/triggers`. Custom triggers use `tri_…` ids; integration triggers use composite ids (e.g. `clerk:org_…:brand_…:user.created`, URL-encode the colons).
+            description: Trigger id returned by `POST /v1/automations/triggers`. Custom triggers use `tri_…` ids; integration triggers use composite ids (e.g. `clerk:org_…:brand_…:user.created`, URL-encode the colons).
             example: tri_signup
           required: true
-          description: Trigger id returned by `POST /v1/triggers`. Custom triggers use `tri_…` ids; integration triggers use composite ids (e.g. `clerk:org_…:brand_…:user.created`, URL-encode the colons).
+          description: Trigger id returned by `POST /v1/automations/triggers`. Custom triggers use `tri_…` ids; integration triggers use composite ids (e.g. `clerk:org_…:brand_…:user.created`, URL-encode the colons).
           name: triggerEventId
           in: path
       requestBody:
@@ -14663,13 +14380,13 @@ paths:
                   message: An unexpected error occurred.
                   suggestion: Retry the request. If it keeps failing, contact support.
                   docs: https://docs.brew.new/api-reference/api/errors
-  /v1/events:
+  /v1/analytics/trigger-instances:
     get:
       operationId: listEvents
       tags:
-        - Events
+        - Analytics
       summary: List fired trigger events
-      description: 'Lists fired trigger-event instances (newest first) under `{ data, pagination }` — the audit log of every inbound fire, whether from the API (`source: "api"`) or an integration webhook (`source: "integration"`). Each row links the fire to the automations it matched and the runs it started (`automationRunIds[]` → `GET /v1/analytics/automations/runs/{automationRunId}`). Filter with `?triggerEventId=`.'
+      description: 'Lists fired trigger-event instances (newest first) under `{ data, pagination }` — the audit log of every inbound fire, whether from the API (`source: "api"`) or an integration webhook (`source: "integration"`). Each row links the fire to the automations it matched and the runs it started (`automationRunIds[]` → `GET /v1/automations/runs/{automationRunId}`). Filter with `?triggerEventId=`.'
       parameters:
         - name: triggerEventId
           in: query
@@ -14871,11 +14588,11 @@ paths:
                   message: An unexpected error occurred.
                   suggestion: Retry the request. If it keeps failing, contact support.
                   docs: https://docs.brew.new/api-reference/api/errors
-  /v1/events/{triggerInstanceId}:
+  /v1/analytics/trigger-instances/{triggerInstanceId}:
     get:
       operationId: getEvent
       tags:
-        - Events
+        - Analytics
       summary: Get a fired trigger event
       description: Returns the bare fired-event row — processing `state`, `rejectionReason` when rejected, retry `attempts`, and the matched automations + started runs.
       parameters:
@@ -14988,7 +14705,7 @@ paths:
                   code: EVENT_NOT_FOUND
                   type: not_found
                   message: No fired event was found with id 'tin_xxx'.
-                  suggestion: List fired events with GET /v1/events.
+                  suggestion: List fired events with GET /v1/analytics/trigger-instances.
                   docs: https://docs.brew.new/api-reference/api/errors
                   param: triggerInstanceId
         "429":
@@ -20426,7 +20143,7 @@ paths:
       tags:
         - Templates
       summary: List templates
-      description: Lists public email templates under `{ data, pagination }` — lean rows (`{ emailId }`). Fetch one template for its `html` + `previewImage`. Supports exact `?brand=` and `?category=` filters and a lightweight `?semantic=` text filter. Templates are organization-wide references (use one as `referenceEmailId` on `POST /v1/emails`).
+      description: Lists public email templates under `{ data, pagination }`. Each row is FULL — it carries the rendered `html` + `previewImage` plus the display metadata (`title`, `category`, `brand`, `updatedAt`), so you never need a follow-up get-one round-trip. Supports exact `?brand=` and `?category=` filters and a lightweight `?semantic=` text filter. Templates are organization-wide references (use one as `referenceEmailId` on `POST /v1/emails`).
       parameters:
         - schema:
             type: string
@@ -20499,6 +20216,12 @@ paths:
               example:
                 data:
                   - emailId: seed-vercel-newsletter
+                    title: Vercel Newsletter
+                    category: newsletter
+                    brand: vercel.com
+                    html: <!DOCTYPE html><html><body>…</body></html>
+                    previewImage: https://storage.example.com/templates/seed.png
+                    updatedAt: 2026-04-08T00:00:00.000Z
                 pagination:
                   limit: 100
                   cursor: null
@@ -20568,200 +20291,6 @@ paths:
                   suggestion: Use an API key or session with the required permission.
                   docs: https://docs.brew.new/api-reference/api/authentication
                   param: emails
-        "429":
-          description: The request hit the rolling rate limit window.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-            X-RateLimit-Limit:
-              schema:
-                type: integer
-                description: Requests allowed in the current rolling rate limit window.
-                example: 100
-              required: true
-              description: Requests allowed in the current rolling rate limit window.
-            X-RateLimit-Remaining:
-              schema:
-                type: integer
-                description: Requests remaining in the current rolling rate limit window.
-                example: 99
-              required: true
-              description: Requests remaining in the current rolling rate limit window.
-            X-RateLimit-Reset:
-              schema:
-                type: integer
-                description: Unix timestamp in seconds for when the rolling window fully resets.
-                example: 1712592360
-              required: true
-              description: Unix timestamp in seconds for when the rolling window fully resets.
-            Retry-After:
-              schema:
-                type: integer
-                description: Seconds to wait before retrying the request.
-                example: 42
-              required: true
-              description: Seconds to wait before retrying the request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: RATE_LIMITED
-                  type: rate_limit
-                  message: Too many requests.
-                  suggestion: Wait for the retry window before sending another request.
-                  docs: https://docs.brew.new/api-reference/api/rate-limits
-                  retryAfter: 42
-        "500":
-          description: Unexpected internal error.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INTERNAL_ERROR
-                  type: internal_error
-                  message: An unexpected error occurred.
-                  suggestion: Retry the request. If it keeps failing, contact support.
-                  docs: https://docs.brew.new/api-reference/api/errors
-  /v1/templates/{emailId}:
-    get:
-      operationId: getTemplate
-      tags:
-        - Templates
-      summary: Get a template
-      description: Returns the bare template row WITH the heavy `html` + `previewImage` fields (the readback the lean list omits).
-      parameters:
-        - schema:
-            type: string
-            minLength: 1
-            maxLength: 64
-            description: Template id from `GET /v1/templates`.
-            example: seed-vercel-newsletter
-          required: true
-          description: Template id from `GET /v1/templates`.
-          name: emailId
-          in: path
-      responses:
-        "200":
-          description: The template with rendered content.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-            X-RateLimit-Limit:
-              schema:
-                type: integer
-                description: Requests allowed in the current rolling rate limit window.
-                example: 100
-              required: true
-              description: Requests allowed in the current rolling rate limit window.
-            X-RateLimit-Remaining:
-              schema:
-                type: integer
-                description: Requests remaining in the current rolling rate limit window.
-                example: 99
-              required: true
-              description: Requests remaining in the current rolling rate limit window.
-            X-RateLimit-Reset:
-              schema:
-                type: integer
-                description: Unix timestamp in seconds for when the rolling window fully resets.
-                example: 1712592360
-              required: true
-              description: Unix timestamp in seconds for when the rolling window fully resets.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Template"
-              example:
-                emailId: seed-vercel-newsletter
-                html: <!DOCTYPE html><html><body>…</body></html>
-                previewImage: https://storage.example.com/templates/seed.png
-        "401":
-          description: The API key was missing, invalid, or revoked.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INVALID_API_KEY
-                  type: authentication_error
-                  message: The provided API key is invalid.
-                  suggestion: Check the API key format and retry with a valid active key.
-                  docs: https://docs.brew.new/api-reference/api/authentication
-        "403":
-          description: The caller does not have the required `emails` permission.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INSUFFICIENT_PERMISSIONS
-                  type: authorization_error
-                  message: The caller does not have the required permission.
-                  suggestion: Use an API key or session with the required permission.
-                  docs: https://docs.brew.new/api-reference/api/authentication
-                  param: emails
-        "404":
-          description: Template not found in the API-key brand. Cross-brand ids intentionally surface as 404 (never 403) so the API does not leak cross-brand existence.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: TEMPLATE_NOT_FOUND
-                  type: not_found
-                  message: No template exists with id 'seed-xxx'.
-                  suggestion: List templates with GET /v1/templates.
-                  docs: https://docs.brew.new/api-reference/api/errors
-                  param: emailId
         "429":
           description: The request hit the rolling rate limit window.
           headers:
@@ -22425,312 +21954,13 @@ paths:
                   message: An unexpected error occurred.
                   suggestion: Retry the request. If it keeps failing, contact support.
                   docs: https://docs.brew.new/api-reference/api/errors
-  /v1/usage:
-    get:
-      operationId: getUsage
-      tags:
-        - Usage
-      summary: Get API usage for your org
-      description: "Returns `{ usage }` — api-key request usage for the caller’s org: a rolling 24h `overview` (requests, successRate, errors, rateLimited), a 30-day daily `trend`, and a 7-day per-`route` breakdown. Use it to self-monitor rate-limit pressure and error rates."
-      responses:
-        "200":
-          description: API usage snapshot for this org.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-            X-RateLimit-Limit:
-              schema:
-                type: integer
-                description: Requests allowed in the current rolling rate limit window.
-                example: 100
-              required: true
-              description: Requests allowed in the current rolling rate limit window.
-            X-RateLimit-Remaining:
-              schema:
-                type: integer
-                description: Requests remaining in the current rolling rate limit window.
-                example: 99
-              required: true
-              description: Requests remaining in the current rolling rate limit window.
-            X-RateLimit-Reset:
-              schema:
-                type: integer
-                description: Unix timestamp in seconds for when the rolling window fully resets.
-                example: 1712592360
-              required: true
-              description: Unix timestamp in seconds for when the rolling window fully resets.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UsageGetResponse"
-              example:
-                usage:
-                  overview:
-                    requests: 1284
-                    successRate: 98
-                    errors: 21
-                    rateLimited: 3
-                  trend:
-                    - date: 2026-04-08T00:00:00.000Z
-                      requests: 142
-                      errors: 2
-                  routes:
-                    - route: /api/v1/emails
-                      requests: 420
-                      successRate: 97
-                      topErrorCode: RATE_LIMITED
-        "401":
-          description: The API key was missing, invalid, or revoked.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INVALID_API_KEY
-                  type: authentication_error
-                  message: The provided API key is invalid.
-                  suggestion: Check the API key format and retry with a valid active key.
-                  docs: https://docs.brew.new/api-reference/api/authentication
-        "429":
-          description: The request hit the rolling rate limit window.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-            X-RateLimit-Limit:
-              schema:
-                type: integer
-                description: Requests allowed in the current rolling rate limit window.
-                example: 100
-              required: true
-              description: Requests allowed in the current rolling rate limit window.
-            X-RateLimit-Remaining:
-              schema:
-                type: integer
-                description: Requests remaining in the current rolling rate limit window.
-                example: 99
-              required: true
-              description: Requests remaining in the current rolling rate limit window.
-            X-RateLimit-Reset:
-              schema:
-                type: integer
-                description: Unix timestamp in seconds for when the rolling window fully resets.
-                example: 1712592360
-              required: true
-              description: Unix timestamp in seconds for when the rolling window fully resets.
-            Retry-After:
-              schema:
-                type: integer
-                description: Seconds to wait before retrying the request.
-                example: 42
-              required: true
-              description: Seconds to wait before retrying the request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: RATE_LIMITED
-                  type: rate_limit
-                  message: Too many requests.
-                  suggestion: Wait for the retry window before sending another request.
-                  docs: https://docs.brew.new/api-reference/api/rate-limits
-                  retryAfter: 42
-  /v1/integrations:
-    get:
-      operationId: listIntegrations
-      tags:
-        - Integrations
-      summary: Triggerable integration-event catalog
-      description: Returns `{ data, pagination }` — every provider you can trigger automations from (Clerk, Stripe, Stytch, Supabase, WorkOS, Shopify, RevenueCat), whether it is `connected`, and each triggerable `event` (with payload `fieldKeys` + whether a brew trigger is already `provisioned`). Filter to one provider with `?provider=`. Requires the `automations` scope.
-      parameters:
-        - name: provider
-          in: query
-          required: false
-          schema:
-            type: string
-            enum:
-              - clerk
-              - stripe
-              - stytch
-              - supabase
-              - workos
-              - shopify
-              - revenuecat
-      responses:
-        "200":
-          description: Triggerable integration-event catalog.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-            X-RateLimit-Limit:
-              schema:
-                type: integer
-                description: Requests allowed in the current rolling rate limit window.
-                example: 100
-              required: true
-              description: Requests allowed in the current rolling rate limit window.
-            X-RateLimit-Remaining:
-              schema:
-                type: integer
-                description: Requests remaining in the current rolling rate limit window.
-                example: 99
-              required: true
-              description: Requests remaining in the current rolling rate limit window.
-            X-RateLimit-Reset:
-              schema:
-                type: integer
-                description: Unix timestamp in seconds for when the rolling window fully resets.
-                example: 1712592360
-              required: true
-              description: Unix timestamp in seconds for when the rolling window fully resets.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/IntegrationsGetResponse"
-              example:
-                data:
-                  - provider: clerk
-                    connected: true
-                    events:
-                      - eventType: user.created
-                        title: User created
-                        category: users
-                        fieldKeys:
-                          - email
-                          - firstName
-                          - lastName
-                        requiredFieldKeys:
-                          - email
-                        provisioned: false
-                pagination:
-                  limit: 100
-                  cursor: null
-                  hasMore: false
-        "401":
-          description: The API key was missing, invalid, or revoked.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INVALID_API_KEY
-                  type: authentication_error
-                  message: The provided API key is invalid.
-                  suggestion: Check the API key format and retry with a valid active key.
-                  docs: https://docs.brew.new/api-reference/api/authentication
-        "403":
-          description: The caller does not have the required automations permission.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INSUFFICIENT_PERMISSIONS
-                  type: authorization_error
-                  message: The caller does not have the required permission.
-                  suggestion: Use an API key or session with the required automations permission.
-                  docs: https://docs.brew.new/api-reference/api/authentication
-                  param: automations
-        "429":
-          description: The request hit the rolling rate limit window.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-            X-RateLimit-Limit:
-              schema:
-                type: integer
-                description: Requests allowed in the current rolling rate limit window.
-                example: 100
-              required: true
-              description: Requests allowed in the current rolling rate limit window.
-            X-RateLimit-Remaining:
-              schema:
-                type: integer
-                description: Requests remaining in the current rolling rate limit window.
-                example: 99
-              required: true
-              description: Requests remaining in the current rolling rate limit window.
-            X-RateLimit-Reset:
-              schema:
-                type: integer
-                description: Unix timestamp in seconds for when the rolling window fully resets.
-                example: 1712592360
-              required: true
-              description: Unix timestamp in seconds for when the rolling window fully resets.
-            Retry-After:
-              schema:
-                type: integer
-                description: Seconds to wait before retrying the request.
-                example: 42
-              required: true
-              description: Seconds to wait before retrying the request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: RATE_LIMITED
-                  type: rate_limit
-                  message: Too many requests.
-                  suggestion: Wait for the retry window before sending another request.
-                  docs: https://docs.brew.new/api-reference/api/rate-limits
-                  retryAfter: 42
   /v1/content/generate-image:
     post:
       operationId: generateContentImage
       tags:
         - Content
       summary: Generate an image
-      description: "Generates an image via the Brew AI image pipeline. `text-to-image` (default) creates from a prompt; `image-editing` edits `image1` (required) guided by the prompt. Returns a CDN-hosted URL. Credit-metered — preview with `dry_run: true`."
+      description: Generates an image via the Brew AI image pipeline. `text-to-image` (default) creates from a prompt; `image-editing` edits `image1` (required) guided by the prompt. Returns a CDN-hosted URL. Credit-metered.
       parameters:
         - *a4
       requestBody:
@@ -22742,7 +21972,7 @@ paths:
               $ref: "#/components/schemas/ContentGenerateImageRequest"
       responses:
         "200":
-          description: "The operation result, OR — when called with `dry_run: true` — a credit cost preview that did no work and spent nothing."
+          description: The operation result.
           headers:
             x-request-id:
               schema:
@@ -22775,52 +22005,7 @@ paths:
           content:
             application/json:
               schema:
-                anyOf:
-                  - $ref: "#/components/schemas/ContentImageResponse"
-                  - type: object
-                    properties:
-                      dry_run:
-                        type: boolean
-                        enum:
-                          - true
-                      operation:
-                        type: string
-                        minLength: 1
-                      cost:
-                        type: integer
-                        minimum: 0
-                      balance:
-                        type: object
-                        properties:
-                          remaining:
-                            type: number
-                          planKey:
-                            type: string
-                            minLength: 1
-                        required:
-                          - remaining
-                          - planKey
-                        additionalProperties: false
-                      sufficient:
-                        type: boolean
-                    required:
-                      - dry_run
-                      - operation
-                      - cost
-                      - balance
-                      - sufficient
-                    additionalProperties: false
-              examples:
-                dryRun:
-                  summary: "Dry-run cost preview (dry_run: true)"
-                  value:
-                    dry_run: true
-                    operation: content.image.generate
-                    cost: 5
-                    balance:
-                      remaining: 240
-                      planKey: pro
-                    sufficient: true
+                $ref: "#/components/schemas/ContentImageResponse"
         "400":
           description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
           headers:
@@ -22864,7 +22049,7 @@ paths:
                   suggestion: Check the API key format and retry with a valid active key.
                   docs: https://docs.brew.new/api-reference/api/authentication
         "402":
-          description: "The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; retry with `dry_run: true` to preview cost + balance without spending. No `Retry-After` — credits reset at the billing-period boundary."
+          description: The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/account`. No `Retry-After` — credits reset at the billing-period boundary.
           headers:
             x-request-id:
               schema:
@@ -22882,7 +22067,7 @@ paths:
                   code: INSUFFICIENT_CREDITS
                   type: payment_required
                   message: This operation costs 10 credit(s) but only 0 remain on the 'free' plan.
-                  suggestion: 'Upgrade your plan or wait for the next billing period to reset. Retry with "dry_run": true to preview cost without spending.'
+                  suggestion: Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/account.
                   docs: https://docs.brew.new/api-reference/api/credits
                   details:
                     cost: 10
@@ -23061,7 +22246,7 @@ paths:
       tags:
         - Content
       summary: Generate an animated GIF
-      description: "Generates a looping animated GIF from a text prompt (via short video generation). Returns CDN-hosted `gifUrl` + source `videoUrl`. Credit-metered — preview with `dry_run: true`."
+      description: Generates a looping animated GIF from a text prompt (via short video generation). Returns CDN-hosted `gifUrl` + source `videoUrl`. Credit-metered.
       parameters:
         - *a4
       requestBody:
@@ -23073,7 +22258,7 @@ paths:
               $ref: "#/components/schemas/ContentGenerateGifRequest"
       responses:
         "200":
-          description: "The operation result, OR — when called with `dry_run: true` — a credit cost preview that did no work and spent nothing."
+          description: The operation result.
           headers:
             x-request-id:
               schema:
@@ -23106,52 +22291,7 @@ paths:
           content:
             application/json:
               schema:
-                anyOf:
-                  - $ref: "#/components/schemas/ContentGifResponse"
-                  - type: object
-                    properties:
-                      dry_run:
-                        type: boolean
-                        enum:
-                          - true
-                      operation:
-                        type: string
-                        minLength: 1
-                      cost:
-                        type: integer
-                        minimum: 0
-                      balance:
-                        type: object
-                        properties:
-                          remaining:
-                            type: number
-                          planKey:
-                            type: string
-                            minLength: 1
-                        required:
-                          - remaining
-                          - planKey
-                        additionalProperties: false
-                      sufficient:
-                        type: boolean
-                    required:
-                      - dry_run
-                      - operation
-                      - cost
-                      - balance
-                      - sufficient
-                    additionalProperties: false
-              examples:
-                dryRun:
-                  summary: "Dry-run cost preview (dry_run: true)"
-                  value:
-                    dry_run: true
-                    operation: content.gif.generate
-                    cost: 15
-                    balance:
-                      remaining: 240
-                      planKey: pro
-                    sufficient: true
+                $ref: "#/components/schemas/ContentGifResponse"
         "400":
           description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
           headers:
@@ -23195,7 +22335,7 @@ paths:
                   suggestion: Check the API key format and retry with a valid active key.
                   docs: https://docs.brew.new/api-reference/api/authentication
         "402":
-          description: "The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; retry with `dry_run: true` to preview cost + balance without spending. No `Retry-After` — credits reset at the billing-period boundary."
+          description: The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/account`. No `Retry-After` — credits reset at the billing-period boundary.
           headers:
             x-request-id:
               schema:
@@ -23213,7 +22353,7 @@ paths:
                   code: INSUFFICIENT_CREDITS
                   type: payment_required
                   message: This operation costs 10 credit(s) but only 0 remain on the 'free' plan.
-                  suggestion: 'Upgrade your plan or wait for the next billing period to reset. Retry with "dry_run": true to preview cost without spending.'
+                  suggestion: Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/account.
                   docs: https://docs.brew.new/api-reference/api/credits
                   details:
                     cost: 10
@@ -23383,7 +22523,7 @@ paths:
       tags:
         - Content
       summary: Animate an image into a GIF
-      description: "Animates a source image into a looping GIF; motion is inferred from the image (and an optional prompt). Credit-metered — preview with `dry_run: true`."
+      description: Animates a source image into a looping GIF; motion is inferred from the image (and an optional prompt). Credit-metered.
       parameters:
         - *a4
       requestBody:
@@ -23395,7 +22535,7 @@ paths:
               $ref: "#/components/schemas/ContentImageToGifRequest"
       responses:
         "200":
-          description: "The operation result, OR — when called with `dry_run: true` — a credit cost preview that did no work and spent nothing."
+          description: The operation result.
           headers:
             x-request-id:
               schema:
@@ -23428,78 +22568,33 @@ paths:
           content:
             application/json:
               schema:
-                anyOf:
-                  - type: object
-                    properties:
-                      gifUrl:
-                        type: string
-                        format: uri
-                      videoUrl:
-                        type: string
-                        format: uri
-                      altText:
-                        type: string
-                      duration:
-                        type: number
-                      fps:
-                        type: number
-                      aspectRatio:
-                        type: string
-                      loop:
-                        type: boolean
-                    required:
-                      - gifUrl
-                      - videoUrl
-                      - altText
-                      - duration
-                      - fps
-                      - aspectRatio
-                      - loop
-                    additionalProperties: false
-                  - type: object
-                    properties:
-                      dry_run:
-                        type: boolean
-                        enum:
-                          - true
-                      operation:
-                        type: string
-                        minLength: 1
-                      cost:
-                        type: integer
-                        minimum: 0
-                      balance:
-                        type: object
-                        properties:
-                          remaining:
-                            type: number
-                          planKey:
-                            type: string
-                            minLength: 1
-                        required:
-                          - remaining
-                          - planKey
-                        additionalProperties: false
-                      sufficient:
-                        type: boolean
-                    required:
-                      - dry_run
-                      - operation
-                      - cost
-                      - balance
-                      - sufficient
-                    additionalProperties: false
-              examples:
-                dryRun:
-                  summary: "Dry-run cost preview (dry_run: true)"
-                  value:
-                    dry_run: true
-                    operation: content.image_to_gif
-                    cost: 10
-                    balance:
-                      remaining: 240
-                      planKey: pro
-                    sufficient: true
+                type: object
+                properties:
+                  gifUrl:
+                    type: string
+                    format: uri
+                  videoUrl:
+                    type: string
+                    format: uri
+                  altText:
+                    type: string
+                  duration:
+                    type: number
+                  fps:
+                    type: number
+                  aspectRatio:
+                    type: string
+                  loop:
+                    type: boolean
+                required:
+                  - gifUrl
+                  - videoUrl
+                  - altText
+                  - duration
+                  - fps
+                  - aspectRatio
+                  - loop
+                additionalProperties: false
         "400":
           description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
           headers:
@@ -23543,7 +22638,7 @@ paths:
                   suggestion: Check the API key format and retry with a valid active key.
                   docs: https://docs.brew.new/api-reference/api/authentication
         "402":
-          description: "The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; retry with `dry_run: true` to preview cost + balance without spending. No `Retry-After` — credits reset at the billing-period boundary."
+          description: The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/account`. No `Retry-After` — credits reset at the billing-period boundary.
           headers:
             x-request-id:
               schema:
@@ -23561,7 +22656,7 @@ paths:
                   code: INSUFFICIENT_CREDITS
                   type: payment_required
                   message: This operation costs 10 credit(s) but only 0 remain on the 'free' plan.
-                  suggestion: 'Upgrade your plan or wait for the next billing period to reset. Retry with "dry_run": true to preview cost without spending.'
+                  suggestion: Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/account.
                   docs: https://docs.brew.new/api-reference/api/credits
                   details:
                     cost: 10
@@ -23731,7 +22826,7 @@ paths:
       tags:
         - Content
       summary: Convert a video to a GIF
-      description: "Converts a source MP4 video URL into a CDN-hosted GIF. Credit-metered — preview with `dry_run: true`."
+      description: Converts a source MP4 video URL into a CDN-hosted GIF. Credit-metered.
       parameters:
         - *a4
       requestBody:
@@ -23743,7 +22838,7 @@ paths:
               $ref: "#/components/schemas/ContentVideoToGifRequest"
       responses:
         "200":
-          description: "The operation result, OR — when called with `dry_run: true` — a credit cost preview that did no work and spent nothing."
+          description: The operation result.
           headers:
             x-request-id:
               schema:
@@ -23776,52 +22871,7 @@ paths:
           content:
             application/json:
               schema:
-                anyOf:
-                  - $ref: "#/components/schemas/ContentVideoToGifResponse"
-                  - type: object
-                    properties:
-                      dry_run:
-                        type: boolean
-                        enum:
-                          - true
-                      operation:
-                        type: string
-                        minLength: 1
-                      cost:
-                        type: integer
-                        minimum: 0
-                      balance:
-                        type: object
-                        properties:
-                          remaining:
-                            type: number
-                          planKey:
-                            type: string
-                            minLength: 1
-                        required:
-                          - remaining
-                          - planKey
-                        additionalProperties: false
-                      sufficient:
-                        type: boolean
-                    required:
-                      - dry_run
-                      - operation
-                      - cost
-                      - balance
-                      - sufficient
-                    additionalProperties: false
-              examples:
-                dryRun:
-                  summary: "Dry-run cost preview (dry_run: true)"
-                  value:
-                    dry_run: true
-                    operation: content.video_to_gif
-                    cost: 10
-                    balance:
-                      remaining: 240
-                      planKey: pro
-                    sufficient: true
+                $ref: "#/components/schemas/ContentVideoToGifResponse"
         "400":
           description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
           headers:
@@ -23865,7 +22915,7 @@ paths:
                   suggestion: Check the API key format and retry with a valid active key.
                   docs: https://docs.brew.new/api-reference/api/authentication
         "402":
-          description: "The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; retry with `dry_run: true` to preview cost + balance without spending. No `Retry-After` — credits reset at the billing-period boundary."
+          description: The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/account`. No `Retry-After` — credits reset at the billing-period boundary.
           headers:
             x-request-id:
               schema:
@@ -23883,7 +22933,7 @@ paths:
                   code: INSUFFICIENT_CREDITS
                   type: payment_required
                   message: This operation costs 10 credit(s) but only 0 remain on the 'free' plan.
-                  suggestion: 'Upgrade your plan or wait for the next billing period to reset. Retry with "dry_run": true to preview cost without spending.'
+                  suggestion: Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/account.
                   docs: https://docs.brew.new/api-reference/api/credits
                   details:
                     cost: 10
@@ -24053,7 +23103,7 @@ paths:
       tags:
         - Content
       summary: Optimize an image for email
-      description: "Fetches a source image, optimizes it (resize ≤1200px, palette PNG via Sharp), and rehosts it to the CDN. Credit-metered — preview with `dry_run: true`."
+      description: Fetches a source image, optimizes it (resize ≤1200px, palette PNG via Sharp), and rehosts it to the CDN. Credit-metered.
       parameters:
         - *a4
       requestBody:
@@ -24065,7 +23115,7 @@ paths:
               $ref: "#/components/schemas/ContentOptimizeImageRequest"
       responses:
         "200":
-          description: "The operation result, OR — when called with `dry_run: true` — a credit cost preview that did no work and spent nothing."
+          description: The operation result.
           headers:
             x-request-id:
               schema:
@@ -24098,52 +23148,7 @@ paths:
           content:
             application/json:
               schema:
-                anyOf:
-                  - $ref: "#/components/schemas/ContentOptimizedImageResponse"
-                  - type: object
-                    properties:
-                      dry_run:
-                        type: boolean
-                        enum:
-                          - true
-                      operation:
-                        type: string
-                        minLength: 1
-                      cost:
-                        type: integer
-                        minimum: 0
-                      balance:
-                        type: object
-                        properties:
-                          remaining:
-                            type: number
-                          planKey:
-                            type: string
-                            minLength: 1
-                        required:
-                          - remaining
-                          - planKey
-                        additionalProperties: false
-                      sufficient:
-                        type: boolean
-                    required:
-                      - dry_run
-                      - operation
-                      - cost
-                      - balance
-                      - sufficient
-                    additionalProperties: false
-              examples:
-                dryRun:
-                  summary: "Dry-run cost preview (dry_run: true)"
-                  value:
-                    dry_run: true
-                    operation: content.image.optimize
-                    cost: 1
-                    balance:
-                      remaining: 240
-                      planKey: pro
-                    sufficient: true
+                $ref: "#/components/schemas/ContentOptimizedImageResponse"
         "400":
           description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
           headers:
@@ -24187,7 +23192,7 @@ paths:
                   suggestion: Check the API key format and retry with a valid active key.
                   docs: https://docs.brew.new/api-reference/api/authentication
         "402":
-          description: "The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; retry with `dry_run: true` to preview cost + balance without spending. No `Retry-After` — credits reset at the billing-period boundary."
+          description: The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/account`. No `Retry-After` — credits reset at the billing-period boundary.
           headers:
             x-request-id:
               schema:
@@ -24205,7 +23210,7 @@ paths:
                   code: INSUFFICIENT_CREDITS
                   type: payment_required
                   message: This operation costs 10 credit(s) but only 0 remain on the 'free' plan.
-                  suggestion: 'Upgrade your plan or wait for the next billing period to reset. Retry with "dry_run": true to preview cost without spending.'
+                  suggestion: Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/account.
                   docs: https://docs.brew.new/api-reference/api/credits
                   details:
                     cost: 10
@@ -24375,7 +23380,7 @@ paths:
       tags:
         - Content
       summary: Resize an image (intelligent)
-      description: "Resizes an image to exact dimensions using a vision-LLM-guided fal pipeline (deterministic Sharp cover-crop fallback). Credit-metered — preview with `dry_run: true`."
+      description: Resizes an image to exact dimensions using a vision-LLM-guided fal pipeline (deterministic Sharp cover-crop fallback). Credit-metered.
       parameters:
         - *a4
       requestBody:
@@ -24387,7 +23392,7 @@ paths:
               $ref: "#/components/schemas/ContentResizeRequest"
       responses:
         "200":
-          description: "The operation result, OR — when called with `dry_run: true` — a credit cost preview that did no work and spent nothing."
+          description: The operation result.
           headers:
             x-request-id:
               schema:
@@ -24420,52 +23425,7 @@ paths:
           content:
             application/json:
               schema:
-                anyOf:
-                  - $ref: "#/components/schemas/ContentResizeResponse"
-                  - type: object
-                    properties:
-                      dry_run:
-                        type: boolean
-                        enum:
-                          - true
-                      operation:
-                        type: string
-                        minLength: 1
-                      cost:
-                        type: integer
-                        minimum: 0
-                      balance:
-                        type: object
-                        properties:
-                          remaining:
-                            type: number
-                          planKey:
-                            type: string
-                            minLength: 1
-                        required:
-                          - remaining
-                          - planKey
-                        additionalProperties: false
-                      sufficient:
-                        type: boolean
-                    required:
-                      - dry_run
-                      - operation
-                      - cost
-                      - balance
-                      - sufficient
-                    additionalProperties: false
-              examples:
-                dryRun:
-                  summary: "Dry-run cost preview (dry_run: true)"
-                  value:
-                    dry_run: true
-                    operation: content.image.resize
-                    cost: 2
-                    balance:
-                      remaining: 240
-                      planKey: pro
-                    sufficient: true
+                $ref: "#/components/schemas/ContentResizeResponse"
         "400":
           description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
           headers:
@@ -24509,7 +23469,7 @@ paths:
                   suggestion: Check the API key format and retry with a valid active key.
                   docs: https://docs.brew.new/api-reference/api/authentication
         "402":
-          description: "The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; retry with `dry_run: true` to preview cost + balance without spending. No `Retry-After` — credits reset at the billing-period boundary."
+          description: The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/account`. No `Retry-After` — credits reset at the billing-period boundary.
           headers:
             x-request-id:
               schema:
@@ -24527,7 +23487,7 @@ paths:
                   code: INSUFFICIENT_CREDITS
                   type: payment_required
                   message: This operation costs 10 credit(s) but only 0 remain on the 'free' plan.
-                  suggestion: 'Upgrade your plan or wait for the next billing period to reset. Retry with "dry_run": true to preview cost without spending.'
+                  suggestion: Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/account.
                   docs: https://docs.brew.new/api-reference/api/credits
                   details:
                     cost: 10
@@ -24697,7 +23657,7 @@ paths:
       tags:
         - Content
       summary: Render HTML to a PNG
-      description: "Renders an HTML document to a PNG screenshot hosted on the CDN. Credit-metered — preview with `dry_run: true`."
+      description: Renders an HTML document to a PNG screenshot hosted on the CDN. Credit-metered.
       parameters:
         - *a4
       requestBody:
@@ -24709,7 +23669,7 @@ paths:
               $ref: "#/components/schemas/ContentHtmlToPngRequest"
       responses:
         "200":
-          description: "The operation result, OR — when called with `dry_run: true` — a credit cost preview that did no work and spent nothing."
+          description: The operation result.
           headers:
             x-request-id:
               schema:
@@ -24742,52 +23702,7 @@ paths:
           content:
             application/json:
               schema:
-                anyOf:
-                  - $ref: "#/components/schemas/ContentPngResponse"
-                  - type: object
-                    properties:
-                      dry_run:
-                        type: boolean
-                        enum:
-                          - true
-                      operation:
-                        type: string
-                        minLength: 1
-                      cost:
-                        type: integer
-                        minimum: 0
-                      balance:
-                        type: object
-                        properties:
-                          remaining:
-                            type: number
-                          planKey:
-                            type: string
-                            minLength: 1
-                        required:
-                          - remaining
-                          - planKey
-                        additionalProperties: false
-                      sufficient:
-                        type: boolean
-                    required:
-                      - dry_run
-                      - operation
-                      - cost
-                      - balance
-                      - sufficient
-                    additionalProperties: false
-              examples:
-                dryRun:
-                  summary: "Dry-run cost preview (dry_run: true)"
-                  value:
-                    dry_run: true
-                    operation: content.html_to_png
-                    cost: 1
-                    balance:
-                      remaining: 240
-                      planKey: pro
-                    sufficient: true
+                $ref: "#/components/schemas/ContentPngResponse"
         "400":
           description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
           headers:
@@ -24831,7 +23746,7 @@ paths:
                   suggestion: Check the API key format and retry with a valid active key.
                   docs: https://docs.brew.new/api-reference/api/authentication
         "402":
-          description: "The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; retry with `dry_run: true` to preview cost + balance without spending. No `Retry-After` — credits reset at the billing-period boundary."
+          description: The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/account`. No `Retry-After` — credits reset at the billing-period boundary.
           headers:
             x-request-id:
               schema:
@@ -24849,7 +23764,7 @@ paths:
                   code: INSUFFICIENT_CREDITS
                   type: payment_required
                   message: This operation costs 10 credit(s) but only 0 remain on the 'free' plan.
-                  suggestion: 'Upgrade your plan or wait for the next billing period to reset. Retry with "dry_run": true to preview cost without spending.'
+                  suggestion: Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/account.
                   docs: https://docs.brew.new/api-reference/api/credits
                   details:
                     cost: 10
@@ -25018,20 +23933,20 @@ paths:
       operationId: contentHostImage
       tags:
         - Content
-      summary: Host an image on the CDN
-      description: Rehosts a public image URL onto cdn.brew.new and returns the durable URL. FREE — no credits charged.
+      summary: Host an image in the brand library
+      description: Fetches a public image URL, optimizes it (resize ≤1200px, palette PNG via Sharp), saves it to the brand image library, and vector-indexes it for the email agent to find. Returns the durable cdn.brew.new URL plus dimensions. Credit-metered.
       parameters:
         - *a4
       requestBody:
         required: true
-        description: Public `imageUrl` to rehost.
+        description: Public `imageUrl` to optimize, save to the brand library, and rehost.
         content:
           application/json:
             schema:
               $ref: "#/components/schemas/ContentHostImageRequest"
       responses:
         "200":
-          description: The image was rehosted; `url` is a durable cdn.brew.new URL.
+          description: The image was optimized, saved to the brand library, and rehosted; `url` is a durable cdn.brew.new URL.
           headers:
             x-request-id:
               schema:
@@ -25065,6 +23980,11 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ContentHostedImageResponse"
+              example:
+                url: https://cdn.brew.new/api-host-3f2c8d9a-1b4e-4c7a-9e21-7d6f0a5b1c34.png
+                width: 1200
+                height: 675
+                aspectRatio: wide
         "400":
           description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
           headers:
@@ -25107,6 +24027,31 @@ paths:
                   message: The provided API key is invalid.
                   suggestion: Check the API key format and retry with a valid active key.
                   docs: https://docs.brew.new/api-reference/api/authentication
+        "402":
+          description: The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/account`. No `Retry-After` — credits reset at the billing-period boundary.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: INSUFFICIENT_CREDITS
+                  type: payment_required
+                  message: This operation costs 10 credit(s) but only 0 remain on the 'free' plan.
+                  suggestion: Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/account.
+                  docs: https://docs.brew.new/api-reference/api/credits
+                  details:
+                    cost: 10
+                    remaining: 0
+                    planKey: free
         "403":
           description: The caller does not have the required `emails` permission.
           headers:
@@ -25236,13 +24181,42 @@ paths:
                   message: An unexpected error occurred.
                   suggestion: Retry the request. If it keeps failing, contact support.
                   docs: https://docs.brew.new/api-reference/api/errors
+        "503":
+          description: The credit balance could not be verified (a transient billing dependency outage). The gate fails closed rather than do paid work it cannot meter. Retryable — `Retry-After` indicates when.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            Retry-After:
+              schema:
+                type: integer
+                description: Seconds to wait before retrying the request.
+                example: 42
+              required: true
+              description: Seconds to wait before retrying the request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: SERVICE_UNAVAILABLE
+                  type: service_unavailable
+                  message: Your credit balance could not be verified because a billing dependency is temporarily unavailable.
+                  suggestion: Retry the request after a short delay.
+                  docs: https://docs.brew.new/api-reference/api/credits
+                  retryAfter: 2
   /v1/account:
     get:
       operationId: getAccount
       tags:
         - Account
       summary: Get plan, credit balance, and email-send quota
-      description: "Returns the org BILLING surface: current plan, AI credit balance (limit/used/remaining — `null` = unlimited), monthly email-send quota, and the current billing period window. Distinct from `GET /v1/usage` (API-request telemetry). Use it to budget before a credit-metered call (the same balance a `dry_run` preview returns)."
+      description: "Returns the org BILLING surface: current plan, AI credit balance (limit/used/remaining — `null` = unlimited), monthly email-send quota, and the current billing period window. Use it to budget before a credit-metered call."
       responses:
         "200":
           description: Plan + credit + email-send-quota snapshot.
@@ -25408,149 +24382,6 @@ paths:
                   message: An unexpected error occurred.
                   suggestion: Retry the request. If it keeps failing, contact support.
                   docs: https://docs.brew.new/api-reference/api/errors
-  /v1/me:
-    get:
-      operationId: getMe
-      tags:
-        - Account
-      summary: Get the calling key’s context
-      description: "Bootstrap call — returns the brand the key is pinned to, the org, the granted scopes, and the auth mode, WITHOUT probing 403s. Scope-agnostic: any authenticated key may call it (it still requires a valid key → 401 otherwise)."
-      responses:
-        "200":
-          description: Key / session context.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-            X-RateLimit-Limit:
-              schema:
-                type: integer
-                description: Requests allowed in the current rolling rate limit window.
-                example: 100
-              required: true
-              description: Requests allowed in the current rolling rate limit window.
-            X-RateLimit-Remaining:
-              schema:
-                type: integer
-                description: Requests remaining in the current rolling rate limit window.
-                example: 99
-              required: true
-              description: Requests remaining in the current rolling rate limit window.
-            X-RateLimit-Reset:
-              schema:
-                type: integer
-                description: Unix timestamp in seconds for when the rolling window fully resets.
-                example: 1712592360
-              required: true
-              description: Unix timestamp in seconds for when the rolling window fully resets.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MeGetResponse"
-              example:
-                authType: api_key
-                orgId: org_3Czs4kJwUThlgFCmYKjEThhb199
-                brandId: jh7bq9n5spapmh1vj058we0qqs88yhxb
-                scopes:
-                  - emails
-                  - contacts
-                  - sends
-        "401":
-          description: The API key was missing, invalid, or revoked.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INVALID_API_KEY
-                  type: authentication_error
-                  message: The provided API key is invalid.
-                  suggestion: Check the API key format and retry with a valid active key.
-                  docs: https://docs.brew.new/api-reference/api/authentication
-        "429":
-          description: The request hit the rolling rate limit window.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-            X-RateLimit-Limit:
-              schema:
-                type: integer
-                description: Requests allowed in the current rolling rate limit window.
-                example: 100
-              required: true
-              description: Requests allowed in the current rolling rate limit window.
-            X-RateLimit-Remaining:
-              schema:
-                type: integer
-                description: Requests remaining in the current rolling rate limit window.
-                example: 99
-              required: true
-              description: Requests remaining in the current rolling rate limit window.
-            X-RateLimit-Reset:
-              schema:
-                type: integer
-                description: Unix timestamp in seconds for when the rolling window fully resets.
-                example: 1712592360
-              required: true
-              description: Unix timestamp in seconds for when the rolling window fully resets.
-            Retry-After:
-              schema:
-                type: integer
-                description: Seconds to wait before retrying the request.
-                example: 42
-              required: true
-              description: Seconds to wait before retrying the request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: RATE_LIMITED
-                  type: rate_limit
-                  message: Too many requests.
-                  suggestion: Wait for the retry window before sending another request.
-                  docs: https://docs.brew.new/api-reference/api/rate-limits
-                  retryAfter: 42
-        "500":
-          description: Unexpected internal error.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INTERNAL_ERROR
-                  type: internal_error
-                  message: An unexpected error occurred.
-                  suggestion: Retry the request. If it keeps failing, contact support.
-                  docs: https://docs.brew.new/api-reference/api/errors
   /v1/health:
     get:
       operationId: getHealth
@@ -25577,4 +24408,27 @@ paths:
               example:
                 status: ok
                 version: v1
+  /v1/help:
+    get:
+      operationId: getHelp
+      tags:
+        - Meta
+      summary: Machine-readable API catalog
+      description: "No auth, no rate limit — a structured-JSON catalog an MCP server (or any agent) can parse to self-discover how to use Brew: auth, permission scopes, rate limits, flat credit costs, the error envelope, and the full endpoint list (derived from this same OpenAPI document, so it never drifts). Returns a generic JSON object; read the live response for the concrete shape."
+      security: []
+      responses:
+        "200":
+          description: The API catalog.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: false
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HelpResponse"
 webhooks: {}

@@ -37,21 +37,13 @@ import {
   type EmailsResource,
 } from './resources/emails/resource'
 import {
-  createAutomationRunsResource,
-  type AutomationRunsResource,
-} from './resources/automation-runs/resource'
-import {
   createFieldsResource,
   type FieldsResource,
 } from './resources/fields/resource'
 import {
-  createIntegrationsResource,
-  type IntegrationsResource,
-} from './resources/integrations/resource'
-import {
-  createMeResource,
-  type MeResource,
-} from './resources/me/resource'
+  createHelpResource,
+  type HelpResource,
+} from './resources/help/resource'
 import {
   createSendsResource,
   type SendsResource,
@@ -60,14 +52,6 @@ import {
   createTemplatesResource,
   type TemplatesResource,
 } from './resources/templates/resource'
-import {
-  createTriggersResource,
-  type TriggersResource,
-} from './resources/triggers/resource'
-import {
-  createUsageResource,
-  type UsageResource,
-} from './resources/usage/resource'
 import type { BrewClientConfig } from './types'
 
 /**
@@ -83,12 +67,18 @@ import type { BrewClientConfig } from './types'
 export type BrewClient = {
   /** `GET /v1/account` — plan, credit balance, and email-send quota. */
   readonly account: AccountResource
-  /** Read-only campaign + automation analytics + the unified event explorer. */
+  /**
+   * Read-only analytics: campaign + automation KPIs, the unified event
+   * explorer, plus the send reads (`analytics.sends.*`) and fired-trigger
+   * instances (`analytics.triggerInstances.*`).
+   */
   readonly analytics: AnalyticsResource
   readonly audiences: AudiencesResource
+  /**
+   * Automation graphs plus the nested `automations.triggers.*` (trigger
+   * CRUD + fire) and `automations.runs.*` (read-only run history).
+   */
   readonly automations: AutomationsResource
-  /** Canonical surface for trigger fires / automation tests / replays / cancels. */
-  readonly automationRuns: AutomationRunsResource
   /** `GET/PUT /v1/brand/*` — the key's brand: readiness, design system, identity, assets. */
   readonly brand: BrandResource
   readonly contacts: ContactsResource
@@ -97,15 +87,11 @@ export type BrewClient = {
   readonly domains: DomainsResource
   readonly emails: EmailsResource
   readonly fields: FieldsResource
-  /** `GET /v1/integrations` — triggerable integration-event catalog. */
-  readonly integrations: IntegrationsResource
-  /** `GET /v1/me` — the API key's identity, brand, and granted scopes. */
-  readonly me: MeResource
+  /** `GET /v1/help` — the no-auth machine-readable API catalog. */
+  readonly help: HelpResource
+  /** `POST /v1/sends` + `POST /v1/sends/test` — start a campaign send or a one-off test delivery. (Send reads live on `analytics.sends.*`.) */
   readonly sends: SendsResource
   readonly templates: TemplatesResource
-  readonly triggers: TriggersResource
-  /** `GET /v1/usage` — API request volume + success/error trend. */
-  readonly usage: UsageResource
 }
 
 /**
@@ -142,18 +128,14 @@ export function createBrewClient(
     analytics: createAnalyticsResource(httpClient),
     audiences: createAudiencesResource(httpClient),
     automations: createAutomationsResource(httpClient),
-    automationRuns: createAutomationRunsResource(httpClient),
     brand: createBrandResource(httpClient),
     contacts: createContactsResource(httpClient),
     content: createContentResource(httpClient),
     domains: createDomainsResource(httpClient),
     emails: createEmailsResource(httpClient),
     fields: createFieldsResource(httpClient),
-    integrations: createIntegrationsResource(httpClient),
-    me: createMeResource(httpClient),
+    help: createHelpResource(httpClient),
     sends: createSendsResource(httpClient),
     templates: createTemplatesResource(httpClient),
-    triggers: createTriggersResource(httpClient),
-    usage: createUsageResource(httpClient),
   }
 }

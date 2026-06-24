@@ -11,11 +11,8 @@ export type { ContentResizeRequest, ContentResizeResponse }
  * `resolution` / `outputFormat`. Requires the `emails` scope.
  *
  * Returns a `ContentResizeResponse` (`{ url, width, height,
- * fallbackUsed? }`). This operation is credit-metered. Pass
- * `dry_run: true` on the input to preview the cost without resizing —
- * the server then spends nothing and returns a credit-cost preview
- * envelope instead. An insufficient balance surfaces as
- * `402 INSUFFICIENT_CREDITS`.
+ * fallbackUsed? }`). This operation is credit-metered. An insufficient
+ * balance surfaces as `402 INSUFFICIENT_CREDITS`.
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<ContentResizeResponse>` instead of the unwrapped

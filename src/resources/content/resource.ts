@@ -15,8 +15,7 @@ import { createVideoToGif } from './video-to-gif'
  * under `resources/content/`, so a new endpoint is always one new file
  * plus one new line here, never a diff inside an existing method.
  *
- * Every method supports `dry_run: true` on the input to preview the
- * credit cost without doing work, and surfaces an exhausted balance as
+ * Every method is credit-metered and surfaces an exhausted balance as
  * `402 INSUFFICIENT_CREDITS`.
  */
 export type ContentResource = {
