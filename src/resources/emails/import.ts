@@ -4,9 +4,9 @@ import type { BrewRawResponse, RequestOptions } from '../../types'
 
 /**
  * Body for `POST /v1/emails/import` — import an existing email as a new
- * saved design. Provide the raw `content` and its `format` (`'html'` or
- * `'jsx'`); optionally a `title` and a `baseUrl` used to resolve
- * relative asset URLs in the source.
+ * saved design. Provide the raw `content` (as a string) and its `format`
+ * (`'html'`, `'mjml'`, or `'jsx'`); optionally a `title` and a `baseUrl`
+ * used to resolve relative asset URLs in the source.
  */
 export type EmailImportInput = components['schemas']['EmailImportRequest']
 
@@ -19,9 +19,9 @@ export type EmailImportResponse =
   components['schemas']['EmailGenerateGeneratedResponse']
 
 /**
- * `POST /v1/emails/import` (scope: `emails`) — import an existing email
- * (raw `html` or React-Email `jsx`) as a new editable Brand design,
- * returning the same shape as `brew.emails.generate(...)`: `emailId`,
+ * `POST /v1/emails/import` (scope: `emails`) — import existing markup
+ * (raw `html`, `mjml`, or React-Email `jsx`) as a new editable Brand
+ * design, returning the same shape as `brew.emails.generate(...)`: `emailId`,
  * the pinned `emailVersionId`, the rendered `html`, and `previewImage`.
  * Resolves with HTTP 201.
  *

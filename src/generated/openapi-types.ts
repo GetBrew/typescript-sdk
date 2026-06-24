@@ -43,7 +43,7 @@ export interface paths {
          * Import an email
          * @description Converts existing markup into a NEW, fully EDITABLE Brew email design on the brand canvas. Brew’s HTML-transcription agent rewrites the markup into clean React-Email JSX, and EVERY external image is fetched, optimized, and RE-HOSTED on the Brew CDN (no hot-linking third-party assets).
          *
-         *     `format`: `html` (a full HTML email document or fragment) or `jsx` (React-Email JSX, rendered to HTML then transcribed). Pass `baseUrl` to resolve relative image paths. Optional `title`.
+         *     `content` is the raw markup as a STRING; `format` is `html` (an HTML email document or fragment), `mjml` (MJML markup, compiled to HTML first), or `jsx` (React-Email JSX, rendered to HTML first) — all then transcribed into clean editable JSX. Pass `baseUrl` to resolve relative image paths. Optional `title`.
          *
          *     USAGE-metered: the agent’s actual token in/out is billed (no fixed price, no `X-Credit-Cost` header). The call gates on a non-empty credit balance. Returns `201` with the SAME shape as `POST /v1/emails`: `{ emailId, emailVersionId, html, previewImage? }`.
          */
@@ -1470,7 +1470,7 @@ export interface components {
         };
         EmailImportRequest: {
             /** @enum {string} */
-            format: "html" | "jsx";
+            format: "html" | "mjml" | "jsx";
             content: string;
             title?: string;
             /** Format: uri */
