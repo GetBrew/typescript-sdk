@@ -38,39 +38,49 @@ describe('createBrewClient — end-to-end', () => {
     const brew = makeIntegrationClient()
 
     expect(typeof brew.audiences.list).toBe('function')
-    expect(typeof brew.contacts.list).toBe('function')
+    // Reads are flat: `search` is the single contacts read (list/get-by-email folded in).
+    expect(typeof brew.contacts.search).toBe('function')
+    expect(typeof brew.contacts.searchAll).toBe('function')
     expect(typeof brew.contacts.count).toBe('function')
-    expect(typeof brew.contacts.getByEmail).toBe('function')
     expect(typeof brew.contacts.upsert).toBe('function')
     expect(typeof brew.contacts.upsertMany).toBe('function')
     expect(typeof brew.contacts.patch).toBe('function')
     expect(typeof brew.contacts.delete).toBe('function')
     expect(typeof brew.contacts.deleteMany).toBe('function')
 
+    // One flat read per resource (`list` accepts an optional id + include).
     expect(typeof brew.domains.list).toBe('function')
+    expect(typeof brew.audiences.list).toBe('function')
+    expect(typeof brew.automations.list).toBe('function')
     expect(typeof brew.emails.list).toBe('function')
     expect(typeof brew.emails.generate).toBe('function')
+    expect(typeof brew.emails.import).toBe('function')
     expect(typeof brew.fields.list).toBe('function')
     expect(typeof brew.fields.create).toBe('function')
     expect(typeof brew.fields.delete).toBe('function')
-    // Send actions now live on `emails` (a send = sending a design to a target).
+    // `POST /v1/sends` is the single polymorphic send (campaign | test).
     expect(typeof brew.emails.send).toBe('function')
-    expect(typeof brew.emails.sendTest).toBe('function')
     expect(typeof brew.templates.list).toBe('function')
 
-    // v8 nested surfaces: send reads + trigger CRUD/runs moved.
-    expect(typeof brew.analytics.sends.get).toBe('function')
+    // Nested surfaces: send reads + trigger CRUD/runs are flat reads.
     expect(typeof brew.analytics.sends.list).toBe('function')
+    expect(typeof brew.automations.triggers.list).toBe('function')
     expect(typeof brew.automations.triggers.fire).toBe('function')
     expect(typeof brew.automations.runs.list).toBe('function')
+    expect(typeof brew.analytics.triggerInstances.list).toBe('function')
 
     // Removed: no top-level me/usage/integrations resources, and the
-    // top-level `sends` namespace is gone — the send actions moved to
-    // `emails.send` / `emails.sendTest` and send reads to `analytics.sends`.
+    // top-level `sends` namespace is gone — the send action moved to
+    // `emails.send` and send reads to `analytics.sends`. The separate
+    // per-detail reads (`get`, `sendTest`, `versions`, `duplicate`)
+    // collapsed into the single flat read on each resource.
     expect('me' in brew).toBe(false)
     expect('usage' in brew).toBe(false)
     expect('integrations' in brew).toBe(false)
     expect('sends' in brew).toBe(false)
+    expect('sendTest' in brew.emails).toBe(false)
+    expect('get' in brew.analytics.sends).toBe(false)
+    expect('versions' in brew.automations).toBe(false)
   })
 
   it('runs a full upsert-then-fetch happy path through contacts', async () => {
@@ -98,30 +108,20 @@ describe('createBrewClient — end-to-end', () => {
           }
         )
       }),
-      http.get('https://brew.new/api/v1/contacts/:email', ({ params }) => {
-        const email = decodeURIComponent(String(params.email))
-        if (email !== 'jane@example.com') {
-          return HttpResponse.json(
-            {
-              error: {
-                code: 'CONTACT_NOT_FOUND',
-                type: 'not_found',
-                message: 'missing',
-                suggestion: 'Use POST /api/v1/contacts to create one first.',
-                docs: 'https://docs.getbrew.io/api/contacts#errors',
-              },
-            },
-            { status: 404 }
-          )
-        }
+      http.post('https://brew.new/api/v1/contacts/search', () => {
         return HttpResponse.json({
-          email: 'jane@example.com',
-          firstName: 'Jane',
-          subscribed: true,
-          suppressed: false,
-          createdAt: '2026-04-08T12:00:00.000Z',
-          updatedAt: '2026-04-08T12:00:00.000Z',
-          customFields: { plan: 'enterprise' },
+          data: [
+            {
+              email: 'jane@example.com',
+              firstName: 'Jane',
+              subscribed: true,
+              suppressed: false,
+              createdAt: '2026-04-08T12:00:00.000Z',
+              updatedAt: '2026-04-08T12:00:00.000Z',
+              customFields: { plan: 'enterprise' },
+            },
+          ],
+          pagination: { limit: 50, cursor: null, hasMore: false },
         })
       })
     )
@@ -137,29 +137,32 @@ describe('createBrewClient — end-to-end', () => {
     expect(upserted.contact.customFields).toEqual({ plan: 'enterprise' })
     expect(upserted.created).toBe(true)
 
-    const fetched = await brew.contacts.getByEmail({
-      email: 'jane@example.com',
+    // Reads are flat: look one contact up via the single search read.
+    const found = await brew.contacts.search({
+      filters: [
+        { field: 'email', operator: 'equals', value: 'jane@example.com' },
+      ],
     })
-    expect(fetched.email).toBe('jane@example.com')
-    expect(fetched.firstName).toBe('Jane')
+    expect(found.data[0]?.email).toBe('jane@example.com')
+    expect(found.data[0]?.firstName).toBe('Jane')
   })
 
-  it('throws BrewApiError on 404 with requestId and code preserved', async () => {
+  it('throws BrewApiError on 4xx with requestId and code preserved', async () => {
     server.use(
-      http.get('https://brew.new/api/v1/contacts/:email', () => {
+      http.post('https://brew.new/api/v1/contacts/search', () => {
         return HttpResponse.json(
           {
             error: {
-              code: 'CONTACT_NOT_FOUND',
-              type: 'not_found',
-              message: 'No contact with that email exists',
-              suggestion: 'Use POST /api/v1/contacts to create one first.',
+              code: 'INVALID_REQUEST',
+              type: 'invalid_request',
+              message: 'Request validation failed.',
+              suggestion: 'Fix the field reported in `param` and retry.',
               docs: 'https://docs.getbrew.io/api/contacts#errors',
-              param: 'email',
+              param: 'filters',
             },
           },
           {
-            status: 404,
+            status: 400,
             headers: { 'x-request-id': 'req_missing_1' },
           }
         )
@@ -169,13 +172,15 @@ describe('createBrewClient — end-to-end', () => {
     const brew = makeIntegrationClient()
 
     try {
-      await brew.contacts.getByEmail({ email: 'missing@example.com' })
+      await brew.contacts.search({
+        filters: [{ field: 'bogus', operator: 'nope', value: 'x' }],
+      })
       expect.fail('expected BrewApiError to be thrown')
     } catch (error) {
       expect(error).toBeInstanceOf(BrewApiError)
       const asError = error as BrewApiError
-      expect(asError.status).toBe(404)
-      expect(asError.code).toBe('CONTACT_NOT_FOUND')
+      expect(asError.status).toBe(400)
+      expect(asError.code).toBe('INVALID_REQUEST')
       expect(asError.requestId).toBe('req_missing_1')
     }
   })

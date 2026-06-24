@@ -1,19 +1,24 @@
 # `brew.emails`
 
-List saved emails, generate new ones, edit existing ones, and **send** a
-design to a target. A send delivers a saved email design to a recipient
-target (a saved audience or an inline address) — it is not
-campaign-specific, so the send actions live here on `emails`. Send
+List saved emails, generate new ones, import existing HTML/JSX, edit
+them, and **send** a design to a target. A send delivers a saved email
+design to a recipient target (a saved audience or an inline address) — it
+is not campaign-specific, so the send action lives here on `emails`. Send
 **reads** (lifecycle, stats, per-recipient events) live on
 `brew.analytics.sends.*`; see [`docs/analytics.md`](./analytics.md#sends).
+
+Reads are flat — one read per resource, identity in the query
+(`?emailId`), `?include` for opt-in expansions; writes are path-based.
+Detail mode = pass the id key → a single-row page `{ data: [row] }`, no
+`pagination`.
 
 | Method                  | HTTP                         | Scope    |
 | ----------------------- | ---------------------------- | -------- |
 | [`list`](#list)         | `GET /v1/emails`             | `emails` |
 | [`generate`](#generate) | `POST /v1/emails`            | `emails` |
+| [`import`](#import)     | `POST /v1/emails/import`     | `emails` |
 | [`edit`](#edit)         | `PATCH /v1/emails/{emailId}` | `emails` |
 | [`send`](#send)         | `POST /v1/sends`             | `sends`  |
-| [`sendTest`](#sendtest) | `POST /v1/sends/test`        | `sends`  |
 
 ## Shared types
 
@@ -42,20 +47,31 @@ type GeneratedEmailTextResponse = {
 
 ## `list`
 
-List latest logical emails for the current organization.
+The single email read. Omit `emailId` → list the latest logical emails
+for the current organization. Pass `emailId` → a single-row page
+`{ data: [row] }` (no `pagination`). `include` is detail-only and
+**requires** `emailId`; it accepts `'html' | 'versions'` as an array or a
+comma-separated string. This one method replaces the old `emails.get`
+and `emails.versions` reads.
 
 ```ts
 type ListEmailsInput = {
+  readonly emailId?: string
+  readonly include?:
+    | ReadonlyArray<'html' | 'versions'>
+    | string // comma-separated, e.g. 'html,versions' — detail-only
   readonly status?: EmailStatus
   readonly createdAtFrom?: string
   readonly createdAtTo?: string
   readonly updatedAtFrom?: string
   readonly updatedAtTo?: string
+  readonly limit?: number
+  readonly cursor?: string
 }
 
 type EmailsListResponse = {
   readonly data: ReadonlyArray<EmailSummary>
-  readonly pagination: {
+  readonly pagination?: {
     readonly limit: number
     readonly cursor: string | null
     readonly hasMore: boolean
@@ -65,6 +81,8 @@ type EmailsListResponse = {
 list(input?: ListEmailsInput): Promise<EmailsListResponse>
 ```
 
+List mode:
+
 ```ts
 const { data } = await brew.emails.list({
   status: 'complete',
@@ -73,6 +91,18 @@ const { data } = await brew.emails.list({
 for (const email of data) {
   console.log(email.emailId, email.title)
 }
+```
+
+Detail mode — pass the `emailId` key and opt into expansions. The result
+is a single-row page, so read `data[0]`:
+
+```ts
+const { data } = await brew.emails.list({
+  emailId: 'email_123',
+  include: 'html,versions',
+})
+const email = data[0]
+console.log(email.title)
 ```
 
 ---
@@ -141,6 +171,42 @@ if ('emailId' in result) {
   // an email). Surface `result.response` to the user.
   console.log(result.response)
 }
+```
+
+---
+
+## `import`
+
+Import an existing email from raw `html` or react-email `jsx` into a
+saved Brew email, without running the generation agent. Returns the same
+artifact shape as [`generate`](#generate) (HTTP 201). POST requests get an
+auto-generated `Idempotency-Key`, so retries never double-import; you can
+also supply your own via `RequestOptions.idempotencyKey`.
+
+```ts
+type ImportEmailInput = {
+  readonly format: 'html' | 'jsx'
+  readonly content: string
+  readonly title?: string
+  readonly baseUrl?: string // base for resolving relative asset URLs
+}
+
+import(
+  input: ImportEmailInput,
+  options?: RequestOptions
+): Promise<GeneratedEmailArtifact>
+```
+
+```ts
+const imported = await brew.emails.import({
+  format: 'html',
+  content: '<html><body><h1>Hello</h1></body></html>',
+  title: 'Imported welcome',
+})
+
+console.log(imported.emailId, imported.emailVersionId)
+console.log(imported.html)
+// imported.previewImage is the storage URL of the rendered screenshot
 ```
 
 ---
@@ -233,14 +299,17 @@ await brew.emails.edit(
 ```ts
 type SendAcceptedResponse = {
   readonly status: 'queued' | 'scheduled'
+  readonly sendId: string
   readonly runId: string
   readonly scheduledAt?: string // ISO-8601
 }
 
-type SendsTestResponse = {
+type SendTestResponse = {
   readonly status: 'sent'
   readonly recipient: string
 }
+
+type SendResponse = SendAcceptedResponse | SendTestResponse
 ```
 
 The `Send` row, `SendStats`, and `SendStatus` types belong to the
@@ -250,12 +319,25 @@ analytics surface — see [`docs/analytics.md`](./analytics.md#sends).
 
 ## `send`
 
-Send a saved email design to a target. Provide EXACTLY ONE recipient
-target — `audienceId` (a saved audience) or `to` (a single inline address
-or an array, max 50). Returns when the job is accepted (HTTP 202), not
-when delivery completes. Requires a verified sending `domainId`. Requires
-the `sends` scope. A design can be sent unlimited times; every call mints
-a new send.
+The single polymorphic send. The input is a union discriminated by
+`test`, and the response shape follows the input:
+
+- **Test send** (`test: true`) — a one-off [TEST] delivery to a single
+  recipient. Forces the Brew default sender (no verified domain or saved
+  audience required) and never creates a send row. Resolves synchronously
+  (HTTP 200) with `{ status: 'sent', recipient }`.
+- **Campaign send** (omit `test`) — delivers a saved design to a target.
+  Provide EXACTLY ONE recipient target — `audienceId` (a saved audience)
+  or `to` (a single inline address or an array, max 50). Requires a
+  verified sending `domainId`. Returns when the job is accepted (HTTP
+  202), not when delivery completes, with
+  `{ status: 'queued' | 'scheduled', sendId, runId }`.
+
+Both modes require the `sends` scope. A design can be sent unlimited
+times; every campaign call mints a new send. This one method merges the
+old campaign-send and test-send methods into a single polymorphic call.
+
+Campaign send:
 
 ```ts
 const result = await brew.emails.send({
@@ -264,30 +346,24 @@ const result = await brew.emails.send({
   subject: 'Welcome to Brew',
   audienceId: 'aud_123',
 })
-// { status: 'queued' | 'scheduled', runId, scheduledAt? }
+// { status: 'queued' | 'scheduled', sendId, runId }
 ```
 
-Poll the resulting send for lifecycle + stats:
+Test send — discriminate on `test: true`:
 
 ```ts
-const [send] = (await brew.analytics.sends.list({ emailId: 'email_123' })).data
-console.log(send.status, send.stats?.delivered)
-```
-
----
-
-## `sendTest`
-
-Send a one-off [TEST] delivery of a design to a single recipient. Forces
-the Brew default sender (no verified domain or audience required) and
-never creates a send row. Resolves synchronously (HTTP 200). Requires the
-`sends` scope.
-
-```ts
-const { status, recipient } = await brew.emails.sendTest({
+const result = await brew.emails.send({
+  test: true,
   emailId: 'email_123',
   subject: 'Preview: Welcome to Brew',
   to: 'qa@example.com',
 })
 // { status: 'sent', recipient: 'qa@example.com' }
+```
+
+Poll a campaign send for lifecycle + stats:
+
+```ts
+const [send] = (await brew.analytics.sends.list({ emailId: 'email_123' })).data
+console.log(send.status, send.stats?.delivered)
 ```

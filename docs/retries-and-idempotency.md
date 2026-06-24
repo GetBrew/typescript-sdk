@@ -46,8 +46,9 @@ PATCH against the now-mutated state can produce a different result than
 the original. This is too subtle to make safe by default, so the SDK
 opts out entirely.
 
-If you need PATCH-with-retries, perform a fresh `getByEmail` first to
-re-read the current state, then issue the PATCH against that snapshot.
+If you need PATCH-with-retries, perform a fresh `search` (with an `email`
+equality filter) first to re-read the current state, then issue the PATCH
+against that snapshot.
 
 ### By cause
 
@@ -155,7 +156,7 @@ If you need a tighter total budget, pass a caller `AbortSignal` from
 `AbortSignal.timeout(ms)`:
 
 ```ts
-await brew.contacts.list(
+await brew.contacts.search(
   { limit: 100 },
   { signal: AbortSignal.timeout(10_000) }
 )

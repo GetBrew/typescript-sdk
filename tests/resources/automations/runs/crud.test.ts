@@ -49,37 +49,47 @@ describe('automations.runs resource — read-only list/get wiring', () => {
     expect('cancel' in runs).toBe(false)
   })
 
-  it('get GETs /v1/automations/runs/{automationRunId} and returns the bare run with logs[]', async () => {
+  it('list with automationRunId + include logs returns the single-row page with logs[] inlined', async () => {
     let url: string | undefined
     server.use(
-      http.get(
-        'https://brew.new/api/v1/automations/runs/run_a',
-        ({ request }) => {
-          url = request.url
-          return HttpResponse.json({
-            ...RUN_ROW,
-            logs: [
-              {
-                automationRunId: 'run_a',
-                nodeId: 'trg',
-                nodeName: 'On signup',
-                nodeType: 'trigger',
-                status: 'success',
-                orderIndex: 0,
-                startedAt: '2026-04-08T12:34:56.789Z',
-              },
-            ],
-          })
-        }
-      )
+      http.get('https://brew.new/api/v1/automations/runs', ({ request }) => {
+        url = request.url
+        // Detail mode = single-row page; `include=logs` inlines per-node logs[].
+        return HttpResponse.json({
+          data: [
+            {
+              ...RUN_ROW,
+              logs: [
+                {
+                  automationRunId: 'run_a',
+                  nodeId: 'trg',
+                  nodeName: 'On signup',
+                  nodeType: 'trigger',
+                  status: 'success',
+                  orderIndex: 0,
+                  startedAt: '2026-04-08T12:34:56.789Z',
+                },
+              ],
+            },
+          ],
+        })
+      })
     )
     const { client } = makeTestHttpClient()
     const runs = createAutomationRunsResource(client)
-    const result = await runs.get({ automationRunId: 'run_a' })
+    // Reads are flat: identity in the query, `include` for the opt-in logs.
+    const result = await runs.list({
+      automationRunId: 'run_a',
+      include: 'logs',
+    })
 
-    expect(new URL(url!).pathname).toBe('/api/v1/automations/runs/run_a')
-    expect(result.automationRunId).toBe('run_a')
-    expect(result.logs).toHaveLength(1)
-    expect(result.logs[0]?.nodeType).toBe('trigger')
+    const params = new URL(url!).searchParams
+    expect(new URL(url!).pathname).toBe('/api/v1/automations/runs')
+    expect(params.get('automationRunId')).toBe('run_a')
+    expect(params.get('include')).toBe('logs')
+    expect(result.data[0]?.automationRunId).toBe('run_a')
+    expect(result.data[0]?.logs).toHaveLength(1)
+    expect(result.data[0]?.logs?.[0]?.nodeType).toBe('trigger')
+    expect(result.pagination).toBeUndefined()
   })
 })

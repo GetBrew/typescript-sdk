@@ -1,17 +1,18 @@
 # `brew.domains`
 
-List and manage sending domains. `list` returns the uniform
-`{ data, pagination }` envelope.
+List and manage sending domains. Reads are flat — one read per resource,
+identity in the query (`?domainId`); writes are path-based. In list mode
+`list` returns the uniform `{ data, pagination }` envelope; in detail
+mode it returns a single-row page `{ data: [row] }` with no `pagination`.
 
-| Method                          | HTTP                              |
-| ------------------------------- | --------------------------------- |
-| [`list`](#list)                 | `GET /v1/domains`                 |
-| [`listSendable`](#listsendable) | `GET /v1/domains?sendableOnly=true` |
+| Method          | HTTP              |
+| --------------- | ----------------- |
+| [`list`](#list) | `GET /v1/domains` |
 
-> This file documents the read paths used to pick a `domainId` for
-> `brew.emails.send(...)`. The resource also exposes the lifecycle
-> methods `get`, `add`, `verify`, `updateSettings`, and `delete` (each
-> returns the **bare** `Domain` row).
+> This file documents the single read path used to pick a `domainId`
+> for `brew.emails.send(...)`. The resource also exposes the lifecycle
+> methods `add`, `verify`, `updateSettings`, and `delete` (each returns
+> the **bare** `Domain` row).
 
 ## Shared types
 
@@ -52,10 +53,25 @@ type Domain = {
 
 ## `list`
 
-List **all** sending domains for the current organization — including
-`pending` rows and their DNS `records` (so lifecycle callers can finish
-verification). Each row carries `status` and the derived `sendable` flag.
-Returns `{ data, pagination }`; accepts `{ limit, cursor }`.
+The single domains read. Omit `domainId` → list **all** sending domains
+for the current organization, including `pending` rows and their DNS
+`records` (so lifecycle callers can finish verification). Each row carries
+`status` and the derived `sendable` flag. Pass `sendableOnly: true` to
+narrow the list to verified, send-ready domains — the safe source for a
+`domainId` when you call `brew.emails.send(...)`. Pass `domainId` → a
+single-row page `{ data: [row] }`. This one method replaces both the old
+`domains.get` read and the old separate list-sendable method.
+
+```ts
+type ListDomainsInput = {
+  readonly domainId?: string
+  readonly sendableOnly?: boolean
+  readonly limit?: number
+  readonly cursor?: string
+}
+```
+
+List every domain:
 
 ```ts
 const { data } = await brew.domains.list()
@@ -65,19 +81,21 @@ for (const domain of data) {
 }
 ```
 
----
-
-## `listSendable`
-
-Only the verified, send-ready domains — the safe source for `domainId`
-when you call `brew.emails.send(...)`. Returns `{ data, pagination }`.
+Only the verified, send-ready domains:
 
 ```ts
-const { data } = await brew.domains.listSendable()
+const { data } = await brew.domains.list({ sendableOnly: true })
 
 for (const domain of data) {
   console.log(domain.domainId, domain.domainUrl) // every row has sendable: true
 }
 ```
 
-You can also filter `list()` on `row.sendable` to get the same set.
+Look one domain up by id — the result is a single-row page, so read
+`data[0]`:
+
+```ts
+const { data } = await brew.domains.list({ domainId: 'domain_123' })
+const domain = data[0]
+console.log(domain.status, domain.records)
+```

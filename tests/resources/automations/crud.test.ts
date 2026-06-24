@@ -87,26 +87,30 @@ describe('automations resource — POST/GET/PATCH/DELETE wiring', () => {
     expect(waitNode.config.unit).toBe('days')
   })
 
-  it('get GETs /v1/automations/{automationId} and returns the bare AutomationRow', async () => {
+  it('list with automationId + include graph GETs /v1/automations?automationId&include=graph and returns the single-row page', async () => {
     let captured: Request | undefined
     server.use(
-      http.get(
-        'https://brew.new/api/v1/automations/auto_abc',
-        ({ request }) => {
-          captured = request.clone()
-          return HttpResponse.json(ROW)
-        }
-      )
+      http.get('https://brew.new/api/v1/automations', ({ request }) => {
+        captured = request.clone()
+        // Detail mode = a single-row page `{ data: [row] }`, no pagination.
+        return HttpResponse.json({ data: [ROW] })
+      })
     )
     const { client } = makeTestHttpClient()
     const automations = createAutomationsResource(client)
-    const result = await automations.get({ automationId: 'auto_abc' })
-    // id is on the PATH, never the query string.
-    expect(new URL(captured!.url).search).toBe('')
-    // Bare row — NOT a `{ automations: [...] }` envelope.
-    expect('automations' in (result as object)).toBe(false)
-    expect(result.automationId).toBe('auto_abc')
-    expect(result.nodes).toHaveLength(1)
+    // Reads are flat: identity in the query, `include` for opt-in graph.
+    const result = await automations.list({
+      automationId: 'auto_abc',
+      include: 'graph',
+    })
+    const url = new URL(captured!.url)
+    expect(url.pathname).toBe('/api/v1/automations')
+    expect(url.searchParams.get('automationId')).toBe('auto_abc')
+    expect(url.searchParams.get('include')).toBe('graph')
+    expect(result.data).toHaveLength(1)
+    expect(result.data[0]?.automationId).toBe('auto_abc')
+    expect(result.data[0]?.nodes).toHaveLength(1)
+    expect(result.pagination).toBeUndefined()
   })
 
   it('patch PATCHes /v1/automations/{automationId} with update-only body (no id, no published) and returns the bare row', async () => {
@@ -197,48 +201,37 @@ describe('automations resource — POST/GET/PATCH/DELETE wiring', () => {
     expect(result.published).toBe(false)
   })
 
-  it('versions GETs /v1/automations/{automationId}/versions and returns the { data, pagination } envelope', async () => {
+  it('list with automationId + include versions inlines the version history on the single-row page', async () => {
     let captured: Request | undefined
     server.use(
-      http.get(
-        'https://brew.new/api/v1/automations/auto_abc/versions',
-        ({ request }) => {
-          captured = request.clone()
-          return HttpResponse.json({
-            data: [
-              {
-                automationId: 'auto_abc',
-                automationVersionId: 'av_v2',
-                name: 'Welcome',
-                version: 'latest',
-                published: true,
-                emailIds: [],
-              },
-              {
-                automationId: 'auto_abc',
-                automationVersionId: 'av_v1',
-                name: 'Welcome',
-                version: 1,
-                published: false,
-                emailIds: [],
-              },
-            ],
-            pagination: { limit: 100, cursor: null, hasMore: false },
-          })
-        }
-      )
+      http.get('https://brew.new/api/v1/automations', ({ request }) => {
+        captured = request.clone()
+        // Detail mode with `include=versions` inlines `versions[]` on the row.
+        return HttpResponse.json({
+          data: [
+            {
+              ...ROW,
+              versions: [
+                { version: 'latest', automationVersionId: 'av_v2' },
+                { version: 1, automationVersionId: 'av_v1' },
+              ],
+            },
+          ],
+        })
+      })
     )
     const { client } = makeTestHttpClient()
     const automations = createAutomationsResource(client)
-    const result = await automations.versions({
+    const result = await automations.list({
       automationId: 'auto_abc',
-      limit: 50,
+      include: 'versions',
     })
-    expect(captured?.method).toBe('GET')
-    expect(new URL(captured!.url).searchParams.get('limit')).toBe('50')
-    expect(result.data).toHaveLength(2)
-    expect(result.data[0]?.version).toBe('latest')
-    expect(result.pagination.hasMore).toBe(false)
+    const url = new URL(captured!.url)
+    expect(url.searchParams.get('automationId')).toBe('auto_abc')
+    expect(url.searchParams.get('include')).toBe('versions')
+    expect(result.data[0]?.versions).toHaveLength(2)
+    expect(result.data[0]?.versions?.[0]?.version).toBe('latest')
+    expect(result.pagination).toBeUndefined()
   })
 
   it('delete DELETEs /v1/automations/{automationId} (no body) and surfaces the idempotent { automationId, deleted } envelope', async () => {

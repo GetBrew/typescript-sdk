@@ -18,8 +18,8 @@ export type FireTriggerResponse = components['schemas']['TriggerFireResponse']
  *
  * Returns the legacy fire envelope (NOT the standard `{ error }` shape) —
  * read `details.automationRunIds[]` and follow each run via
- * `brew.automations.runs.get({ automationRunId })`. Set an
- * `Idempotency-Key` on retries so a re-delivered webhook doesn't
+ * `brew.automations.runs.list({ automationRunId, include: 'logs' })`. Set
+ * an `Idempotency-Key` on retries so a re-delivered webhook doesn't
  * double-fire.
  *
  * Pass `{ raw: true }` in `options` to receive the full

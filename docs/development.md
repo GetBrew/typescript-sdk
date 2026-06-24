@@ -479,7 +479,7 @@ const brew = createBrewClient({
 })
 
 console.log(await brew.contacts.count())
-console.log(await brew.contacts.list({ limit: 3 }))
+console.log(await brew.contacts.search({ limit: 3 }))
 console.log(await brew.fields.list())
 ```
 
@@ -490,9 +490,8 @@ BREW_API_KEY=brew_xxx BREW_API_URL=http://localhost:3000/api bun run /tmp/smoke.
 
 If the dev backend is running on `localhost:3000`, point at that. If
 you're testing against staging or prod, swap the URL — but stick to
-read-only methods (`list`, `count`, `getByEmail`, `fields.list`)
-unless you've explicitly set up a test workspace where deletes are
-safe.
+read-only methods (`search`, `count`, `fields.list`) unless you've
+explicitly set up a test workspace where deletes are safe.
 
 Delete the temp file when you're done. Never commit API keys.
 
@@ -593,8 +592,9 @@ openapi/
 - **PATCH is never retried, even with an idempotency key.** PATCH
   is a partial-update primitive and the server's view of "current
   state" may have shifted between attempts. See `core/retry.ts` for
-  the rationale. If you need PATCH-with-retries, do a fresh
-  `getByEmail` first to re-read state, then issue the PATCH.
+  the rationale. If you need PATCH-with-retries, do a fresh `search`
+  (with an `email` equality filter) first to re-read state, then issue
+  the PATCH.
 
 - **The SDK ships a copy of the spec, not a reference to it.** No
   network dependency at install time, no surprise updates. Spec

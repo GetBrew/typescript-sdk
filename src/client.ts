@@ -82,9 +82,10 @@ export type BrewClient = {
   readonly content: ContentResource
   readonly domains: DomainsResource
   /**
-   * Email designs plus the send actions: `emails.send` (`POST /v1/sends`)
-   * and `emails.sendTest` (`POST /v1/sends/test`). A send delivers a saved
-   * design to a target. (Send reads live on `analytics.sends.*`.)
+   * Email designs plus the single polymorphic send action `emails.send`
+   * (`POST /v1/sends`): a campaign send by default, or a one-off TEST
+   * delivery via `test: true`. A send delivers a saved design to a
+   * target. (Send reads live on `analytics.sends.*`.)
    */
   readonly emails: EmailsResource
   readonly fields: FieldsResource
@@ -107,7 +108,9 @@ export type BrewClient = {
  *   apiKey: process.env.BREW_API_KEY!,
  * })
  *
- * const contact = await brew.contacts.getByEmail({ email: 'jane@example.com' })
+ * const found = await brew.contacts.search({
+ *   filters: [{ field: 'email', operator: 'equals', value: 'jane@example.com' }],
+ * })
  * ```
  *
  * The second `tuning` parameter is INTERNAL and exists only so the SDK's

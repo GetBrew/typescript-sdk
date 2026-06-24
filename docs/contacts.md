@@ -1,17 +1,21 @@
 # `brew.contacts`
 
-Eight methods for managing contacts.
+Methods for reading and managing contacts. `search` is the single,
+canonical read: every contacts query — list-all, filter, search, look up
+one by email, scope to a saved audience — goes through it. The old
+list, list-all, and get-by-email reads have all been folded into
+`search`.
 
-| Method                      | HTTP                          |
-| --------------------------- | ----------------------------- |
-| [`list`](#list)             | `GET /v1/contacts`            |
-| [`count`](#count)           | `GET /v1/contacts?count=true` |
-| [`getByEmail`](#getbyemail) | `GET /v1/contacts?email=...`  |
-| [`upsert`](#upsert)         | `POST /v1/contacts`           |
-| [`upsertMany`](#upsertmany) | `POST /v1/contacts`           |
-| [`patch`](#patch)           | `PATCH /v1/contacts`          |
-| [`delete`](#delete)         | `DELETE /v1/contacts`         |
-| [`deleteMany`](#deletemany) | `DELETE /v1/contacts`         |
+| Method                      | HTTP                       |
+| --------------------------- | -------------------------- |
+| [`search`](#search)         | `POST /v1/contacts/search` |
+| [`searchAll`](#searchall)   | `POST /v1/contacts/search` |
+| [`count`](#count)           | `POST /v1/contacts/search` |
+| [`upsert`](#upsert)         | `POST /v1/contacts`        |
+| [`upsertMany`](#upsertmany) | `POST /v1/contacts`        |
+| [`patch`](#patch)           | `PATCH /v1/contacts`       |
+| [`delete`](#delete)         | `DELETE /v1/contacts`      |
+| [`deleteMany`](#deletemany) | `DELETE /v1/contacts`      |
 
 ## Shared types
 
@@ -37,21 +41,19 @@ type Contact = {
 
 ### Filters
 
-`list` and `count` accept the same filter shape:
+`search`, `searchAll`, and `count` accept the same filter shape — an
+array of clauses combined by the top-level `logic`:
 
 ```ts
-type ContactsFilter = {
-  readonly _logic?: 'and' | 'or' | 'none' // default 'and'
-} & {
-  readonly [field: string]:
-    | string // shorthand equality
-    | { readonly [operator: string]: string | number | boolean }
+type ContactsFilterClause = {
+  readonly field: string // e.g. 'email' or 'customFields.plan'
+  readonly operator: string
+  readonly value?: string | number | boolean | ReadonlyArray<unknown>
 }
 ```
 
 Use dotted notation for custom fields (e.g. `'customFields.plan'`).
-The shorthand form is equality; the operator form uses one of the
-operator names the Brew API recognizes:
+The `operator` is one of the operator names the Brew API recognizes:
 
 | Operator           | Meaning                             |
 | ------------------ | ----------------------------------- |
@@ -71,49 +73,52 @@ operator names the Brew API recognizes:
 | `not_exists`       | Field does not exist on the contact |
 
 ```ts
-// Shorthand equality
-{ subscribed: 'true' }
+// Single clause
+;[{ field: 'subscribed', operator: 'equals', value: true }]
 
-// Explicit operator
-{ 'customFields.plan': { equals: 'enterprise' } }
+// Explicit operator on a custom field
+;[{ field: 'customFields.plan', operator: 'equals', value: 'enterprise' }]
 
-// Multi-clause with logic
+// Multi-clause, combined by the top-level `logic`
 {
-  _logic: 'and',
-  subscribed: 'true',
-  'customFields.plan': { equals: 'enterprise' },
+  logic: 'and',
+  filters: [
+    { field: 'subscribed', operator: 'equals', value: true },
+    { field: 'customFields.plan', operator: 'equals', value: 'enterprise' },
+  ],
 }
 ```
 
-The SDK serializes the filter as `deepObject` style query params on
-the wire (`filter[subscribed]=true`,
-`filter[customFields.plan][equals]=enterprise`). Callers never see
-the bracket notation directly — pass the object, the SDK does the
-rest.
+The filter array travels in the POST body — there is no query-string
+serialization to think about. Pass the clauses, the SDK sends them as-is.
 
 > The SDK does not type-check the operator name (the underlying
-> OpenAPI type is `[key: string]: string | { ... }`), so a typo
-> like `eq` instead of `equals` will compile fine but the server
-> will return a 400. The list above is the source of truth.
+> OpenAPI type leaves `operator` as a `string`), so a typo like `eq`
+> instead of `equals` will compile fine but the server will return a 400. The list above is the source of truth.
 
 ---
 
-## `list`
+## `search`
 
-Paginated list of contacts with optional filters, search, and sort.
+The single, canonical contacts read. One paginated page of contacts
+matching an optional set of filters, free-text search, sort, and audience
+scope. Pass an empty `{}` (or no argument) to read every contact,
+newest-first.
 
 ```ts
-type ListContactsInput = Readonly<{
-  limit?: number          // 1–100, default 50
-  cursor?: string         // opaque, from previous response
-  search?: string         // case-insensitive search across email/first/last
-  sort?: string           // default 'createdAt'
-  order?: 'asc' | 'desc'  // default 'desc'
-  filter?: ContactsFilter
+type SearchContactsInput = Readonly<{
+  audienceId?: string // scope to a saved audience's members
+  search?: string // case-insensitive search across email/first/last
+  filters?: ReadonlyArray<ContactsFilterClause>
+  logic?: 'and' | 'or' // default 'and'
+  sort?: string // default 'createdAt'
+  order?: 'asc' | 'desc' // default 'desc'
+  limit?: number // 1–100, default 50
+  cursor?: string // opaque, from previous response
 }>
 
-type ListContactsResponse = {
-  readonly contacts: ReadonlyArray<Contact>
+type SearchContactsResponse = {
+  readonly data: ReadonlyArray<Contact>
   readonly pagination: {
     readonly limit: number
     readonly cursor: string | null
@@ -121,24 +126,71 @@ type ListContactsResponse = {
   }
 }
 
-list(input?: ListContactsInput): Promise<ListContactsResponse>
+search(input?: SearchContactsInput): Promise<SearchContactsResponse>
 ```
 
 ```ts
-const { contacts, pagination } = await brew.contacts.list({
+const { data, pagination } = await brew.contacts.search({
   limit: 100,
-  filter: {
-    _logic: 'and',
-    subscribed: 'true',
-    'customFields.plan': { equals: 'enterprise' },
-  },
+  logic: 'and',
+  filters: [
+    { field: 'subscribed', operator: 'equals', value: true },
+    { field: 'customFields.plan', operator: 'equals', value: 'enterprise' },
+  ],
 })
 
 if (pagination.hasMore && pagination.cursor) {
-  const next = await brew.contacts.list({
+  const next = await brew.contacts.search({
     limit: 100,
     cursor: pagination.cursor,
   })
+}
+```
+
+### Look up a single contact by email
+
+There is no dedicated get-by-email method — express it as an `email`
+equality filter and read `data[0]`:
+
+```ts
+const { data } = await brew.contacts.search({
+  filters: [{ field: 'email', operator: 'equals', value: 'jane@example.com' }],
+})
+const contact = data[0]
+if (!contact) {
+  // no contact with that email
+}
+console.log(new Date(contact.createdAt)) // remember: createdAt is a number
+```
+
+### Scope to a saved audience
+
+Pass `audienceId` to read only the members of a saved audience (combinable
+with `filters` / `search`):
+
+```ts
+const { data } = await brew.contacts.search({ audienceId: 'aud_123' })
+```
+
+---
+
+## `searchAll`
+
+Async-iterate every contact matching the same input — `searchAll`
+transparently follows the cursor so you never page by hand. Same input
+shape as [`search`](#search) (minus `cursor`, which it manages).
+
+```ts
+searchAll(
+  input?: Omit<SearchContactsInput, 'cursor'>
+): AsyncIterable<Contact>
+```
+
+```ts
+for await (const contact of brew.contacts.searchAll({
+  filters: [{ field: 'subscribed', operator: 'equals', value: true }],
+})) {
+  console.log(contact.email)
 }
 ```
 
@@ -146,12 +198,16 @@ if (pagination.hasMore && pagination.cursor) {
 
 ## `count`
 
-Count contacts matching an optional set of filters. Returns the count
-as a bare `number` (the `{ count }` envelope is unwrapped for DX).
+Count contacts matching an optional set of filters (the `count: true`
+mode of the search read). Returns the count as a bare `number` (the
+`{ count }` envelope is unwrapped for DX).
 
 ```ts
 type CountContactsInput = {
-  readonly filter?: ContactsFilter
+  readonly audienceId?: string
+  readonly search?: string
+  readonly filters?: ReadonlyArray<ContactsFilterClause>
+  readonly logic?: 'and' | 'or'
 }
 
 count(input?: CountContactsInput): Promise<number>
@@ -159,29 +215,10 @@ count(input?: CountContactsInput): Promise<number>
 
 ```ts
 const enterpriseCount = await brew.contacts.count({
-  filter: {
-    'customFields.plan': { equals: 'enterprise' },
-  },
+  filters: [
+    { field: 'customFields.plan', operator: 'equals', value: 'enterprise' },
+  ],
 })
-```
-
----
-
-## `getByEmail`
-
-Look up a single contact by email. Returns a bare `Contact` (the
-`{ contact }` envelope is unwrapped). Throws `BrewApiError` with code
-`CONTACT_NOT_FOUND` if the contact does not exist.
-
-```ts
-type GetContactByEmailInput = { readonly email: string }
-
-getByEmail(input: GetContactByEmailInput): Promise<Contact>
-```
-
-```ts
-const contact = await brew.contacts.getByEmail({ email: 'jane@example.com' })
-console.log(new Date(contact.createdAt)) // remember: createdAt is a number
 ```
 
 ---

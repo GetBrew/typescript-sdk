@@ -18,7 +18,7 @@ export type TestAutomationResponse =
  * `payload` must match the trigger's schema.
  *
  * Returns `202` with `{ automationRunIds, status: 'test_started' }` — follow
- * the run via `brew.automations.runs.get({ automationRunId })`.
+ * the run via `brew.automations.runs.list({ automationRunId, include: 'logs' })`.
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<TestAutomationResponse>` instead of the unwrapped payload.

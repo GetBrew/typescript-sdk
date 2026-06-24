@@ -12,18 +12,42 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List emails
-         * @description Lists the brand’s email designs (newest first) under the uniform `{ data, pagination }` envelope. Each row carries the design’s `emailId`, the `emailVersionId` of the current latest version, and `title`. Filter with `?status=` and the `createdAtFrom/To` + `updatedAtFrom/To` ISO-8601 windows; paginate with `limit` + `cursor`.
+         * Get emails
+         * @description Unified email-design read. Omit `emailId` to LIST the brand’s designs (newest first) under `{ data, pagination }` — each row carries `emailId`, the latest `emailVersionId`, `title`, `status`, `previewImage` (when captured), and `updatedAt`. Filter with `?status=` and the `createdAtFrom/To` + `updatedAtFrom/To` ISO-8601 windows; paginate with `limit` + `cursor`. Pass `?emailId=` to fetch ONE design — returns `{ data: [row] }` (no `pagination`), `404 EMAIL_NOT_FOUND` on an unknown / cross-brand id. Add detail-only `?include=html` (rendered HTML) and/or `?include=versions` (lean `{ version, emailVersionId }` history) — both rejected without `emailId`.
          */
         get: operations["listEmails"];
         put?: never;
         /**
          * Generate an email design
-         * @description Generates a new design through the Brew email agent. Emails are pure DESIGNS in the decoupled model — no send state, no type. Sending happens later — `POST /v1/sends` delivers the design to a target (a saved audience, an inline list, or a single address) via a verified domain, `POST /v1/sends/test` fires a one-off test, or a `sendEmail` node in an automation graph references the returned `emailId` + `emailVersionId`.
+         * @description Generates a new design through the Brew email agent. Emails are pure DESIGNS in the decoupled model — no send state, no type. Sending happens later — `POST /v1/sends` delivers the design to a target (a saved audience, an inline list, or a single address) via a verified domain (or fires a one-off test with `test: true`), or a `sendEmail` node in an automation graph references the returned `emailId` + `emailVersionId`.
          *
          *     Returns `201` with `{ emailId, emailVersionId, html, previewImage? }` when a design was persisted, or `200` with `{ response }` when the agent answered in prose without writing a design. Supports `Idempotency-Key` for safe retries.
          */
         post: operations["generateEmail"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/emails/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import an email
+         * @description Converts existing markup into a NEW, fully EDITABLE Brew email design on the brand canvas. Brew’s HTML-transcription agent rewrites the markup into clean React-Email JSX, and EVERY external image is fetched, optimized, and RE-HOSTED on the Brew CDN (no hot-linking third-party assets).
+         *
+         *     `format`: `html` (a full HTML email document or fragment) or `jsx` (React-Email JSX, rendered to HTML then transcribed). Pass `baseUrl` to resolve relative image paths. Optional `title`.
+         *
+         *     USAGE-metered: the agent’s actual token in/out is billed (no fixed price, no `X-Credit-Cost` header). The call gates on a non-empty credit balance. Returns `201` with the SAME shape as `POST /v1/emails`: `{ emailId, emailVersionId, html, previewImage? }`.
+         */
+        post: operations["importEmail"];
         delete?: never;
         options?: never;
         head?: never;
@@ -37,11 +61,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /**
-         * Get an email design
-         * @description Returns the bare design row, including the rendered `html` of the current latest version (and `previewImage` when captured), so a design can be reviewed before sending.
-         */
-        get: operations["getEmail"];
+        get?: never;
         put?: never;
         post?: never;
         /**
@@ -63,26 +83,6 @@ export interface paths {
         patch: operations["editEmail"];
         trace?: never;
     };
-    "/v1/emails/{emailId}/versions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List versions of an email design
-         * @description Version history under `{ data, pagination }`. `version: "latest"` is the current head; numeric versions are historical snapshots (highest = most recently demoted). Use `POST /v1/emails/{emailId}/restore` to promote a numbered version back to latest.
-         */
-        get: operations["listEmailVersions"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/emails/{emailId}/restore": {
         parameters: {
             query?: never;
@@ -97,26 +97,6 @@ export interface paths {
          * @description Non-destructive restore: clones the numbered version into a NEW `latest` row (demoting the current head) and returns the same generated-email shape as an edit, including the fresh `emailVersionId`.
          */
         post: operations["restoreEmailVersion"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/emails/{emailId}/preview": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Render the email to a PNG preview
-         * @description Render the email’s latest version to a hosted PNG screenshot at one or both device widths (`desktop` = 600px, `mobile` = 375px). Credit-metered (low).
-         */
-        post: operations["previewEmail"];
         delete?: never;
         options?: never;
         head?: never;
@@ -143,26 +123,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/emails/{emailId}/sends": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List sends of an email design
-         * @description The design’s send history under `{ data, pagination }` — a design can be sent unlimited times, and each send is its own `Send` row. Same filters as `GET /v1/analytics/sends` (`status`, `from`, `to`). 404s on an unknown design so an empty history is distinguishable from a bad id. Requires the `sends` scope.
-         */
-        get: operations["listEmailSends"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/analytics/sends": {
         parameters: {
             query?: never;
@@ -171,8 +131,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List sends
-         * @description Lists the brand’s sends, newest first, under `{ data, pagination }`. A send is the unit of delivery + analytics: one design delivered to a target (audience, inline list, or single address) via one domain. Filter with `?status=` (scheduled | queued | sending | sent | failed | canceled) and the `from`/`to` ISO-8601 window.
+         * Get email sends
+         * @description Unified send read. A send is the unit of delivery + analytics: one design delivered to a target (audience, inline list, or single address) via one domain. Omit `sendId` to LIST the brand’s sends, newest first, under `{ data, pagination }`; filter with `?status=` (scheduled | queued | sending | sent | failed | canceled), the `from`/`to` ISO-8601 window, or `?emailId=` (one design’s sends). Pass `?sendId=` to fetch ONE — returns `{ data: [row] }` (no `pagination`), `404 SEND_NOT_FOUND` on an unknown / cross-brand id; add `?include=events` (detail only) for a bounded first page of the send’s analytics events. `sendId` and `emailId` are mutually exclusive.
          */
         get: operations["listSends"];
         put?: never;
@@ -194,79 +154,16 @@ export interface paths {
         put?: never;
         /**
          * Send an email
-         * @description Sends an email design. A send combines the design (`emailId`, optionally pinned to an exact `emailVersionId`), a verified sending domain, and a target — a saved audience, an inline list, or a single address — into one delivery event. It is NOT campaign-specific: the same design can be sent unlimited times, and every call mints a new send. Returns `202` with the `sendId` to poll via `GET /v1/analytics/sends/{sendId}`.
+         * @description Sends an email design. Polymorphic on the `test` flag:
          *
-         *     Target — provide EXACTLY ONE of:
-         *     - `audienceId` — a saved audience (any size), or
-         *     - `to` — inline addresses (a single email or an array, max 50). For larger lists, save an audience.
+         *     - **`test: true`** → a synchronous one-off TEST delivery of the design’s current (or pinned) body to a single address. Forces the Brew default sender (no verified domain needed), targets one `to` address, and never creates a `Send` row. Returns **`200`** `{ status: "sent", recipient }`.
+         *     - **default / `test: false`** → a campaign send combining the design (`emailId`, optionally pinned to `emailVersionId`), a verified `domainId`, and a target — a saved `audienceId` OR inline `to` (a single email or an array, max 50) — into one delivery event. The same design can be sent unlimited times; every call mints a new send. Returns **`202`** `{ sendId, runId }` — poll via `GET /v1/analytics/sends?sendId=`.
          *
-         *     Inline recipients face the same unsubscribe/suppression gate and per-recipient send quota as audience sends.
-         *
-         *     Test deliveries live on their own endpoint (`POST /v1/sends/test`) — there is no mode discriminator in this body. For per-recipient event-driven delivery, publish an automation and fire its trigger (`POST /v1/automations/triggers/{triggerEventId}/fire`).
+         *     Campaign target — provide EXACTLY ONE of `audienceId` or `to`. Inline recipients face the same unsubscribe/suppression gate and per-recipient quota as audience sends. For per-recipient event-driven delivery, publish an automation and fire its trigger (`POST /v1/automations/triggers/{triggerEventId}/fire`).
          *
          *     Brand scoping: resources (`emailId`, `domainId`, `audienceId`) living in a different brand surface as `404` so the API never confirms cross-brand existence.
          */
         post: operations["createSend"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/sends/test": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Send a test email
-         * @description Fires a one-off [TEST] delivery of a design’s current (or pinned) body to a single caller-supplied address. Forces the Brew default sender — no verified domain or audience required — and never creates a send row. Synchronous `200`.
-         */
-        post: operations["createTestSend"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/analytics/sends/{sendId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get a send
-         * @description Returns the bare send row: lifecycle status, the design + pinned version it delivered, audience, timestamps, and the aggregated `stats` block (sent / delivered / opened / clicked / bounced / complained / unsubscribed). Poll this after `POST /v1/sends`.
-         */
-        get: operations["getSend"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/analytics/sends/{sendId}/events": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List events of a send
-         * @description Per-recipient analytics event feed for one send under `{ data, pagination }` — `sent | delivered | opened | clicked | bounced | complained | unsubscribed`, each with `occurredAt`, `recipientEmail`, and the click `url` when known. Filter with `?eventType=`. Uses a native feed cursor (longer than list cursors) — loop `while (cursor !== null)`.
-         */
-        get: operations["listSendEvents"];
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -282,7 +179,7 @@ export interface paths {
         };
         /**
          * Campaign performance
-         * @description Lifetime KPIs per campaign SEND (one row per `sendId` — a design sent twice has two rows): sent / delivered / opened / clicked / bounced / complained / unsubscribed. Read-only, cursor-paginated under `{ data, pagination }`. Requires the `emails` scope. For a single send, `GET /v1/analytics/sends/{sendId}` carries the same `stats`.
+         * @description Lifetime KPIs per campaign SEND (one row per `sendId` — a design sent twice has two rows): sent / delivered / opened / clicked / bounced / complained / unsubscribed. Read-only, cursor-paginated under `{ data, pagination }`. Requires the `emails` scope. For a single send, `GET /v1/analytics/sends?sendId=` carries the same `stats`.
          */
         get: operations["getCampaignAnalytics"];
         put?: never;
@@ -322,7 +219,7 @@ export interface paths {
         };
         /**
          * Unified events feed
-         * @description Read-only window over the brand’s analytics events across domains (email, automation, trigger, inbound). Defaults to the last 7 days. Equality filters: `recipientEmail`, `eventType`, `automationId`, `sendId` (join back to `/v1/analytics/sends/{sendId}`). Cursor pagination — pass `pagination.cursor` back as `?cursor=`; loop `while (cursor !== null)`. Requires the `emails` scope.
+         * @description Read-only window over the brand’s analytics events across domains (email, automation, trigger, inbound). Defaults to the last 7 days. Equality filters: `recipientEmail`, `eventType`, `automationId`, `sendId` (join back to `/v1/analytics/sends?sendId=`). Cursor pagination — pass `pagination.cursor` back as `?cursor=`; loop `while (cursor !== null)`. Requires the `emails` scope.
          */
         get: operations["getEventsAnalytics"];
         put?: never;
@@ -341,8 +238,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List automations
-         * @description Lists the brand’s automations under `{ data, pagination }`. List rows are LEAN (graph omitted) — fetch one automation for its full `nodes` + `connections`.
+         * Get automations
+         * @description Unified automation read. Omit `automationId` to LIST the brand’s automations under `{ data, pagination }` — list rows are LEAN (graph omitted). Pass `?automationId=` to fetch ONE — returns `{ data: [row] }` (no `pagination`), `404 AUTOMATION_NOT_FOUND` on an unknown / cross-brand id, also LEAN by default. Add detail-only `?include=graph` (the full `nodes` + `connections`) and/or `?include=versions` (lean `{ version, automationVersionId }` history) — both rejected without `automationId`.
          */
         get: operations["listAutomations"];
         put?: never;
@@ -368,11 +265,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /**
-         * Get an automation
-         * @description Returns the bare automation row with the full graph (`nodes` + `connections`), lifecycle (`published`), and derived `emailIds`.
-         */
-        get: operations["getAutomation"];
+        get?: never;
         put?: never;
         post?: never;
         /**
@@ -394,26 +287,6 @@ export interface paths {
         patch: operations["updateAutomation"];
         trace?: never;
     };
-    "/v1/automations/{automationId}/versions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List versions of an automation
-         * @description Version history under `{ data, pagination }` — lean rows (graph stripped), `latest` first then numeric descending. Pin a historical `automationVersionId` on publish to promote that exact graph.
-         */
-        get: operations["listAutomationVersions"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/automations/{automationId}/test": {
         parameters: {
             query?: never;
@@ -425,7 +298,7 @@ export interface paths {
         put?: never;
         /**
          * Test an automation
-         * @description Starts a suppression-aware TEST run of the saved automation — no real mail is delivered and test runs never count against analytics rollups. Body optionally carries a `payload` matching the trigger’s schema. Returns `202` with the started run id; follow it via `GET /v1/automations/runs/{automationRunId}`.
+         * @description Starts a suppression-aware TEST run of the saved automation — no real mail is delivered and test runs never count against analytics rollups. Body optionally carries a `payload` matching the trigger’s schema. Returns `202` with the started run id; follow it via `GET /v1/automations/runs?automationRunId=`.
          */
         post: operations["testAutomation"];
         delete?: never;
@@ -442,30 +315,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List automation runs
-         * @description Lists recent automation runs (newest first) under `{ data, pagination }`. Filters: `automationId`, `triggerEventId`, `triggerInstanceId`, `recipientEmail`, `status` (pending | running | completed | failed | cancelled), `mode` (live | test), and the `from`/`to` ISO-8601 window. List rows omit per-node logs — fetch one run for them.
+         * Get automation runs
+         * @description Unified automation-run read. Omit `automationRunId` to LIST recent runs (newest first) under `{ data, pagination }`. Filters: `automationId`, `triggerEventId`, `triggerInstanceId`, `recipientEmail`, `status` (pending | running | completed | failed | cancelled), `mode` (live | test), and the `from`/`to` ISO-8601 window. Pass `?automationRunId=` to fetch ONE run — returns `{ data: [row] }` (no `pagination`), `404 AUTOMATION_RUN_NOT_FOUND` on an unknown / cross-brand id. List + detail rows are lean by default; add `?include=logs` (detail only) for the per-node execution `logs[]`.
          */
         get: operations["listAutomationRuns"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/automations/runs/{automationRunId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get an automation run
-         * @description Returns the bare run with its per-node `logs[]` always attached — one log row per executed node (`trigger | wait | filter | split | sendEmail`) with status, branch, timing, and error detail.
-         */
-        get: operations["getAutomationRun"];
         put?: never;
         post?: never;
         delete?: never;
@@ -482,8 +335,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List triggers
-         * @description Lists every trigger the brand has under `{ data, pagination }` — `provider: "brew_api"` for API-created customs and `provider: "clerk" | "stripe" | …` for integration-provisioned triggers.
+         * Get triggers
+         * @description Unified trigger read. Omit `triggerEventId` to LIST every trigger the brand has under `{ data, pagination }` — `provider: "brew_api"` for API-created customs and `provider: "clerk" | "stripe" | …` for integration-provisioned triggers. Pass `?triggerEventId=` to fetch ONE — returns `{ data: [row] }` (no `pagination`), `404 TRIGGER_NOT_FOUND` on an unknown / cross-brand id.
          */
         get: operations["listTriggers"];
         put?: never;
@@ -507,11 +360,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /**
-         * Get a trigger
-         * @description Returns the bare trigger row.
-         */
-        get: operations["getTrigger"];
+        get?: never;
         put?: never;
         post?: never;
         /**
@@ -539,7 +388,7 @@ export interface paths {
         put?: never;
         /**
          * Fire a trigger
-         * @description Fires the trigger: validates `payload` against the trigger’s `payloadSchema`, upserts the contact derived from the payload, and starts one run per published automation attached to the trigger. Read `details.automationRunIds[]` and follow each via `GET /v1/automations/runs/{automationRunId}`.
+         * @description Fires the trigger: validates `payload` against the trigger’s `payloadSchema`, upserts the contact derived from the payload, and starts one run per published automation attached to the trigger. Read `details.automationRunIds[]` and follow each via `GET /v1/automations/runs?automationRunId=`.
          *
          *     **Idempotency** — send a stable `Idempotency-Key` header on every retry (the body field `idempotencyKey` is a legacy alternative). Replays return the original run ids with `status: "idempotent_replay"` instead of starting duplicates.
          *
@@ -560,30 +409,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List fired trigger events
-         * @description Lists fired trigger-event instances (newest first) under `{ data, pagination }` — the audit log of every inbound fire, whether from the API (`source: "api"`) or an integration webhook (`source: "integration"`). Each row links the fire to the automations it matched and the runs it started (`automationRunIds[]` → `GET /v1/automations/runs/{automationRunId}`). Filter with `?triggerEventId=`.
+         * Get fired trigger events
+         * @description Unified fired-trigger-event read. Omit `triggerInstanceId` to LIST fired instances (newest first) under `{ data, pagination }` — the audit log of every inbound fire, whether from the API (`source: "api"`) or an integration webhook (`source: "integration"`). Each row links the fire to the automations it matched and the runs it started (`automationRunIds[]` → `GET /v1/automations/runs?automationRunId=`). Filter with `?triggerEventId=`. Pass `?triggerInstanceId=` to fetch ONE — returns `{ data: [row] }` (no `pagination`), `404 EVENT_NOT_FOUND` on an unknown / cross-brand id.
          */
         get: operations["listEvents"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/analytics/trigger-instances/{triggerInstanceId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get a fired trigger event
-         * @description Returns the bare fired-event row — processing `state`, `rejectionReason` when rejected, retry `attempts`, and the matched automations + started runs.
-         */
-        get: operations["getEvent"];
         put?: never;
         post?: never;
         delete?: never;
@@ -599,11 +428,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /**
-         * List contacts
-         * @description Lists contacts (newest first) under `{ data, pagination }` with native cursor pagination — `limit` + `cursor` are the ONLY query params. Search, filters, sort, and count live on `POST /v1/contacts/search`.
-         */
-        get: operations["listContacts"];
+        get?: never;
         put?: never;
         /**
          * Create or update contacts
@@ -625,11 +450,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /**
-         * Get a contact
-         * @description Returns the bare contact row — core columns, suppression state, and `customFields`.
-         */
-        get: operations["getContact"];
+        get?: never;
         put?: never;
         post?: never;
         /**
@@ -656,8 +477,12 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Search contacts
-         * @description Structured search over the brand’s contacts: free-text `search`, typed `filters` (`{ field, operator, value }` combined with `logic: "and" | "or"`), `sort` + `order`, and cursor pagination. Returns the same `{ data, pagination }` page as the list.
+         * Get contacts
+         * @description The single "Get Contacts" read. Structured search over the brand’s contacts: free-text `search`, typed `filters` (`{ field, operator, value }` combined with `logic: "and" | "or"`), `sort` + `order`, and cursor pagination. Returns `{ data, pagination }`.
+         *
+         *     Folds the former `GET /v1/contacts` (omit all filters to list everything) and `GET /v1/contacts/{email}` (use `filters: [{ field: "email", operator: "equals", value: "…" }]`).
+         *
+         *     Pass an optional `audienceId` to scope the search to a saved audience’s members — its stored filter is ANDed with `filters` (an unknown / cross-brand id → `400`).
          *
          *     Set `count: true` to get `{ count }` instead of a page.
          */
@@ -780,14 +605,14 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List audiences
-         * @description Lists the brand’s saved audiences under `{ data, pagination }`. Each row carries its contact `filters`, the cached member `count`, and ISO timestamps. An audience is the recipient target for `POST /v1/sends`.
+         * Get audiences
+         * @description Unified audience read. Omit `audienceId` to LIST the brand’s saved audiences under `{ data, pagination }`. Each row carries its contact `filters`, the cached member `count`, and ISO timestamps. An audience is the recipient target for `POST /v1/sends`. Pass `?audienceId=` to fetch ONE — returns `{ data: [row] }` (no `pagination`), `404 AUDIENCE_NOT_FOUND` on an unknown / cross-brand id. Add `?include=count` (detail only) to replace the cached `count` with a freshly computed member total.
          */
         get: operations["listAudiences"];
         put?: never;
         /**
          * Create an audience
-         * @description Creates a saved audience from a name + filter set (`{ filters: [{ field, operator, value? }], logicalOperator: "and" | "or" }`). Returns `201` with the bare audience row. Duplication is its own action: `POST /v1/audiences/{audienceId}/duplicate`.
+         * @description Creates a saved audience from a name + filter set (`{ filters: [{ field, operator, value? }], logicalOperator: "and" | "or" }`). Returns `201` with the bare audience row.
          */
         post: operations["createAudience"];
         delete?: never;
@@ -803,11 +628,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /**
-         * Get an audience
-         * @description Returns the bare audience row. The row’s `count` is a cached value (`0` until a cache writer populates it) — pass `?include=count` to replace it with an authoritative, freshly-computed member total (the size a send would target).
-         */
-        get: operations["getAudience"];
+        get?: never;
         put?: never;
         post?: never;
         /**
@@ -824,26 +645,6 @@ export interface paths {
         patch: operations["updateAudience"];
         trace?: never;
     };
-    "/v1/audiences/{audienceId}/duplicate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Duplicate an audience
-         * @description Clones the audience (name suffixed, same filters) into a new row. Empty body. Returns `201` with the bare new row.
-         */
-        post: operations["duplicateAudience"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/domains": {
         parameters: {
             query?: never;
@@ -852,8 +653,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List domains
-         * @description Lists the brand’s sending domains under `{ data, pagination }` — ALL lifecycle states by default (so callers mid-verification can read `pending` rows + their DNS `records`). Pass `?sendableOnly=true` for only verified, send-ready domains (the set valid for `POST /v1/sends` and automation `sendEmail` nodes).
+         * Get domains
+         * @description Unified domain read. Omit `domainId` to LIST the brand’s sending domains under `{ data, pagination }` — ALL lifecycle states by default (so callers mid-verification can read `pending` rows + their DNS `records`); pass `?sendableOnly=true` for only verified, send-ready domains (the set valid for `POST /v1/sends` and automation `sendEmail` nodes). Pass `?domainId=` to fetch ONE domain — returns `{ data: [row] }` (no `pagination`), `404 DOMAIN_NOT_FOUND` on an unknown / cross-brand id.
          */
         get: operations["listDomains"];
         put?: never;
@@ -875,11 +676,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /**
-         * Get a domain
-         * @description Returns the bare domain row — `status`, the derived `sendable` flag, and the full DNS `records` array (with per-record status) so verification can be completed headlessly.
-         */
-        get: operations["getDomain"];
+        get?: never;
         put?: never;
         post?: never;
         /**
@@ -970,8 +767,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List brand images
-         * @description The brand’s saved image library (harvested + generated), each with a description and dimensions. Paginated via `limit` + `cursor`. (The smaller `identity` / `emailDesign` / `imageStyle` / `logos` sub-resources embed into `GET /v1/brand?include=…`; images stay separate because they paginate.)
+         * Get brand images
+         * @description The brand’s image library — dual-mode. Pass `?q=` for SEMANTIC search (the query is embedded + vector-searched over the brand’s indexed assets; `?type` and `?aspectRatio` narrow it) — this path is **credit-metered** (`402 INSUFFICIENT_CREDITS` when out of credits). Omit `?q=` to BROWSE the stored harvested + generated library (free), optionally filtered by `?type` / `?aspectRatio`. Either way returns `{ data, pagination }` of images with a description + dimensions. (The smaller `identity` / `emailDesign` / `imageStyle` / `logos` sub-resources embed into `GET /v1/brand?include=…`; images stay separate because they paginate.)
          */
         get: operations["getBrandImages"];
         put?: never;
@@ -1150,6 +947,17 @@ export interface components {
             emailId: string;
             emailVersionId?: string;
             title: string;
+            /** @enum {string} */
+            status: "streaming" | "complete" | "error";
+            /** Format: uri */
+            previewImage?: string;
+            /** Format: date-time */
+            updatedAt: string;
+            html?: string;
+            versions?: {
+                version: number | "latest";
+                emailVersionId: string;
+            }[];
         };
         EmailDetail: {
             emailId: string;
@@ -1207,6 +1015,14 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
+            events?: {
+                /** @enum {string} */
+                eventType: "sent" | "delivered" | "delivery_delayed" | "opened" | "clicked" | "bounced" | "complained" | "failed" | "suppressed" | "received" | "unsubscribed";
+                /** Format: date-time */
+                occurredAt: string;
+                recipientEmail?: string;
+                url?: string;
+            }[];
         };
         SendEvent: {
             /** @enum {string} */
@@ -1422,6 +1238,10 @@ export interface components {
             updatedAt?: string;
             /** Format: date-time */
             publishedAt?: string;
+            versions?: {
+                version: number | "latest";
+                automationVersionId: string;
+            }[];
         };
         AutomationRunRow: {
             automationRunId: string;
@@ -1599,8 +1419,19 @@ export interface components {
                 emailId: string;
                 emailVersionId?: string;
                 title: string;
+                /** @enum {string} */
+                status: "streaming" | "complete" | "error";
+                /** Format: uri */
+                previewImage?: string;
+                /** Format: date-time */
+                updatedAt: string;
+                html?: string;
+                versions?: {
+                    version: number | "latest";
+                    emailVersionId: string;
+                }[];
             }[];
-            pagination: {
+            pagination?: {
                 limit: number;
                 cursor: string | null;
                 hasMore: boolean;
@@ -1637,6 +1468,14 @@ export interface components {
             contentUrls?: string[];
             referenceEmailId?: string;
         };
+        EmailImportRequest: {
+            /** @enum {string} */
+            format: "html" | "jsx";
+            content: string;
+            title?: string;
+            /** Format: uri */
+            baseUrl?: string;
+        };
         EmailGenerateResponse: {
             emailId: string;
             emailVersionId: string;
@@ -1658,38 +1497,8 @@ export interface components {
             emailId: string;
             deleted: boolean;
         };
-        EmailVersionsResponse: {
-            data: {
-                emailVersionId: string;
-                version: number | "latest";
-                /** @enum {string} */
-                status: "streaming" | "complete" | "error";
-                /** Format: date-time */
-                updatedAt: string;
-            }[];
-            pagination: {
-                limit: number;
-                cursor: string | null;
-                hasMore: boolean;
-            };
-        };
         EmailRestoreRequest: {
             version: number;
-        };
-        EmailPreviewResponse: {
-            previews: {
-                /** @enum {string} */
-                device: "desktop" | "mobile";
-                url: string;
-                width: number;
-            }[];
-        };
-        EmailPreviewRequest: {
-            /**
-             * @default all
-             * @enum {string}
-             */
-            device: "desktop" | "mobile" | "all";
         };
         EmailAccessibilityAuditResponse: {
             score: number;
@@ -1743,12 +1552,26 @@ export interface components {
                 createdAt: string;
                 /** Format: date-time */
                 updatedAt: string;
+                events?: {
+                    /** @enum {string} */
+                    eventType: "sent" | "delivered" | "delivery_delayed" | "opened" | "clicked" | "bounced" | "complained" | "failed" | "suppressed" | "received" | "unsubscribed";
+                    /** Format: date-time */
+                    occurredAt: string;
+                    recipientEmail?: string;
+                    url?: string;
+                }[];
             }[];
-            pagination: {
+            pagination?: {
                 limit: number;
                 cursor: string | null;
                 hasMore: boolean;
             };
+        };
+        SendEmailTestResponse: {
+            /** @enum {string} */
+            status: "sent";
+            /** Format: email */
+            recipient: string;
         };
         SendsPostResponse: {
             /** @enum {string} */
@@ -1758,7 +1581,20 @@ export interface components {
             /** Format: date-time */
             scheduledAt?: string;
         };
-        SendsPostRequest: {
+        SendEmailRequest: {
+            /** @enum {boolean} */
+            test: true;
+            emailId: string;
+            emailVersionId?: string;
+            subject: string;
+            previewText?: string;
+            /** Format: email */
+            to: string;
+            /** Format: email */
+            replyTo?: string;
+        } | {
+            /** @enum {boolean} */
+            test?: false;
             emailId: string;
             emailVersionId?: string;
             subject: string;
@@ -1770,37 +1606,6 @@ export interface components {
             to?: string | string[];
             /** Format: date-time */
             scheduledAt?: string;
-        };
-        SendsTestResponse: {
-            /** @enum {string} */
-            status: "sent";
-            /** Format: email */
-            recipient: string;
-        };
-        SendsTestRequest: {
-            emailId: string;
-            emailVersionId?: string;
-            subject: string;
-            previewText?: string;
-            /** Format: email */
-            to: string;
-            /** Format: email */
-            replyTo?: string;
-        };
-        SendEventsResponse: {
-            data: {
-                /** @enum {string} */
-                eventType: "sent" | "delivered" | "delivery_delayed" | "opened" | "clicked" | "bounced" | "complained" | "failed" | "suppressed" | "received" | "unsubscribed";
-                /** Format: date-time */
-                occurredAt: string;
-                recipientEmail?: string;
-                url?: string;
-            }[];
-            pagination: {
-                limit: number;
-                cursor: string | null;
-                hasMore: boolean;
-            };
         };
         CampaignAnalyticsResponse: {
             data: {
@@ -2113,8 +1918,12 @@ export interface components {
                 updatedAt?: string;
                 /** Format: date-time */
                 publishedAt?: string;
+                versions?: {
+                    version: number | "latest";
+                    automationVersionId: string;
+                }[];
             }[];
-            pagination: {
+            pagination?: {
                 limit: number;
                 cursor: string | null;
                 hasMore: boolean;
@@ -2225,127 +2034,6 @@ export interface components {
             automationId: string;
             deleted: boolean;
         };
-        AutomationVersionsResponse: {
-            data: {
-                automationId: string;
-                automationVersionId: string;
-                triggerEventId?: string;
-                name: string;
-                description?: string;
-                version: number | "latest";
-                published: boolean;
-                nodes?: ({
-                    id: string;
-                    label: string;
-                    description?: string;
-                    /** @enum {string} */
-                    type: "trigger";
-                    config: {
-                        actionType?: string;
-                        triggerEventId?: string;
-                        eventName?: string;
-                    };
-                } | {
-                    id: string;
-                    label: string;
-                    description?: string;
-                    /** @enum {string} */
-                    type: "sendEmail";
-                    config: {
-                        actionType?: string;
-                        emailId?: string;
-                        emailVersionId?: string;
-                        emailTitle?: string;
-                        subject?: string;
-                        previewText?: string;
-                        fromName?: string;
-                        fromAddress?: string;
-                        domainId?: string;
-                        replyTo?: string;
-                        to?: unknown;
-                        html?: string;
-                        variables?: {
-                            [key: string]: unknown;
-                        };
-                    };
-                } | {
-                    id: string;
-                    label: string;
-                    description?: string;
-                    /** @enum {string} */
-                    type: "wait";
-                    config: {
-                        actionType?: string;
-                        duration: number;
-                        /** @enum {string} */
-                        unit: "ms" | "seconds" | "minutes" | "hours" | "days" | "weeks";
-                    };
-                } | {
-                    id: string;
-                    label: string;
-                    description?: string;
-                    /** @enum {string} */
-                    type: "filter";
-                    config: {
-                        actionType?: string;
-                        /** @enum {string} */
-                        logicalOperator: "AND" | "OR";
-                        conditions: {
-                            field: string;
-                            operator: string;
-                            value?: string | number | boolean;
-                        }[];
-                    };
-                } | {
-                    id: string;
-                    label: string;
-                    description?: string;
-                    /** @enum {string} */
-                    type: "split";
-                    config: {
-                        actionType?: string;
-                        /** @enum {string} */
-                        mode: "percentage";
-                        leftLabel: string;
-                        rightLabel: string;
-                        leftPercentage: number;
-                        seed?: string;
-                    } | {
-                        actionType?: string;
-                        /** @enum {string} */
-                        mode: "condition";
-                        leftLabel: string;
-                        rightLabel: string;
-                        /** @enum {string} */
-                        logicalOperator: "AND" | "OR";
-                        conditions: {
-                            field: string;
-                            operator: string;
-                            value?: string | number | boolean;
-                        }[];
-                    };
-                })[];
-                connections?: {
-                    from: string;
-                    to: string;
-                    /** @enum {string} */
-                    branch?: "left" | "right";
-                }[];
-                emailIds: string[];
-                createdBy?: string;
-                /** Format: date-time */
-                createdAt?: string;
-                /** Format: date-time */
-                updatedAt?: string;
-                /** Format: date-time */
-                publishedAt?: string;
-            }[];
-            pagination: {
-                limit: number;
-                cursor: string | null;
-                hasMore: boolean;
-            };
-        };
         AutomationRunStartedResponse: {
             triggerInstanceId?: string;
             automationRunIds: string[];
@@ -2381,47 +2069,30 @@ export interface components {
                 /** Format: date-time */
                 completedAt?: string;
                 error?: string;
+                logs?: {
+                    automationRunId: string;
+                    nodeId: string;
+                    nodeName: string;
+                    /** @enum {string} */
+                    nodeType: "trigger" | "wait" | "filter" | "split" | "sendEmail";
+                    /** @enum {string} */
+                    status: "running" | "success" | "error" | "skipped";
+                    orderIndex: number;
+                    /** @enum {string} */
+                    branch?: "left" | "right";
+                    durationMs?: number;
+                    /** Format: date-time */
+                    startedAt: string;
+                    /** Format: date-time */
+                    completedAt?: string;
+                    error?: string;
+                }[];
             }[];
-            pagination: {
+            pagination?: {
                 limit: number;
                 cursor: string | null;
                 hasMore: boolean;
             };
-        };
-        AutomationRunDetail: {
-            automationRunId: string;
-            automationId: string;
-            automationVersionId?: string;
-            triggerInstanceId?: string;
-            /** @enum {string} */
-            mode: "live" | "test";
-            /** @enum {string} */
-            status: "pending" | "running" | "completed" | "failed" | "cancelled";
-            /** Format: email */
-            recipientEmail?: string;
-            /** Format: date-time */
-            startedAt?: string;
-            /** Format: date-time */
-            completedAt?: string;
-            error?: string;
-            logs: {
-                automationRunId: string;
-                nodeId: string;
-                nodeName: string;
-                /** @enum {string} */
-                nodeType: "trigger" | "wait" | "filter" | "split" | "sendEmail";
-                /** @enum {string} */
-                status: "running" | "success" | "error" | "skipped";
-                orderIndex: number;
-                /** @enum {string} */
-                branch?: "left" | "right";
-                durationMs?: number;
-                /** Format: date-time */
-                startedAt: string;
-                /** Format: date-time */
-                completedAt?: string;
-                error?: string;
-            }[];
         };
         TriggersPostRequest: {
             title: string;
@@ -2476,7 +2147,7 @@ export interface components {
                 /** Format: date-time */
                 updatedAt: string;
             }[];
-            pagination: {
+            pagination?: {
                 limit: number;
                 cursor: string | null;
                 hasMore: boolean;
@@ -2573,36 +2244,7 @@ export interface components {
                 /** Format: date-time */
                 processedAt?: string;
             }[];
-            pagination: {
-                limit: number;
-                cursor: string | null;
-                hasMore: boolean;
-            };
-        };
-        ContactsListResponse: {
-            data: {
-                /** Format: email */
-                email: string;
-                firstName?: string;
-                lastName?: string;
-                /** @default true */
-                subscribed: boolean;
-                /** @enum {string} */
-                verificationStatus?: "valid" | "risky" | "invalid";
-                /** @default false */
-                suppressed: boolean;
-                suppressedReason?: string | null;
-                /** Format: date-time */
-                createdAt: string;
-                /** Format: date-time */
-                updatedAt: string;
-                importId?: string | null;
-                /** @default {} */
-                customFields: {
-                    [key: string]: unknown;
-                };
-            }[];
-            pagination: {
+            pagination?: {
                 limit: number;
                 cursor: string | null;
                 hasMore: boolean;
@@ -2722,6 +2364,35 @@ export interface components {
             deleted: boolean;
         };
         ContactsSearchSuccessResponse: components["schemas"]["ContactsListResponse"] | components["schemas"]["ContactsCountResponse"];
+        ContactsListResponse: {
+            data: {
+                /** Format: email */
+                email: string;
+                firstName?: string;
+                lastName?: string;
+                /** @default true */
+                subscribed: boolean;
+                /** @enum {string} */
+                verificationStatus?: "valid" | "risky" | "invalid";
+                /** @default false */
+                suppressed: boolean;
+                suppressedReason?: string | null;
+                /** Format: date-time */
+                createdAt: string;
+                /** Format: date-time */
+                updatedAt: string;
+                importId?: string | null;
+                /** @default {} */
+                customFields: {
+                    [key: string]: unknown;
+                };
+            }[];
+            pagination: {
+                limit: number;
+                cursor: string | null;
+                hasMore: boolean;
+            };
+        };
         ContactsCountResponse: {
             count: number;
         };
@@ -2733,6 +2404,7 @@ export interface components {
                 operator: string;
                 value: string;
             }[];
+            audienceId?: string;
             /**
              * @default and
              * @enum {string}
@@ -2846,7 +2518,7 @@ export interface components {
                 /** Format: date-time */
                 updatedAt: string;
             }[];
-            pagination: {
+            pagination?: {
                 limit: number;
                 cursor: string | null;
                 hasMore: boolean;
@@ -2913,7 +2585,7 @@ export interface components {
                 /** Format: date-time */
                 verifiedAt?: string;
             }[];
-            pagination: {
+            pagination?: {
                 limit: number;
                 cursor: string | null;
                 hasMore: boolean;
@@ -3168,6 +2840,8 @@ export interface operations {
     listEmails: {
         parameters: {
             query?: {
+                emailId?: string;
+                include?: string;
                 status?: "streaming" | "complete" | "error";
                 createdAtFrom?: string;
                 createdAtTo?: string;
@@ -3182,7 +2856,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description A page of email designs. */
+            /** @description A page of email designs (list mode), or `{ data: [row] }` (detail mode). */
             200: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -3202,12 +2876,17 @@ export interface operations {
                      *         {
                      *           "emailId": "eml_welcome",
                      *           "emailVersionId": "emv_welcome_v3",
-                     *           "title": "Welcome Email"
+                     *           "title": "Welcome Email",
+                     *           "status": "complete",
+                     *           "previewImage": "https://cdn.brew.new/p/eml_welcome.png",
+                     *           "updatedAt": "2026-04-08T12:34:56.789Z"
                      *         },
                      *         {
                      *           "emailId": "eml_digest",
                      *           "emailVersionId": "emv_digest_v1",
-                     *           "title": "May product digest"
+                     *           "title": "May product digest",
+                     *           "status": "complete",
+                     *           "updatedAt": "2026-04-07T09:00:00.000Z"
                      *         }
                      *       ],
                      *       "pagination": {
@@ -3220,7 +2899,7 @@ export interface operations {
                     "application/json": components["schemas"]["EmailsListResponse"];
                 };
             };
-            /** @description Invalid query (unknown param, bad enum, or a `*From` later than its `*To`). */
+            /** @description Invalid query (unknown param, bad enum, `*From` later than its `*To`, or `include` without `emailId`). */
             400: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -3282,6 +2961,29 @@ export interface operations {
                      *         "suggestion": "Use an API key or session with the required permission.",
                      *         "docs": "https://docs.brew.new/api-reference/api/authentication",
                      *         "param": "emails"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Email design not found in the API-key brand. Cross-brand ids intentionally surface as 404 (never 403) so the API does not leak cross-brand existence. */
+            404: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "EMAIL_NOT_FOUND",
+                     *         "type": "not_found",
+                     *         "message": "No email exists with id 'eml_2SmZOWV3ZQ7W5x6g3m4p'.",
+                     *         "suggestion": "List designs with GET /v1/emails to find a valid emailId.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "emailId"
                      *       }
                      *     }
                      */
@@ -3651,20 +3353,27 @@ export interface operations {
             };
         };
     };
-    getEmail: {
+    importEmail: {
         parameters: {
             query?: never;
-            header?: never;
-            path: {
-                /** @description Design id returned by `POST /v1/emails` and listed by `GET /v1/emails`. */
-                emailId: string;
+            header?: {
+                /**
+                 * @description Optional idempotency key for safe retries. Reusing the same key with the same request body returns the original response for 24 hours.
+                 * @example api-request-2026-04-08-001
+                 */
+                "Idempotency-Key"?: string;
             };
+            path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailImportRequest"];
+            };
+        };
         responses: {
-            /** @description The design. */
-            200: {
+            /** @description The design was imported + persisted. Usage-metered: the agent’s actual token usage is charged. `emailVersionId` pins the exact version for sends + automation nodes. */
+            201: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
                     "x-request-id": string;
@@ -3679,15 +3388,36 @@ export interface operations {
                 content: {
                     /**
                      * @example {
-                     *       "emailId": "eml_welcome",
-                     *       "emailVersionId": "emv_welcome_v3",
-                     *       "title": "Welcome Email",
-                     *       "status": "complete",
-                     *       "html": "<!DOCTYPE html><html><body>Welcome.</body></html>",
-                     *       "updatedAt": "2026-04-08T12:05:00.000Z"
+                     *       "emailId": "eml_2SmZOWV3ZQ7W5x6g3m4p",
+                     *       "emailVersionId": "emv_2SmZOWV3ZQ7W5x6g3m4p_v1",
+                     *       "html": "<!DOCTYPE html><html><body>Welcome to Brew.</body></html>",
+                     *       "previewImage": "https://storage.example.com/emails/eml_2SmZOWV3ZQ7W5x6g3m4p.png"
                      *     }
                      */
-                    "application/json": components["schemas"]["EmailDetail"];
+                    "application/json": components["schemas"]["EmailGenerateGeneratedResponse"];
+                };
+            };
+            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
+            400: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INVALID_REQUEST",
+                     *         "type": "invalid_request",
+                     *         "message": "Request validation failed.",
+                     *         "suggestion": "Fix the field reported in `param` and retry.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "content"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
             /** @description The API key was missing, invalid, or revoked. */
@@ -3706,6 +3436,33 @@ export interface operations {
                      *         "message": "The provided API key is invalid.",
                      *         "suggestion": "Check the API key format and retry with a valid active key.",
                      *         "docs": "https://docs.brew.new/api-reference/api/authentication"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/account`. No `Retry-After` — credits reset at the billing-period boundary. */
+            402: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INSUFFICIENT_CREDITS",
+                     *         "type": "payment_required",
+                     *         "message": "This operation costs 10 credit(s) but only 0 remain on the 'free' plan.",
+                     *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/account.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/credits",
+                     *         "details": {
+                     *           "cost": 10,
+                     *           "remaining": 0,
+                     *           "planKey": "free"
+                     *         }
                      *       }
                      *     }
                      */
@@ -3735,8 +3492,8 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description Email design not found in the API-key brand. Cross-brand ids intentionally surface as 404 (never 403) so the API does not leak cross-brand existence. */
-            404: {
+            /** @description The same `Idempotency-Key` was reused with a different request body. */
+            409: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
                     "x-request-id": string;
@@ -3746,12 +3503,34 @@ export interface operations {
                     /**
                      * @example {
                      *       "error": {
-                     *         "code": "EMAIL_NOT_FOUND",
-                     *         "type": "not_found",
-                     *         "message": "No email exists with id 'eml_2SmZOWV3ZQ7W5x6g3m4p'.",
-                     *         "suggestion": "List designs with GET /v1/emails to find a valid emailId.",
+                     *         "code": "IDEMPOTENCY_CONFLICT",
+                     *         "type": "conflict",
+                     *         "message": "The same idempotency key was reused with a different request payload.",
+                     *         "suggestion": "Reuse the original payload or send a new idempotency key.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/idempotency"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The markup could not be converted into a valid email (e.g. the JSX failed to render, or the HTML produced no usable design). */
+            422: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "EMAIL_IMPORT_FAILED",
+                     *         "type": "invalid_request",
+                     *         "message": "The supplied markup could not be imported as an email: the React-Email JSX could not be rendered to HTML.",
+                     *         "suggestion": "Check that `content` is valid for the declared `format` and retry.",
                      *         "docs": "https://docs.brew.new/api-reference/api/errors",
-                     *         "param": "emailId"
+                     *         "param": "content"
                      *       }
                      *     }
                      */
@@ -3805,6 +3584,31 @@ export interface operations {
                      *         "message": "An unexpected error occurred.",
                      *         "suggestion": "Retry the request. If it keeps failing, contact support.",
                      *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The credit balance could not be verified (a transient billing dependency outage). The gate fails closed rather than do paid work it cannot meter. Retryable — `Retry-After` indicates when. */
+            503: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Seconds to wait before retrying the request. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "SERVICE_UNAVAILABLE",
+                     *         "type": "service_unavailable",
+                     *         "message": "Your credit balance could not be verified because a billing dependency is temporarily unavailable.",
+                     *         "suggestion": "Retry the request after a short delay.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/credits",
+                     *         "retryAfter": 2
                      *       }
                      *     }
                      */
@@ -4202,184 +4006,6 @@ export interface operations {
             };
         };
     };
-    listEmailVersions: {
-        parameters: {
-            query?: {
-                limit?: number;
-                cursor?: string;
-            };
-            header?: never;
-            path: {
-                /** @description Design id returned by `POST /v1/emails` and listed by `GET /v1/emails`. */
-                emailId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description A page of version rows (latest first). */
-            200: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    /** @description Requests allowed in the current rolling rate limit window. */
-                    "X-RateLimit-Limit": number;
-                    /** @description Requests remaining in the current rolling rate limit window. */
-                    "X-RateLimit-Remaining": number;
-                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
-                    "X-RateLimit-Reset": number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "data": [
-                     *         {
-                     *           "emailVersionId": "emv_welcome_v3",
-                     *           "version": "latest",
-                     *           "status": "complete",
-                     *           "updatedAt": "2026-04-08T12:05:00.000Z"
-                     *         },
-                     *         {
-                     *           "emailVersionId": "emv_welcome_v2",
-                     *           "version": 2,
-                     *           "status": "complete",
-                     *           "updatedAt": "2026-04-07T09:00:00.000Z"
-                     *         }
-                     *       ],
-                     *       "pagination": {
-                     *         "limit": 100,
-                     *         "cursor": null,
-                     *         "hasMore": false
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["EmailVersionsResponse"];
-                };
-            };
-            /** @description The API key was missing, invalid, or revoked. */
-            401: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INVALID_API_KEY",
-                     *         "type": "authentication_error",
-                     *         "message": "The provided API key is invalid.",
-                     *         "suggestion": "Check the API key format and retry with a valid active key.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The caller does not have the required `emails` permission. */
-            403: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INSUFFICIENT_PERMISSIONS",
-                     *         "type": "authorization_error",
-                     *         "message": "The caller does not have the required permission.",
-                     *         "suggestion": "Use an API key or session with the required permission.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
-                     *         "param": "emails"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description Email design not found in the API-key brand. Cross-brand ids intentionally surface as 404 (never 403) so the API does not leak cross-brand existence. */
-            404: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "EMAIL_NOT_FOUND",
-                     *         "type": "not_found",
-                     *         "message": "No email exists with id 'eml_2SmZOWV3ZQ7W5x6g3m4p'.",
-                     *         "suggestion": "List designs with GET /v1/emails to find a valid emailId.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
-                     *         "param": "emailId"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The request hit the rolling rate limit window. */
-            429: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    /** @description Requests allowed in the current rolling rate limit window. */
-                    "X-RateLimit-Limit": number;
-                    /** @description Requests remaining in the current rolling rate limit window. */
-                    "X-RateLimit-Remaining": number;
-                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
-                    "X-RateLimit-Reset": number;
-                    /** @description Seconds to wait before retrying the request. */
-                    "Retry-After": number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "RATE_LIMITED",
-                     *         "type": "rate_limit",
-                     *         "message": "Too many requests.",
-                     *         "suggestion": "Wait for the retry window before sending another request.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
-                     *         "retryAfter": 42
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description Unexpected internal error. */
-            500: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INTERNAL_ERROR",
-                     *         "type": "internal_error",
-                     *         "message": "An unexpected error occurred.",
-                     *         "suggestion": "Retry the request. If it keeps failing, contact support.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-        };
-    };
     restoreEmailVersion: {
         parameters: {
             query?: never;
@@ -4514,7 +4140,7 @@ export interface operations {
                      *         "code": "EMAIL_VERSION_NOT_FOUND",
                      *         "type": "not_found",
                      *         "message": "Email 'eml_welcome' has no version 5.",
-                     *         "suggestion": "List versions with GET /v1/emails/{emailId}/versions.",
+                     *         "suggestion": "List versions with GET /v1/emails?emailId=&include=versions.",
                      *         "docs": "https://docs.brew.new/api-reference/api/errors",
                      *         "param": "version"
                      *       }
@@ -4592,307 +4218,6 @@ export interface operations {
                      *         "message": "An unexpected error occurred.",
                      *         "suggestion": "Retry the request. If it keeps failing, contact support.",
                      *         "docs": "https://docs.brew.new/api-reference/api/errors"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-        };
-    };
-    previewEmail: {
-        parameters: {
-            query?: never;
-            header?: {
-                /**
-                 * @description Optional idempotency key for safe retries. Reusing the same key with the same request body returns the original response for 24 hours.
-                 * @example api-request-2026-04-08-001
-                 */
-                "Idempotency-Key"?: string;
-            };
-            path: {
-                /** @description Design id returned by `POST /v1/emails` and listed by `GET /v1/emails`. */
-                emailId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                /**
-                 * @example {
-                 *       "device": "all"
-                 *     }
-                 */
-                "application/json": components["schemas"]["EmailPreviewRequest"];
-            };
-        };
-        responses: {
-            /** @description The rendered preview URL(s). */
-            200: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    /** @description Requests allowed in the current rolling rate limit window. */
-                    "X-RateLimit-Limit": number;
-                    /** @description Requests remaining in the current rolling rate limit window. */
-                    "X-RateLimit-Remaining": number;
-                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
-                    "X-RateLimit-Reset": number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "previews": [
-                     *         {
-                     *           "device": "desktop",
-                     *           "url": "https://cdn.brew.new/api-preview-eml_welcome-desktop-abc.png",
-                     *           "width": 600
-                     *         },
-                     *         {
-                     *           "device": "mobile",
-                     *           "url": "https://cdn.brew.new/api-preview-eml_welcome-mobile-def.png",
-                     *           "width": 375
-                     *         }
-                     *       ]
-                     *     }
-                     */
-                    "application/json": components["schemas"]["EmailPreviewResponse"];
-                };
-            };
-            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
-            400: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INVALID_REQUEST",
-                     *         "type": "invalid_request",
-                     *         "message": "Request validation failed.",
-                     *         "suggestion": "Fix the field reported in `param` and retry.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
-                     *         "param": "device"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The API key was missing, invalid, or revoked. */
-            401: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INVALID_API_KEY",
-                     *         "type": "authentication_error",
-                     *         "message": "The provided API key is invalid.",
-                     *         "suggestion": "Check the API key format and retry with a valid active key.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/account`. No `Retry-After` — credits reset at the billing-period boundary. */
-            402: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INSUFFICIENT_CREDITS",
-                     *         "type": "payment_required",
-                     *         "message": "This operation costs 10 credit(s) but only 0 remain on the 'free' plan.",
-                     *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/account.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/credits",
-                     *         "details": {
-                     *           "cost": 10,
-                     *           "remaining": 0,
-                     *           "planKey": "free"
-                     *         }
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The caller does not have the required `emails` permission. */
-            403: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INSUFFICIENT_PERMISSIONS",
-                     *         "type": "authorization_error",
-                     *         "message": "The caller does not have the required permission.",
-                     *         "suggestion": "Use an API key or session with the required permission.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
-                     *         "param": "emails"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description No email exists with that id (cross-brand ids surface as 404). */
-            404: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "EMAIL_NOT_FOUND",
-                     *         "type": "not_found",
-                     *         "message": "No email exists with id 'eml_welcome'.",
-                     *         "suggestion": "Verify the emailId via GET /v1/emails.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The same `Idempotency-Key` was reused with a different request body. */
-            409: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "IDEMPOTENCY_CONFLICT",
-                     *         "type": "conflict",
-                     *         "message": "The same idempotency key was reused with a different request payload.",
-                     *         "suggestion": "Reuse the original payload or send a new idempotency key.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/idempotency"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The email has no rendered HTML yet (still generating) or the render failed. */
-            422: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "CONTENT_OPERATION_FAILED",
-                     *         "type": "invalid_request",
-                     *         "message": "email-preview failed: the email has no rendered HTML yet (it may still be generating).",
-                     *         "suggestion": "Poll GET /v1/emails/{emailId} until status is complete, then retry.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The request hit the rolling rate limit window. */
-            429: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    /** @description Requests allowed in the current rolling rate limit window. */
-                    "X-RateLimit-Limit": number;
-                    /** @description Requests remaining in the current rolling rate limit window. */
-                    "X-RateLimit-Remaining": number;
-                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
-                    "X-RateLimit-Reset": number;
-                    /** @description Seconds to wait before retrying the request. */
-                    "Retry-After": number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "RATE_LIMITED",
-                     *         "type": "rate_limit",
-                     *         "message": "Too many requests.",
-                     *         "suggestion": "Wait for the retry window before sending another request.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
-                     *         "retryAfter": 42
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description Unexpected internal error. */
-            500: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INTERNAL_ERROR",
-                     *         "type": "internal_error",
-                     *         "message": "An unexpected error occurred.",
-                     *         "suggestion": "Retry the request. If it keeps failing, contact support.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The credit balance could not be verified (a transient billing dependency outage). The gate fails closed rather than do paid work it cannot meter. Retryable — `Retry-After` indicates when. */
-            503: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    /** @description Seconds to wait before retrying the request. */
-                    "Retry-After": number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "SERVICE_UNAVAILABLE",
-                     *         "type": "service_unavailable",
-                     *         "message": "Your credit balance could not be verified because a billing dependency is temporarily unavailable.",
-                     *         "suggestion": "Retry the request after a short delay.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/credits",
-                     *         "retryAfter": 2
                      *       }
                      *     }
                      */
@@ -5029,198 +4354,8 @@ export interface operations {
                      *         "code": "CONTENT_OPERATION_FAILED",
                      *         "type": "invalid_request",
                      *         "message": "accessibility-audit failed: the email has no rendered HTML yet.",
-                     *         "suggestion": "Poll GET /v1/emails/{emailId} until status is complete, then retry.",
+                     *         "suggestion": "Poll GET /v1/emails?emailId= until status is complete, then retry.",
                      *         "docs": "https://docs.brew.new/api-reference/api/errors"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The request hit the rolling rate limit window. */
-            429: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    /** @description Requests allowed in the current rolling rate limit window. */
-                    "X-RateLimit-Limit": number;
-                    /** @description Requests remaining in the current rolling rate limit window. */
-                    "X-RateLimit-Remaining": number;
-                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
-                    "X-RateLimit-Reset": number;
-                    /** @description Seconds to wait before retrying the request. */
-                    "Retry-After": number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "RATE_LIMITED",
-                     *         "type": "rate_limit",
-                     *         "message": "Too many requests.",
-                     *         "suggestion": "Wait for the retry window before sending another request.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
-                     *         "retryAfter": 42
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description Unexpected internal error. */
-            500: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INTERNAL_ERROR",
-                     *         "type": "internal_error",
-                     *         "message": "An unexpected error occurred.",
-                     *         "suggestion": "Retry the request. If it keeps failing, contact support.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-        };
-    };
-    listEmailSends: {
-        parameters: {
-            query?: {
-                status?: "scheduled" | "queued" | "sending" | "sent" | "failed" | "canceled";
-                from?: string;
-                to?: string;
-                limit?: number;
-                cursor?: string;
-            };
-            header?: never;
-            path: {
-                /** @description Design id returned by `POST /v1/emails` and listed by `GET /v1/emails`. */
-                emailId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description A page of this design’s sends. */
-            200: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    /** @description Requests allowed in the current rolling rate limit window. */
-                    "X-RateLimit-Limit": number;
-                    /** @description Requests remaining in the current rolling rate limit window. */
-                    "X-RateLimit-Remaining": number;
-                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
-                    "X-RateLimit-Reset": number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "data": [
-                     *         {
-                     *           "sendId": "snd_abc",
-                     *           "emailId": "eml_welcome",
-                     *           "emailVersionId": "emv_welcome_v3",
-                     *           "status": "sent",
-                     *           "audienceId": "aud_subscribers",
-                     *           "audienceName": "Subscribers",
-                     *           "runId": "wrun_abc",
-                     *           "completedAt": "2026-04-08T12:34:56.000Z",
-                     *           "stats": {
-                     *             "sent": 1200,
-                     *             "delivered": 1180,
-                     *             "opened": 540,
-                     *             "clicked": 96,
-                     *             "bounced": 20,
-                     *             "complained": 1,
-                     *             "unsubscribed": 4
-                     *           },
-                     *           "createdAt": "2026-04-08T12:00:00.000Z",
-                     *           "updatedAt": "2026-04-08T12:34:56.000Z"
-                     *         }
-                     *       ],
-                     *       "pagination": {
-                     *         "limit": 100,
-                     *         "cursor": null,
-                     *         "hasMore": false
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["SendsListResponse"];
-                };
-            };
-            /** @description The API key was missing, invalid, or revoked. */
-            401: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INVALID_API_KEY",
-                     *         "type": "authentication_error",
-                     *         "message": "The provided API key is invalid.",
-                     *         "suggestion": "Check the API key format and retry with a valid active key.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The caller does not have the required `sends` permission. */
-            403: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INSUFFICIENT_PERMISSIONS",
-                     *         "type": "authorization_error",
-                     *         "message": "The caller does not have the required permission.",
-                     *         "suggestion": "Use an API key or session with the required permission.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
-                     *         "param": "sends"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description Email design not found in the API-key brand. Cross-brand ids intentionally surface as 404 (never 403) so the API does not leak cross-brand existence. */
-            404: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "EMAIL_NOT_FOUND",
-                     *         "type": "not_found",
-                     *         "message": "No email exists with id 'eml_2SmZOWV3ZQ7W5x6g3m4p'.",
-                     *         "suggestion": "List designs with GET /v1/emails to find a valid emailId.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
-                     *         "param": "emailId"
                      *       }
                      *     }
                      */
@@ -5285,6 +4420,12 @@ export interface operations {
     listSends: {
         parameters: {
             query?: {
+                /** @description Fetch a single send by id (detail mode → `{ data: [row] }`). Omit to list. */
+                sendId?: string;
+                /** @description List mode — narrow to one design’s sends. Mutually exclusive with `sendId`. */
+                emailId?: string;
+                /** @description Detail-only expansion: `events` inlines a bounded first page of the send’s analytics events. Rejected without `sendId`. */
+                include?: "events";
                 status?: "scheduled" | "queued" | "sending" | "sent" | "failed" | "canceled";
                 from?: string;
                 to?: string;
@@ -5302,7 +4443,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description A page of sends. */
+            /** @description A page of sends (list mode), or `{ data: [row] }` (detail mode; `events[]` present when `?include=events`). */
             200: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -5421,6 +4562,29 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
+            /** @description Send not found in the API-key brand. Cross-brand ids intentionally surface as 404 (never 403) so the API does not leak cross-brand existence. */
+            404: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "SEND_NOT_FOUND",
+                     *         "type": "not_found",
+                     *         "message": "No send was found with id 'snd_xxx'.",
+                     *         "suggestion": "List sends with GET /v1/analytics/sends, or start one with POST /v1/sends.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "sendId"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
             /** @description The request hit the rolling rate limit window. */
             429: {
                 headers: {
@@ -5491,11 +4655,34 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["SendsPostRequest"];
+                "application/json": components["schemas"]["SendEmailRequest"];
             };
         };
         responses: {
-            /** @description The send was accepted, queued or scheduled. */
+            /** @description The TEST send (`test: true`) was delivered synchronously to the single recipient. */
+            200: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "status": "sent",
+                     *       "recipient": "qa@acme.com"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["SendEmailTestResponse"];
+                };
+            };
+            /** @description The campaign send was accepted, queued or scheduled. */
             202: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -5640,601 +4827,6 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The request hit the rolling rate limit window. */
-            429: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    /** @description Requests allowed in the current rolling rate limit window. */
-                    "X-RateLimit-Limit": number;
-                    /** @description Requests remaining in the current rolling rate limit window. */
-                    "X-RateLimit-Remaining": number;
-                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
-                    "X-RateLimit-Reset": number;
-                    /** @description Seconds to wait before retrying the request. */
-                    "Retry-After": number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "RATE_LIMITED",
-                     *         "type": "rate_limit",
-                     *         "message": "Too many requests.",
-                     *         "suggestion": "Wait for the retry window before sending another request.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
-                     *         "retryAfter": 42
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description Unexpected internal error. */
-            500: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INTERNAL_ERROR",
-                     *         "type": "internal_error",
-                     *         "message": "An unexpected error occurred.",
-                     *         "suggestion": "Retry the request. If it keeps failing, contact support.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-        };
-    };
-    createTestSend: {
-        parameters: {
-            query?: never;
-            header?: {
-                /**
-                 * @description Optional idempotency key for safe retries. Reusing the same key with the same request body returns the original response for 24 hours.
-                 * @example api-request-2026-04-08-001
-                 */
-                "Idempotency-Key"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                /**
-                 * @example {
-                 *       "emailId": "eml_welcome",
-                 *       "subject": "Welcome to Brew",
-                 *       "to": "qa@example.com"
-                 *     }
-                 */
-                "application/json": components["schemas"]["SendsTestRequest"];
-            };
-        };
-        responses: {
-            /** @description The test email was delivered. */
-            200: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    /** @description Requests allowed in the current rolling rate limit window. */
-                    "X-RateLimit-Limit": number;
-                    /** @description Requests remaining in the current rolling rate limit window. */
-                    "X-RateLimit-Remaining": number;
-                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
-                    "X-RateLimit-Reset": number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "status": "sent",
-                     *       "recipient": "qa@example.com"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["SendsTestResponse"];
-                };
-            };
-            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
-            400: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INVALID_REQUEST",
-                     *         "type": "invalid_request",
-                     *         "message": "Request validation failed.",
-                     *         "suggestion": "Fix the field reported in `param` and retry.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
-                     *         "param": "to"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The API key was missing, invalid, or revoked. */
-            401: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INVALID_API_KEY",
-                     *         "type": "authentication_error",
-                     *         "message": "The provided API key is invalid.",
-                     *         "suggestion": "Check the API key format and retry with a valid active key.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The caller does not have the required `sends` permission. */
-            403: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INSUFFICIENT_PERMISSIONS",
-                     *         "type": "authorization_error",
-                     *         "message": "The caller does not have the required permission.",
-                     *         "suggestion": "Use an API key or session with the required permission.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
-                     *         "param": "sends"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The referenced design was not found. */
-            404: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "EMAIL_NOT_FOUND",
-                     *         "type": "not_found",
-                     *         "message": "The requested email 'eml_x' was not found.",
-                     *         "suggestion": "List designs with GET /v1/emails.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
-                     *         "param": "emailId"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The same `Idempotency-Key` was reused with a different request body. */
-            409: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "IDEMPOTENCY_CONFLICT",
-                     *         "type": "conflict",
-                     *         "message": "The same idempotency key was reused with a different request payload.",
-                     *         "suggestion": "Reuse the original payload or send a new idempotency key.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/idempotency"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The design is not ready to send. */
-            422: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "EMAIL_NOT_READY",
-                     *         "type": "invalid_request",
-                     *         "message": "The requested email 'eml_x' is not ready to send.",
-                     *         "suggestion": "Wait for generation to finish (GET /v1/emails/{emailId} → status: \"complete\").",
-                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
-                     *         "param": "emailId"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The request hit the rolling rate limit window. */
-            429: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    /** @description Requests allowed in the current rolling rate limit window. */
-                    "X-RateLimit-Limit": number;
-                    /** @description Requests remaining in the current rolling rate limit window. */
-                    "X-RateLimit-Remaining": number;
-                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
-                    "X-RateLimit-Reset": number;
-                    /** @description Seconds to wait before retrying the request. */
-                    "Retry-After": number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "RATE_LIMITED",
-                     *         "type": "rate_limit",
-                     *         "message": "Too many requests.",
-                     *         "suggestion": "Wait for the retry window before sending another request.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
-                     *         "retryAfter": 42
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description Unexpected internal error. */
-            500: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INTERNAL_ERROR",
-                     *         "type": "internal_error",
-                     *         "message": "An unexpected error occurred.",
-                     *         "suggestion": "Retry the request. If it keeps failing, contact support.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-        };
-    };
-    getSend: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Send id returned by `POST /v1/sends`. */
-                sendId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description The send. */
-            200: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    /** @description Requests allowed in the current rolling rate limit window. */
-                    "X-RateLimit-Limit": number;
-                    /** @description Requests remaining in the current rolling rate limit window. */
-                    "X-RateLimit-Remaining": number;
-                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
-                    "X-RateLimit-Reset": number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "sendId": "snd_8fK2mQ4p",
-                     *       "kind": "campaign",
-                     *       "emailId": "eml_welcome",
-                     *       "emailVersionId": "emv_welcome_v3",
-                     *       "status": "sent",
-                     *       "audienceId": "aud_subscribers",
-                     *       "audienceName": "Subscribers",
-                     *       "runId": "wrun_abc",
-                     *       "startedAt": "2026-04-08T12:00:05.000Z",
-                     *       "completedAt": "2026-04-08T12:34:56.000Z",
-                     *       "stats": {
-                     *         "sent": 1200,
-                     *         "delivered": 1180,
-                     *         "opened": 540,
-                     *         "clicked": 96,
-                     *         "bounced": 20,
-                     *         "complained": 1,
-                     *         "unsubscribed": 4
-                     *       },
-                     *       "createdAt": "2026-04-08T12:00:00.000Z",
-                     *       "updatedAt": "2026-04-08T12:34:56.000Z"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["Send"];
-                };
-            };
-            /** @description The API key was missing, invalid, or revoked. */
-            401: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INVALID_API_KEY",
-                     *         "type": "authentication_error",
-                     *         "message": "The provided API key is invalid.",
-                     *         "suggestion": "Check the API key format and retry with a valid active key.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The caller does not have the required `emails` permission. */
-            403: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INSUFFICIENT_PERMISSIONS",
-                     *         "type": "authorization_error",
-                     *         "message": "The caller does not have the required permission.",
-                     *         "suggestion": "Use an API key or session with the required permission.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
-                     *         "param": "emails"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description Send not found in the API-key brand. Cross-brand ids intentionally surface as 404 (never 403) so the API does not leak cross-brand existence. */
-            404: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "SEND_NOT_FOUND",
-                     *         "type": "not_found",
-                     *         "message": "No send was found with id 'snd_xxx'.",
-                     *         "suggestion": "List sends with GET /v1/analytics/sends, or start one with POST /v1/sends.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
-                     *         "param": "sendId"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The request hit the rolling rate limit window. */
-            429: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    /** @description Requests allowed in the current rolling rate limit window. */
-                    "X-RateLimit-Limit": number;
-                    /** @description Requests remaining in the current rolling rate limit window. */
-                    "X-RateLimit-Remaining": number;
-                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
-                    "X-RateLimit-Reset": number;
-                    /** @description Seconds to wait before retrying the request. */
-                    "Retry-After": number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "RATE_LIMITED",
-                     *         "type": "rate_limit",
-                     *         "message": "Too many requests.",
-                     *         "suggestion": "Wait for the retry window before sending another request.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
-                     *         "retryAfter": 42
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description Unexpected internal error. */
-            500: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INTERNAL_ERROR",
-                     *         "type": "internal_error",
-                     *         "message": "An unexpected error occurred.",
-                     *         "suggestion": "Retry the request. If it keeps failing, contact support.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-        };
-    };
-    listSendEvents: {
-        parameters: {
-            query?: {
-                eventType?: "sent" | "delivered" | "opened" | "clicked" | "bounced" | "complained" | "unsubscribed";
-                limit?: number;
-                cursor?: string;
-            };
-            header?: never;
-            path: {
-                /** @description Send id returned by `POST /v1/sends`. */
-                sendId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description A page of analytics events attributed to this send. */
-            200: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    /** @description Requests allowed in the current rolling rate limit window. */
-                    "X-RateLimit-Limit": number;
-                    /** @description Requests remaining in the current rolling rate limit window. */
-                    "X-RateLimit-Remaining": number;
-                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
-                    "X-RateLimit-Reset": number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "data": [
-                     *         {
-                     *           "eventType": "clicked",
-                     *           "occurredAt": "2026-04-08T12:40:00.000Z",
-                     *           "recipientEmail": "jane@example.com",
-                     *           "url": "https://example.com/launch"
-                     *         },
-                     *         {
-                     *           "eventType": "opened",
-                     *           "occurredAt": "2026-04-08T12:36:00.000Z",
-                     *           "recipientEmail": "jane@example.com"
-                     *         }
-                     *       ],
-                     *       "pagination": {
-                     *         "limit": 100,
-                     *         "cursor": null,
-                     *         "hasMore": false
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["SendEventsResponse"];
-                };
-            };
-            /** @description The API key was missing, invalid, or revoked. */
-            401: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INVALID_API_KEY",
-                     *         "type": "authentication_error",
-                     *         "message": "The provided API key is invalid.",
-                     *         "suggestion": "Check the API key format and retry with a valid active key.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The caller does not have the required `emails` permission. */
-            403: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INSUFFICIENT_PERMISSIONS",
-                     *         "type": "authorization_error",
-                     *         "message": "The caller does not have the required permission.",
-                     *         "suggestion": "Use an API key or session with the required permission.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
-                     *         "param": "emails"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description Send not found in the API-key brand. Cross-brand ids intentionally surface as 404 (never 403) so the API does not leak cross-brand existence. */
-            404: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "SEND_NOT_FOUND",
-                     *         "type": "not_found",
-                     *         "message": "No send was found with id 'snd_xxx'.",
-                     *         "suggestion": "List sends with GET /v1/analytics/sends, or start one with POST /v1/sends.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
-                     *         "param": "sendId"
-                     *       }
-                     *     }
-                     */
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
@@ -6857,6 +5449,10 @@ export interface operations {
     listAutomations: {
         parameters: {
             query?: {
+                /** @description Fetch a single automation by id (detail mode → `{ data: [row] }`). Omit to list. */
+                automationId?: string;
+                /** @description Detail-only expansions (comma-separated): `graph` inlines `nodes`/`connections`; `versions` inlines the lean version history. Rejected without `automationId`. */
+                include?: string;
                 /**
                  * @description Page size (1–100). Defaults to 100.
                  * @example 50
@@ -6871,7 +5467,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description A page of lean automation rows. */
+            /** @description A page of lean automation rows (list mode), or `{ data: [row] }` (detail mode). */
             200: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -6973,6 +5569,29 @@ export interface operations {
                      *         "suggestion": "Use an API key or session with the required permission.",
                      *         "docs": "https://docs.brew.new/api-reference/api/authentication",
                      *         "param": "automations"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Automation not found in the API-key brand. Cross-brand ids intentionally surface as 404 (never 403) so the API does not leak cross-brand existence. */
+            404: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "AUTOMATION_NOT_FOUND",
+                     *         "type": "not_found",
+                     *         "message": "Automation 'auto_xxx' was not found.",
+                     *         "suggestion": "List automations with GET /v1/automations.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "automationId"
                      *       }
                      *     }
                      */
@@ -7220,204 +5839,6 @@ export interface operations {
                      *         "message": "The same idempotency key was reused with a different request payload.",
                      *         "suggestion": "Reuse the original payload or send a new idempotency key.",
                      *         "docs": "https://docs.brew.new/api-reference/api/idempotency"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The request hit the rolling rate limit window. */
-            429: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    /** @description Requests allowed in the current rolling rate limit window. */
-                    "X-RateLimit-Limit": number;
-                    /** @description Requests remaining in the current rolling rate limit window. */
-                    "X-RateLimit-Remaining": number;
-                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
-                    "X-RateLimit-Reset": number;
-                    /** @description Seconds to wait before retrying the request. */
-                    "Retry-After": number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "RATE_LIMITED",
-                     *         "type": "rate_limit",
-                     *         "message": "Too many requests.",
-                     *         "suggestion": "Wait for the retry window before sending another request.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
-                     *         "retryAfter": 42
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description Unexpected internal error. */
-            500: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INTERNAL_ERROR",
-                     *         "type": "internal_error",
-                     *         "message": "An unexpected error occurred.",
-                     *         "suggestion": "Retry the request. If it keeps failing, contact support.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-        };
-    };
-    getAutomation: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Automation id returned by `POST /v1/automations` and listed by `GET /v1/automations`. */
-                automationId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description The automation (full graph). */
-            200: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    /** @description Requests allowed in the current rolling rate limit window. */
-                    "X-RateLimit-Limit": number;
-                    /** @description Requests remaining in the current rolling rate limit window. */
-                    "X-RateLimit-Remaining": number;
-                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
-                    "X-RateLimit-Reset": number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "automationId": "auto_abc",
-                     *       "automationVersionId": "av_v1",
-                     *       "triggerEventId": "tri_signup",
-                     *       "name": "Welcome flow",
-                     *       "version": "latest",
-                     *       "published": false,
-                     *       "nodes": [
-                     *         {
-                     *           "id": "trg",
-                     *           "label": "On signup",
-                     *           "type": "trigger",
-                     *           "config": {
-                     *             "actionType": "trigger"
-                     *           }
-                     *         },
-                     *         {
-                     *           "id": "send_welcome",
-                     *           "label": "Welcome",
-                     *           "type": "sendEmail",
-                     *           "config": {
-                     *             "actionType": "sendEmail",
-                     *             "emailId": "eml_welcome",
-                     *             "emailVersionId": "emv_welcome_v1",
-                     *             "domainId": "kx7bkh53hasmfeh5kd7sqgykt187g8ww",
-                     *             "subject": "Welcome to Brew, {{firstName | there}}!",
-                     *             "previewText": "Thanks for signing up — get started in 2 minutes.",
-                     *             "fromName": "Brew",
-                     *             "replyTo": "support@example.com"
-                     *           }
-                     *         }
-                     *       ],
-                     *       "connections": [
-                     *         {
-                     *           "from": "trg",
-                     *           "to": "send_welcome"
-                     *         }
-                     *       ],
-                     *       "emailIds": [
-                     *         "eml_welcome"
-                     *       ],
-                     *       "createdAt": "2026-04-08T12:00:00.000Z",
-                     *       "updatedAt": "2026-04-08T12:00:00.000Z"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["AutomationRow"];
-                };
-            };
-            /** @description The API key was missing, invalid, or revoked. */
-            401: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INVALID_API_KEY",
-                     *         "type": "authentication_error",
-                     *         "message": "The provided API key is invalid.",
-                     *         "suggestion": "Check the API key format and retry with a valid active key.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The caller does not have the required `automations` permission. */
-            403: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INSUFFICIENT_PERMISSIONS",
-                     *         "type": "authorization_error",
-                     *         "message": "The caller does not have the required permission.",
-                     *         "suggestion": "Use an API key or session with the required permission.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
-                     *         "param": "automations"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description Automation not found in the API-key brand. Cross-brand ids intentionally surface as 404 (never 403) so the API does not leak cross-brand existence. */
-            404: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "AUTOMATION_NOT_FOUND",
-                     *         "type": "not_found",
-                     *         "message": "Automation 'auto_xxx' was not found.",
-                     *         "suggestion": "List automations with GET /v1/automations.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
-                     *         "param": "automationId"
                      *       }
                      *     }
                      */
@@ -7821,200 +6242,9 @@ export interface operations {
                      *         "code": "AUTOMATION_NOT_PUBLISHED",
                      *         "type": "invalid_request",
                      *         "message": "Automation 'auto_abc' is not currently published — nothing to unpublish.",
-                     *         "suggestion": "Verify the automation is published via GET /v1/automations/{automationId}.",
+                     *         "suggestion": "Verify the automation is published via GET /v1/automations?automationId=.",
                      *         "docs": "https://docs.brew.new/api-reference/api/errors",
                      *         "param": "published"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The request hit the rolling rate limit window. */
-            429: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    /** @description Requests allowed in the current rolling rate limit window. */
-                    "X-RateLimit-Limit": number;
-                    /** @description Requests remaining in the current rolling rate limit window. */
-                    "X-RateLimit-Remaining": number;
-                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
-                    "X-RateLimit-Reset": number;
-                    /** @description Seconds to wait before retrying the request. */
-                    "Retry-After": number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "RATE_LIMITED",
-                     *         "type": "rate_limit",
-                     *         "message": "Too many requests.",
-                     *         "suggestion": "Wait for the retry window before sending another request.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
-                     *         "retryAfter": 42
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description Unexpected internal error. */
-            500: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INTERNAL_ERROR",
-                     *         "type": "internal_error",
-                     *         "message": "An unexpected error occurred.",
-                     *         "suggestion": "Retry the request. If it keeps failing, contact support.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-        };
-    };
-    listAutomationVersions: {
-        parameters: {
-            query?: {
-                /**
-                 * @description Page size (1–100). Defaults to 100.
-                 * @example 50
-                 */
-                limit?: number;
-                /** @description Opaque pagination cursor echoed from the previous page’s `pagination.cursor`. Omit for the first page. */
-                cursor?: string;
-            };
-            header?: never;
-            path: {
-                /** @description Automation id returned by `POST /v1/automations` and listed by `GET /v1/automations`. */
-                automationId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description A page of version rows. */
-            200: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    /** @description Requests allowed in the current rolling rate limit window. */
-                    "X-RateLimit-Limit": number;
-                    /** @description Requests remaining in the current rolling rate limit window. */
-                    "X-RateLimit-Remaining": number;
-                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
-                    "X-RateLimit-Reset": number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "data": [
-                     *         {
-                     *           "automationId": "auto_abc",
-                     *           "automationVersionId": "av_v2",
-                     *           "name": "Welcome flow",
-                     *           "version": "latest",
-                     *           "published": true,
-                     *           "emailIds": [
-                     *             "eml_welcome"
-                     *           ]
-                     *         },
-                     *         {
-                     *           "automationId": "auto_abc",
-                     *           "automationVersionId": "av_v1",
-                     *           "name": "Welcome flow",
-                     *           "version": 1,
-                     *           "published": false,
-                     *           "emailIds": [
-                     *             "eml_welcome"
-                     *           ]
-                     *         }
-                     *       ],
-                     *       "pagination": {
-                     *         "limit": 100,
-                     *         "cursor": null,
-                     *         "hasMore": false
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["AutomationVersionsResponse"];
-                };
-            };
-            /** @description The API key was missing, invalid, or revoked. */
-            401: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INVALID_API_KEY",
-                     *         "type": "authentication_error",
-                     *         "message": "The provided API key is invalid.",
-                     *         "suggestion": "Check the API key format and retry with a valid active key.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The caller does not have the required `automations` permission. */
-            403: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INSUFFICIENT_PERMISSIONS",
-                     *         "type": "authorization_error",
-                     *         "message": "The caller does not have the required permission.",
-                     *         "suggestion": "Use an API key or session with the required permission.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
-                     *         "param": "automations"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description Automation not found in the API-key brand. Cross-brand ids intentionally surface as 404 (never 403) so the API does not leak cross-brand existence. */
-            404: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "AUTOMATION_NOT_FOUND",
-                     *         "type": "not_found",
-                     *         "message": "Automation 'auto_xxx' was not found.",
-                     *         "suggestion": "List automations with GET /v1/automations.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
-                     *         "param": "automationId"
                      *       }
                      *     }
                      */
@@ -8302,6 +6532,10 @@ export interface operations {
     listAutomationRuns: {
         parameters: {
             query?: {
+                /** @description Fetch a single run by id (detail mode → `{ data: [row] }`). Omit to list. */
+                automationRunId?: string;
+                /** @description Detail-only expansion: `logs` inlines the per-node execution logs. Rejected without `automationRunId`. */
+                include?: "logs";
                 automationId?: string;
                 triggerEventId?: string;
                 triggerInstanceId?: string;
@@ -8379,172 +6613,6 @@ export interface operations {
                      *     }
                      */
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The API key was missing, invalid, or revoked. */
-            401: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INVALID_API_KEY",
-                     *         "type": "authentication_error",
-                     *         "message": "The provided API key is invalid.",
-                     *         "suggestion": "Check the API key format and retry with a valid active key.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The caller does not have the required `automations` permission. */
-            403: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INSUFFICIENT_PERMISSIONS",
-                     *         "type": "authorization_error",
-                     *         "message": "The caller does not have the required permission.",
-                     *         "suggestion": "Use an API key or session with the required permission.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
-                     *         "param": "automations"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The request hit the rolling rate limit window. */
-            429: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    /** @description Requests allowed in the current rolling rate limit window. */
-                    "X-RateLimit-Limit": number;
-                    /** @description Requests remaining in the current rolling rate limit window. */
-                    "X-RateLimit-Remaining": number;
-                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
-                    "X-RateLimit-Reset": number;
-                    /** @description Seconds to wait before retrying the request. */
-                    "Retry-After": number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "RATE_LIMITED",
-                     *         "type": "rate_limit",
-                     *         "message": "Too many requests.",
-                     *         "suggestion": "Wait for the retry window before sending another request.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
-                     *         "retryAfter": 42
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description Unexpected internal error. */
-            500: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INTERNAL_ERROR",
-                     *         "type": "internal_error",
-                     *         "message": "An unexpected error occurred.",
-                     *         "suggestion": "Retry the request. If it keeps failing, contact support.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-        };
-    };
-    getAutomationRun: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Run id — returned in `details.automationRunIds[]` by a trigger fire, by `POST /v1/automations/{automationId}/test`, and listed by `GET /v1/automations/runs`. */
-                automationRunId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description The run with per-node logs. */
-            200: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    /** @description Requests allowed in the current rolling rate limit window. */
-                    "X-RateLimit-Limit": number;
-                    /** @description Requests remaining in the current rolling rate limit window. */
-                    "X-RateLimit-Remaining": number;
-                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
-                    "X-RateLimit-Reset": number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "automationRunId": "run_01HZ",
-                     *       "automationId": "auto_abc",
-                     *       "automationVersionId": "av_v2",
-                     *       "triggerInstanceId": "tin_8f2k",
-                     *       "mode": "live",
-                     *       "status": "completed",
-                     *       "recipientEmail": "jane@example.com",
-                     *       "startedAt": "2026-04-08T12:34:56.789Z",
-                     *       "completedAt": "2026-04-08T12:35:10.120Z",
-                     *       "logs": [
-                     *         {
-                     *           "automationRunId": "run_01HZ",
-                     *           "nodeId": "trg",
-                     *           "nodeName": "On signup",
-                     *           "nodeType": "trigger",
-                     *           "status": "success",
-                     *           "orderIndex": 0,
-                     *           "durationMs": 12,
-                     *           "startedAt": "2026-04-08T12:34:56.789Z",
-                     *           "completedAt": "2026-04-08T12:34:56.801Z"
-                     *         },
-                     *         {
-                     *           "automationRunId": "run_01HZ",
-                     *           "nodeId": "send_welcome",
-                     *           "nodeName": "Welcome",
-                     *           "nodeType": "sendEmail",
-                     *           "status": "success",
-                     *           "orderIndex": 1,
-                     *           "durationMs": 840,
-                     *           "startedAt": "2026-04-08T12:34:56.810Z",
-                     *           "completedAt": "2026-04-08T12:34:57.650Z"
-                     *         }
-                     *       ]
-                     *     }
-                     */
-                    "application/json": components["schemas"]["AutomationRunDetail"];
                 };
             };
             /** @description The API key was missing, invalid, or revoked. */
@@ -8673,6 +6741,8 @@ export interface operations {
     listTriggers: {
         parameters: {
             query?: {
+                /** @description Fetch a single trigger by id (detail mode → `{ data: [row] }`). Omit to list. */
+                triggerEventId?: string;
                 /**
                  * @description Page size (1–100). Defaults to 100.
                  * @example 50
@@ -8687,7 +6757,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description A page of trigger rows. */
+            /** @description A page of trigger rows (list mode), or `{ data: [row] }` (detail mode). */
             200: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -8800,6 +6870,29 @@ export interface operations {
                      *         "suggestion": "Use an API key or session with the required permission.",
                      *         "docs": "https://docs.brew.new/api-reference/api/authentication",
                      *         "param": "automations"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Trigger not found in the API-key brand. Cross-brand ids intentionally surface as 404 (never 403) so the API does not leak cross-brand existence. */
+            404: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "TRIGGER_EVENT_NOT_FOUND",
+                     *         "type": "not_found",
+                     *         "message": "Trigger event 'tri_xxx' was not found.",
+                     *         "suggestion": "List triggers with GET /v1/automations/triggers.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "triggerEventId"
                      *       }
                      *     }
                      */
@@ -9027,183 +7120,6 @@ export interface operations {
                      *         "message": "The same idempotency key was reused with a different request payload.",
                      *         "suggestion": "Reuse the original payload or send a new idempotency key.",
                      *         "docs": "https://docs.brew.new/api-reference/api/idempotency"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The request hit the rolling rate limit window. */
-            429: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    /** @description Requests allowed in the current rolling rate limit window. */
-                    "X-RateLimit-Limit": number;
-                    /** @description Requests remaining in the current rolling rate limit window. */
-                    "X-RateLimit-Remaining": number;
-                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
-                    "X-RateLimit-Reset": number;
-                    /** @description Seconds to wait before retrying the request. */
-                    "Retry-After": number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "RATE_LIMITED",
-                     *         "type": "rate_limit",
-                     *         "message": "Too many requests.",
-                     *         "suggestion": "Wait for the retry window before sending another request.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
-                     *         "retryAfter": 42
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description Unexpected internal error. */
-            500: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INTERNAL_ERROR",
-                     *         "type": "internal_error",
-                     *         "message": "An unexpected error occurred.",
-                     *         "suggestion": "Retry the request. If it keeps failing, contact support.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-        };
-    };
-    getTrigger: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Trigger id returned by `POST /v1/automations/triggers`. Custom triggers use `tri_…` ids; integration triggers use composite ids (e.g. `clerk:org_…:brand_…:user.created`, URL-encode the colons). */
-                triggerEventId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description The trigger. */
-            200: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    /** @description Requests allowed in the current rolling rate limit window. */
-                    "X-RateLimit-Limit": number;
-                    /** @description Requests remaining in the current rolling rate limit window. */
-                    "X-RateLimit-Remaining": number;
-                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
-                    "X-RateLimit-Reset": number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "triggerEventId": "tri_signup",
-                     *       "title": "User Signed Up",
-                     *       "description": "Fires when a user completes signup.",
-                     *       "provider": "brew_api",
-                     *       "payloadSchema": {
-                     *         "type": "object",
-                     *         "fields": [
-                     *           {
-                     *             "key": "email",
-                     *             "type": "string",
-                     *             "required": true
-                     *           },
-                     *           {
-                     *             "key": "firstName",
-                     *             "type": "string",
-                     *             "required": false
-                     *           }
-                     *         ]
-                     *       },
-                     *       "createdAt": "2026-04-08T12:00:00.000Z",
-                     *       "updatedAt": "2026-04-08T12:00:00.000Z"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["TriggerRow"];
-                };
-            };
-            /** @description The API key was missing, invalid, or revoked. */
-            401: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INVALID_API_KEY",
-                     *         "type": "authentication_error",
-                     *         "message": "The provided API key is invalid.",
-                     *         "suggestion": "Check the API key format and retry with a valid active key.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The caller does not have the required `automations` permission. */
-            403: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INSUFFICIENT_PERMISSIONS",
-                     *         "type": "authorization_error",
-                     *         "message": "The caller does not have the required permission.",
-                     *         "suggestion": "Use an API key or session with the required permission.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
-                     *         "param": "automations"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description Trigger not found in the API-key brand. Cross-brand ids intentionally surface as 404 (never 403) so the API does not leak cross-brand existence. */
-            404: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "TRIGGER_EVENT_NOT_FOUND",
-                     *         "type": "not_found",
-                     *         "message": "Trigger event 'tri_xxx' was not found.",
-                     *         "suggestion": "List triggers with GET /v1/automations/triggers.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
-                     *         "param": "triggerEventId"
                      *       }
                      *     }
                      */
@@ -9908,6 +7824,8 @@ export interface operations {
     listEvents: {
         parameters: {
             query?: {
+                /** @description Fetch a single fired event by id (detail mode → `{ data: [row] }`). Omit to list. */
+                triggerInstanceId?: string;
                 triggerEventId?: string;
                 /**
                  * @description Page size (1–100). Defaults to 100.
@@ -9923,7 +7841,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description A page of fired trigger-event instances. */
+            /** @description A page of fired trigger-event instances (list mode), or `{ data: [row] }` (detail mode). */
             200: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -10035,153 +7953,6 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The request hit the rolling rate limit window. */
-            429: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    /** @description Requests allowed in the current rolling rate limit window. */
-                    "X-RateLimit-Limit": number;
-                    /** @description Requests remaining in the current rolling rate limit window. */
-                    "X-RateLimit-Remaining": number;
-                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
-                    "X-RateLimit-Reset": number;
-                    /** @description Seconds to wait before retrying the request. */
-                    "Retry-After": number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "RATE_LIMITED",
-                     *         "type": "rate_limit",
-                     *         "message": "Too many requests.",
-                     *         "suggestion": "Wait for the retry window before sending another request.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
-                     *         "retryAfter": 42
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description Unexpected internal error. */
-            500: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INTERNAL_ERROR",
-                     *         "type": "internal_error",
-                     *         "message": "An unexpected error occurred.",
-                     *         "suggestion": "Retry the request. If it keeps failing, contact support.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-        };
-    };
-    getEvent: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Fired-event instance id — surfaced as `details.triggerInstanceId` on a fire and on run rows. */
-                triggerInstanceId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description The fired trigger-event instance. */
-            200: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    /** @description Requests allowed in the current rolling rate limit window. */
-                    "X-RateLimit-Limit": number;
-                    /** @description Requests remaining in the current rolling rate limit window. */
-                    "X-RateLimit-Remaining": number;
-                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
-                    "X-RateLimit-Reset": number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "triggerInstanceId": "tin_8f2k",
-                     *       "source": "api",
-                     *       "provider": "brew_api",
-                     *       "triggerEventId": "tri_signup",
-                     *       "state": "processed",
-                     *       "matchedAutomationIds": [
-                     *         "auto_abc"
-                     *       ],
-                     *       "automationRunIds": [
-                     *         "run_01HZ"
-                     *       ],
-                     *       "attempts": 1,
-                     *       "receivedAt": "2026-04-08T12:34:56.789Z",
-                     *       "processedAt": "2026-04-08T12:34:57.100Z"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["TriggerEventInstance"];
-                };
-            };
-            /** @description The API key was missing, invalid, or revoked. */
-            401: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INVALID_API_KEY",
-                     *         "type": "authentication_error",
-                     *         "message": "The provided API key is invalid.",
-                     *         "suggestion": "Check the API key format and retry with a valid active key.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The caller does not have the required `automations` permission. */
-            403: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INSUFFICIENT_PERMISSIONS",
-                     *         "type": "authorization_error",
-                     *         "message": "The caller does not have the required permission.",
-                     *         "suggestion": "Use an API key or session with the required permission.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
-                     *         "param": "automations"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
             /** @description Fired trigger event not found in the API-key brand. Cross-brand ids intentionally surface as 404 (never 403) so the API does not leak cross-brand existence. */
             404: {
                 headers: {
@@ -10199,200 +7970,6 @@ export interface operations {
                      *         "suggestion": "List fired events with GET /v1/analytics/trigger-instances.",
                      *         "docs": "https://docs.brew.new/api-reference/api/errors",
                      *         "param": "triggerInstanceId"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The request hit the rolling rate limit window. */
-            429: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    /** @description Requests allowed in the current rolling rate limit window. */
-                    "X-RateLimit-Limit": number;
-                    /** @description Requests remaining in the current rolling rate limit window. */
-                    "X-RateLimit-Remaining": number;
-                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
-                    "X-RateLimit-Reset": number;
-                    /** @description Seconds to wait before retrying the request. */
-                    "Retry-After": number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "RATE_LIMITED",
-                     *         "type": "rate_limit",
-                     *         "message": "Too many requests.",
-                     *         "suggestion": "Wait for the retry window before sending another request.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
-                     *         "retryAfter": 42
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description Unexpected internal error. */
-            500: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INTERNAL_ERROR",
-                     *         "type": "internal_error",
-                     *         "message": "An unexpected error occurred.",
-                     *         "suggestion": "Retry the request. If it keeps failing, contact support.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-        };
-    };
-    listContacts: {
-        parameters: {
-            query?: {
-                limit?: number;
-                cursor?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description A page of contacts. */
-            200: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    /** @description Requests allowed in the current rolling rate limit window. */
-                    "X-RateLimit-Limit": number;
-                    /** @description Requests remaining in the current rolling rate limit window. */
-                    "X-RateLimit-Remaining": number;
-                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
-                    "X-RateLimit-Reset": number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "data": [
-                     *         {
-                     *           "email": "jane@example.com",
-                     *           "firstName": "Jane",
-                     *           "lastName": "Doe",
-                     *           "subscribed": true,
-                     *           "verificationStatus": "valid",
-                     *           "suppressed": false,
-                     *           "suppressedReason": null,
-                     *           "createdAt": "2026-04-08T12:00:00.000Z",
-                     *           "updatedAt": "2026-04-08T12:05:00.000Z",
-                     *           "importId": null,
-                     *           "customFields": {
-                     *             "plan": "enterprise",
-                     *             "revenue": 4200
-                     *           }
-                     *         },
-                     *         {
-                     *           "email": "john@example.com",
-                     *           "firstName": "John",
-                     *           "lastName": "Smith",
-                     *           "subscribed": true,
-                     *           "verificationStatus": "valid",
-                     *           "suppressed": false,
-                     *           "suppressedReason": null,
-                     *           "createdAt": "2026-04-08T12:00:00.000Z",
-                     *           "updatedAt": "2026-04-08T12:05:00.000Z",
-                     *           "importId": null,
-                     *           "customFields": {
-                     *             "plan": "starter"
-                     *           }
-                     *         }
-                     *       ],
-                     *       "pagination": {
-                     *         "limit": 50,
-                     *         "cursor": "eyJsYXN0SWQiOiIxMjMiLCJsYXN0U29ydCI6MTcxMjU5MjAwMDAwMH0=",
-                     *         "hasMore": true
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ContactsListResponse"];
-                };
-            };
-            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
-            400: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INVALID_REQUEST",
-                     *         "type": "invalid_request",
-                     *         "message": "Request validation failed.",
-                     *         "suggestion": "Fix the field reported in `param` and retry.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
-                     *         "param": "limit"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The API key was missing, invalid, or revoked. */
-            401: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INVALID_API_KEY",
-                     *         "type": "authentication_error",
-                     *         "message": "The provided API key is invalid.",
-                     *         "suggestion": "Check the API key format and retry with a valid active key.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The caller does not have the required `contacts` permission. */
-            403: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INSUFFICIENT_PERMISSIONS",
-                     *         "type": "authorization_error",
-                     *         "message": "The caller does not have the required permission.",
-                     *         "suggestion": "Use an API key or session with the required permission.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
-                     *         "param": "contacts"
                      *       }
                      *     }
                      */
@@ -10678,176 +8255,6 @@ export interface operations {
                      *         "type": "invalid_request",
                      *         "message": "email is required.",
                      *         "suggestion": "Provide the contact email address.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
-                     *         "param": "email"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The request hit the rolling rate limit window. */
-            429: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    /** @description Requests allowed in the current rolling rate limit window. */
-                    "X-RateLimit-Limit": number;
-                    /** @description Requests remaining in the current rolling rate limit window. */
-                    "X-RateLimit-Remaining": number;
-                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
-                    "X-RateLimit-Reset": number;
-                    /** @description Seconds to wait before retrying the request. */
-                    "Retry-After": number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "RATE_LIMITED",
-                     *         "type": "rate_limit",
-                     *         "message": "Too many requests.",
-                     *         "suggestion": "Wait for the retry window before sending another request.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
-                     *         "retryAfter": 42
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description Unexpected internal error. */
-            500: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INTERNAL_ERROR",
-                     *         "type": "internal_error",
-                     *         "message": "An unexpected error occurred.",
-                     *         "suggestion": "Retry the request. If it keeps failing, contact support.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-        };
-    };
-    getContact: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The contact’s email address (URL-encoded). Email is the contact primary key. */
-                email: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description The contact. */
-            200: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    /** @description Requests allowed in the current rolling rate limit window. */
-                    "X-RateLimit-Limit": number;
-                    /** @description Requests remaining in the current rolling rate limit window. */
-                    "X-RateLimit-Remaining": number;
-                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
-                    "X-RateLimit-Reset": number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "email": "jane@example.com",
-                     *       "firstName": "Jane",
-                     *       "lastName": "Doe",
-                     *       "subscribed": true,
-                     *       "verificationStatus": "valid",
-                     *       "suppressed": false,
-                     *       "suppressedReason": null,
-                     *       "createdAt": "2026-04-08T12:00:00.000Z",
-                     *       "updatedAt": "2026-04-08T12:05:00.000Z",
-                     *       "importId": null,
-                     *       "customFields": {
-                     *         "plan": "enterprise",
-                     *         "revenue": 4200
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["Contact"];
-                };
-            };
-            /** @description The API key was missing, invalid, or revoked. */
-            401: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INVALID_API_KEY",
-                     *         "type": "authentication_error",
-                     *         "message": "The provided API key is invalid.",
-                     *         "suggestion": "Check the API key format and retry with a valid active key.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The caller does not have the required `contacts` permission. */
-            403: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INSUFFICIENT_PERMISSIONS",
-                     *         "type": "authorization_error",
-                     *         "message": "The caller does not have the required permission.",
-                     *         "suggestion": "Use an API key or session with the required permission.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
-                     *         "param": "contacts"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description Contact not found in the API-key brand. Cross-brand ids intentionally surface as 404 (never 403) so the API does not leak cross-brand existence. */
-            404: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "CONTACT_NOT_FOUND",
-                     *         "type": "not_found",
-                     *         "message": "No contact exists with email 'jane@example.com'.",
-                     *         "suggestion": "Upsert the contact first with POST /v1/contacts.",
                      *         "docs": "https://docs.brew.new/api-reference/api/errors",
                      *         "param": "email"
                      *       }
@@ -12618,6 +10025,10 @@ export interface operations {
     listAudiences: {
         parameters: {
             query?: {
+                /** @description Fetch a single audience by id (detail mode → `{ data: [row] }`). Omit to list. */
+                audienceId?: string;
+                /** @description Detail-only expansion: `count` recomputes the live member total. Rejected without `audienceId`. */
+                include?: "count";
                 /**
                  * @description Page size (1–100). Defaults to 100.
                  * @example 50
@@ -12632,7 +10043,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description A page of audiences. */
+            /** @description A page of audiences (list mode), or `{ data: [row] }` (detail mode). */
             200: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -12739,6 +10150,29 @@ export interface operations {
                      *         "suggestion": "Use an API key or session with the required permission.",
                      *         "docs": "https://docs.brew.new/api-reference/api/authentication",
                      *         "param": "audiences"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Audience not found in the API-key brand. Cross-brand ids intentionally surface as 404 (never 403) so the API does not leak cross-brand existence. */
+            404: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "AUDIENCE_NOT_FOUND",
+                     *         "type": "not_found",
+                     *         "message": "The requested audience 'aud_xxx' was not found.",
+                     *         "suggestion": "List audiences with GET /v1/audiences.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "audienceId"
                      *       }
                      *     }
                      */
@@ -12954,202 +10388,6 @@ export interface operations {
                      *         "message": "The same idempotency key was reused with a different request payload.",
                      *         "suggestion": "Reuse the original payload or send a new idempotency key.",
                      *         "docs": "https://docs.brew.new/api-reference/api/idempotency"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The request hit the rolling rate limit window. */
-            429: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    /** @description Requests allowed in the current rolling rate limit window. */
-                    "X-RateLimit-Limit": number;
-                    /** @description Requests remaining in the current rolling rate limit window. */
-                    "X-RateLimit-Remaining": number;
-                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
-                    "X-RateLimit-Reset": number;
-                    /** @description Seconds to wait before retrying the request. */
-                    "Retry-After": number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "RATE_LIMITED",
-                     *         "type": "rate_limit",
-                     *         "message": "Too many requests.",
-                     *         "suggestion": "Wait for the retry window before sending another request.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
-                     *         "retryAfter": 42
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description Unexpected internal error. */
-            500: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INTERNAL_ERROR",
-                     *         "type": "internal_error",
-                     *         "message": "An unexpected error occurred.",
-                     *         "suggestion": "Retry the request. If it keeps failing, contact support.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-        };
-    };
-    getAudience: {
-        parameters: {
-            query?: {
-                include?: string;
-            };
-            header?: never;
-            path: {
-                /** @description Audience id (opaque Convex document id) returned by `POST /v1/audiences` and listed by `GET /v1/audiences`. */
-                audienceId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description The audience. When `?include=count` is set, `count` is the authoritative member total. */
-            200: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    /** @description Requests allowed in the current rolling rate limit window. */
-                    "X-RateLimit-Limit": number;
-                    /** @description Requests remaining in the current rolling rate limit window. */
-                    "X-RateLimit-Remaining": number;
-                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
-                    "X-RateLimit-Reset": number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "audienceId": "jn7a8w4q8m9k2p1x7c3b5v6n9h7s2d4f",
-                     *       "audienceName": "Nordic Founders",
-                     *       "filters": {
-                     *         "filters": [
-                     *           {
-                     *             "field": "country",
-                     *             "operator": "equals",
-                     *             "value": "NO"
-                     *           }
-                     *         ],
-                     *         "logicalOperator": "and"
-                     *       },
-                     *       "count": 1284,
-                     *       "createdAt": "2026-04-08T12:34:56.789Z",
-                     *       "updatedAt": "2026-04-08T12:34:56.789Z"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["Audience"];
-                };
-            };
-            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
-            400: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INVALID_REQUEST",
-                     *         "type": "invalid_request",
-                     *         "message": "Request validation failed.",
-                     *         "suggestion": "Fix the field reported in `param` and retry.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
-                     *         "param": "include"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The API key was missing, invalid, or revoked. */
-            401: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INVALID_API_KEY",
-                     *         "type": "authentication_error",
-                     *         "message": "The provided API key is invalid.",
-                     *         "suggestion": "Check the API key format and retry with a valid active key.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The caller does not have the required `audiences` permission. */
-            403: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INSUFFICIENT_PERMISSIONS",
-                     *         "type": "authorization_error",
-                     *         "message": "The caller does not have the required permission.",
-                     *         "suggestion": "Use an API key or session with the required permission.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
-                     *         "param": "audiences"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description Audience not found in the API-key brand. Cross-brand ids intentionally surface as 404 (never 403) so the API does not leak cross-brand existence. */
-            404: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "AUDIENCE_NOT_FOUND",
-                     *         "type": "not_found",
-                     *         "message": "The requested audience 'aud_xxx' was not found.",
-                     *         "suggestion": "List audiences with GET /v1/audiences.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
-                     *         "param": "audienceId"
                      *       }
                      *     }
                      */
@@ -13549,209 +10787,12 @@ export interface operations {
             };
         };
     };
-    duplicateAudience: {
-        parameters: {
-            query?: never;
-            header?: {
-                /**
-                 * @description Optional idempotency key for safe retries. Reusing the same key with the same request body returns the original response for 24 hours.
-                 * @example api-request-2026-04-08-001
-                 */
-                "Idempotency-Key"?: string;
-            };
-            path: {
-                /** @description Audience id (opaque Convex document id) returned by `POST /v1/audiences` and listed by `GET /v1/audiences`. */
-                audienceId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description The duplicated audience. */
-            201: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    /** @description Requests allowed in the current rolling rate limit window. */
-                    "X-RateLimit-Limit": number;
-                    /** @description Requests remaining in the current rolling rate limit window. */
-                    "X-RateLimit-Remaining": number;
-                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
-                    "X-RateLimit-Reset": number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "audienceId": "jn7a8w4q8m9k2p1x7c3b5v6n9h7s2d5g",
-                     *       "audienceName": "Nordic Founders (copy)",
-                     *       "filters": {
-                     *         "filters": [
-                     *           {
-                     *             "field": "country",
-                     *             "operator": "equals",
-                     *             "value": "NO"
-                     *           }
-                     *         ],
-                     *         "logicalOperator": "and"
-                     *       },
-                     *       "count": 1284,
-                     *       "createdAt": "2026-04-08T12:34:56.789Z",
-                     *       "updatedAt": "2026-04-08T12:34:56.789Z"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["Audience"];
-                };
-            };
-            /** @description The API key was missing, invalid, or revoked. */
-            401: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INVALID_API_KEY",
-                     *         "type": "authentication_error",
-                     *         "message": "The provided API key is invalid.",
-                     *         "suggestion": "Check the API key format and retry with a valid active key.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The caller does not have the required `audiences` permission. */
-            403: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INSUFFICIENT_PERMISSIONS",
-                     *         "type": "authorization_error",
-                     *         "message": "The caller does not have the required permission.",
-                     *         "suggestion": "Use an API key or session with the required permission.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
-                     *         "param": "audiences"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description Audience not found in the API-key brand. Cross-brand ids intentionally surface as 404 (never 403) so the API does not leak cross-brand existence. */
-            404: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "AUDIENCE_NOT_FOUND",
-                     *         "type": "not_found",
-                     *         "message": "The requested audience 'aud_xxx' was not found.",
-                     *         "suggestion": "List audiences with GET /v1/audiences.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
-                     *         "param": "audienceId"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The same `Idempotency-Key` was reused with a different request body. */
-            409: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "IDEMPOTENCY_CONFLICT",
-                     *         "type": "conflict",
-                     *         "message": "The same idempotency key was reused with a different request payload.",
-                     *         "suggestion": "Reuse the original payload or send a new idempotency key.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/idempotency"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The request hit the rolling rate limit window. */
-            429: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    /** @description Requests allowed in the current rolling rate limit window. */
-                    "X-RateLimit-Limit": number;
-                    /** @description Requests remaining in the current rolling rate limit window. */
-                    "X-RateLimit-Remaining": number;
-                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
-                    "X-RateLimit-Reset": number;
-                    /** @description Seconds to wait before retrying the request. */
-                    "Retry-After": number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "RATE_LIMITED",
-                     *         "type": "rate_limit",
-                     *         "message": "Too many requests.",
-                     *         "suggestion": "Wait for the retry window before sending another request.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
-                     *         "retryAfter": 42
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description Unexpected internal error. */
-            500: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INTERNAL_ERROR",
-                     *         "type": "internal_error",
-                     *         "message": "An unexpected error occurred.",
-                     *         "suggestion": "Retry the request. If it keeps failing, contact support.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-        };
-    };
     listDomains: {
         parameters: {
             query?: {
-                /** @description When `true`, only verified send-ready domains. */
+                /** @description Fetch a single domain by id (detail mode → `{ data: [row] }`). Omit to list. */
+                domainId?: string;
+                /** @description List mode only — when `true`, only verified send-ready domains. */
                 sendableOnly?: "true" | "false";
                 /**
                  * @description Page size (1–100). Defaults to 100.
@@ -13767,7 +10808,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description A page of domains. */
+            /** @description A page of domains (list mode), or `{ data: [row] }` (detail mode). */
             200: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -13878,6 +10919,29 @@ export interface operations {
                      *         "suggestion": "Use an API key or session with the required permission.",
                      *         "docs": "https://docs.brew.new/api-reference/api/authentication",
                      *         "param": "domains"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Domain not found in the API-key brand. Cross-brand ids intentionally surface as 404 (never 403) so the API does not leak cross-brand existence. */
+            404: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "DOMAIN_NOT_FOUND",
+                     *         "type": "not_found",
+                     *         "message": "The requested domain 'dom_xxx' was not found.",
+                     *         "suggestion": "List domains with GET /v1/domains.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "domainId"
                      *       }
                      *     }
                      */
@@ -14087,181 +11151,6 @@ export interface operations {
                      *         "message": "The same idempotency key was reused with a different request payload.",
                      *         "suggestion": "Reuse the original payload or send a new idempotency key.",
                      *         "docs": "https://docs.brew.new/api-reference/api/idempotency"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The request hit the rolling rate limit window. */
-            429: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    /** @description Requests allowed in the current rolling rate limit window. */
-                    "X-RateLimit-Limit": number;
-                    /** @description Requests remaining in the current rolling rate limit window. */
-                    "X-RateLimit-Remaining": number;
-                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
-                    "X-RateLimit-Reset": number;
-                    /** @description Seconds to wait before retrying the request. */
-                    "Retry-After": number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "RATE_LIMITED",
-                     *         "type": "rate_limit",
-                     *         "message": "Too many requests.",
-                     *         "suggestion": "Wait for the retry window before sending another request.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
-                     *         "retryAfter": 42
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description Unexpected internal error. */
-            500: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INTERNAL_ERROR",
-                     *         "type": "internal_error",
-                     *         "message": "An unexpected error occurred.",
-                     *         "suggestion": "Retry the request. If it keeps failing, contact support.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-        };
-    };
-    getDomain: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Domain id (opaque Convex document id) returned by `POST /v1/domains` and listed by `GET /v1/domains`. */
-                domainId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description The domain. */
-            200: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    /** @description Requests allowed in the current rolling rate limit window. */
-                    "X-RateLimit-Limit": number;
-                    /** @description Requests remaining in the current rolling rate limit window. */
-                    "X-RateLimit-Remaining": number;
-                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
-                    "X-RateLimit-Reset": number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "domainId": "kx7bkh53hasmfeh5kd7sqgykt187g8ww",
-                     *       "domainUrl": "https://send.example.com",
-                     *       "name": "send.example.com",
-                     *       "region": "us-east-1",
-                     *       "status": "pending",
-                     *       "sendingEnabled": true,
-                     *       "sendable": false,
-                     *       "records": [
-                     *         {
-                     *           "record": "DKIM",
-                     *           "name": "resend._domainkey",
-                     *           "type": "TXT",
-                     *           "ttl": "Auto",
-                     *           "status": "pending",
-                     *           "value": "p=MIGfMA0..."
-                     *         }
-                     *       ],
-                     *       "createdAt": "2026-04-08T12:34:56.789Z",
-                     *       "updatedAt": "2026-04-08T12:34:56.789Z"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["Domain"];
-                };
-            };
-            /** @description The API key was missing, invalid, or revoked. */
-            401: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INVALID_API_KEY",
-                     *         "type": "authentication_error",
-                     *         "message": "The provided API key is invalid.",
-                     *         "suggestion": "Check the API key format and retry with a valid active key.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The caller does not have the required `domains` permission. */
-            403: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INSUFFICIENT_PERMISSIONS",
-                     *         "type": "authorization_error",
-                     *         "message": "The caller does not have the required permission.",
-                     *         "suggestion": "Use an API key or session with the required permission.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
-                     *         "param": "domains"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description Domain not found in the API-key brand. Cross-brand ids intentionally surface as 404 (never 403) so the API does not leak cross-brand existence. */
-            404: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "DOMAIN_NOT_FOUND",
-                     *         "type": "not_found",
-                     *         "message": "The requested domain 'dom_xxx' was not found.",
-                     *         "suggestion": "List domains with GET /v1/domains.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
-                     *         "param": "domainId"
                      *       }
                      *     }
                      */
@@ -15359,6 +12248,9 @@ export interface operations {
     getBrandImages: {
         parameters: {
             query?: {
+                q?: string;
+                type?: string;
+                aspectRatio?: string;
                 limit?: number | string;
                 cursor?: string;
             };
@@ -15368,7 +12260,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description A page of brand images. */
+            /** @description A page of brand images (semantic results when `?q=`). */
             200: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -15418,6 +12310,33 @@ export interface operations {
                      *         "message": "The provided API key is invalid.",
                      *         "suggestion": "Check the API key format and retry with a valid active key.",
                      *         "docs": "https://docs.brew.new/api-reference/api/authentication"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/account`. No `Retry-After` — credits reset at the billing-period boundary. */
+            402: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INSUFFICIENT_CREDITS",
+                     *         "type": "payment_required",
+                     *         "message": "This operation costs 10 credit(s) but only 0 remain on the 'free' plan.",
+                     *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/account.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/credits",
+                     *         "details": {
+                     *           "cost": 10,
+                     *           "remaining": 0,
+                     *           "planKey": "free"
+                     *         }
                      *       }
                      *     }
                      */
@@ -15494,6 +12413,31 @@ export interface operations {
                      *         "message": "An unexpected error occurred.",
                      *         "suggestion": "Retry the request. If it keeps failing, contact support.",
                      *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The credit balance could not be verified (a transient billing dependency outage). The gate fails closed rather than do paid work it cannot meter. Retryable — `Retry-After` indicates when. */
+            503: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Seconds to wait before retrying the request. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "SERVICE_UNAVAILABLE",
+                     *         "type": "service_unavailable",
+                     *         "message": "Your credit balance could not be verified because a billing dependency is temporarily unavailable.",
+                     *         "suggestion": "Retry the request after a short delay.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/credits",
+                     *         "retryAfter": 2
                      *       }
                      *     }
                      */

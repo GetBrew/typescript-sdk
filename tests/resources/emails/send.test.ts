@@ -98,4 +98,42 @@ describe('emails.send', () => {
       scheduledAt: '2099-01-01T00:00:00.000Z',
     })
   })
+
+  it('test mode: POSTs /v1/sends with { test: true } and returns the synchronous { status:sent, recipient }', async () => {
+    let captured: Request | undefined
+    let body: unknown
+    server.use(
+      // `POST /v1/sends` is polymorphic: `test: true` is a one-off TEST send.
+      http.post('https://brew.new/api/v1/sends', async ({ request }) => {
+        captured = request.clone()
+        body = await request.json()
+        return HttpResponse.json(
+          { status: 'sent', recipient: 'qa@example.com' },
+          { status: 200 }
+        )
+      })
+    )
+
+    const { client } = makeTestHttpClient()
+    const send = createSendEmail(client)
+
+    const result = await send({
+      test: true,
+      emailId: 'eml_1',
+      subject: 'Preview',
+      to: 'qa@example.com',
+    })
+
+    expect(new URL(captured!.url).pathname).toBe('/api/v1/sends')
+    expect(body).toEqual({
+      test: true,
+      emailId: 'eml_1',
+      subject: 'Preview',
+      to: 'qa@example.com',
+    })
+    expect(result.status).toBe('sent')
+    if (result.status === 'sent') {
+      expect(result.recipient).toBe('qa@example.com')
+    }
+  })
 })

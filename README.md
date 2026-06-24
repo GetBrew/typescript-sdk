@@ -31,7 +31,10 @@ const contact = await brew.contacts.upsert({
   customFields: { plan: 'enterprise' },
 })
 
-const found = await brew.contacts.getByEmail({ email: 'jane@example.com' })
+const { data } = await brew.contacts.search({
+  filters: [{ field: 'email', operator: 'equals', value: 'jane@example.com' }],
+})
+const found = data[0]
 ```
 
 That's the whole shape. Every other method follows the same pattern.

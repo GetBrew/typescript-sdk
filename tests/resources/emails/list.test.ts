@@ -63,4 +63,56 @@ describe('emails.list', () => {
     )
     expect(url.searchParams.get('updatedAtTo')).toBe('2026-04-14T00:00:00.000Z')
   })
+
+  it('detail mode: emailId + include html returns the single-row page with html inlined', async () => {
+    let capturedRequest: Request | undefined
+    server.use(
+      http.get('https://brew.new/api/v1/emails', ({ request }) => {
+        capturedRequest = request
+        // Reads are flat: identity in the query; detail = `{ data: [row] }`.
+        return HttpResponse.json({
+          data: [
+            {
+              emailId: 'email_123',
+              emailVersionId: 'emv_123_v1',
+              title: 'Welcome Email',
+              status: 'complete',
+              html: '<!DOCTYPE html><html><body>Hi</body></html>',
+              updatedAt: '2026-04-08T12:34:56.789Z',
+            },
+          ],
+        })
+      })
+    )
+
+    const { client } = makeTestHttpClient()
+    const list = createListEmails(client)
+
+    const result = await list({ emailId: 'email_123', include: 'html' })
+
+    const url = new URL(capturedRequest!.url)
+    expect(url.searchParams.get('emailId')).toBe('email_123')
+    expect(url.searchParams.get('include')).toBe('html')
+    expect(result.data[0]?.html).toContain('<body>')
+    expect(result.pagination).toBeUndefined()
+  })
+
+  it('serializes an include array as a single comma string', async () => {
+    let capturedRequest: Request | undefined
+    server.use(
+      http.get('https://brew.new/api/v1/emails', ({ request }) => {
+        capturedRequest = request
+        return HttpResponse.json({ data: [] })
+      })
+    )
+
+    const { client } = makeTestHttpClient()
+    const list = createListEmails(client)
+
+    await list({ emailId: 'email_123', include: ['html', 'versions'] })
+
+    expect(new URL(capturedRequest!.url).searchParams.get('include')).toBe(
+      'html,versions'
+    )
+  })
 })

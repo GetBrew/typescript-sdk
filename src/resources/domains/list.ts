@@ -5,17 +5,37 @@ import type { BrewRawResponse, RequestOptions } from '../../types'
 
 export type ListDomainsResponse = components['schemas']['DomainsListResponse']
 
-/** Input to `brew.domains.list` / `listSendable` — cursor pagination knobs. */
-export type ListDomainsInput = PaginationInput
+/**
+ * Input to `brew.domains.list(...)` — the single domains read. Reads are
+ * flat: identity lives in the query.
+ *
+ * - Omit `domainId` to LIST every sending domain (including `pending`
+ *   rows and their DNS `records`).
+ * - Pass `domainId` to fetch ONE — the response is a single-row page
+ *   `{ data: [row] }` (no `pagination`).
+ * - `sendableOnly: true` narrows the list to verified, send-ready
+ *   domains (the valid picker source for `brew.emails.send(...)` and
+ *   automation `sendEmail` nodes).
+ */
+export type ListDomainsInput = PaginationInput & {
+  /** Fetch one domain by id (detail mode → single-row page). Omit to list. */
+  readonly domainId?: string
+  /** List mode only — narrow to verified, send-ready domains. */
+  readonly sendableOnly?: boolean
+}
 
 /**
- * List ALL sending domains for the current organization — including
- * `pending` rows and their DNS `records` (so lifecycle callers can
- * complete verification). Each row carries `status` and the derived
- * `sendable` flag. Returns the uniform `{ data, pagination }` envelope;
- * accepts `limit`/`cursor`. For only the verified, send-ready set (the
- * valid picker source for `brew.emails.send(...)`), use
- * `brew.domains.listSendable()` or filter on `row.sendable`.
+ * `GET /v1/domains` (scope: `domains`) — the single domains read, under
+ * the uniform `{ data, pagination? }` envelope. Reads are flat: the
+ * identity lives in the query.
+ *
+ * - List mode (no `domainId`): every sending domain for the org —
+ *   including `pending` rows and their DNS `records` — so lifecycle
+ *   callers can complete verification. Each row carries `status` and the
+ *   derived `sendable` flag. Pass `sendableOnly: true` to narrow to the
+ *   verified, send-ready set; page with `limit` / `cursor`.
+ * - Detail mode (`domainId` set): a single-row page `{ data: [row] }`
+ *   with no `pagination`.
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<ListDomainsResponse>` instead of the unwrapped
@@ -37,37 +57,9 @@ export function createListDomains(client: HttpClient) {
     const response = await client.request<ListDomainsResponse>({
       method: 'GET',
       path: '/v1/domains',
-      query: { limit: input.limit, cursor: input.cursor },
-      ...(options ? { options } : {}),
-    })
-    return unwrapResponse(response, options)
-  }
-  return listDomains
-}
-
-/**
- * `GET /v1/domains?sendableOnly=true` — only verified, send-ready
- * domains (the valid picker source for sends + automation `sendEmail`
- * nodes). Accepts `limit`/`cursor`.
- */
-export function createListSendableDomains(client: HttpClient) {
-  function listSendableDomains(
-    input: ListDomainsInput | undefined,
-    options: RequestOptions & { readonly raw: true }
-  ): Promise<BrewRawResponse<ListDomainsResponse>>
-  function listSendableDomains(
-    input?: ListDomainsInput,
-    options?: RequestOptions
-  ): Promise<ListDomainsResponse>
-  async function listSendableDomains(
-    input: ListDomainsInput = {},
-    options?: RequestOptions
-  ): Promise<ListDomainsResponse | BrewRawResponse<ListDomainsResponse>> {
-    const response = await client.request<ListDomainsResponse>({
-      method: 'GET',
-      path: '/v1/domains',
       query: {
-        sendableOnly: 'true',
+        domainId: input.domainId,
+        sendableOnly: input.sendableOnly ? 'true' : undefined,
         limit: input.limit,
         cursor: input.cursor,
       },
@@ -75,5 +67,5 @@ export function createListSendableDomains(client: HttpClient) {
     })
     return unwrapResponse(response, options)
   }
-  return listSendableDomains
+  return listDomains
 }

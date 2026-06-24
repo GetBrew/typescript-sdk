@@ -2,18 +2,19 @@ import type { components, operations } from '../../generated/openapi-types'
 
 /**
  * One row of the `data[]` array returned by `brew.emails.list(...)`
- * (`GET /v1/emails`). The list is intentionally lean — just enough to
- * identify and link to a design; fetch `brew.emails.get({ emailId })`
- * for the rendered `html` + `status`.
+ * (`GET /v1/emails`). In list mode the row is lean (identity + render
+ * `status` + `previewImage`); in detail mode (`?emailId=`) it can also
+ * carry `html` (`?include=html`) and the inline `versions[]`
+ * (`?include=versions`).
  */
 export type EmailSummary =
   components['schemas']['EmailsListResponse']['data'][number]
 
 /**
- * The full design row returned by `brew.emails.get({ emailId })`
- * (`GET /v1/emails/{emailId}`): identity + render `status`, the
- * rendered `html` of the current latest version, and `previewImage`
- * when one has been captured.
+ * The full design row (identity + render `status`, the rendered `html`
+ * of the current latest version, and `previewImage` when captured) —
+ * the shape of a single detail-mode row from
+ * `brew.emails.list({ emailId, include: 'html' })`.
  */
 export type EmailDetail = components['schemas']['EmailDetail']
 
@@ -33,10 +34,10 @@ export type GeneratedEmailTextResponse = Extract<
 >
 
 /**
- * One persisted version of an email — returned in the `data[]` array
- * of `brew.emails.versions({ emailId })`
- * (`GET /v1/emails/{emailId}/versions`). `version: 'latest'` is the
- * current head; numeric versions are historical snapshots.
+ * One persisted version of an email — a row of the inline `versions[]`
+ * carried on a detail-mode email row when
+ * `brew.emails.list({ emailId, include: 'versions' })` is used.
+ * `version: 'latest'` is the current head; numeric versions are
+ * historical snapshots.
  */
-export type EmailVersion =
-  components['schemas']['EmailVersionsResponse']['data'][number]
+export type EmailVersion = NonNullable<EmailSummary['versions']>[number]

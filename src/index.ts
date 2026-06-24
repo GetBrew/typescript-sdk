@@ -64,8 +64,6 @@ export type {
   CreateTriggerResponse,
 } from './resources/automations/triggers/create'
 export type {
-  GetTriggerInput,
-  GetTriggerResponse,
   ListTriggersInput,
   ListTriggersResponse,
 } from './resources/automations/triggers/list'
@@ -100,19 +98,14 @@ export type {
   AutomationSplitNodeConfig,
 } from './resources/automations/create'
 export type {
-  GetAutomationInput,
-  GetAutomationResponse,
   ListAutomationsInput,
   ListAutomationsResponse,
+  AutomationsIncludeToken,
 } from './resources/automations/list'
 export type {
   PatchAutomationInput,
   PatchAutomationResponse,
 } from './resources/automations/patch'
-export type {
-  ListAutomationVersionsInput,
-  AutomationVersionsResponse,
-} from './resources/automations/versions'
 export type {
   DeleteAutomationInput,
   DeleteAutomationResponse,
@@ -124,13 +117,11 @@ export type {
   AutomationRun,
   AutomationRunLog,
   AutomationRunsListResponse,
-  AutomationRunDetailResponse,
 } from './resources/automations/runs/types'
 export type {
   ListAutomationRunsInput,
   ListAutomationRunsResponse,
-  GetAutomationRunInput,
-  GetAutomationRunResponse,
+  AutomationRunsIncludeToken,
 } from './resources/automations/runs/list'
 
 // ---------- Analytics: domain types + method outputs ----------
@@ -149,44 +140,26 @@ export type {
   EventsAnalyticsAllInput,
 } from './resources/analytics/events'
 
-// ---------- Analytics › sends: send reads + per-recipient event feeds ----------
+// ---------- Analytics › sends: the single sends read (+ inline events) ----------
 export type {
   Send,
   SendStats,
   SendStatus,
   SendEvent,
   SendsListResponse,
-  SendEventsResponse,
   ListSendsInput,
-  ListEmailSendsInput,
-  ListSendEventsInput,
 } from './resources/analytics/sends/types'
 export type { ListAllSendsInput } from './resources/analytics/sends/list'
-export type {
-  GetSendInput,
-  GetSendResponse,
-} from './resources/analytics/sends/get'
-export type {
-  ListSendEventsForSendInput,
-  ListAllSendEventsInput,
-} from './resources/analytics/sends/list-events'
-export type {
-  ListSendsForEmailInput,
-  ListAllSendsForEmailInput,
-} from './resources/analytics/sends/list-for-email'
 
 // ---------- Analytics › trigger-instances: fired-trigger history ----------
 export type {
   TriggerInstance,
-  TriggerInstanceDetail,
   TriggerInstancesListResponse,
   ListTriggerInstancesInput,
 } from './resources/analytics/trigger-instances/types'
 export type {
   ListAllTriggerInstancesInput,
   ListTriggerInstancesResponse,
-  GetTriggerInstanceInput,
-  GetTriggerInstanceResponse,
 } from './resources/analytics/trigger-instances/list'
 
 // ---------- Audiences: domain types ----------
@@ -199,20 +172,20 @@ export type {
   GeneratedEmailTextResponse,
 } from './resources/emails/types'
 // Send domain reads (`Send`, `SendStats`, `SendsListResponse`, …) are
-// exported from the `analytics/sends` block above; the send ACTIONS now
-// live on `emails` (`emails.send` / `emails.sendTest`), so their request +
-// response shapes are exported from the `emails` block below.
+// exported from the `analytics/sends` block above; the polymorphic send
+// ACTION lives on `emails` (`emails.send` — campaign | test), so its
+// request + response shapes are exported from the `emails` block below.
 export type { Template } from './resources/templates/types'
 
 // ---------- Audiences: method inputs + outputs ----------
 export type {
   ListAudiencesInput,
   ListAudiencesResponse,
+  AudiencesIncludeToken,
 } from './resources/audiences/list'
 export type {
   CreateAudienceInput,
   CreateAudienceResponse,
-  DuplicateAudienceInput,
 } from './resources/audiences/create'
 export type {
   UpdateAudienceInput,
@@ -222,17 +195,12 @@ export type {
   DeleteAudienceInput,
   DeleteAudienceResponse,
 } from './resources/audiences/delete'
-export type {
-  GetAudienceInput,
-  GetAudienceResponse,
-} from './resources/audiences/get'
 
 // ---------- Domains: method inputs + outputs ----------
 export type {
   ListDomainsInput,
   ListDomainsResponse,
 } from './resources/domains/list'
-export type { GetDomainInput, GetDomainResponse } from './resources/domains/get'
 export type { AddDomainInput, AddDomainResponse } from './resources/domains/add'
 export type {
   VerifyDomainInput,
@@ -256,13 +224,13 @@ export type { EditEmailInput, EditEmailResponse } from './resources/emails/edit'
 export type {
   ListEmailsInput,
   ListEmailsResponse,
+  EmailsIncludeToken,
 } from './resources/emails/list'
-export type { EmailVersion } from './resources/emails/types'
+export type { EmailVersion, EmailDetail } from './resources/emails/types'
 export type {
-  GetEmailInput,
-  GetEmailResponse,
-  EmailVersionsResponse,
-} from './resources/emails/get'
+  EmailImportInput,
+  EmailImportResponse,
+} from './resources/emails/import'
 export type {
   DeleteEmailInput,
   DeleteEmailResponse,
@@ -271,20 +239,15 @@ export type {
   RestoreEmailInput,
   RestoreEmailResponse,
 } from './resources/emails/restore'
-// Send ACTIONS now live on `emails` (`emails.send` / `emails.sendTest`).
+// `POST /v1/sends` is the single polymorphic send (`emails.send`):
+// campaign by default, or a one-off TEST delivery via `test: true`.
 export type {
   SendEmailInput,
   SendEmailResponse,
-  SendsPostRequest,
-  SendAcceptedResponse,
-  SendAcceptedStatus,
+  SendEmailTestResponse,
+  SendEmailCampaignResponse,
+  SendEmailStatus,
 } from './resources/emails/send'
-export type {
-  SendTestInput,
-  SendTestResponse,
-  SendsTestRequest,
-  SendsTestResponse,
-} from './resources/emails/send-test'
 export type {
   ListTemplatesInput,
   ListTemplatesResponse,
@@ -298,13 +261,7 @@ export type {
 } from './resources/contacts/types'
 
 // ---------- Contacts: method inputs + outputs ----------
-export type {
-  ListContactsInput,
-  ListContactsResponse,
-} from './resources/contacts/list'
-export type { ListAllContactsInput } from './resources/contacts/list-all'
 export type { CountContactsInput } from './resources/contacts/count'
-export type { GetContactByEmailInput } from './resources/contacts/get-by-email'
 export type {
   UpsertContactInput,
   UpsertContactResponse,

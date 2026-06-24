@@ -4,24 +4,22 @@ Read-only campaign + automation analytics, a unified cross-domain event
 explorer, the campaign-send reads (`analytics.sends.*`), and the
 fired-trigger instance history (`analytics.triggerInstances.*`).
 
-| Method                                       | HTTP                                          | Scope         |
-| -------------------------------------------- | --------------------------------------------- | ------------- |
-| [`campaigns`](#campaigns)                    | `GET /v1/analytics/campaigns`                 | `emails`      |
-| [`automations`](#automations)                | `GET /v1/analytics/automations`               | `automations` |
-| [`events`](#events)                          | `GET /v1/analytics/events`                    | `emails`      |
-| [`eventsAll`](#eventsall)                    | `GET /v1/analytics/events`                    | `emails`      |
-| [`sends.list`](#sends)                       | `GET /v1/analytics/sends`                     | `sends`       |
-| [`sends.listAll`](#sends)                    | `GET /v1/analytics/sends` (paged)             | `sends`       |
-| [`sends.get`](#sends)                        | `GET /v1/analytics/sends/{sendId}`            | `sends`       |
-| [`sends.listEvents`](#sends)                 | `GET /v1/analytics/sends/{sendId}/events`     | `emails`      |
-| [`sends.listAllEvents`](#sends)              | `GET /v1/analytics/sends/{sendId}/events`     | `emails`      |
-| [`sends.listForEmail`](#sends)               | `GET /v1/emails/{emailId}/sends`              | `sends`       |
-| [`sends.listAllForEmail`](#sends)            | `GET /v1/emails/{emailId}/sends` (paged)      | `sends`       |
-| [`triggerInstances.list`](#triggerinstances) | `GET /v1/analytics/trigger-instances`         | `automations` |
-| [`triggerInstances.get`](#triggerinstances)  | `GET /v1/analytics/trigger-instances/{id}`    | `automations` |
+| Method                                          | HTTP                                          | Scope         |
+| ----------------------------------------------- | --------------------------------------------- | ------------- |
+| [`campaigns`](#campaigns)                       | `GET /v1/analytics/campaigns`                 | `emails`      |
+| [`automations`](#automations)                   | `GET /v1/analytics/automations`               | `automations` |
+| [`events`](#events)                             | `GET /v1/analytics/events`                    | `emails`      |
+| [`eventsAll`](#eventsall)                       | `GET /v1/analytics/events`                    | `emails`      |
+| [`sends.list`](#sends)                          | `GET /v1/analytics/sends`                     | `sends`       |
+| [`sends.listAll`](#sends)                       | `GET /v1/analytics/sends` (paged)             | `sends`       |
+| [`triggerInstances.list`](#triggerinstances)    | `GET /v1/analytics/trigger-instances`         | `automations` |
+| [`triggerInstances.listAll`](#triggerinstances) | `GET /v1/analytics/trigger-instances` (paged) | `automations` |
 
-Every list method returns the uniform `{ data, pagination }` envelope.
-`automations` and `events` additionally carry a `range`.
+Reads are flat — one read per resource, identity in the query (`?<id>`),
+`?include` for opt-in expansions. Every list method returns the uniform
+`{ data, pagination? }` envelope (detail mode = a single-row page
+`{ data: [row] }`, no `pagination`). `automations` and `events`
+additionally carry a `range`.
 
 ---
 
@@ -115,9 +113,9 @@ for await (const event of brew.analytics.eventsAll({
 
 ## `sends`
 
-Campaign-send **reads**. (Sending a design lives on `brew.emails.send`;
-firing a test lives on `brew.emails.sendTest` — see
-[`docs/emails.md`](./emails.md).)
+Campaign-send **reads** — one flat read. (Sending a design lives on the
+single polymorphic `brew.emails.send`, campaign or test via `test: true`
+— see [`docs/emails.md`](./emails.md).)
 
 ### Shared types
 
@@ -154,75 +152,48 @@ type Send = {
   readonly stats?: SendStats
   readonly createdAt: string
   readonly updatedAt: string
-  // ...plus emailVersionId, subject, previewText, startedAt, failedAt, error
+  // ...plus emailVersionId, subject, previewText, startedAt, failedAt, error.
+  // In detail mode with `?include=events`, a bounded first page of the
+  // send's per-recipient analytics `events[]` is inlined on the row.
 }
 ```
 
 ### `sends.list` / `sends.listAll`
 
-List the brand's campaign sends, newest first, with lifecycle status and
-aggregate `stats`. Brand-wide — there is no `emailId` filter here (use
-`sends.listForEmail` for one design's history). Filters: `status`, `from`/`to`
-(ISO-8601), plus `limit`/`cursor`. Returns `{ data, pagination }`.
+The single sends read. Reads are flat — the identity lives in the query.
+
+- **List mode** (no `sendId`): the brand's sends, newest first, with
+  lifecycle status and aggregate `stats`. Narrow to one design's history
+  with `emailId` (mutually exclusive with `sendId`). Filters: `status`,
+  `from`/`to` (ISO-8601), plus `limit`/`cursor`. Returns
+  `{ data, pagination }`.
+- **Detail mode** (`sendId` set): a single-row page `{ data: [row] }` with
+  no `pagination`. Add `include: 'events'` for a bounded first page of the
+  send's per-recipient analytics events inlined on the row (an `include`
+  without `sendId` is `400 INVALID_REQUEST`).
 
 ```ts
+// List mode (filter, page):
 const { data, pagination } = await brew.analytics.sends.list({
   status: 'sent',
   from: '2026-04-01T00:00:00.000Z',
   limit: 50,
 })
 
-// or page through everything:
-for await (const send of brew.analytics.sends.listAll({ status: 'sent' })) {
-  console.log(send.sendId, send.stats?.delivered)
-}
-```
+// One design's history:
+const forEmail = await brew.analytics.sends.list({ emailId: 'email_123' })
 
-### `sends.get`
-
-Fetch a single send by id. Returns the **bare** `Send` row (not an
-envelope), or `404 SEND_NOT_FOUND` on a miss. Poll this after
-`brew.emails.send(...)`.
-
-```ts
-const send = await brew.analytics.sends.get({ sendId: 'snd_123' })
-console.log(send.status, send.stats?.delivered)
-```
-
-### `sends.listEvents` / `sends.listAllEvents`
-
-Per-recipient analytics event feed for one send
-(`sent | delivered | opened | clicked | bounced | complained |
-unsubscribed`), each with `occurredAt`, `recipientEmail`, and the click
-`url` when known. Filter with `eventType`. Returns `{ data, pagination }`.
-
-```ts
-const { data } = await brew.analytics.sends.listEvents({
+// Detail mode + inline events:
+const detail = await brew.analytics.sends.list({
   sendId: 'snd_123',
-  eventType: 'clicked',
+  include: 'events',
 })
+const send = detail.data[0]
+console.log(send?.status, send?.events?.length)
 
-// or page through everything:
-for await (const ev of brew.analytics.sends.listAllEvents({ sendId: 'snd_123' })) {
-  console.log(ev.eventType, ev.recipientEmail, ev.url)
-}
-```
-
-### `sends.listForEmail` / `sends.listAllForEmail`
-
-List one design's send history (`GET /v1/emails/{emailId}/sends`), newest
-first, under `{ data, pagination }`. A design can be sent unlimited times and
-each campaign send is its own `Send` row.
-
-```ts
-const { data } = await brew.analytics.sends.listForEmail({
-  emailId: 'email_123',
-})
-
-for await (const send of brew.analytics.sends.listAllForEmail({
-  emailId: 'email_123',
-})) {
-  console.log(send.sendId, send.status)
+// Or page through everything:
+for await (const s of brew.analytics.sends.listAll({ status: 'sent' })) {
+  console.log(s.sendId, s.stats?.delivered)
 }
 ```
 
@@ -236,26 +207,29 @@ integration), the derived contact, and the runs it spawned. Requires the
 
 ### `triggerInstances.list` / `triggerInstances.listAll`
 
-Returns `{ data, pagination }`. Filter with `triggerEventId`, plus
-`limit`/`cursor`.
+The single fired-trigger read. Reads are flat — the identity lives in the
+query.
+
+- **List mode** (no `triggerInstanceId`): the audit log of every inbound
+  fire, newest first. Filter with `triggerEventId`, plus `limit`/`cursor`.
+  Returns `{ data, pagination }`.
+- **Detail mode** (`triggerInstanceId` set): a single-row page
+  `{ data: [row] }` with no `pagination`.
 
 ```ts
+// List mode:
 const { data } = await brew.analytics.triggerInstances.list({
   triggerEventId: 'trig_123',
 })
 
+// Detail mode (one instance):
+const detail = await brew.analytics.triggerInstances.list({
+  triggerInstanceId: 'tin_123',
+})
+console.log(detail.data[0]?.triggerInstanceId)
+
+// Or page through everything:
 for await (const inst of brew.analytics.triggerInstances.listAll()) {
   console.log(inst.triggerInstanceId)
 }
-```
-
-### `triggerInstances.get`
-
-Fetch a single instance by id — returns the **bare** row, or `404` on a
-miss.
-
-```ts
-const instance = await brew.analytics.triggerInstances.get({
-  triggerInstanceId: 'tin_123',
-})
 ```

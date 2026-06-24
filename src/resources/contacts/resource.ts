@@ -3,10 +3,7 @@ import type { HttpClient } from '../../core/http'
 import { createCountContacts } from './count'
 import { createDeleteContact } from './delete'
 import { createDeleteManyContacts } from './delete-many'
-import { createGetContactByEmail } from './get-by-email'
 import { createImportCsvContacts } from './import-csv'
-import { createListAllContacts } from './list-all'
-import { createListContacts } from './list'
 import { createPatchContact } from './patch'
 import { createSearchAllContacts } from './search-all'
 import { createSearchContacts } from './search'
@@ -19,20 +16,18 @@ import { createValidateContacts } from './validate'
  * over the shared transport; each is implemented in its own file under
  * `resources/contacts/` so a new endpoint is always one new file plus
  * one new line here, never a diff inside an existing method.
+ *
+ * Reads are flat: `search` is the single contacts read (pass an empty
+ * body to read all, an `audienceId` to scope, or filters to narrow);
+ * writes stay path-based.
  */
 export type ContactsResource = {
-  /** `GET /v1/contacts` — list contacts (pagination-only) under `{ data, pagination }` (scope: `contacts`). */
-  readonly list: ReturnType<typeof createListContacts>
-  /** Async-iterate every contact (newest first) by following `list` pagination (scope: `contacts`). */
-  readonly listAll: ReturnType<typeof createListAllContacts>
-  /** `POST /v1/contacts/search` — structured filter/search/sort over contacts (scope: `contacts`). */
+  /** `POST /v1/contacts/search` — the single contacts read: structured filter/search/sort, optional `audienceId` scope, cursor pagination (scope: `contacts`). */
   readonly search: ReturnType<typeof createSearchContacts>
   /** Async-iterate every contact matching a `search` query (scope: `contacts`). */
   readonly searchAll: ReturnType<typeof createSearchAllContacts>
   /** `POST /v1/contacts/search` with `count: true` — count matching contacts (scope: `contacts`). */
   readonly count: ReturnType<typeof createCountContacts>
-  /** `GET /v1/contacts/{email}` — fetch one contact by email (scope: `contacts`). */
-  readonly getByEmail: ReturnType<typeof createGetContactByEmail>
   readonly upsert: ReturnType<typeof createUpsertContact>
   readonly upsertMany: ReturnType<typeof createUpsertManyContacts>
   /** `PATCH /v1/contacts/{email}` — partially update a contact (scope: `contacts`). */
@@ -54,12 +49,9 @@ export type ContactsResource = {
  */
 export function createContactsResource(client: HttpClient): ContactsResource {
   return {
-    list: createListContacts(client),
-    listAll: createListAllContacts(client),
     search: createSearchContacts(client),
     searchAll: createSearchAllContacts(client),
     count: createCountContacts(client),
-    getByEmail: createGetContactByEmail(client),
     upsert: createUpsertContact(client),
     upsertMany: createUpsertManyContacts(client),
     patch: createPatchContact(client),

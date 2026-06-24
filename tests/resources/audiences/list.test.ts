@@ -92,4 +92,28 @@ describe('audiences.list', () => {
     expect(raw.headers.get('x-request-id')).toBe('req_raw_audiences')
     expect(raw.data.data).toHaveLength(1)
   })
+
+  it('detail mode: audienceId + include count returns the single-row page', async () => {
+    let capturedRequest: Request | undefined
+    server.use(
+      http.get('https://brew.new/api/v1/audiences', ({ request }) => {
+        capturedRequest = request
+        // Reads are flat: identity in the query; detail = `{ data: [row] }`.
+        return HttpResponse.json({
+          data: [{ audienceId: 'aud_123', audienceName: 'Beta', count: 42 }],
+        })
+      })
+    )
+
+    const { client } = makeTestHttpClient()
+    const list = createListAudiences(client)
+
+    const result = await list({ audienceId: 'aud_123', include: 'count' })
+
+    const url = new URL(capturedRequest!.url)
+    expect(url.searchParams.get('audienceId')).toBe('aud_123')
+    expect(url.searchParams.get('include')).toBe('count')
+    expect(result.data[0]?.count).toBe(42)
+    expect(result.pagination).toBeUndefined()
+  })
 })

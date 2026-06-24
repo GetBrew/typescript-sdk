@@ -74,16 +74,27 @@ describe('automations.triggers resource — POST/GET/PATCH/DELETE wiring', () =>
     expect(result.data[0]?.triggerEventId).toBe('tri_abc')
   })
 
-  it('get GETs /v1/automations/triggers/{triggerEventId} and returns the bare row', async () => {
+  it('list with triggerEventId GETs /v1/automations/triggers?triggerEventId and returns the single-row page', async () => {
+    let captured: Request | undefined
     server.use(
-      http.get('https://brew.new/api/v1/automations/triggers/tri_abc', () =>
-        HttpResponse.json(TRIGGER_ROW)
+      http.get(
+        'https://brew.new/api/v1/automations/triggers',
+        ({ request }) => {
+          captured = request.clone()
+          // Detail mode = single-row page `{ data: [row] }`, no pagination.
+          return HttpResponse.json({ data: [TRIGGER_ROW] })
+        }
       )
     )
     const { client } = makeTestHttpClient()
     const triggers = createTriggersResource(client)
-    const result = await triggers.get({ triggerEventId: 'tri_abc' })
-    expect(result.triggerEventId).toBe('tri_abc')
+    // Reads are flat: identity in the query (`?triggerEventId=`).
+    const result = await triggers.list({ triggerEventId: 'tri_abc' })
+    const url = new URL(captured!.url)
+    expect(url.pathname).toBe('/api/v1/automations/triggers')
+    expect(url.searchParams.get('triggerEventId')).toBe('tri_abc')
+    expect(result.data[0]?.triggerEventId).toBe('tri_abc')
+    expect(result.pagination).toBeUndefined()
   })
 
   it('does not surface enable / disable methods (triggers are always on; gated by automation.published)', () => {

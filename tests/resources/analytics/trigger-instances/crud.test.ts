@@ -43,26 +43,29 @@ describe('analytics.triggerInstances resource — read-only list/get wiring', ()
     expect(result.data[0]?.automationRunIds).toEqual(['run_a'])
   })
 
-  it('get GETs /v1/analytics/trigger-instances/{triggerInstanceId} and returns the bare detail row', async () => {
+  it('list with triggerInstanceId GETs /v1/analytics/trigger-instances?triggerInstanceId and returns the single-row page', async () => {
     let url: string | undefined
     server.use(
       http.get(
-        'https://brew.new/api/v1/analytics/trigger-instances/tin_01',
+        'https://brew.new/api/v1/analytics/trigger-instances',
         ({ request }) => {
           url = request.url
-          return HttpResponse.json(INSTANCE_ROW)
+          // Detail mode = single-row page `{ data: [row] }`, no pagination.
+          return HttpResponse.json({ data: [INSTANCE_ROW] })
         }
       )
     )
 
     const { client } = makeTestHttpClient()
     const triggerInstances = createAnalyticsTriggerInstancesResource(client)
-    const result = await triggerInstances.get({ triggerInstanceId: 'tin_01' })
+    // Reads are flat: identity in the query (`?triggerInstanceId=`).
+    const result = await triggerInstances.list({ triggerInstanceId: 'tin_01' })
 
-    expect(new URL(url!).pathname).toBe(
-      '/api/v1/analytics/trigger-instances/tin_01'
-    )
-    expect(result.triggerInstanceId).toBe('tin_01')
-    expect(result.source).toBe('api')
+    const parsed = new URL(url!)
+    expect(parsed.pathname).toBe('/api/v1/analytics/trigger-instances')
+    expect(parsed.searchParams.get('triggerInstanceId')).toBe('tin_01')
+    expect(result.data[0]?.triggerInstanceId).toBe('tin_01')
+    expect(result.data[0]?.source).toBe('api')
+    expect(result.pagination).toBeUndefined()
   })
 })

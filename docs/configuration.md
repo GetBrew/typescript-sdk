@@ -150,7 +150,7 @@ Example — propagating an upstream abort signal:
 const controller = new AbortController()
 setTimeout(() => controller.abort(), 5_000)
 
-await brew.contacts.list({ limit: 100 }, { signal: controller.signal })
+await brew.contacts.search({ limit: 100 }, { signal: controller.signal })
 ```
 
 See [`docs/retries-and-idempotency.md`](./retries-and-idempotency.md)

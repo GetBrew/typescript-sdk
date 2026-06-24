@@ -51,14 +51,14 @@ import { BrewApiError, createBrewClient } from '@brew.new/sdk'
 const brew = createBrewClient({ apiKey: process.env.BREW_API_KEY! })
 
 try {
-  const contact = await brew.contacts.getByEmail({
+  const { deleted } = await brew.contacts.delete({
     email: 'missing@example.com',
   })
-  return contact
+  return deleted
 } catch (error) {
   if (error instanceof BrewApiError) {
     if (error.code === 'CONTACT_NOT_FOUND') {
-      return null
+      return 0
     }
     if (error.type === 'rate_limit') {
       console.warn(`Rate limited. Retry after ${error.retryAfter}s.`)
@@ -136,7 +136,7 @@ a defensive `catch`:
 
 ```ts
 try {
-  await brew.contacts.list()
+  await brew.contacts.search()
 } catch (error) {
   if (error instanceof BrewApiError) {
     // API responded with a non-2xx
@@ -158,7 +158,7 @@ const controller = new AbortController()
 setTimeout(() => controller.abort(), 5_000)
 
 try {
-  await brew.contacts.list({ limit: 100 }, { signal: controller.signal })
+  await brew.contacts.search({ limit: 100 }, { signal: controller.signal })
 } catch (error) {
   if (error instanceof Error && error.name === 'AbortError') {
     console.log('Request was aborted by the caller — no retry attempted.')

@@ -50,4 +50,45 @@ describe('analytics.sends.list', () => {
     expect(result.data[0]?.stats?.delivered).toBe(98)
     expect(result.pagination?.hasMore).toBe(false)
   })
+
+  it('detail mode: sendId + include events returns the single-row page with events[] inlined', async () => {
+    let url: string | undefined
+    server.use(
+      http.get('https://brew.new/api/v1/analytics/sends', ({ request }) => {
+        url = request.url
+        // Reads are flat: identity in the query; detail = `{ data: [row] }`.
+        return HttpResponse.json({
+          data: [
+            {
+              sendId: 'snd_promo',
+              kind: 'campaign',
+              emailId: 'eml_promo',
+              status: 'sent',
+              createdAt: '2026-04-08T12:00:00.000Z',
+              updatedAt: '2026-04-08T12:34:56.000Z',
+              events: [
+                {
+                  eventType: 'opened',
+                  occurredAt: '2026-04-08T12:35:00.000Z',
+                  recipientEmail: 'reader@example.com',
+                },
+              ],
+            },
+          ],
+        })
+      })
+    )
+
+    const { client } = makeTestHttpClient()
+    const list = createListSends(client)
+
+    const result = await list({ sendId: 'snd_promo', include: 'events' })
+
+    const params = new URL(url!).searchParams
+    expect(params.get('sendId')).toBe('snd_promo')
+    expect(params.get('include')).toBe('events')
+    expect(result.data[0]?.events).toHaveLength(1)
+    expect(result.data[0]?.events?.[0]?.eventType).toBe('opened')
+    expect(result.pagination).toBeUndefined()
+  })
 })
