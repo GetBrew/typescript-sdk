@@ -25,12 +25,13 @@ const ROW = {
 }
 
 describe('automations resource — POST/GET/PATCH/DELETE wiring', () => {
-  it('create POSTs with deterministic body and returns { automations: [row] }', async () => {
+  it('create POSTs with deterministic body and returns the bare automation row', async () => {
     let body: unknown
     server.use(
       http.post('https://brew.new/api/v1/automations', async ({ request }) => {
         body = await request.json()
-        return HttpResponse.json({ automations: [ROW] }, { status: 201 })
+        // 201 returns the BARE created row (no { automations: [...] } wrapper).
+        return HttpResponse.json(ROW, { status: 201 })
       })
     )
     const { client } = makeTestHttpClient()
@@ -45,10 +46,7 @@ describe('automations resource — POST/GET/PATCH/DELETE wiring', () => {
       name: 'Welcome',
       triggerEventId: 'tri_signup',
     })
-    expect('automations' in result).toBe(true)
-    if ('automations' in result) {
-      expect(result.automations[0]?.automationId).toBe('auto_abc')
-    }
+    expect(result.automationId).toBe('auto_abc')
   })
 
   it('does not surface `generate` / `regenerate` (deterministic-only)', () => {

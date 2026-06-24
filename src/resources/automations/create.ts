@@ -153,13 +153,12 @@ export type CreateAutomationInput = {
 }
 
 /**
- * `POST /v1/automations` response — `{ automations: [row] }`, the same
- * wrapper every other automations endpoint uses. Destructure via
- * `result.automations[0]`.
+ * `POST /v1/automations` (201) response — the BARE created automation row
+ * (draft, full graph). The `200` status is the dry-run validate result. Every
+ * other automations read/write (get/patch/publish/unpublish) also returns the
+ * bare row, not a `{ automations: [...] }` wrapper.
  */
-export type CreateAutomationResponse = {
-  automations: ReadonlyArray<Automation>
-}
+export type CreateAutomationResponse = Automation
 
 /**
  * `POST /v1/automations` — deterministic create.
