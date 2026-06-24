@@ -28,11 +28,11 @@ export type AutomationsResource = {
   readonly list: ReturnType<typeof createListAutomations>
   /** `GET /v1/automations/{automationId}` — single automation (bare `AutomationRow`, full graph). */
   readonly get: ReturnType<typeof createGetAutomation>
-  /** `PATCH /v1/automations/{automationId}` — update metadata and/or the graph. */
+  /** `PATCH /v1/automations/{automationId}` — update metadata and/or the graph, OR change the published lifecycle. */
   readonly patch: ReturnType<typeof createPatchAutomation>
-  /** `POST /v1/automations/{automationId}/publish`. Pass `automationVersionId` to publish a specific historical version. */
+  /** `PATCH /v1/automations/{automationId}` with `{ published: true }`. Pass `automationVersionId` to publish a specific historical version. */
   readonly publish: ReturnType<typeof createPublishAutomation>
-  /** `POST /v1/automations/{automationId}/unpublish`. */
+  /** `PATCH /v1/automations/{automationId}` with `{ published: false }`. */
   readonly unpublish: ReturnType<typeof createUnpublishAutomation>
   /** `GET /v1/automations/{automationId}/versions` — paged version history (`{ data, pagination }`). */
   readonly versions: ReturnType<typeof createListAutomationVersions>

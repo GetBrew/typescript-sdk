@@ -31,9 +31,73 @@ describe('brand.get', () => {
 
     expect(capturedRequest?.method).toBe('GET')
     expect(new URL(capturedRequest!.url).pathname).toBe('/api/v1/brand')
+    // No include → no query string.
+    expect(new URL(capturedRequest!.url).search).toBe('')
     expect(result.brand.brandId).toBe('brand_123')
     expect(result.brand.ready).toBe(true)
     expect(result.brand.status).toBe('completed')
+  })
+
+  it('serializes include as a single comma-separated ?include= value (array form)', async () => {
+    let capturedUrl: URL | undefined
+    server.use(
+      http.get('https://brew.new/api/v1/brand', ({ request }) => {
+        capturedUrl = new URL(request.url)
+        return HttpResponse.json({
+          brand: {
+            brandId: 'brand_123',
+            domain: 'acme.com',
+            status: 'completed',
+            ready: true,
+          },
+          identity: { brandName: 'Acme' },
+          logos: [{ src: 'https://cdn.brew.new/acme/logo.png' }],
+        })
+      })
+    )
+
+    const { client } = makeTestHttpClient()
+    const get = createGetBrand(client)
+
+    const result = await get({ include: ['identity', 'logos'] })
+
+    // Comma-joined into ONE query value (not repeated keys).
+    expect(capturedUrl?.searchParams.getAll('include')).toEqual([
+      'identity,logos',
+    ])
+    expect(capturedUrl?.search).toBe('?include=identity%2Clogos')
+    expect(result.identity?.brandName).toBe('Acme')
+    expect(result.logos?.[0]?.src).toBe('https://cdn.brew.new/acme/logo.png')
+  })
+
+  it('accepts a pre-joined comma string for include', async () => {
+    let capturedUrl: URL | undefined
+    server.use(
+      http.get('https://brew.new/api/v1/brand', ({ request }) => {
+        capturedUrl = new URL(request.url)
+        return HttpResponse.json({
+          brand: {
+            brandId: 'brand_123',
+            domain: 'acme.com',
+            status: 'completed',
+            ready: true,
+          },
+          emailDesign: '# Email design',
+          imageStyle: '# Image style',
+        })
+      })
+    )
+
+    const { client } = makeTestHttpClient()
+    const get = createGetBrand(client)
+
+    const result = await get({ include: 'emailDesign,imageStyle' })
+
+    expect(capturedUrl?.searchParams.getAll('include')).toEqual([
+      'emailDesign,imageStyle',
+    ])
+    expect(result.emailDesign).toBe('# Email design')
+    expect(result.imageStyle).toBe('# Image style')
   })
 
   it('returns the full BrewRawResponse when called with { raw: true }', async () => {
@@ -55,7 +119,7 @@ describe('brand.get', () => {
     const { client } = makeTestHttpClient()
     const get = createGetBrand(client)
 
-    const raw = await get({ raw: true })
+    const raw = await get(undefined, { raw: true })
 
     expect(raw.status).toBe(200)
     expect(raw.requestId).toBe('req_brand')

@@ -3,15 +3,14 @@
 Full CRUD for saved audiences (named filter sets over the brand's contacts).
 An audience is the recipient target for `brew.emails.send(...)`.
 
-| Method                    | HTTP                                       |
-| ------------------------- | ------------------------------------------ |
-| [`list`](#list)           | `GET /v1/audiences`                        |
-| [`get`](#get)             | `GET /v1/audiences/{audienceId}`           |
-| [`getCount`](#getcount)   | `GET /v1/audiences/{audienceId}/count`     |
-| [`create`](#create)       | `POST /v1/audiences`                       |
+| Method                    | HTTP                                        |
+| ------------------------- | ------------------------------------------- |
+| [`list`](#list)           | `GET /v1/audiences`                         |
+| [`get`](#get)             | `GET /v1/audiences/{audienceId}`            |
+| [`create`](#create)       | `POST /v1/audiences`                        |
 | [`duplicate`](#duplicate) | `POST /v1/audiences/{audienceId}/duplicate` |
-| [`update`](#update)       | `PATCH /v1/audiences/{audienceId}`         |
-| [`delete`](#delete)       | `DELETE /v1/audiences/{audienceId}`        |
+| [`update`](#update)       | `PATCH /v1/audiences/{audienceId}`          |
+| [`delete`](#delete)       | `DELETE /v1/audiences/{audienceId}`         |
 
 ## Shared types
 
@@ -59,12 +58,14 @@ const audience = await brew.audiences.get({ audienceId })
 console.log(audience.audienceName, audience.count)
 ```
 
-## `getCount`
-
-Fetch a fresh member count for one audience — `{ audienceId, count }`.
+Pass `include: 'count'` (or `['count']`) to make the returned `count` the
+**authoritative**, freshly computed live member total — the size a campaign
+send would target. Without it, `count` reflects the cached value, which reads
+`0` until a cache writer populates it.
 
 ```ts
-const { count } = await brew.audiences.getCount({ audienceId })
+const audience = await brew.audiences.get({ audienceId, include: 'count' })
+console.log(audience.count) // live member total
 ```
 
 ## `create`

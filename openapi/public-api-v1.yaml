@@ -7,7 +7,7 @@ info:
 
     ## Resource paths
 
-    Identity lives in the URL path (`/v1/analytics/sends/{sendId}`) — never in a query param or request body. Collections are plural top-level segments (`/v1/emails`); query params exist only for collection pagination + simple filters. Relationships are sub-resources (`/v1/emails/{emailId}/sends`), and non-CRUD operations are explicit action sub-paths (`/v1/automations/{automationId}/publish`).
+    Identity lives in the URL path (`/v1/analytics/sends/{sendId}`) — never in a query param or request body. Collections are plural top-level segments (`/v1/emails`); query params exist only for collection pagination + simple filters. Relationships are sub-resources (`/v1/emails/{emailId}/sends`), and non-CRUD operations are explicit action sub-paths (`/v1/automations/{automationId}/test`).
 
     ## Response envelopes
 
@@ -38,11 +38,9 @@ security:
   - apiKeyAuth: []
 tags:
   - name: Emails
-    description: Email designs — generate with the Brew email agent, edit, version, restore. A design carries no send state; deliver it via Sends or an automation.
-  - name: Sends
-    description: "The unit of delivery: one design to one audience via one domain. Create campaign sends and fire test deliveries. Send reads (list, status, per-send event feeds) live under Analytics (`/v1/analytics/sends`)."
+    description: "Email designs and sending. Generate a design with the Brew email agent, edit, version, restore — then send it: `POST /v1/sends` delivers a design to a target (a saved audience, an inline list, or a single address) via a verified domain, and `POST /v1/sends/test` fires a one-off test. Sending is not campaign-specific. Send reads (list, status, per-send event feeds) live under Analytics (`/v1/analytics/sends`)."
   - name: Analytics
-    description: "Read-only cross-resource analytics: lifetime per-send campaign KPIs, windowed automation performance, the unified event feed, campaign send reads (`/v1/analytics/sends`), and the fired-trigger audit log (`/v1/analytics/trigger-instances`)."
+    description: "Read-only cross-resource analytics: lifetime per-campaign KPIs, windowed automation performance, the unified event feed, send reads (`/v1/analytics/sends`), and the fired-trigger audit log (`/v1/analytics/trigger-instances`)."
   - name: Automations
     description: Automation graphs — deterministic create from explicit `nodes` + `connections`, update, version, publish / unpublish, test. Includes trigger event definitions + the fire endpoint (`/v1/automations/triggers`) and run history (`/v1/automations/runs`).
   - name: Contacts
@@ -50,7 +48,7 @@ tags:
   - name: Contact Fields
     description: List, create, and delete custom contact field definitions.
   - name: Audiences
-    description: Saved contact filter sets — the recipient targets for campaign sends.
+    description: Saved contact filter sets — a recipient target for sends.
   - name: Domains
     description: "Sending domains: add, read DNS records, verify, configure sender defaults."
   - name: Templates
@@ -3276,6 +3274,12 @@ components:
           maxLength: 256
         dryRun:
           type: boolean
+        published:
+          type: boolean
+        automationVersionId:
+          type: string
+          minLength: 1
+          maxLength: 64
       additionalProperties: false
     AutomationsDeleteResponse:
       type: object
@@ -3640,14 +3644,6 @@ components:
       required:
         - data
         - pagination
-      additionalProperties: false
-    AutomationPublishRequest:
-      type: object
-      properties:
-        automationVersionId:
-          type: string
-          minLength: 1
-          maxLength: 64
       additionalProperties: false
     AutomationRunStartedResponse:
       type: object
@@ -5151,20 +5147,6 @@ components:
         - name
         - filters
       additionalProperties: false
-    AudienceCountResponse:
-      type: object
-      properties:
-        audienceId:
-          type: string
-          minLength: 1
-          maxLength: 64
-        count:
-          type: integer
-          minimum: 0
-      required:
-        - audienceId
-        - count
-      additionalProperties: false
     AudiencesPatchRequest:
       type: object
       properties:
@@ -5485,86 +5467,33 @@ components:
             - status
             - ready
           additionalProperties: false
-      required:
-        - brand
-      additionalProperties: false
-    BrandEmailDesignResponse:
-      type: object
-      properties:
-        markdown:
+        identity:
+          type: object
+          properties:
+            brandName:
+              type: string
+            description:
+              type: string
+            tagline:
+              type: string
+            contactEmail:
+              type: string
+            contactPhone:
+              type: string
+            address:
+              type: string
+            socialLinks:
+              type: array
+              items: {}
+            contentLinks:
+              type: array
+              items: {}
+          additionalProperties: {}
+        emailDesign:
           type: string
-      required:
-        - markdown
-      additionalProperties: false
-    BrandEmailDesignPutRequest:
-      type: object
-      properties:
-        markdown:
+        imageStyle:
           type: string
-          maxLength: 200000
-      required:
-        - markdown
-      additionalProperties: false
-    BrandImageStyleResponse:
-      type: object
-      properties:
-        markdown:
-          type: string
-      required:
-        - markdown
-      additionalProperties: false
-    BrandImageStylePutRequest:
-      type: object
-      properties:
-        markdown:
-          type: string
-          maxLength: 200000
-      required:
-        - markdown
-      additionalProperties: false
-    BrandIdentity:
-      type: object
-      properties:
-        brandName:
-          type: string
-        description:
-          type: string
-        tagline:
-          type: string
-        contactEmail:
-          type: string
-        contactPhone:
-          type: string
-        address:
-          type: string
-        socialLinks:
-          type: array
-          items: {}
-        contentLinks:
-          type: array
-          items: {}
-      additionalProperties: {}
-    BrandIdentityPatchRequest:
-      type: object
-      properties:
-        brandName:
-          type: string
-          minLength: 1
-        description:
-          type: string
-        tagline:
-          type: string
-        contactEmail:
-          type: string
-        contactPhone:
-          type: string
-        address:
-          type: string
-      additionalProperties: false
-    BrandLogosResponse:
-      type: object
-      properties:
-        data:
+        logos:
           type: array
           items:
             type: object
@@ -5588,7 +5517,34 @@ components:
             required:
               - src
       required:
-        - data
+        - brand
+      additionalProperties: false
+    BrandPatchRequest:
+      type: object
+      properties:
+        identity:
+          type: object
+          properties:
+            brandName:
+              type: string
+              minLength: 1
+            description:
+              type: string
+            tagline:
+              type: string
+            contactEmail:
+              type: string
+            contactPhone:
+              type: string
+            address:
+              type: string
+          additionalProperties: false
+        emailDesign:
+          type: string
+          maxLength: 200000
+        imageStyle:
+          type: string
+          maxLength: 200000
       additionalProperties: false
     BrandImagesResponse:
       type: object
@@ -5719,103 +5675,102 @@ components:
           type: boolean
       required:
         - gifUrl
-        - videoUrl
-        - altText
-        - duration
-        - fps
-        - aspectRatio
-        - loop
       additionalProperties: false
-    ContentGenerateGifRequest:
-      type: object
-      properties:
-        prompt:
-          type: string
-          minLength: 1
-          maxLength: 2000
-        duration:
-          type: integer
-          minimum: 1
-          maximum: 10
-        fps:
-          type: integer
-          minimum: 1
-          maximum: 24
-        aspectRatio:
-          type: string
-          enum:
-            - 16:9
-            - 4:3
-            - 1:1
-            - 3:4
-            - 9:16
-            - 21:9
-            - 9:21
-        loop:
-          type: boolean
-      required:
-        - prompt
-      additionalProperties: false
-    ContentImageToGifRequest:
-      type: object
-      properties:
-        imageUrl:
-          type: string
-          format: uri
-        prompt:
-          type: string
-          minLength: 1
-          maxLength: 2000
-        duration:
-          type: integer
-          minimum: 1
-          maximum: 10
-        fps:
-          type: integer
-          minimum: 1
-          maximum: 24
-        aspectRatio:
-          type: string
-          enum:
-            - 16:9
-            - 4:3
-            - 1:1
-            - 3:4
-            - 9:16
-            - 21:9
-            - 9:21
-        loop:
-          type: boolean
-      required:
-        - imageUrl
-      additionalProperties: false
-    ContentVideoToGifResponse:
-      type: object
-      properties:
-        gifUrl:
-          type: string
-          format: uri
-      required:
-        - gifUrl
-      additionalProperties: false
-    ContentVideoToGifRequest:
-      type: object
-      properties:
-        videoUrl:
-          type: string
-          format: uri
-        fps:
-          type: integer
-          minimum: 1
-          maximum: 24
-        width:
-          type: integer
-          minimum: 16
-          maximum: 2000
-      required:
-        - videoUrl
-      additionalProperties: false
-    ContentOptimizedImageResponse:
+    ContentGifRequest:
+      oneOf:
+        - type: object
+          properties:
+            from:
+              type: string
+              enum:
+                - prompt
+            prompt:
+              type: string
+              minLength: 1
+              maxLength: 2000
+            duration:
+              type: integer
+              minimum: 1
+              maximum: 10
+            fps:
+              type: integer
+              minimum: 1
+              maximum: 24
+            aspectRatio:
+              type: string
+              enum:
+                - 16:9
+                - 4:3
+                - 1:1
+                - 3:4
+                - 9:16
+                - 21:9
+                - 9:21
+            loop:
+              type: boolean
+          required:
+            - from
+            - prompt
+          additionalProperties: false
+        - type: object
+          properties:
+            from:
+              type: string
+              enum:
+                - image
+            imageUrl:
+              type: string
+              format: uri
+            prompt:
+              type: string
+              minLength: 1
+              maxLength: 2000
+            duration:
+              type: integer
+              minimum: 1
+              maximum: 10
+            fps:
+              type: integer
+              minimum: 1
+              maximum: 24
+            aspectRatio:
+              type: string
+              enum:
+                - 16:9
+                - 4:3
+                - 1:1
+                - 3:4
+                - 9:16
+                - 21:9
+                - 9:21
+            loop:
+              type: boolean
+          required:
+            - from
+            - imageUrl
+          additionalProperties: false
+        - type: object
+          properties:
+            from:
+              type: string
+              enum:
+                - video
+            videoUrl:
+              type: string
+              format: uri
+            fps:
+              type: integer
+              minimum: 1
+              maximum: 24
+            width:
+              type: integer
+              minimum: 16
+              maximum: 2000
+          required:
+            - from
+            - videoUrl
+          additionalProperties: false
+    ContentTransformResponse:
       type: object
       properties:
         url:
@@ -5832,34 +5787,6 @@ components:
         bytes:
           type: integer
           minimum: 0
-      required:
-        - url
-        - width
-        - height
-        - aspectRatio
-        - bytes
-      additionalProperties: false
-    ContentOptimizeImageRequest:
-      type: object
-      properties:
-        imageUrl:
-          type: string
-          format: uri
-      required:
-        - imageUrl
-      additionalProperties: false
-    ContentResizeResponse:
-      type: object
-      properties:
-        url:
-          type: string
-          format: uri
-        width:
-          type: integer
-          minimum: 0
-        height:
-          type: integer
-          minimum: 0
         fallbackUsed:
           type: boolean
       required:
@@ -5867,40 +5794,59 @@ components:
         - width
         - height
       additionalProperties: false
-    ContentResizeRequest:
-      type: object
-      properties:
-        imageUrl:
-          type: string
-          format: uri
-        width:
-          type: integer
-          minimum: 1
-          maximum: 4096
-        height:
-          type: integer
-          minimum: 1
-          maximum: 4096
-        prompt:
-          type: string
-          maxLength: 2000
-        resolution:
-          type: string
-          enum:
-            - 1K
-            - 2K
-            - 4K
-        outputFormat:
-          type: string
-          enum:
-            - png
-            - jpeg
-            - webp
-      required:
-        - imageUrl
-        - width
-        - height
-      additionalProperties: false
+    ContentTransformRequest:
+      oneOf:
+        - type: object
+          properties:
+            operation:
+              type: string
+              enum:
+                - optimize
+            imageUrl:
+              type: string
+              format: uri
+          required:
+            - operation
+            - imageUrl
+          additionalProperties: false
+        - type: object
+          properties:
+            operation:
+              type: string
+              enum:
+                - resize
+            imageUrl:
+              type: string
+              format: uri
+            width:
+              type: integer
+              minimum: 1
+              maximum: 4096
+            height:
+              type: integer
+              minimum: 1
+              maximum: 4096
+            prompt:
+              type: string
+              maxLength: 2000
+            resolution:
+              type: string
+              enum:
+                - 1K
+                - 2K
+                - 4K
+            outputFormat:
+              type: string
+              enum:
+                - png
+                - jpeg
+                - webp
+          required:
+            - operation
+            - imageUrl
+            - width
+            - height
+          additionalProperties: false
     ContentPngResponse:
       type: object
       properties:
@@ -6303,7 +6249,7 @@ paths:
         - Emails
       summary: Generate an email design
       description: |-
-        Generates a new design through the Brew email agent. Emails are pure DESIGNS in the decoupled model — no send state, no type. Sending happens later: `POST /v1/sends` (campaign), `POST /v1/sends/test` (one-off test), or a `sendEmail` node in an automation graph referencing the returned `(emailId, emailVersionId)`.
+        Generates a new design through the Brew email agent. Emails are pure DESIGNS in the decoupled model — no send state, no type. Sending happens later — `POST /v1/sends` delivers the design to a target (a saved audience, an inline list, or a single address) via a verified domain, `POST /v1/sends/test` fires a one-off test, or a `sendEmail` node in an automation graph references the returned `emailId` + `emailVersionId`.
 
         Returns `201` with `{ emailId, emailVersionId, html, previewImage? }` when a design was persisted, or `200` with `{ response }` when the agent answered in prose without writing a design. Supports `Idempotency-Key` for safe retries.
       parameters:
@@ -6867,7 +6813,7 @@ paths:
       operationId: editEmail
       tags:
         - Emails
-      summary: Edit an email design (AI prompt or manual JSX)
+      summary: Edit an email design
       description: |-
         Writes a new `version: "latest"` row on the same `emailId` (the previous head is demoted to a numeric historical version) via one of two mutually-exclusive bodies:
 
@@ -6901,7 +6847,7 @@ paths:
                 value:
                   prompt: Tighten the headline and replace the CTA copy with "Get started today".
               manualJsx:
-                summary: Manual JSX save (hand-authored React-Email markup)
+                summary: Manual JSX save
                 value:
                   jsx: <Html><Body><Container><Text>Welcome to Brew.</Text></Container></Body></Html>
       responses:
@@ -6945,7 +6891,7 @@ paths:
                   summary: Generated design
                   value: *a1
                 textOnly:
-                  summary: Text response (no design written)
+                  summary: Text response
                   value: *a2
         "400":
           description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
@@ -8181,7 +8127,7 @@ paths:
       operationId: auditEmailAccessibility
       tags:
         - Emails
-      summary: Accessibility audit (free)
+      summary: Accessibility audit
       description: A FREE, deterministic rule-based accessibility audit of the email’s rendered HTML against WCAG 2.1 (missing alt text, non-descriptive links, low text contrast, tiny fonts, missing `lang`, empty headings). Returns a `score` (0–100), a `summary`, and a list of `issues` with their WCAG criterion. No credits, no side effects.
       parameters:
         - schema:
@@ -8403,7 +8349,7 @@ paths:
       tags:
         - Emails
       summary: List sends of an email design
-      description: The design’s send history under `{ data, pagination }` — a design can be sent unlimited times, and each campaign send is its own `Send` row. Same filters as `GET /v1/analytics/sends` (`status`, `from`, `to`). 404s on an unknown design so an empty history is distinguishable from a bad id. Requires the `sends` scope.
+      description: The design’s send history under `{ data, pagination }` — a design can be sent unlimited times, and each send is its own `Send` row. Same filters as `GET /v1/analytics/sends` (`status`, `from`, `to`). 404s on an unknown design so an empty history is distinguishable from a bad id. Requires the `sends` scope.
       parameters:
         - name: status
           in: query
@@ -8455,7 +8401,7 @@ paths:
           in: path
       responses:
         "200":
-          description: A page of this design’s campaign sends.
+          description: A page of this design’s sends.
           headers:
             x-request-id:
               schema:
@@ -8648,7 +8594,7 @@ paths:
       tags:
         - Analytics
       summary: List sends
-      description: "Lists the brand’s campaign sends (newest first) under `{ data, pagination }`. A send is the unit of delivery + analytics: one design delivered to one audience via one domain. Filter with `?status=` (scheduled | queued | sending | sent | failed | canceled) and the `from`/`to` ISO-8601 window."
+      description: "Lists the brand’s sends, newest first, under `{ data, pagination }`. A send is the unit of delivery + analytics: one design delivered to a target (audience, inline list, or single address) via one domain. Filter with `?status=` (scheduled | queued | sending | sent | failed | canceled) and the `from`/`to` ISO-8601 window."
       parameters:
         - name: status
           in: query
@@ -8695,7 +8641,7 @@ paths:
             maxLength: 512
       responses:
         "200":
-          description: A page of campaign sends.
+          description: A page of sends.
           headers:
             x-request-id:
               schema:
@@ -8896,12 +8842,12 @@ paths:
     post:
       operationId: createSend
       tags:
-        - Sends
-      summary: Create a campaign send
+        - Emails
+      summary: Send an email
       description: |-
-        Starts an async campaign send: one design (`emailId`, optionally pinned to an exact `emailVersionId`) via a verified domain. A design can be sent unlimited times — every call mints a new send. Returns `202` with the `sendId` to poll via `GET /v1/analytics/sends/{sendId}`.
+        Sends an email design. A send combines the design (`emailId`, optionally pinned to an exact `emailVersionId`), a verified sending domain, and a target — a saved audience, an inline list, or a single address — into one delivery event. It is NOT campaign-specific: the same design can be sent unlimited times, and every call mints a new send. Returns `202` with the `sendId` to poll via `GET /v1/analytics/sends/{sendId}`.
 
-        Recipients — provide EXACTLY ONE of:
+        Target — provide EXACTLY ONE of:
         - `audienceId` — a saved audience (any size), or
         - `to` — inline addresses (a single email or an array, max 50). For larger lists, save an audience.
 
@@ -8937,7 +8883,7 @@ paths:
                   audienceId: aud_subscribers
                   scheduledAt: 2099-01-01T00:00:00.000Z
               inline:
-                summary: Send to inline recipients (no saved audience)
+                summary: Send to inline recipients
                 value:
                   emailId: eml_welcome
                   domainId: kx7bkh53hasmfeh5kd7sqgykt187g8ww
@@ -8947,7 +8893,7 @@ paths:
                     - design@acme.com
       responses:
         "202":
-          description: The campaign send was accepted (queued or scheduled).
+          description: The send was accepted, queued or scheduled.
           headers:
             x-request-id:
               schema:
@@ -9203,7 +9149,7 @@ paths:
     post:
       operationId: createTestSend
       tags:
-        - Sends
+        - Emails
       summary: Send a test email
       description: Fires a one-off [TEST] delivery of a design’s current (or pinned) body to a single caller-supplied address. Forces the Brew default sender — no verified domain or audience required — and never creates a send row. Synchronous `200`.
       parameters:
@@ -10568,7 +10514,7 @@ paths:
         - Automations
       summary: Create an automation
       description: |-
-        Deterministic create — the body carries the full graph (`{ name, triggerEventId, nodes, connections }`). Returns `201` with the bare `AutomationRow`. The new automation starts as a draft; promote it with `POST /v1/automations/{automationId}/publish`.
+        Deterministic create — the body carries the full graph (`{ name, triggerEventId, nodes, connections }`). Returns `201` with the bare `AutomationRow`. The new automation starts as a draft; promote it with `PATCH /v1/automations/{automationId}` `{ "published": true }`.
 
         Chain `POST /v1/emails { prompt }` first to mint the design each `sendEmail` node references — every `sendEmail` node MUST carry `emailId`, `emailVersionId`, `domainId`, `subject`, `previewText`.
 
@@ -10673,13 +10619,13 @@ paths:
                 name: Welcome flow
                 version: latest
                 published: false
-                nodes: &a13
+                nodes:
                   - *a9
                   - *a10
-                connections: &a14
+                connections:
                   - from: trg
                     to: send_welcome
-                emailIds: &a15
+                emailIds:
                   - eml_welcome
                 createdAt: 2026-04-08T12:00:00.000Z
                 updatedAt: 2026-04-08T12:00:00.000Z
@@ -11275,11 +11221,14 @@ paths:
       operationId: updateAutomation
       tags:
         - Automations
-      summary: Update an automation
+      summary: Update or publish an automation
       description: |-
-        Updates metadata and/or the graph — at least one of `name`, `description`, `nodes`, `connections`, `triggerEventId`. Graph updates persist a new `automationVersionId` on the same `automationId`. Returns the bare updated row.
+        One endpoint, two mutually-exclusive modes:
 
-        Publishing is its own action: `POST /v1/automations/{automationId}/publish` / `…/unpublish`. Add `dryRun: true` to validate a graph update without persisting.
+        - **Update** — supply one or more of `name`, `description`, `nodes`, `connections`, `triggerEventId`. Graph updates persist a new `automationVersionId` on the same `automationId`. Add `dryRun: true` to validate a graph update without persisting.
+        - **Lifecycle** — supply `published: true` to promote the stored latest version live (validates the graph first → `409 PUBLISH_VALIDATION_FAILED` on blockers; optionally pin `automationVersionId` to publish a specific version), or `published: false` to unpublish.
+
+        The two modes cannot be combined: publishing promotes the stored graph, so update first, then PATCH `{ "published": true }`. Returns the bare automation row.
       parameters:
         - schema:
             type: string
@@ -11311,9 +11260,22 @@ paths:
                   connections:
                     - from: trg
                       to: send_welcome
+              publish:
+                summary: Publish (promote live)
+                value:
+                  published: true
+              publishVersion:
+                summary: Publish a pinned version
+                value:
+                  published: true
+                  automationVersionId: av_v2
+              unpublish:
+                summary: Unpublish
+                value:
+                  published: false
       responses:
         "200":
-          description: "Updated. The bare automation row (or the dry-run result when `dryRun: true`)."
+          description: "Updated / published / unpublished. The bare automation row (or the dry-run result when `dryRun: true`)."
           headers:
             x-request-id:
               schema:
@@ -11349,7 +11311,7 @@ paths:
                 $ref: "#/components/schemas/AutomationRow"
               example: *a11
         "400":
-          description: Strict-body violation, no editable field supplied, or `AUTOMATION_GRAPH_INVALID` (see `details.issues`).
+          description: Strict-body violation, no actionable field supplied, `published` combined with update fields, or `AUTOMATION_GRAPH_INVALID` (see `details.issues`).
           headers:
             x-request-id:
               schema:
@@ -11366,10 +11328,10 @@ paths:
                 error:
                   code: INVALID_REQUEST
                   type: invalid_request
-                  message: At least one of `name`, `description`, `nodes`, `connections`, or `triggerEventId` must be supplied for an update.
-                  suggestion: Send at least one editable field.
+                  message: Provide `published` to publish/unpublish, or at least one of `name`, `description`, `nodes`, `connections`, or `triggerEventId` to update.
+                  suggestion: Send a lifecycle (`published`) or at least one editable field.
                   docs: https://docs.brew.new/api-reference/api/errors
-                  param: name
+                  param: published
         "401":
           description: The API key was missing, invalid, or revoked.
           headers:
@@ -11428,6 +11390,50 @@ paths:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
               example: *a12
+        "409":
+          description: "`PUBLISH_VALIDATION_FAILED` — `published: true` but the graph has blockers (see `details.blockers`)."
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: PUBLISH_VALIDATION_FAILED
+                  type: conflict
+                  message: Add at least one Send Email action
+                  suggestion: Fix every blocker reported in `details.blockers` then publish again.
+                  docs: https://docs.brew.new/api-reference/api/errors
+                  param: published
+        "422":
+          description: "`AUTOMATION_NOT_PUBLISHED` — `published: false` but the automation was never published (nothing to unpublish)."
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: AUTOMATION_NOT_PUBLISHED
+                  type: invalid_request
+                  message: Automation 'auto_abc' is not currently published — nothing to unpublish.
+                  suggestion: Verify the automation is published via GET /v1/automations/{automationId}.
+                  docs: https://docs.brew.new/api-reference/api/errors
+                  param: published
         "429":
           description: The request hit the rolling rate limit window.
           headers:
@@ -11803,444 +11809,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
               example: *a12
-        "429":
-          description: The request hit the rolling rate limit window.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-            X-RateLimit-Limit:
-              schema:
-                type: integer
-                description: Requests allowed in the current rolling rate limit window.
-                example: 100
-              required: true
-              description: Requests allowed in the current rolling rate limit window.
-            X-RateLimit-Remaining:
-              schema:
-                type: integer
-                description: Requests remaining in the current rolling rate limit window.
-                example: 99
-              required: true
-              description: Requests remaining in the current rolling rate limit window.
-            X-RateLimit-Reset:
-              schema:
-                type: integer
-                description: Unix timestamp in seconds for when the rolling window fully resets.
-                example: 1712592360
-              required: true
-              description: Unix timestamp in seconds for when the rolling window fully resets.
-            Retry-After:
-              schema:
-                type: integer
-                description: Seconds to wait before retrying the request.
-                example: 42
-              required: true
-              description: Seconds to wait before retrying the request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: RATE_LIMITED
-                  type: rate_limit
-                  message: Too many requests.
-                  suggestion: Wait for the retry window before sending another request.
-                  docs: https://docs.brew.new/api-reference/api/rate-limits
-                  retryAfter: 42
-        "500":
-          description: Unexpected internal error.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INTERNAL_ERROR
-                  type: internal_error
-                  message: An unexpected error occurred.
-                  suggestion: Retry the request. If it keeps failing, contact support.
-                  docs: https://docs.brew.new/api-reference/api/errors
-  /v1/automations/{automationId}/publish:
-    post:
-      operationId: publishAutomation
-      tags:
-        - Automations
-      summary: Publish an automation
-      description: Promotes the automation to live — its trigger starts matching fires. Body optionally pins the exact `automationVersionId` to promote; omit (or send `{}`) to publish the current latest. Returns the bare published row.
-      parameters:
-        - *a4
-        - schema:
-            type: string
-            minLength: 1
-            maxLength: 64
-            description: Automation id returned by `POST /v1/automations` and listed by `GET /v1/automations`.
-            example: auto_abc
-          required: true
-          description: Automation id returned by `POST /v1/automations` and listed by `GET /v1/automations`.
-          name: automationId
-          in: path
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/AutomationPublishRequest"
-            examples:
-              latest:
-                summary: Publish the latest version
-                value: {}
-              pinned:
-                summary: Publish a specific historical version
-                value:
-                  automationVersionId: av_v2
-      responses:
-        "200":
-          description: Published.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-            X-RateLimit-Limit:
-              schema:
-                type: integer
-                description: Requests allowed in the current rolling rate limit window.
-                example: 100
-              required: true
-              description: Requests allowed in the current rolling rate limit window.
-            X-RateLimit-Remaining:
-              schema:
-                type: integer
-                description: Requests remaining in the current rolling rate limit window.
-                example: 99
-              required: true
-              description: Requests remaining in the current rolling rate limit window.
-            X-RateLimit-Reset:
-              schema:
-                type: integer
-                description: Unix timestamp in seconds for when the rolling window fully resets.
-                example: 1712592360
-              required: true
-              description: Unix timestamp in seconds for when the rolling window fully resets.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AutomationRow"
-              example:
-                automationId: auto_abc
-                automationVersionId: av_v1
-                triggerEventId: tri_signup
-                name: Welcome flow
-                version: latest
-                published: true
-                nodes: *a13
-                connections: *a14
-                emailIds: *a15
-                createdAt: 2026-04-08T12:00:00.000Z
-                updatedAt: 2026-04-08T12:00:00.000Z
-        "401":
-          description: The API key was missing, invalid, or revoked.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INVALID_API_KEY
-                  type: authentication_error
-                  message: The provided API key is invalid.
-                  suggestion: Check the API key format and retry with a valid active key.
-                  docs: https://docs.brew.new/api-reference/api/authentication
-        "403":
-          description: The caller does not have the required `automations` permission.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INSUFFICIENT_PERMISSIONS
-                  type: authorization_error
-                  message: The caller does not have the required permission.
-                  suggestion: Use an API key or session with the required permission.
-                  docs: https://docs.brew.new/api-reference/api/authentication
-                  param: automations
-        "404":
-          description: Automation not found in the API-key brand. Cross-brand ids intentionally surface as 404 (never 403) so the API does not leak cross-brand existence.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example: *a12
-        "409":
-          description: Publish validation failed — see `details.blockers` for each blocker (`nodeId` / `nodeLabel` / `message`). Also returned on Idempotency-Key reuse with a different body (`IDEMPOTENCY_CONFLICT`).
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: PUBLISH_VALIDATION_FAILED
-                  type: conflict
-                  message: Add at least one Send Email action
-                  suggestion: Fix every blocker reported in `details.blockers` then publish again.
-                  docs: https://docs.brew.new/api-reference/api/errors
-        "429":
-          description: The request hit the rolling rate limit window.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-            X-RateLimit-Limit:
-              schema:
-                type: integer
-                description: Requests allowed in the current rolling rate limit window.
-                example: 100
-              required: true
-              description: Requests allowed in the current rolling rate limit window.
-            X-RateLimit-Remaining:
-              schema:
-                type: integer
-                description: Requests remaining in the current rolling rate limit window.
-                example: 99
-              required: true
-              description: Requests remaining in the current rolling rate limit window.
-            X-RateLimit-Reset:
-              schema:
-                type: integer
-                description: Unix timestamp in seconds for when the rolling window fully resets.
-                example: 1712592360
-              required: true
-              description: Unix timestamp in seconds for when the rolling window fully resets.
-            Retry-After:
-              schema:
-                type: integer
-                description: Seconds to wait before retrying the request.
-                example: 42
-              required: true
-              description: Seconds to wait before retrying the request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: RATE_LIMITED
-                  type: rate_limit
-                  message: Too many requests.
-                  suggestion: Wait for the retry window before sending another request.
-                  docs: https://docs.brew.new/api-reference/api/rate-limits
-                  retryAfter: 42
-        "500":
-          description: Unexpected internal error.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INTERNAL_ERROR
-                  type: internal_error
-                  message: An unexpected error occurred.
-                  suggestion: Retry the request. If it keeps failing, contact support.
-                  docs: https://docs.brew.new/api-reference/api/errors
-  /v1/automations/{automationId}/unpublish:
-    post:
-      operationId: unpublishAutomation
-      tags:
-        - Automations
-      summary: Unpublish an automation
-      description: "Takes the automation off live — its trigger stops matching fires; in-flight runs finish. Empty body. Returns the bare row with `published: false`."
-      parameters:
-        - *a4
-        - schema:
-            type: string
-            minLength: 1
-            maxLength: 64
-            description: Automation id returned by `POST /v1/automations` and listed by `GET /v1/automations`.
-            example: auto_abc
-          required: true
-          description: Automation id returned by `POST /v1/automations` and listed by `GET /v1/automations`.
-          name: automationId
-          in: path
-      responses:
-        "200":
-          description: Unpublished.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-            X-RateLimit-Limit:
-              schema:
-                type: integer
-                description: Requests allowed in the current rolling rate limit window.
-                example: 100
-              required: true
-              description: Requests allowed in the current rolling rate limit window.
-            X-RateLimit-Remaining:
-              schema:
-                type: integer
-                description: Requests remaining in the current rolling rate limit window.
-                example: 99
-              required: true
-              description: Requests remaining in the current rolling rate limit window.
-            X-RateLimit-Reset:
-              schema:
-                type: integer
-                description: Unix timestamp in seconds for when the rolling window fully resets.
-                example: 1712592360
-              required: true
-              description: Unix timestamp in seconds for when the rolling window fully resets.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AutomationRow"
-              example: *a11
-        "401":
-          description: The API key was missing, invalid, or revoked.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INVALID_API_KEY
-                  type: authentication_error
-                  message: The provided API key is invalid.
-                  suggestion: Check the API key format and retry with a valid active key.
-                  docs: https://docs.brew.new/api-reference/api/authentication
-        "403":
-          description: The caller does not have the required `automations` permission.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INSUFFICIENT_PERMISSIONS
-                  type: authorization_error
-                  message: The caller does not have the required permission.
-                  suggestion: Use an API key or session with the required permission.
-                  docs: https://docs.brew.new/api-reference/api/authentication
-                  param: automations
-        "404":
-          description: Automation not found in the API-key brand. Cross-brand ids intentionally surface as 404 (never 403) so the API does not leak cross-brand existence.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example: *a12
-        "422":
-          description: The automation is not currently published.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: AUTOMATION_NOT_PUBLISHED
-                  type: invalid_request
-                  message: Automation 'auto_abc' is not currently published — nothing to unpublish.
-                  suggestion: Check `published` via GET /v1/automations/{automationId}.
-                  docs: https://docs.brew.new/api-reference/api/errors
-                  param: published
         "429":
           description: The request hit the rolling rate limit window.
           headers:
@@ -13105,7 +12673,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/TriggerRow"
-              example: &a16
+              example: &a13
                 triggerEventId: tri_signup
                 title: User Signed Up
                 description: Fires when a user completes signup.
@@ -13325,7 +12893,7 @@ paths:
                 $ref: "#/components/schemas/TriggersListResponse"
               example:
                 data:
-                  - *a16
+                  - *a13
                 pagination:
                   limit: 100
                   cursor: null
@@ -13520,7 +13088,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/TriggerRow"
-              example: *a16
+              example: *a13
         "401":
           description: The API key was missing, invalid, or revoked.
           headers:
@@ -13578,7 +13146,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
-              example: &a17
+              example: &a14
                 error:
                   code: TRIGGER_EVENT_NOT_FOUND
                   type: not_found
@@ -13718,7 +13286,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/TriggerRow"
-              example: *a16
+              example: *a13
         "400":
           description: Strict-body violation or no editable field supplied (a bare id with no updates is rejected).
           headers:
@@ -13798,7 +13366,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
-              example: *a17
+              example: *a14
         "422":
           description: Integration-provisioned trigger — manage it from the integration instead.
           headers:
@@ -14435,7 +14003,7 @@ paths:
                 $ref: "#/components/schemas/EventsListResponse"
               example:
                 data:
-                  - &a18
+                  - &a15
                     triggerInstanceId: tin_8f2k
                     source: api
                     provider: brew_api
@@ -14642,7 +14210,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/TriggerEventInstance"
-              example: *a18
+              example: *a15
         "401":
           description: The API key was missing, invalid, or revoked.
           headers:
@@ -14836,9 +14404,9 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ContactsListResponse"
-              example: &a22
+              example: &a19
                 data:
-                  - &a19
+                  - &a16
                     email: jane@example.com
                     firstName: Jane
                     lastName: Doe
@@ -14849,7 +14417,7 @@ paths:
                     createdAt: 2026-04-08T12:00:00.000Z
                     updatedAt: 2026-04-08T12:05:00.000Z
                     importId: null
-                    customFields: &a20
+                    customFields: &a17
                       plan: enterprise
                       revenue: 4200
                   - email: john@example.com
@@ -15117,7 +14685,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ContactsPostSingleResponse"
               example:
-                contact: *a19
+                contact: *a16
                 created: true
                 fieldsCreated:
                   - plan
@@ -15379,7 +14947,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Contact"
-              example: *a19
+              example: *a16
         "401":
           description: The API key was missing, invalid, or revoked.
           headers:
@@ -15437,7 +15005,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
-              example: &a21
+              example: &a18
                 error:
                   code: CONTACT_NOT_FOUND
                   type: not_found
@@ -15590,7 +15158,7 @@ paths:
                   createdAt: 2026-04-08T12:00:00.000Z
                   updatedAt: 2026-04-08T12:05:00.000Z
                   importId: null
-                  customFields: *a20
+                  customFields: *a17
                 updated:
                   - firstName
                   - plan
@@ -15673,7 +15241,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
-              example: *a21
+              example: *a18
         "422":
           description: Attempted to write a read-only core column.
           headers:
@@ -16010,7 +15578,7 @@ paths:
               examples:
                 page:
                   summary: Result page
-                  value: *a22
+                  value: *a19
                 count:
                   summary: Count mode
                   value:
@@ -17581,10 +17149,10 @@ paths:
                 $ref: "#/components/schemas/AudiencesListResponse"
               example:
                 data:
-                  - &a23
+                  - &a20
                     audienceId: jn7a8w4q8m9k2p1x7c3b5v6n9h7s2d4f
                     audienceName: Nordic Founders
-                    filters: &a25
+                    filters: &a22
                       filters:
                         - field: country
                           operator: equals
@@ -17791,7 +17359,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Audience"
-              example: *a23
+              example: *a20
         "400":
           description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
           headers:
@@ -17955,7 +17523,7 @@ paths:
       tags:
         - Audiences
       summary: Get an audience
-      description: Returns the bare audience row.
+      description: Returns the bare audience row. The row’s `count` is a cached value (`0` until a cache writer populates it) — pass `?include=count` to replace it with an authoritative, freshly-computed member total (the size a send would target).
       parameters:
         - schema:
             type: string
@@ -17967,9 +17535,14 @@ paths:
           description: Audience id (opaque Convex document id) returned by `POST /v1/audiences` and listed by `GET /v1/audiences`.
           name: audienceId
           in: path
+        - schema:
+            type: string
+          required: false
+          name: include
+          in: query
       responses:
         "200":
-          description: The audience.
+          description: The audience. When `?include=count` is set, `count` is the authoritative member total.
           headers:
             x-request-id:
               schema:
@@ -18003,7 +17576,29 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Audience"
-              example: *a23
+              example: *a20
+        "400":
+          description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: INVALID_REQUEST
+                  type: invalid_request
+                  message: Request validation failed.
+                  suggestion: Fix the field reported in `param` and retry.
+                  docs: https://docs.brew.new/api-reference/api/errors
+                  param: include
         "401":
           description: The API key was missing, invalid, or revoked.
           headers:
@@ -18061,7 +17656,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
-              example: &a24
+              example: &a21
                 error:
                   code: AUDIENCE_NOT_FOUND
                   type: not_found
@@ -18201,7 +17796,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Audience"
-              example: *a23
+              example: *a20
         "400":
           description: Strict-body violation or no editable field supplied (at least one of `name` / `filters` is required).
           headers:
@@ -18281,7 +17876,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
-              example: *a24
+              example: *a21
         "429":
           description: The request hit the rolling rate limit window.
           headers:
@@ -18523,192 +18118,6 @@ paths:
                   message: An unexpected error occurred.
                   suggestion: Retry the request. If it keeps failing, contact support.
                   docs: https://docs.brew.new/api-reference/api/errors
-  /v1/audiences/{audienceId}/count:
-    get:
-      operationId: getAudienceCount
-      tags:
-        - Audiences
-      summary: Count an audience
-      description: Returns an authoritative, freshly-computed member count over the audience’s saved filters — the size a campaign send would target. Use this instead of the cached `count` field on the audience row (which is `0` until a cache writer populates it).
-      parameters:
-        - schema:
-            type: string
-            minLength: 1
-            maxLength: 64
-            description: Audience id (opaque Convex document id) returned by `POST /v1/audiences` and listed by `GET /v1/audiences`.
-            example: jn7a8w4q8m9k2p1x7c3b5v6n9h7s2d4f
-          required: true
-          description: Audience id (opaque Convex document id) returned by `POST /v1/audiences` and listed by `GET /v1/audiences`.
-          name: audienceId
-          in: path
-      responses:
-        "200":
-          description: The current matching-contact count for this audience.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-            X-RateLimit-Limit:
-              schema:
-                type: integer
-                description: Requests allowed in the current rolling rate limit window.
-                example: 100
-              required: true
-              description: Requests allowed in the current rolling rate limit window.
-            X-RateLimit-Remaining:
-              schema:
-                type: integer
-                description: Requests remaining in the current rolling rate limit window.
-                example: 99
-              required: true
-              description: Requests remaining in the current rolling rate limit window.
-            X-RateLimit-Reset:
-              schema:
-                type: integer
-                description: Unix timestamp in seconds for when the rolling window fully resets.
-                example: 1712592360
-              required: true
-              description: Unix timestamp in seconds for when the rolling window fully resets.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AudienceCountResponse"
-              example:
-                audienceId: jn7a8w4q8m9k2p1x7c3b5v6n9h7s2d4f
-                count: 1284
-        "401":
-          description: The API key was missing, invalid, or revoked.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INVALID_API_KEY
-                  type: authentication_error
-                  message: The provided API key is invalid.
-                  suggestion: Check the API key format and retry with a valid active key.
-                  docs: https://docs.brew.new/api-reference/api/authentication
-        "403":
-          description: The caller does not have the required `audiences` permission.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INSUFFICIENT_PERMISSIONS
-                  type: authorization_error
-                  message: The caller does not have the required permission.
-                  suggestion: Use an API key or session with the required permission.
-                  docs: https://docs.brew.new/api-reference/api/authentication
-                  param: audiences
-        "404":
-          description: Audience not found in the API-key brand. Cross-brand ids intentionally surface as 404 (never 403) so the API does not leak cross-brand existence.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example: *a24
-        "429":
-          description: The request hit the rolling rate limit window.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-            X-RateLimit-Limit:
-              schema:
-                type: integer
-                description: Requests allowed in the current rolling rate limit window.
-                example: 100
-              required: true
-              description: Requests allowed in the current rolling rate limit window.
-            X-RateLimit-Remaining:
-              schema:
-                type: integer
-                description: Requests remaining in the current rolling rate limit window.
-                example: 99
-              required: true
-              description: Requests remaining in the current rolling rate limit window.
-            X-RateLimit-Reset:
-              schema:
-                type: integer
-                description: Unix timestamp in seconds for when the rolling window fully resets.
-                example: 1712592360
-              required: true
-              description: Unix timestamp in seconds for when the rolling window fully resets.
-            Retry-After:
-              schema:
-                type: integer
-                description: Seconds to wait before retrying the request.
-                example: 42
-              required: true
-              description: Seconds to wait before retrying the request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: RATE_LIMITED
-                  type: rate_limit
-                  message: Too many requests.
-                  suggestion: Wait for the retry window before sending another request.
-                  docs: https://docs.brew.new/api-reference/api/rate-limits
-                  retryAfter: 42
-        "500":
-          description: Unexpected internal error.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INTERNAL_ERROR
-                  type: internal_error
-                  message: An unexpected error occurred.
-                  suggestion: Retry the request. If it keeps failing, contact support.
-                  docs: https://docs.brew.new/api-reference/api/errors
   /v1/audiences/{audienceId}/duplicate:
     post:
       operationId: duplicateAudience
@@ -18767,7 +18176,7 @@ paths:
               example:
                 audienceId: jn7a8w4q8m9k2p1x7c3b5v6n9h7s2d5g
                 audienceName: Nordic Founders (copy)
-                filters: *a25
+                filters: *a22
                 count: 1284
                 createdAt: 2026-04-08T12:34:56.789Z
                 updatedAt: 2026-04-08T12:34:56.789Z
@@ -18828,7 +18237,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
-              example: *a24
+              example: *a21
         "409":
           description: The same `Idempotency-Key` was reused with a different request body.
           headers:
@@ -18978,7 +18387,7 @@ paths:
                 $ref: "#/components/schemas/DomainsListResponse"
               example:
                 data:
-                  - &a26
+                  - &a23
                     domainId: kx7bkh53hasmfeh5kd7sqgykt187g8ww
                     domainUrl: https://send.example.com
                     name: send.example.com
@@ -18986,7 +18395,7 @@ paths:
                     status: pending
                     sendingEnabled: true
                     sendable: false
-                    records: &a28
+                    records: &a25
                       - record: DKIM
                         name: resend._domainkey
                         type: TXT
@@ -19187,7 +18596,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Domain"
-              example: *a26
+              example: *a23
         "400":
           description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
           headers:
@@ -19399,7 +18808,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Domain"
-              example: *a26
+              example: *a23
         "401":
           description: The API key was missing, invalid, or revoked.
           headers:
@@ -19457,7 +18866,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
-              example: &a27
+              example: &a24
                 error:
                   code: DOMAIN_NOT_FOUND
                   type: not_found
@@ -19598,7 +19007,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Domain"
-              example: *a26
+              example: *a23
         "400":
           description: Strict-body violation or no editable field supplied (at least one of `defaultSenderName` / `defaultFromEmail` / `defaultReplyToEmail`).
           headers:
@@ -19678,7 +19087,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
-              example: *a27
+              example: *a24
         "429":
           description: The request hit the rolling rate limit window.
           headers:
@@ -19983,7 +19392,7 @@ paths:
                 status: verified
                 sendingEnabled: true
                 sendable: true
-                records: *a28
+                records: *a25
                 createdAt: 2026-04-08T12:34:56.789Z
                 updatedAt: 2026-04-08T12:34:56.789Z
                 verifiedAt: 2026-04-08T13:00:00.000Z
@@ -20044,7 +19453,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
-              example: *a27
+              example: *a24
         "409":
           description: The same `Idempotency-Key` was reused with a different request body.
           headers:
@@ -20368,10 +19777,19 @@ paths:
       tags:
         - Brand
       summary: Get the brand bound to this API key
-      description: Returns `{ brand }` — the single brand bound to the API key. Check `ready` (`status === "completed"`) before calling `POST /v1/emails`, which returns `422 BRAND_NOT_READY` until brand extraction finishes.
+      description: |-
+        Returns `{ brand }` — the single brand bound to the API key. Check `ready` (`status === "completed"`) before calling `POST /v1/emails`, which returns `422 BRAND_NOT_READY` until brand extraction finishes.
+
+        Embed the design context in the same call with `?include=identity,emailDesign,imageStyle,logos` (comma-separated). `identity` is the structured brand facts; `emailDesign` / `imageStyle` are the markdown design system the email agent follows; `logos` is the CDN logo set. The paginated image library is a separate read (`GET /v1/brand/images`).
+      parameters:
+        - schema:
+            type: string
+          required: false
+          name: include
+          in: query
       responses:
         "200":
-          description: The brand bound to this API key.
+          description: The brand bound to this API key, plus any sub-resources named in `?include=`.
           headers:
             x-request-id:
               schema:
@@ -20413,6 +19831,31 @@ paths:
                   ready: true
                   createdAt: 2026-04-08T12:00:00.000Z
                   updatedAt: 2026-04-08T12:05:00.000Z
+                identity:
+                  brandName: Vercel
+                  tagline: Develop. Preview. Ship.
+        "400":
+          description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: INVALID_REQUEST
+                  type: invalid_request
+                  message: Request validation failed.
+                  suggestion: Fix the field reported in `param` and retry.
+                  docs: https://docs.brew.new/api-reference/api/errors
+                  param: include
         "401":
           description: The API key was missing, invalid, or revoked.
           headers:
@@ -20505,914 +19948,34 @@ paths:
                   suggestion: Wait for the retry window before sending another request.
                   docs: https://docs.brew.new/api-reference/api/rate-limits
                   retryAfter: 42
-  /v1/brand/email-design:
-    get:
-      operationId: getBrandEmailDesign
-      tags:
-        - Brand
-      summary: Get email-design.md
-      description: |-
-        The brand’s **design system** that `POST /v1/emails` follows when generating. Read it to understand (or steer) what the agent produces; replace it with `PUT` to change the house style.
-
-        This is the markdown for **layout, spacing, typography, and component conventions**. Returns `{ markdown }` (empty string if unset).
-      responses:
-        "200":
-          description: The email-design.md markdown.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-            X-RateLimit-Limit:
-              schema:
-                type: integer
-                description: Requests allowed in the current rolling rate limit window.
-                example: 100
-              required: true
-              description: Requests allowed in the current rolling rate limit window.
-            X-RateLimit-Remaining:
-              schema:
-                type: integer
-                description: Requests remaining in the current rolling rate limit window.
-                example: 99
-              required: true
-              description: Requests remaining in the current rolling rate limit window.
-            X-RateLimit-Reset:
-              schema:
-                type: integer
-                description: Unix timestamp in seconds for when the rolling window fully resets.
-                example: 1712592360
-              required: true
-              description: Unix timestamp in seconds for when the rolling window fully resets.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/BrandEmailDesignResponse"
-              example:
-                markdown: |-
-                  # email-design.md
-
-                  ...
-        "401":
-          description: The API key was missing, invalid, or revoked.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INVALID_API_KEY
-                  type: authentication_error
-                  message: The provided API key is invalid.
-                  suggestion: Check the API key format and retry with a valid active key.
-                  docs: https://docs.brew.new/api-reference/api/authentication
-        "403":
-          description: The caller does not have the required `emails` permission.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INSUFFICIENT_PERMISSIONS
-                  type: authorization_error
-                  message: The caller does not have the required permission.
-                  suggestion: Use an API key or session with the required permission.
-                  docs: https://docs.brew.new/api-reference/api/authentication
-                  param: emails
-        "429":
-          description: The request hit the rolling rate limit window.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-            X-RateLimit-Limit:
-              schema:
-                type: integer
-                description: Requests allowed in the current rolling rate limit window.
-                example: 100
-              required: true
-              description: Requests allowed in the current rolling rate limit window.
-            X-RateLimit-Remaining:
-              schema:
-                type: integer
-                description: Requests remaining in the current rolling rate limit window.
-                example: 99
-              required: true
-              description: Requests remaining in the current rolling rate limit window.
-            X-RateLimit-Reset:
-              schema:
-                type: integer
-                description: Unix timestamp in seconds for when the rolling window fully resets.
-                example: 1712592360
-              required: true
-              description: Unix timestamp in seconds for when the rolling window fully resets.
-            Retry-After:
-              schema:
-                type: integer
-                description: Seconds to wait before retrying the request.
-                example: 42
-              required: true
-              description: Seconds to wait before retrying the request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: RATE_LIMITED
-                  type: rate_limit
-                  message: Too many requests.
-                  suggestion: Wait for the retry window before sending another request.
-                  docs: https://docs.brew.new/api-reference/api/rate-limits
-                  retryAfter: 42
-        "500":
-          description: Unexpected internal error.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INTERNAL_ERROR
-                  type: internal_error
-                  message: An unexpected error occurred.
-                  suggestion: Retry the request. If it keeps failing, contact support.
-                  docs: https://docs.brew.new/api-reference/api/errors
-    put:
-      operationId: setBrandEmailDesign
-      tags:
-        - Brand
-      summary: Replace email-design.md
-      description: Replace the entire email-design.md markdown. Returns the saved `{ markdown }`.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/BrandEmailDesignPutRequest"
-            example:
-              markdown: |-
-                # email-design.md
-
-                Updated house style…
-      responses:
-        "200":
-          description: The saved email-design.md markdown.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-            X-RateLimit-Limit:
-              schema:
-                type: integer
-                description: Requests allowed in the current rolling rate limit window.
-                example: 100
-              required: true
-              description: Requests allowed in the current rolling rate limit window.
-            X-RateLimit-Remaining:
-              schema:
-                type: integer
-                description: Requests remaining in the current rolling rate limit window.
-                example: 99
-              required: true
-              description: Requests remaining in the current rolling rate limit window.
-            X-RateLimit-Reset:
-              schema:
-                type: integer
-                description: Unix timestamp in seconds for when the rolling window fully resets.
-                example: 1712592360
-              required: true
-              description: Unix timestamp in seconds for when the rolling window fully resets.
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  markdown:
-                    type: string
-                required:
-                  - markdown
-                additionalProperties: false
-              example:
-                markdown: |-
-                  # email-design.md
-
-                  Updated house style…
-        "400":
-          description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INVALID_REQUEST
-                  type: invalid_request
-                  message: Request validation failed.
-                  suggestion: Fix the field reported in `param` and retry.
-                  docs: https://docs.brew.new/api-reference/api/errors
-                  param: markdown
-        "401":
-          description: The API key was missing, invalid, or revoked.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INVALID_API_KEY
-                  type: authentication_error
-                  message: The provided API key is invalid.
-                  suggestion: Check the API key format and retry with a valid active key.
-                  docs: https://docs.brew.new/api-reference/api/authentication
-        "403":
-          description: The caller does not have the required `emails` permission.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INSUFFICIENT_PERMISSIONS
-                  type: authorization_error
-                  message: The caller does not have the required permission.
-                  suggestion: Use an API key or session with the required permission.
-                  docs: https://docs.brew.new/api-reference/api/authentication
-                  param: emails
-        "429":
-          description: The request hit the rolling rate limit window.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-            X-RateLimit-Limit:
-              schema:
-                type: integer
-                description: Requests allowed in the current rolling rate limit window.
-                example: 100
-              required: true
-              description: Requests allowed in the current rolling rate limit window.
-            X-RateLimit-Remaining:
-              schema:
-                type: integer
-                description: Requests remaining in the current rolling rate limit window.
-                example: 99
-              required: true
-              description: Requests remaining in the current rolling rate limit window.
-            X-RateLimit-Reset:
-              schema:
-                type: integer
-                description: Unix timestamp in seconds for when the rolling window fully resets.
-                example: 1712592360
-              required: true
-              description: Unix timestamp in seconds for when the rolling window fully resets.
-            Retry-After:
-              schema:
-                type: integer
-                description: Seconds to wait before retrying the request.
-                example: 42
-              required: true
-              description: Seconds to wait before retrying the request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: RATE_LIMITED
-                  type: rate_limit
-                  message: Too many requests.
-                  suggestion: Wait for the retry window before sending another request.
-                  docs: https://docs.brew.new/api-reference/api/rate-limits
-                  retryAfter: 42
-        "500":
-          description: Unexpected internal error.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INTERNAL_ERROR
-                  type: internal_error
-                  message: An unexpected error occurred.
-                  suggestion: Retry the request. If it keeps failing, contact support.
-                  docs: https://docs.brew.new/api-reference/api/errors
-  /v1/brand/image-style:
-    get:
-      operationId: getBrandImageStyle
-      tags:
-        - Brand
-      summary: Get image-style.md
-      description: |-
-        The brand’s **design system** that `POST /v1/emails` follows when generating. Read it to understand (or steer) what the agent produces; replace it with `PUT` to change the house style.
-
-        This is the markdown for **the art direction for generated imagery (color, motif, mood)**. Returns `{ markdown }` (empty string if unset).
-      responses:
-        "200":
-          description: The image-style.md markdown.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-            X-RateLimit-Limit:
-              schema:
-                type: integer
-                description: Requests allowed in the current rolling rate limit window.
-                example: 100
-              required: true
-              description: Requests allowed in the current rolling rate limit window.
-            X-RateLimit-Remaining:
-              schema:
-                type: integer
-                description: Requests remaining in the current rolling rate limit window.
-                example: 99
-              required: true
-              description: Requests remaining in the current rolling rate limit window.
-            X-RateLimit-Reset:
-              schema:
-                type: integer
-                description: Unix timestamp in seconds for when the rolling window fully resets.
-                example: 1712592360
-              required: true
-              description: Unix timestamp in seconds for when the rolling window fully resets.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/BrandImageStyleResponse"
-              example:
-                markdown: |-
-                  # image-style.md
-
-                  ...
-        "401":
-          description: The API key was missing, invalid, or revoked.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INVALID_API_KEY
-                  type: authentication_error
-                  message: The provided API key is invalid.
-                  suggestion: Check the API key format and retry with a valid active key.
-                  docs: https://docs.brew.new/api-reference/api/authentication
-        "403":
-          description: The caller does not have the required `emails` permission.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INSUFFICIENT_PERMISSIONS
-                  type: authorization_error
-                  message: The caller does not have the required permission.
-                  suggestion: Use an API key or session with the required permission.
-                  docs: https://docs.brew.new/api-reference/api/authentication
-                  param: emails
-        "429":
-          description: The request hit the rolling rate limit window.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-            X-RateLimit-Limit:
-              schema:
-                type: integer
-                description: Requests allowed in the current rolling rate limit window.
-                example: 100
-              required: true
-              description: Requests allowed in the current rolling rate limit window.
-            X-RateLimit-Remaining:
-              schema:
-                type: integer
-                description: Requests remaining in the current rolling rate limit window.
-                example: 99
-              required: true
-              description: Requests remaining in the current rolling rate limit window.
-            X-RateLimit-Reset:
-              schema:
-                type: integer
-                description: Unix timestamp in seconds for when the rolling window fully resets.
-                example: 1712592360
-              required: true
-              description: Unix timestamp in seconds for when the rolling window fully resets.
-            Retry-After:
-              schema:
-                type: integer
-                description: Seconds to wait before retrying the request.
-                example: 42
-              required: true
-              description: Seconds to wait before retrying the request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: RATE_LIMITED
-                  type: rate_limit
-                  message: Too many requests.
-                  suggestion: Wait for the retry window before sending another request.
-                  docs: https://docs.brew.new/api-reference/api/rate-limits
-                  retryAfter: 42
-        "500":
-          description: Unexpected internal error.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INTERNAL_ERROR
-                  type: internal_error
-                  message: An unexpected error occurred.
-                  suggestion: Retry the request. If it keeps failing, contact support.
-                  docs: https://docs.brew.new/api-reference/api/errors
-    put:
-      operationId: setBrandImageStyle
-      tags:
-        - Brand
-      summary: Replace image-style.md
-      description: Replace the entire image-style.md markdown. Returns the saved `{ markdown }`.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/BrandImageStylePutRequest"
-            example:
-              markdown: |-
-                # image-style.md
-
-                Updated house style…
-      responses:
-        "200":
-          description: The saved image-style.md markdown.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-            X-RateLimit-Limit:
-              schema:
-                type: integer
-                description: Requests allowed in the current rolling rate limit window.
-                example: 100
-              required: true
-              description: Requests allowed in the current rolling rate limit window.
-            X-RateLimit-Remaining:
-              schema:
-                type: integer
-                description: Requests remaining in the current rolling rate limit window.
-                example: 99
-              required: true
-              description: Requests remaining in the current rolling rate limit window.
-            X-RateLimit-Reset:
-              schema:
-                type: integer
-                description: Unix timestamp in seconds for when the rolling window fully resets.
-                example: 1712592360
-              required: true
-              description: Unix timestamp in seconds for when the rolling window fully resets.
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  markdown:
-                    type: string
-                required:
-                  - markdown
-                additionalProperties: false
-              example:
-                markdown: |-
-                  # image-style.md
-
-                  Updated house style…
-        "400":
-          description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INVALID_REQUEST
-                  type: invalid_request
-                  message: Request validation failed.
-                  suggestion: Fix the field reported in `param` and retry.
-                  docs: https://docs.brew.new/api-reference/api/errors
-                  param: markdown
-        "401":
-          description: The API key was missing, invalid, or revoked.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INVALID_API_KEY
-                  type: authentication_error
-                  message: The provided API key is invalid.
-                  suggestion: Check the API key format and retry with a valid active key.
-                  docs: https://docs.brew.new/api-reference/api/authentication
-        "403":
-          description: The caller does not have the required `emails` permission.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INSUFFICIENT_PERMISSIONS
-                  type: authorization_error
-                  message: The caller does not have the required permission.
-                  suggestion: Use an API key or session with the required permission.
-                  docs: https://docs.brew.new/api-reference/api/authentication
-                  param: emails
-        "429":
-          description: The request hit the rolling rate limit window.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-            X-RateLimit-Limit:
-              schema:
-                type: integer
-                description: Requests allowed in the current rolling rate limit window.
-                example: 100
-              required: true
-              description: Requests allowed in the current rolling rate limit window.
-            X-RateLimit-Remaining:
-              schema:
-                type: integer
-                description: Requests remaining in the current rolling rate limit window.
-                example: 99
-              required: true
-              description: Requests remaining in the current rolling rate limit window.
-            X-RateLimit-Reset:
-              schema:
-                type: integer
-                description: Unix timestamp in seconds for when the rolling window fully resets.
-                example: 1712592360
-              required: true
-              description: Unix timestamp in seconds for when the rolling window fully resets.
-            Retry-After:
-              schema:
-                type: integer
-                description: Seconds to wait before retrying the request.
-                example: 42
-              required: true
-              description: Seconds to wait before retrying the request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: RATE_LIMITED
-                  type: rate_limit
-                  message: Too many requests.
-                  suggestion: Wait for the retry window before sending another request.
-                  docs: https://docs.brew.new/api-reference/api/rate-limits
-                  retryAfter: 42
-        "500":
-          description: Unexpected internal error.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INTERNAL_ERROR
-                  type: internal_error
-                  message: An unexpected error occurred.
-                  suggestion: Retry the request. If it keeps failing, contact support.
-                  docs: https://docs.brew.new/api-reference/api/errors
-  /v1/brand/identity:
-    get:
-      operationId: getBrandIdentity
-      tags:
-        - Brand
-      summary: Get brand identity
-      description: "Structured brand identity: name, description, tagline, contact details, and social/content links. The text facts an agent can quote in copy."
-      responses:
-        "200":
-          description: The structured brand identity.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-            X-RateLimit-Limit:
-              schema:
-                type: integer
-                description: Requests allowed in the current rolling rate limit window.
-                example: 100
-              required: true
-              description: Requests allowed in the current rolling rate limit window.
-            X-RateLimit-Remaining:
-              schema:
-                type: integer
-                description: Requests remaining in the current rolling rate limit window.
-                example: 99
-              required: true
-              description: Requests remaining in the current rolling rate limit window.
-            X-RateLimit-Reset:
-              schema:
-                type: integer
-                description: Unix timestamp in seconds for when the rolling window fully resets.
-                example: 1712592360
-              required: true
-              description: Unix timestamp in seconds for when the rolling window fully resets.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/BrandIdentity"
-              example:
-                brandName: Clerk
-                tagline: More than authentication.
-                contactEmail: support@clerk.com
-        "401":
-          description: The API key was missing, invalid, or revoked.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INVALID_API_KEY
-                  type: authentication_error
-                  message: The provided API key is invalid.
-                  suggestion: Check the API key format and retry with a valid active key.
-                  docs: https://docs.brew.new/api-reference/api/authentication
-        "403":
-          description: The caller does not have the required `emails` permission.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INSUFFICIENT_PERMISSIONS
-                  type: authorization_error
-                  message: The caller does not have the required permission.
-                  suggestion: Use an API key or session with the required permission.
-                  docs: https://docs.brew.new/api-reference/api/authentication
-                  param: emails
-        "429":
-          description: The request hit the rolling rate limit window.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-            X-RateLimit-Limit:
-              schema:
-                type: integer
-                description: Requests allowed in the current rolling rate limit window.
-                example: 100
-              required: true
-              description: Requests allowed in the current rolling rate limit window.
-            X-RateLimit-Remaining:
-              schema:
-                type: integer
-                description: Requests remaining in the current rolling rate limit window.
-                example: 99
-              required: true
-              description: Requests remaining in the current rolling rate limit window.
-            X-RateLimit-Reset:
-              schema:
-                type: integer
-                description: Unix timestamp in seconds for when the rolling window fully resets.
-                example: 1712592360
-              required: true
-              description: Unix timestamp in seconds for when the rolling window fully resets.
-            Retry-After:
-              schema:
-                type: integer
-                description: Seconds to wait before retrying the request.
-                example: 42
-              required: true
-              description: Seconds to wait before retrying the request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: RATE_LIMITED
-                  type: rate_limit
-                  message: Too many requests.
-                  suggestion: Wait for the retry window before sending another request.
-                  docs: https://docs.brew.new/api-reference/api/rate-limits
-                  retryAfter: 42
-        "500":
-          description: Unexpected internal error.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INTERNAL_ERROR
-                  type: internal_error
-                  message: An unexpected error occurred.
-                  suggestion: Retry the request. If it keeps failing, contact support.
-                  docs: https://docs.brew.new/api-reference/api/errors
     patch:
-      operationId: updateBrandIdentity
+      operationId: updateBrand
       tags:
         - Brand
-      summary: Update brand identity
-      description: Shallow-merge one or more identity fields. Only the provided fields change; everything else is preserved. Returns the full merged identity.
+      summary: Update brand identity + design system
+      description: Partial update of the writable design artifacts in one call. `identity` shallow-merges the provided fields; `emailDesign` / `imageStyle` replace the markdown design-system documents the email agent follows. Provide at least one. Returns the touched fields in the `GET /v1/brand` shape.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/BrandIdentityPatchRequest"
-            example:
-              tagline: Complete user management for modern apps.
+              $ref: "#/components/schemas/BrandPatchRequest"
+            examples:
+              identity:
+                summary: Merge identity fields
+                value:
+                  identity:
+                    tagline: Complete user management for modern apps.
+              design:
+                summary: Replace the email-design house style
+                value:
+                  emailDesign: |-
+                    # email-design.md
+
+                    Updated house style…
       responses:
         "200":
-          description: The merged brand identity.
+          description: The updated brand (only the touched fields are echoed).
           headers:
             x-request-id:
               schema:
@@ -21445,30 +20008,16 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  brandName:
-                    type: string
-                  description:
-                    type: string
-                  tagline:
-                    type: string
-                  contactEmail:
-                    type: string
-                  contactPhone:
-                    type: string
-                  address:
-                    type: string
-                  socialLinks:
-                    type: array
-                    items: {}
-                  contentLinks:
-                    type: array
-                    items: {}
-                additionalProperties: {}
+                $ref: "#/components/schemas/BrandGetResponse"
               example:
-                brandName: Clerk
-                tagline: Complete user management for modern apps.
+                brand:
+                  brandId: kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                  domain: vercel.com
+                  status: completed
+                  ready: true
+                identity:
+                  brandName: Vercel
+                  tagline: Complete user management for modern apps.
         "400":
           description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
           headers:
@@ -21490,174 +20039,7 @@ paths:
                   message: Request validation failed.
                   suggestion: Fix the field reported in `param` and retry.
                   docs: https://docs.brew.new/api-reference/api/errors
-                  param: tagline
-        "401":
-          description: The API key was missing, invalid, or revoked.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INVALID_API_KEY
-                  type: authentication_error
-                  message: The provided API key is invalid.
-                  suggestion: Check the API key format and retry with a valid active key.
-                  docs: https://docs.brew.new/api-reference/api/authentication
-        "403":
-          description: The caller does not have the required `emails` permission.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INSUFFICIENT_PERMISSIONS
-                  type: authorization_error
-                  message: The caller does not have the required permission.
-                  suggestion: Use an API key or session with the required permission.
-                  docs: https://docs.brew.new/api-reference/api/authentication
-                  param: emails
-        "429":
-          description: The request hit the rolling rate limit window.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-            X-RateLimit-Limit:
-              schema:
-                type: integer
-                description: Requests allowed in the current rolling rate limit window.
-                example: 100
-              required: true
-              description: Requests allowed in the current rolling rate limit window.
-            X-RateLimit-Remaining:
-              schema:
-                type: integer
-                description: Requests remaining in the current rolling rate limit window.
-                example: 99
-              required: true
-              description: Requests remaining in the current rolling rate limit window.
-            X-RateLimit-Reset:
-              schema:
-                type: integer
-                description: Unix timestamp in seconds for when the rolling window fully resets.
-                example: 1712592360
-              required: true
-              description: Unix timestamp in seconds for when the rolling window fully resets.
-            Retry-After:
-              schema:
-                type: integer
-                description: Seconds to wait before retrying the request.
-                example: 42
-              required: true
-              description: Seconds to wait before retrying the request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: RATE_LIMITED
-                  type: rate_limit
-                  message: Too many requests.
-                  suggestion: Wait for the retry window before sending another request.
-                  docs: https://docs.brew.new/api-reference/api/rate-limits
-                  retryAfter: 42
-        "500":
-          description: Unexpected internal error.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INTERNAL_ERROR
-                  type: internal_error
-                  message: An unexpected error occurred.
-                  suggestion: Retry the request. If it keeps failing, contact support.
-                  docs: https://docs.brew.new/api-reference/api/errors
-  /v1/brand/logos:
-    get:
-      operationId: getBrandLogos
-      tags:
-        - Brand
-      summary: List brand logos
-      description: The brand’s logo variants (light/dark, icon/wordmark) hosted on the Brew CDN — drop them straight into generated emails. Returns `{ data }` (a small fixed set; not paginated).
-      responses:
-        "200":
-          description: The brand’s logo set.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-            X-RateLimit-Limit:
-              schema:
-                type: integer
-                description: Requests allowed in the current rolling rate limit window.
-                example: 100
-              required: true
-              description: Requests allowed in the current rolling rate limit window.
-            X-RateLimit-Remaining:
-              schema:
-                type: integer
-                description: Requests remaining in the current rolling rate limit window.
-                example: 99
-              required: true
-              description: Requests remaining in the current rolling rate limit window.
-            X-RateLimit-Reset:
-              schema:
-                type: integer
-                description: Unix timestamp in seconds for when the rolling window fully resets.
-                example: 1712592360
-              required: true
-              description: Unix timestamp in seconds for when the rolling window fully resets.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/BrandLogosResponse"
-              example:
-                data:
-                  - src: https://cdn.brew.new/brand/abc/logo-0.png
-                    type: logo
-                    theme: dark
-                    format: png
-                    background: transparent
-                    width: 820
-                    height: 256
-                    size: 19002
+                  param: identity
         "401":
           description: The API key was missing, invalid, or revoked.
           headers:
@@ -21778,7 +20160,7 @@ paths:
       tags:
         - Brand
       summary: List brand images
-      description: The brand’s saved image library (harvested + generated), each with a description and dimensions. Paginated via `limit` + `cursor`.
+      description: The brand’s saved image library (harvested + generated), each with a description and dimensions. Paginated via `limit` + `cursor`. (The smaller `identity` / `emailDesign` / `imageStyle` / `logos` sub-resources embed into `GET /v1/brand?include=…`; images stay separate because they paginate.)
       parameters:
         - schema:
             anyOf:
@@ -22130,16 +20512,16 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
-              example: &a29
+              example: &a26
                 error:
                   code: CONTENT_OPERATION_FAILED
                   type: invalid_request
-                  message: "The optimize-image operation could not be completed: the image could not be fetched, decoded, or uploaded."
+                  message: "The optimize operation could not be completed: the image could not be fetched, decoded, or uploaded."
                   suggestion: Ensure the source URL is a publicly reachable image/video and retry.
                   docs: https://docs.brew.new/api-reference/api/errors
                   param: imageUrl
                   details:
-                    operation: optimize-image
+                    operation: optimize
         "429":
           description: The request hit the rolling rate limit window.
           headers:
@@ -22240,22 +20622,22 @@ paths:
                   suggestion: Retry the request after a short delay.
                   docs: https://docs.brew.new/api-reference/api/credits
                   retryAfter: 2
-  /v1/content/generate-gif:
+  /v1/content/gif:
     post:
-      operationId: generateContentGif
+      operationId: contentGif
       tags:
         - Content
-      summary: Generate an animated GIF
-      description: Generates a looping animated GIF from a text prompt (via short video generation). Returns CDN-hosted `gifUrl` + source `videoUrl`. Credit-metered (fixed cost).
+      summary: Generate a GIF
+      description: "Produces a looping animated GIF, routed by the `from` discriminator: `prompt` generates from a text prompt, `image` animates a source image (both via the AI gif workflow), and `video` converts a source MP4. Returns CDN-hosted `gifUrl` (plus `videoUrl` and motion metadata for the AI sources). Credit-metered (fixed cost: prompt 15, image 10, video 10)."
       parameters:
         - *a4
       requestBody:
         required: true
-        description: Prompt + optional duration (1-10s) / fps (1-24) / aspect ratio / loop.
+        description: 'A `from` discriminator: `{ from:"prompt", prompt, … }`, `{ from:"image", imageUrl, … }`, or `{ from:"video", videoUrl, … }`.'
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/ContentGenerateGifRequest"
+              $ref: "#/components/schemas/ContentGifRequest"
       responses:
         "200":
           description: The operation result.
@@ -22416,7 +20798,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
-              example: *a29
+              example: *a26
         "429":
           description: The request hit the rolling rate limit window.
           headers:
@@ -22517,22 +20899,22 @@ paths:
                   suggestion: Retry the request after a short delay.
                   docs: https://docs.brew.new/api-reference/api/credits
                   retryAfter: 2
-  /v1/content/image-to-gif:
+  /v1/content/transform:
     post:
-      operationId: contentImageToGif
+      operationId: contentTransform
       tags:
         - Content
-      summary: Animate an image into a GIF
-      description: Animates a source image into a looping GIF; motion is inferred from the image (and an optional prompt). Credit-metered (fixed cost).
+      summary: Transform an image
+      description: "Deterministic image transform routed by the `operation` discriminator: `optimize` rehosts a palette PNG (resize ≤1200px), `resize` produces exact dimensions via the vision-guided fal pipeline (Sharp cover-crop fallback). Returns the CDN-hosted `url` + dimensions. Credit-metered (fixed cost: optimize 1, resize 2)."
       parameters:
         - *a4
       requestBody:
         required: true
-        description: Source `imageUrl` + optional motion prompt / duration / fps / aspect ratio / loop.
+        description: 'An `operation` discriminator: `{ operation:"optimize", imageUrl }` or `{ operation:"resize", imageUrl, width, height, … }`.'
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/ContentImageToGifRequest"
+              $ref: "#/components/schemas/ContentTransformRequest"
       responses:
         "200":
           description: The operation result.
@@ -22568,33 +20950,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  gifUrl:
-                    type: string
-                    format: uri
-                  videoUrl:
-                    type: string
-                    format: uri
-                  altText:
-                    type: string
-                  duration:
-                    type: number
-                  fps:
-                    type: number
-                  aspectRatio:
-                    type: string
-                  loop:
-                    type: boolean
-                required:
-                  - gifUrl
-                  - videoUrl
-                  - altText
-                  - duration
-                  - fps
-                  - aspectRatio
-                  - loop
-                additionalProperties: false
+                $ref: "#/components/schemas/ContentTransformResponse"
         "400":
           description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
           headers:
@@ -22719,838 +21075,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
-              example: *a29
-        "429":
-          description: The request hit the rolling rate limit window.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-            X-RateLimit-Limit:
-              schema:
-                type: integer
-                description: Requests allowed in the current rolling rate limit window.
-                example: 100
-              required: true
-              description: Requests allowed in the current rolling rate limit window.
-            X-RateLimit-Remaining:
-              schema:
-                type: integer
-                description: Requests remaining in the current rolling rate limit window.
-                example: 99
-              required: true
-              description: Requests remaining in the current rolling rate limit window.
-            X-RateLimit-Reset:
-              schema:
-                type: integer
-                description: Unix timestamp in seconds for when the rolling window fully resets.
-                example: 1712592360
-              required: true
-              description: Unix timestamp in seconds for when the rolling window fully resets.
-            Retry-After:
-              schema:
-                type: integer
-                description: Seconds to wait before retrying the request.
-                example: 42
-              required: true
-              description: Seconds to wait before retrying the request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: RATE_LIMITED
-                  type: rate_limit
-                  message: Too many requests.
-                  suggestion: Wait for the retry window before sending another request.
-                  docs: https://docs.brew.new/api-reference/api/rate-limits
-                  retryAfter: 42
-        "500":
-          description: Unexpected internal error.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INTERNAL_ERROR
-                  type: internal_error
-                  message: An unexpected error occurred.
-                  suggestion: Retry the request. If it keeps failing, contact support.
-                  docs: https://docs.brew.new/api-reference/api/errors
-        "503":
-          description: The credit balance could not be verified (a transient billing dependency outage). The gate fails closed rather than do paid work it cannot meter. Retryable — `Retry-After` indicates when.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-            Retry-After:
-              schema:
-                type: integer
-                description: Seconds to wait before retrying the request.
-                example: 42
-              required: true
-              description: Seconds to wait before retrying the request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: SERVICE_UNAVAILABLE
-                  type: service_unavailable
-                  message: Your credit balance could not be verified because a billing dependency is temporarily unavailable.
-                  suggestion: Retry the request after a short delay.
-                  docs: https://docs.brew.new/api-reference/api/credits
-                  retryAfter: 2
-  /v1/content/video-to-gif:
-    post:
-      operationId: contentVideoToGif
-      tags:
-        - Content
-      summary: Convert a video to a GIF
-      description: Converts a source MP4 video URL into a CDN-hosted GIF. Credit-metered (fixed cost).
-      parameters:
-        - *a4
-      requestBody:
-        required: true
-        description: Source `videoUrl` + optional fps / output width.
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/ContentVideoToGifRequest"
-      responses:
-        "200":
-          description: The operation result.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-            X-RateLimit-Limit:
-              schema:
-                type: integer
-                description: Requests allowed in the current rolling rate limit window.
-                example: 100
-              required: true
-              description: Requests allowed in the current rolling rate limit window.
-            X-RateLimit-Remaining:
-              schema:
-                type: integer
-                description: Requests remaining in the current rolling rate limit window.
-                example: 99
-              required: true
-              description: Requests remaining in the current rolling rate limit window.
-            X-RateLimit-Reset:
-              schema:
-                type: integer
-                description: Unix timestamp in seconds for when the rolling window fully resets.
-                example: 1712592360
-              required: true
-              description: Unix timestamp in seconds for when the rolling window fully resets.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ContentVideoToGifResponse"
-        "400":
-          description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INVALID_REQUEST
-                  type: invalid_request
-                  message: Request validation failed.
-                  suggestion: Fix the field reported in `param` and retry.
-                  docs: https://docs.brew.new/api-reference/api/errors
-        "401":
-          description: The API key was missing, invalid, or revoked.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INVALID_API_KEY
-                  type: authentication_error
-                  message: The provided API key is invalid.
-                  suggestion: Check the API key format and retry with a valid active key.
-                  docs: https://docs.brew.new/api-reference/api/authentication
-        "402":
-          description: The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/account`. No `Retry-After` — credits reset at the billing-period boundary.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INSUFFICIENT_CREDITS
-                  type: payment_required
-                  message: This operation costs 10 credit(s) but only 0 remain on the 'free' plan.
-                  suggestion: Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/account.
-                  docs: https://docs.brew.new/api-reference/api/credits
-                  details:
-                    cost: 10
-                    remaining: 0
-                    planKey: free
-        "403":
-          description: The caller does not have the required `emails` permission.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INSUFFICIENT_PERMISSIONS
-                  type: authorization_error
-                  message: The caller does not have the required permission.
-                  suggestion: Use an API key or session with the required permission.
-                  docs: https://docs.brew.new/api-reference/api/authentication
-                  param: emails
-        "409":
-          description: The same `Idempotency-Key` was reused with a different request body.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: IDEMPOTENCY_CONFLICT
-                  type: conflict
-                  message: The same idempotency key was reused with a different request payload.
-                  suggestion: Reuse the original payload or send a new idempotency key.
-                  docs: https://docs.brew.new/api-reference/api/idempotency
-        "422":
-          description: The source image/video could not be processed (unreachable URL, non-decodable media, or upload failure).
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example: *a29
-        "429":
-          description: The request hit the rolling rate limit window.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-            X-RateLimit-Limit:
-              schema:
-                type: integer
-                description: Requests allowed in the current rolling rate limit window.
-                example: 100
-              required: true
-              description: Requests allowed in the current rolling rate limit window.
-            X-RateLimit-Remaining:
-              schema:
-                type: integer
-                description: Requests remaining in the current rolling rate limit window.
-                example: 99
-              required: true
-              description: Requests remaining in the current rolling rate limit window.
-            X-RateLimit-Reset:
-              schema:
-                type: integer
-                description: Unix timestamp in seconds for when the rolling window fully resets.
-                example: 1712592360
-              required: true
-              description: Unix timestamp in seconds for when the rolling window fully resets.
-            Retry-After:
-              schema:
-                type: integer
-                description: Seconds to wait before retrying the request.
-                example: 42
-              required: true
-              description: Seconds to wait before retrying the request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: RATE_LIMITED
-                  type: rate_limit
-                  message: Too many requests.
-                  suggestion: Wait for the retry window before sending another request.
-                  docs: https://docs.brew.new/api-reference/api/rate-limits
-                  retryAfter: 42
-        "500":
-          description: Unexpected internal error.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INTERNAL_ERROR
-                  type: internal_error
-                  message: An unexpected error occurred.
-                  suggestion: Retry the request. If it keeps failing, contact support.
-                  docs: https://docs.brew.new/api-reference/api/errors
-        "503":
-          description: The credit balance could not be verified (a transient billing dependency outage). The gate fails closed rather than do paid work it cannot meter. Retryable — `Retry-After` indicates when.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-            Retry-After:
-              schema:
-                type: integer
-                description: Seconds to wait before retrying the request.
-                example: 42
-              required: true
-              description: Seconds to wait before retrying the request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: SERVICE_UNAVAILABLE
-                  type: service_unavailable
-                  message: Your credit balance could not be verified because a billing dependency is temporarily unavailable.
-                  suggestion: Retry the request after a short delay.
-                  docs: https://docs.brew.new/api-reference/api/credits
-                  retryAfter: 2
-  /v1/content/optimize-image:
-    post:
-      operationId: contentOptimizeImage
-      tags:
-        - Content
-      summary: Optimize an image for email
-      description: Fetches a source image, optimizes it (resize ≤1200px, palette PNG via Sharp), and rehosts it to the CDN. Credit-metered (fixed cost).
-      parameters:
-        - *a4
-      requestBody:
-        required: true
-        description: Source `imageUrl` to optimize.
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/ContentOptimizeImageRequest"
-      responses:
-        "200":
-          description: The operation result.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-            X-RateLimit-Limit:
-              schema:
-                type: integer
-                description: Requests allowed in the current rolling rate limit window.
-                example: 100
-              required: true
-              description: Requests allowed in the current rolling rate limit window.
-            X-RateLimit-Remaining:
-              schema:
-                type: integer
-                description: Requests remaining in the current rolling rate limit window.
-                example: 99
-              required: true
-              description: Requests remaining in the current rolling rate limit window.
-            X-RateLimit-Reset:
-              schema:
-                type: integer
-                description: Unix timestamp in seconds for when the rolling window fully resets.
-                example: 1712592360
-              required: true
-              description: Unix timestamp in seconds for when the rolling window fully resets.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ContentOptimizedImageResponse"
-        "400":
-          description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INVALID_REQUEST
-                  type: invalid_request
-                  message: Request validation failed.
-                  suggestion: Fix the field reported in `param` and retry.
-                  docs: https://docs.brew.new/api-reference/api/errors
-        "401":
-          description: The API key was missing, invalid, or revoked.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INVALID_API_KEY
-                  type: authentication_error
-                  message: The provided API key is invalid.
-                  suggestion: Check the API key format and retry with a valid active key.
-                  docs: https://docs.brew.new/api-reference/api/authentication
-        "402":
-          description: The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/account`. No `Retry-After` — credits reset at the billing-period boundary.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INSUFFICIENT_CREDITS
-                  type: payment_required
-                  message: This operation costs 10 credit(s) but only 0 remain on the 'free' plan.
-                  suggestion: Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/account.
-                  docs: https://docs.brew.new/api-reference/api/credits
-                  details:
-                    cost: 10
-                    remaining: 0
-                    planKey: free
-        "403":
-          description: The caller does not have the required `emails` permission.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INSUFFICIENT_PERMISSIONS
-                  type: authorization_error
-                  message: The caller does not have the required permission.
-                  suggestion: Use an API key or session with the required permission.
-                  docs: https://docs.brew.new/api-reference/api/authentication
-                  param: emails
-        "409":
-          description: The same `Idempotency-Key` was reused with a different request body.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: IDEMPOTENCY_CONFLICT
-                  type: conflict
-                  message: The same idempotency key was reused with a different request payload.
-                  suggestion: Reuse the original payload or send a new idempotency key.
-                  docs: https://docs.brew.new/api-reference/api/idempotency
-        "422":
-          description: The source image/video could not be processed (unreachable URL, non-decodable media, or upload failure).
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example: *a29
-        "429":
-          description: The request hit the rolling rate limit window.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-            X-RateLimit-Limit:
-              schema:
-                type: integer
-                description: Requests allowed in the current rolling rate limit window.
-                example: 100
-              required: true
-              description: Requests allowed in the current rolling rate limit window.
-            X-RateLimit-Remaining:
-              schema:
-                type: integer
-                description: Requests remaining in the current rolling rate limit window.
-                example: 99
-              required: true
-              description: Requests remaining in the current rolling rate limit window.
-            X-RateLimit-Reset:
-              schema:
-                type: integer
-                description: Unix timestamp in seconds for when the rolling window fully resets.
-                example: 1712592360
-              required: true
-              description: Unix timestamp in seconds for when the rolling window fully resets.
-            Retry-After:
-              schema:
-                type: integer
-                description: Seconds to wait before retrying the request.
-                example: 42
-              required: true
-              description: Seconds to wait before retrying the request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: RATE_LIMITED
-                  type: rate_limit
-                  message: Too many requests.
-                  suggestion: Wait for the retry window before sending another request.
-                  docs: https://docs.brew.new/api-reference/api/rate-limits
-                  retryAfter: 42
-        "500":
-          description: Unexpected internal error.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INTERNAL_ERROR
-                  type: internal_error
-                  message: An unexpected error occurred.
-                  suggestion: Retry the request. If it keeps failing, contact support.
-                  docs: https://docs.brew.new/api-reference/api/errors
-        "503":
-          description: The credit balance could not be verified (a transient billing dependency outage). The gate fails closed rather than do paid work it cannot meter. Retryable — `Retry-After` indicates when.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-            Retry-After:
-              schema:
-                type: integer
-                description: Seconds to wait before retrying the request.
-                example: 42
-              required: true
-              description: Seconds to wait before retrying the request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: SERVICE_UNAVAILABLE
-                  type: service_unavailable
-                  message: Your credit balance could not be verified because a billing dependency is temporarily unavailable.
-                  suggestion: Retry the request after a short delay.
-                  docs: https://docs.brew.new/api-reference/api/credits
-                  retryAfter: 2
-  /v1/content/resize:
-    post:
-      operationId: contentResize
-      tags:
-        - Content
-      summary: Resize an image (intelligent)
-      description: Resizes an image to exact dimensions using a vision-LLM-guided fal pipeline (deterministic Sharp cover-crop fallback). Credit-metered (fixed cost).
-      parameters:
-        - *a4
-      requestBody:
-        required: true
-        description: Source `imageUrl` + target `width`/`height` + optional hint / resolution / format.
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/ContentResizeRequest"
-      responses:
-        "200":
-          description: The operation result.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-            X-RateLimit-Limit:
-              schema:
-                type: integer
-                description: Requests allowed in the current rolling rate limit window.
-                example: 100
-              required: true
-              description: Requests allowed in the current rolling rate limit window.
-            X-RateLimit-Remaining:
-              schema:
-                type: integer
-                description: Requests remaining in the current rolling rate limit window.
-                example: 99
-              required: true
-              description: Requests remaining in the current rolling rate limit window.
-            X-RateLimit-Reset:
-              schema:
-                type: integer
-                description: Unix timestamp in seconds for when the rolling window fully resets.
-                example: 1712592360
-              required: true
-              description: Unix timestamp in seconds for when the rolling window fully resets.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ContentResizeResponse"
-        "400":
-          description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INVALID_REQUEST
-                  type: invalid_request
-                  message: Request validation failed.
-                  suggestion: Fix the field reported in `param` and retry.
-                  docs: https://docs.brew.new/api-reference/api/errors
-        "401":
-          description: The API key was missing, invalid, or revoked.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INVALID_API_KEY
-                  type: authentication_error
-                  message: The provided API key is invalid.
-                  suggestion: Check the API key format and retry with a valid active key.
-                  docs: https://docs.brew.new/api-reference/api/authentication
-        "402":
-          description: The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/account`. No `Retry-After` — credits reset at the billing-period boundary.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INSUFFICIENT_CREDITS
-                  type: payment_required
-                  message: This operation costs 10 credit(s) but only 0 remain on the 'free' plan.
-                  suggestion: Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/account.
-                  docs: https://docs.brew.new/api-reference/api/credits
-                  details:
-                    cost: 10
-                    remaining: 0
-                    planKey: free
-        "403":
-          description: The caller does not have the required `emails` permission.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INSUFFICIENT_PERMISSIONS
-                  type: authorization_error
-                  message: The caller does not have the required permission.
-                  suggestion: Use an API key or session with the required permission.
-                  docs: https://docs.brew.new/api-reference/api/authentication
-                  param: emails
-        "409":
-          description: The same `Idempotency-Key` was reused with a different request body.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: IDEMPOTENCY_CONFLICT
-                  type: conflict
-                  message: The same idempotency key was reused with a different request payload.
-                  suggestion: Reuse the original payload or send a new idempotency key.
-                  docs: https://docs.brew.new/api-reference/api/idempotency
-        "422":
-          description: The source image/video could not be processed (unreachable URL, non-decodable media, or upload failure).
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example: *a29
+              example: *a26
         "429":
           description: The request hit the rolling rate limit window.
           headers:
@@ -23827,7 +21352,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
-              example: *a29
+              example: *a26
         "429":
           description: The request hit the rolling rate limit window.
           headers:
@@ -24109,7 +21634,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
-              example: *a29
+              example: *a26
         "429":
           description: The request hit the rolling rate limit window.
           headers:

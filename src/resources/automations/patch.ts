@@ -6,27 +6,37 @@ import type { Automation } from './types'
 
 /**
  * `PATCH /v1/automations/{automationId}` body — the update fields per
- * `AUTOMATIONS_UPDATE_REQUEST_SCHEMA`. At least one of `name |
- * description | nodes | connections | triggerEventId` must be supplied.
- * `automationId` travels in the PATH, not the body.
+ * `AUTOMATIONS_UPDATE_REQUEST_SCHEMA`. `automationId` travels in the PATH,
+ * not the body.
  *
- * Publishing is its own action — use `brew.automations.publish(...)` /
- * `.unpublish(...)` (the dedicated `POST …/publish` / `…/unpublish`
- * sub-routes), NOT this update call. Bodies that include the removed
- * `prompt` / `autoCreateEmails` / `published` fields are rejected by
- * the server's strict schema (`400 INVALID_REQUEST`). AI authoring
- * stays on the chat-side orchestrator only; SDK consumers chain
- * deterministic calls.
+ * There are two kinds of update, and they are **mutually exclusive**:
+ *
+ * 1. **Content** — at least one of `name | description | nodes |
+ *    connections | triggerEventId`. Graph updates persist a new
+ *    `automationVersionId` on the same `automationId`.
+ * 2. **Lifecycle** — `published: true` promotes the stored latest version
+ *    live (the graph is validated first → `409 PUBLISH_VALIDATION_FAILED`
+ *    on blockers); optionally pin `automationVersionId` to publish a
+ *    specific historical version. `published: false` unpublishes (→
+ *    `422 AUTOMATION_NOT_PUBLISHED` if it was never live).
+ *
+ * Combining `published` with content fields is rejected by the server's
+ * strict schema (`400 INVALID_REQUEST`). For lifecycle changes prefer the
+ * dedicated `brew.automations.publish(...)` / `.unpublish(...)`
+ * convenience methods, which build the right body for you.
  */
 export type PatchAutomationInput = {
   /** Path param — which automation to update. */
   automationId: string
-  // update fields (at least one required)
+  // content update fields (mutually exclusive with `published`)
   name?: string
   description?: string
   nodes?: ReadonlyArray<AutomationNodeInput>
   connections?: ReadonlyArray<AutomationConnectionInput>
   triggerEventId?: string
+  // lifecycle update fields (mutually exclusive with the content fields)
+  published?: boolean
+  automationVersionId?: string
 }
 
 /**
@@ -37,8 +47,9 @@ export type PatchAutomationResponse = Automation
 
 /**
  * `PATCH /v1/automations/{automationId}` — update metadata and/or the
- * graph. Graph updates persist a new `automationVersionId` on the same
- * `automationId`. Returns the bare updated row.
+ * graph, OR change the published lifecycle. Graph updates persist a new
+ * `automationVersionId` on the same `automationId`. Returns the bare
+ * updated row.
  */
 export function createPatchAutomation(client: HttpClient) {
   function patchAutomation(
@@ -68,11 +79,15 @@ export function createPatchAutomation(client: HttpClient) {
 }
 
 /**
- * `POST /v1/automations/{automationId}/publish` — promote the
- * automation to live so its trigger starts matching fires. Pass
- * `automationVersionId` to publish a specific historical version;
- * omit it to publish the current latest. Returns the bare published
- * `AutomationRow`.
+ * `PATCH /v1/automations/{automationId}` with `{ published: true }` —
+ * promote the automation to live so its trigger starts matching fires.
+ * Pass `automationVersionId` to publish a specific historical version;
+ * omit it to publish the stored latest. The server validates the graph
+ * first and returns `409 PUBLISH_VALIDATION_FAILED` on blockers (surfaced
+ * as a `BrewApiError`). Returns the bare published `AutomationRow`.
+ *
+ * (Convenience wrapper over `PATCH /v1/automations/{automationId}` — the
+ * old `POST …/publish` sub-route no longer exists.)
  */
 export function createPublishAutomation(client: HttpClient) {
   function publishAutomation(
@@ -89,12 +104,15 @@ export function createPublishAutomation(client: HttpClient) {
   ): Promise<
     PatchAutomationResponse | BrewRawResponse<PatchAutomationResponse>
   > {
-    const body = input.automationVersionId
-      ? { automationVersionId: input.automationVersionId }
-      : {}
+    const body: { published: true; automationVersionId?: string } = {
+      published: true,
+      ...(input.automationVersionId
+        ? { automationVersionId: input.automationVersionId }
+        : {}),
+    }
     const response = await client.request<PatchAutomationResponse>({
-      method: 'POST',
-      path: `/v1/automations/${encodeURIComponent(input.automationId)}/publish`,
+      method: 'PATCH',
+      path: `/v1/automations/${encodeURIComponent(input.automationId)}`,
       body,
       ...(options ? { options } : {}),
     })
@@ -104,11 +122,14 @@ export function createPublishAutomation(client: HttpClient) {
 }
 
 /**
- * `POST /v1/automations/{automationId}/unpublish` — take the
- * automation off live (its trigger stops matching fires; in-flight
- * runs finish). Empty body. Returns the bare row with
- * `published: false`. Returns `422 AUTOMATION_NOT_PUBLISHED` if the
- * automation was never live (surfaced as `BrewApiError`).
+ * `PATCH /v1/automations/{automationId}` with `{ published: false }` —
+ * take the automation off live (its trigger stops matching fires;
+ * in-flight runs finish). Returns the bare row with `published: false`,
+ * or `422 AUTOMATION_NOT_PUBLISHED` if the automation was never live
+ * (surfaced as a `BrewApiError`).
+ *
+ * (Convenience wrapper over `PATCH /v1/automations/{automationId}` — the
+ * old `POST …/unpublish` sub-route no longer exists.)
  */
 export function createUnpublishAutomation(client: HttpClient) {
   function unpublishAutomation(
@@ -126,8 +147,9 @@ export function createUnpublishAutomation(client: HttpClient) {
     PatchAutomationResponse | BrewRawResponse<PatchAutomationResponse>
   > {
     const response = await client.request<PatchAutomationResponse>({
-      method: 'POST',
-      path: `/v1/automations/${encodeURIComponent(input.automationId)}/unpublish`,
+      method: 'PATCH',
+      path: `/v1/automations/${encodeURIComponent(input.automationId)}`,
+      body: { published: false },
       ...(options ? { options } : {}),
     })
     return unwrapResponse(response, options)

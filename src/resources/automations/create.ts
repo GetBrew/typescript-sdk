@@ -26,8 +26,8 @@ export type AutomationSendEmailNodeConfig = {
   actionType?: string
   /**
    * FK into `emails`. Required. Mint via
-   * `brew.emails.generate({ emailType: 'automation' | 'transactional', … })`
-   * and reuse the returned `emailId`.
+   * `brew.emails.generate({ prompt, … })` and reuse the returned `emailId`
+   * (emails are pure untyped designs in the decoupled model).
    */
   emailId: string
   /**

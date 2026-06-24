@@ -1,13 +1,10 @@
 import type { HttpClient } from '../../core/http'
 
-import { createGenerateGif } from './generate-gif'
 import { createGenerateImage } from './generate-image'
+import { createGif } from './gif'
 import { createHostImage } from './host-image'
 import { createHtmlToPng } from './html-to-png'
-import { createImageToGif } from './image-to-gif'
-import { createOptimizeImage } from './optimize-image'
-import { createResize } from './resize'
-import { createVideoToGif } from './video-to-gif'
+import { createTransform } from './transform'
 
 /**
  * The public shape of `brew.content`. Every method wraps one
@@ -21,16 +18,10 @@ import { createVideoToGif } from './video-to-gif'
 export type ContentResource = {
   /** `POST /v1/content/generate-image` — text-to-image / image editing (scope: `emails`). */
   readonly generateImage: ReturnType<typeof createGenerateImage>
-  /** `POST /v1/content/generate-gif` — generate an animated GIF from a prompt (scope: `emails`). */
-  readonly generateGif: ReturnType<typeof createGenerateGif>
-  /** `POST /v1/content/image-to-gif` — animate a source image into a GIF (scope: `emails`). */
-  readonly imageToGif: ReturnType<typeof createImageToGif>
-  /** `POST /v1/content/video-to-gif` — transcode a source video into a GIF (scope: `emails`). */
-  readonly videoToGif: ReturnType<typeof createVideoToGif>
-  /** `POST /v1/content/optimize-image` — re-encode an image for email (scope: `emails`). */
-  readonly optimizeImage: ReturnType<typeof createOptimizeImage>
-  /** `POST /v1/content/resize` — resize an image to a target size (scope: `emails`). */
-  readonly resize: ReturnType<typeof createResize>
+  /** `POST /v1/content/gif` — animated GIF from a prompt, image, or video (`from` union) (scope: `emails`). */
+  readonly gif: ReturnType<typeof createGif>
+  /** `POST /v1/content/transform` — optimize or resize a hosted image (`operation` union) (scope: `emails`). */
+  readonly transform: ReturnType<typeof createTransform>
   /** `POST /v1/content/html-to-png` — render HTML to a hosted PNG (scope: `emails`). */
   readonly htmlToPng: ReturnType<typeof createHtmlToPng>
   /** `POST /v1/content/host-image` — mirror an image onto Brew-hosted storage (scope: `emails`). */
@@ -45,11 +36,8 @@ export type ContentResource = {
 export function createContentResource(client: HttpClient): ContentResource {
   return {
     generateImage: createGenerateImage(client),
-    generateGif: createGenerateGif(client),
-    imageToGif: createImageToGif(client),
-    videoToGif: createVideoToGif(client),
-    optimizeImage: createOptimizeImage(client),
-    resize: createResize(client),
+    gif: createGif(client),
+    transform: createTransform(client),
     htmlToPng: createHtmlToPng(client),
     hostImage: createHostImage(client),
   }

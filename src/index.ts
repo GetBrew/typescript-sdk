@@ -330,10 +330,7 @@ export type {
 export type { SearchAllContactsInput } from './resources/contacts/search-all'
 
 // ---------- Fields: domain types ----------
-export type {
-  ContactField,
-  ContactFieldType,
-} from './resources/fields/types'
+export type { ContactField, ContactFieldType } from './resources/fields/types'
 
 // ---------- Fields: method inputs + outputs ----------
 export type { ListFieldsResponse } from './resources/fields/list'
@@ -348,7 +345,15 @@ export type {
   Brand,
   BrandStatus,
   BrandGetResponse,
+  BrandPatchResponse,
+  BrandIdentity,
+  BrandLogo,
+  BrandIncludeToken,
+  UpdateBrandInput,
+  BrandImagesResponse,
+  ListBrandImagesInput,
 } from './resources/brand/types'
+export type { GetBrandInput } from './resources/brand/get'
 
 // ---------- Metadata ----------
 export { SDK_NAME, SDK_VERSION } from './version'

@@ -75,7 +75,7 @@ export type BrewClient = {
    * CRUD + fire) and `automations.runs.*` (read-only run history).
    */
   readonly automations: AutomationsResource
-  /** `GET/PUT /v1/brand/*` — the key's brand: readiness, design system, identity, assets. */
+  /** `GET/PATCH /v1/brand` — the key's brand: readiness, design system, identity, assets. */
   readonly brand: BrandResource
   readonly contacts: ContactsResource
   /** `POST /v1/content/*` — credit-metered media generation + image/render ops. */

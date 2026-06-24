@@ -1,7 +1,17 @@
 import type { components, paths } from '../../generated/openapi-types'
 
-/** Envelope returned by `GET /v1/brand`. */
+/**
+ * Envelope returned by `GET /v1/brand` and `PATCH /v1/brand`.
+ *
+ * `brand` is always present. The optional `identity` / `emailDesign` /
+ * `imageStyle` / `logos` fields are populated on a `GET` only for the
+ * sub-resources named in `?include=`, and on a `PATCH` only for the
+ * fields that were touched.
+ */
 export type BrandGetResponse = components['schemas']['BrandGetResponse']
+
+/** Echoed by `PATCH /v1/brand` — same envelope, only the touched fields. */
+export type BrandPatchResponse = BrandGetResponse
 
 /**
  * The brand bound to the API key, plus its extraction readiness.
@@ -15,31 +25,21 @@ export type Brand = BrandGetResponse['brand']
 /** Lifecycle status of the bound brand's extraction. */
 export type BrandStatus = Brand['status']
 
-/** `{ markdown }` returned by `GET`/`PUT /v1/brand/email-design`. */
-export type BrandEmailDesignResponse =
-  components['schemas']['BrandEmailDesignResponse']
+/** Structured brand identity (embedded via `?include=identity`). */
+export type BrandIdentity = NonNullable<BrandGetResponse['identity']>
 
-/** Body for `PUT /v1/brand/email-design` — replaces the whole document. */
-export type UpdateBrandEmailDesignInput =
-  components['schemas']['BrandEmailDesignPutRequest']
+/** A single CDN-hosted logo variant (embedded via `?include=logos`). */
+export type BrandLogo = NonNullable<BrandGetResponse['logos']>[number]
 
-/** `{ markdown }` returned by `GET`/`PUT /v1/brand/image-style`. */
-export type BrandImageStyleResponse =
-  components['schemas']['BrandImageStyleResponse']
+/** Body for `PATCH /v1/brand`. At least one of the keys must be present. */
+export type UpdateBrandInput = components['schemas']['BrandPatchRequest']
 
-/** Body for `PUT /v1/brand/image-style` — replaces the whole document. */
-export type UpdateBrandImageStyleInput =
-  components['schemas']['BrandImageStylePutRequest']
-
-/** Structured brand identity returned by `GET`/`PATCH /v1/brand/identity`. */
-export type BrandIdentity = components['schemas']['BrandIdentity']
-
-/** Body for `PATCH /v1/brand/identity` — shallow-merges the given fields. */
-export type UpdateBrandIdentityInput =
-  components['schemas']['BrandIdentityPatchRequest']
-
-/** `{ data }` returned by `GET /v1/brand/logos` (a small fixed set). */
-export type BrandLogosResponse = components['schemas']['BrandLogosResponse']
+/** A sub-resource token accepted by `GET /v1/brand`'s `?include=`. */
+export type BrandIncludeToken =
+  | 'identity'
+  | 'emailDesign'
+  | 'imageStyle'
+  | 'logos'
 
 /** `{ data, pagination }` returned by `GET /v1/brand/images`. */
 export type BrandImagesResponse = components['schemas']['BrandImagesResponse']

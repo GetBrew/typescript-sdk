@@ -133,12 +133,12 @@ describe('automations resource — POST/GET/PATCH/DELETE wiring', () => {
     expect(result.name).toBe('Welcome v2')
   })
 
-  it('publish POSTs /v1/automations/{automationId}/publish with an empty body and returns the bare row', async () => {
+  it('publish PATCHes /v1/automations/{automationId} with { published: true } and returns the bare row', async () => {
     let captured: Request | undefined
     let body: unknown
     server.use(
-      http.post(
-        'https://brew.new/api/v1/automations/auto_abc/publish',
+      http.patch(
+        'https://brew.new/api/v1/automations/auto_abc',
         async ({ request }) => {
           captured = request.clone()
           body = await request.json()
@@ -149,16 +149,18 @@ describe('automations resource — POST/GET/PATCH/DELETE wiring', () => {
     const { client } = makeTestHttpClient()
     const automations = createAutomationsResource(client)
     const result = await automations.publish({ automationId: 'auto_abc' })
-    expect(captured?.method).toBe('POST')
-    expect(body).toEqual({})
+    // The old POST …/publish sub-route is gone — publishing is a PATCH.
+    expect(captured?.method).toBe('PATCH')
+    expect(new URL(captured!.url).pathname).toBe('/api/v1/automations/auto_abc')
+    expect(body).toEqual({ published: true })
     expect(result.published).toBe(true)
   })
 
-  it('publish with automationVersionId POSTs /publish with { automationVersionId } in the body', async () => {
+  it('publish with automationVersionId PATCHes with { published: true, automationVersionId }', async () => {
     let body: unknown
     server.use(
-      http.post(
-        'https://brew.new/api/v1/automations/auto_abc/publish',
+      http.patch(
+        'https://brew.new/api/v1/automations/auto_abc',
         async ({ request }) => {
           body = await request.json()
           return HttpResponse.json({ ...ROW, published: true })
@@ -171,16 +173,18 @@ describe('automations resource — POST/GET/PATCH/DELETE wiring', () => {
       automationId: 'auto_abc',
       automationVersionId: 'av_v2',
     })
-    expect(body).toEqual({ automationVersionId: 'av_v2' })
+    expect(body).toEqual({ published: true, automationVersionId: 'av_v2' })
   })
 
-  it('unpublish POSTs /v1/automations/{automationId}/unpublish (no body) and returns the bare row', async () => {
+  it('unpublish PATCHes /v1/automations/{automationId} with { published: false } and returns the bare row', async () => {
     let captured: Request | undefined
+    let body: unknown
     server.use(
-      http.post(
-        'https://brew.new/api/v1/automations/auto_abc/unpublish',
-        ({ request }) => {
+      http.patch(
+        'https://brew.new/api/v1/automations/auto_abc',
+        async ({ request }) => {
           captured = request.clone()
+          body = await request.json()
           return HttpResponse.json({ ...ROW, published: false })
         }
       )
@@ -188,9 +192,8 @@ describe('automations resource — POST/GET/PATCH/DELETE wiring', () => {
     const { client } = makeTestHttpClient()
     const automations = createAutomationsResource(client)
     const result = await automations.unpublish({ automationId: 'auto_abc' })
-    expect(captured?.method).toBe('POST')
-    // Empty body — no JSON payload.
-    expect((await captured!.text()).length).toBe(0)
+    expect(captured?.method).toBe('PATCH')
+    expect(body).toEqual({ published: false })
     expect(result.published).toBe(false)
   })
 
