@@ -8,14 +8,16 @@ import { server } from '../../msw/server'
 
 import type { ListAudiencesResponse } from '../../../src/resources/audiences/list'
 
+const PAGINATION = { limit: 100, cursor: null, hasMore: false }
+
 describe('audiences.list', () => {
-  it('sends GET /v1/audiences and returns the audiences envelope', async () => {
+  it('sends GET /v1/audiences and returns the { data, pagination } envelope', async () => {
     let capturedRequest: Request | undefined
     server.use(
       http.get('https://brew.new/api/v1/audiences', ({ request }) => {
         capturedRequest = request
         return HttpResponse.json({
-          audiences: [
+          data: [
             {
               audienceId: 'aud_123',
               audienceName: 'Nordic Founders',
@@ -25,6 +27,7 @@ describe('audiences.list', () => {
               audienceName: 'Product Updates',
             },
           ],
+          pagination: PAGINATION,
         })
       })
     )
@@ -36,16 +39,17 @@ describe('audiences.list', () => {
 
     expect(capturedRequest?.method).toBe('GET')
     expect(new URL(capturedRequest!.url).pathname).toBe('/api/v1/audiences')
-    expect(result.audiences).toHaveLength(2)
-    expect(result.audiences[0]?.audienceId).toBe('aud_123')
-    expect(result.audiences[0]?.audienceName).toBe('Nordic Founders')
+    expect(result.data).toHaveLength(2)
+    expect(result.data[0]?.audienceId).toBe('aud_123')
+    expect(result.data[0]?.audienceName).toBe('Nordic Founders')
   })
 
   it('returns the unwrapped envelope by default', async () => {
     server.use(
       http.get('https://brew.new/api/v1/audiences', () =>
         HttpResponse.json({
-          audiences: [{ audienceId: 'aud_1', audienceName: 'Beta' }],
+          data: [{ audienceId: 'aud_1', audienceName: 'Beta' }],
+          pagination: PAGINATION,
         })
       )
     )
@@ -54,7 +58,7 @@ describe('audiences.list', () => {
 
     const result = await list()
 
-    expect(Array.isArray(result.audiences)).toBe(true)
+    expect(Array.isArray(result.data)).toBe(true)
     // Default mode does not surface raw transport metadata.
     expect(
       (result as unknown as BrewRawResponse<ListAudiencesResponse>).status
@@ -65,7 +69,10 @@ describe('audiences.list', () => {
     server.use(
       http.get('https://brew.new/api/v1/audiences', () =>
         HttpResponse.json(
-          { audiences: [{ audienceId: 'aud_1', audienceName: 'Beta' }] },
+          {
+            data: [{ audienceId: 'aud_1', audienceName: 'Beta' }],
+            pagination: PAGINATION,
+          },
           {
             status: 200,
             headers: {
@@ -83,6 +90,6 @@ describe('audiences.list', () => {
     expect(raw.status).toBe(200)
     expect(raw.requestId).toBe('req_raw_audiences')
     expect(raw.headers.get('x-request-id')).toBe('req_raw_audiences')
-    expect(raw.data.audiences).toHaveLength(1)
+    expect(raw.data.data).toHaveLength(1)
   })
 })

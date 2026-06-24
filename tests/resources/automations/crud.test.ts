@@ -142,7 +142,7 @@ describe('automations resource — POST/GET/PATCH/DELETE wiring', () => {
     expect(body).toEqual({ automationId: 'auto_abc', published: false })
   })
 
-  it('delete DELETEs and surfaces cascade counts', async () => {
+  it('delete DELETEs and surfaces the idempotent { automationId, deleted } envelope', async () => {
     server.use(
       http.delete(
         'https://brew.new/api/v1/automations',
@@ -151,12 +151,7 @@ describe('automations resource — POST/GET/PATCH/DELETE wiring', () => {
           expect(body.automationId).toBe('auto_abc')
           return HttpResponse.json({
             automationId: 'auto_abc',
-            deletedAutomations: 3,
-            deletedEmails: 0,
-            deletedEmailGroupings: 0,
-            deletedCanvasLayouts: 0,
-            deletedExecutions: 0,
-            deletedExecutionLogs: 0,
+            deleted: true,
           })
         }
       )
@@ -164,6 +159,6 @@ describe('automations resource — POST/GET/PATCH/DELETE wiring', () => {
     const { client } = makeTestHttpClient()
     const automations = createAutomationsResource(client)
     const result = await automations.delete({ automationId: 'auto_abc' })
-    expect(result.deletedAutomations).toBe(3)
+    expect(result.deleted).toBe(true)
   })
 })

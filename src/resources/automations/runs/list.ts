@@ -112,7 +112,7 @@ export function createGetAutomationRun(client: HttpClient) {
   > {
     const response = await client.request<GetAutomationRunResponse>({
       method: 'GET',
-      path: `/v1/analytics/automations/runs/${encodeURIComponent(input.automationRunId)}`,
+      path: `/v1/automations/runs/${encodeURIComponent(input.automationRunId)}`,
       ...(options ? { options } : {}),
     })
     return unwrapResponse(response, options)

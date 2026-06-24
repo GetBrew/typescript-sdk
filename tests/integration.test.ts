@@ -55,6 +55,20 @@ describe('createBrewClient — end-to-end', () => {
     expect(typeof brew.fields.delete).toBe('function')
     expect(typeof brew.sends.create).toBe('function')
     expect(typeof brew.templates.list).toBe('function')
+
+    // v8 nested surfaces: send reads + trigger CRUD/runs moved.
+    expect(typeof brew.analytics.sends.get).toBe('function')
+    expect(typeof brew.analytics.sends.list).toBe('function')
+    expect(typeof brew.automations.triggers.fire).toBe('function')
+    expect(typeof brew.automations.runs.list).toBe('function')
+
+    // Removed in v8: no top-level me/usage/integrations resources, and
+    // send reads no longer hang off `sends`.
+    expect('me' in brew).toBe(false)
+    expect('usage' in brew).toBe(false)
+    expect('integrations' in brew).toBe(false)
+    expect('get' in brew.sends).toBe(false)
+    expect('list' in brew.sends).toBe(false)
   })
 
   it('runs a full upsert-then-fetch happy path through contacts', async () => {
@@ -68,8 +82,8 @@ describe('createBrewClient — end-to-end', () => {
               firstName: 'Jane',
               subscribed: true,
               suppressed: false,
-              createdAt: 1712592000000,
-              updatedAt: 1712592000000,
+              createdAt: '2026-04-08T12:00:00.000Z',
+              updatedAt: '2026-04-08T12:00:00.000Z',
               customFields: { plan: 'enterprise' },
             },
             created: true,
@@ -82,9 +96,8 @@ describe('createBrewClient — end-to-end', () => {
           }
         )
       }),
-      http.get('https://brew.new/api/v1/contacts', ({ request }) => {
-        const url = new URL(request.url)
-        const email = url.searchParams.get('email')
+      http.get('https://brew.new/api/v1/contacts/:email', ({ params }) => {
+        const email = decodeURIComponent(String(params.email))
         if (email !== 'jane@example.com') {
           return HttpResponse.json(
             {
@@ -100,15 +113,13 @@ describe('createBrewClient — end-to-end', () => {
           )
         }
         return HttpResponse.json({
-          contact: {
-            email: 'jane@example.com',
-            firstName: 'Jane',
-            subscribed: true,
-            suppressed: false,
-            createdAt: 1712592000000,
-            updatedAt: 1712592000000,
-            customFields: { plan: 'enterprise' },
-          },
+          email: 'jane@example.com',
+          firstName: 'Jane',
+          subscribed: true,
+          suppressed: false,
+          createdAt: '2026-04-08T12:00:00.000Z',
+          updatedAt: '2026-04-08T12:00:00.000Z',
+          customFields: { plan: 'enterprise' },
         })
       })
     )
@@ -133,7 +144,7 @@ describe('createBrewClient — end-to-end', () => {
 
   it('throws BrewApiError on 404 with requestId and code preserved', async () => {
     server.use(
-      http.get('https://brew.new/api/v1/contacts', () => {
+      http.get('https://brew.new/api/v1/contacts/:email', () => {
         return HttpResponse.json(
           {
             error: {
@@ -171,10 +182,11 @@ describe('createBrewClient — end-to-end', () => {
     server.use(
       http.get('https://brew.new/api/v1/fields', () => {
         return HttpResponse.json({
-          fields: [
+          data: [
             { fieldName: 'plan', fieldType: 'string', isCore: false },
             { fieldName: 'signupDate', fieldType: 'date', isCore: false },
           ],
+          pagination: { limit: 100, cursor: null, hasMore: false },
         })
       })
     )
@@ -182,8 +194,8 @@ describe('createBrewClient — end-to-end', () => {
     const brew = makeIntegrationClient()
     const result = await brew.fields.list()
 
-    expect(result.fields).toHaveLength(2)
-    expect(result.fields[0]?.fieldName).toBe('plan')
-    expect(result.fields[0]?.fieldType).toBe('string')
+    expect(result.data).toHaveLength(2)
+    expect(result.data[0]?.fieldName).toBe('plan')
+    expect(result.data[0]?.fieldType).toBe('string')
   })
 })

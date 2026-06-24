@@ -1,21 +1,23 @@
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it } from 'vitest'
 
-import { createListAllSends } from '../../../src/resources/sends/list-all'
-import { makeTestHttpClient } from '../../helpers/http-client'
-import { server } from '../../msw/server'
+import { createListAllSends } from '../../../../src/resources/analytics/sends/list'
+import { makeTestHttpClient } from '../../../helpers/http-client'
+import { server } from '../../../msw/server'
 
-describe('sends.listAll', () => {
+describe('analytics.sends.listAll', () => {
   it('walks every page following pagination.cursor', async () => {
     const seenCursors: Array<string | null> = []
     server.use(
-      http.get('https://brew.new/api/v1/sends', ({ request }) => {
+      http.get('https://brew.new/api/v1/analytics/sends', ({ request }) => {
         const cursor = new URL(request.url).searchParams.get('cursor')
         seenCursors.push(cursor)
         if (cursor === null) {
           return HttpResponse.json({
-            sends: [
+            data: [
               {
+                sendId: 'snd_1',
+                kind: 'campaign',
                 emailId: 'eml_1',
                 status: 'sent',
                 createdAt: '2026-04-08T12:00:00.000Z',
@@ -26,8 +28,10 @@ describe('sends.listAll', () => {
           })
         }
         return HttpResponse.json({
-          sends: [
+          data: [
             {
+              sendId: 'snd_2',
+              kind: 'campaign',
               emailId: 'eml_2',
               status: 'sent',
               createdAt: '2026-04-08T13:00:00.000Z',
@@ -44,10 +48,10 @@ describe('sends.listAll', () => {
 
     const ids: Array<string> = []
     for await (const send of listAll({ limit: 1 })) {
-      ids.push(send.emailId)
+      ids.push(send.sendId)
     }
 
-    expect(ids).toEqual(['eml_1', 'eml_2'])
+    expect(ids).toEqual(['snd_1', 'snd_2'])
     expect(seenCursors).toEqual([null, 'page2'])
   })
 })

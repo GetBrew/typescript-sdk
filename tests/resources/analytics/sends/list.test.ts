@@ -1,19 +1,21 @@
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it } from 'vitest'
 
-import { createListSends } from '../../../src/resources/sends/list'
-import { makeTestHttpClient } from '../../helpers/http-client'
-import { server } from '../../msw/server'
+import { createListSends } from '../../../../src/resources/analytics/sends/list'
+import { makeTestHttpClient } from '../../../helpers/http-client'
+import { server } from '../../../msw/server'
 
-describe('sends.list', () => {
-  it('GETs /v1/sends with filters and returns { sends, pagination }', async () => {
+describe('analytics.sends.list', () => {
+  it('GETs /v1/analytics/sends with filters and returns { data, pagination }', async () => {
     let url: string | undefined
     server.use(
-      http.get('https://brew.new/api/v1/sends', ({ request }) => {
+      http.get('https://brew.new/api/v1/analytics/sends', ({ request }) => {
         url = request.url
         return HttpResponse.json({
-          sends: [
+          data: [
             {
+              sendId: 'snd_promo',
+              kind: 'campaign',
               emailId: 'eml_promo',
               status: 'sent',
               audienceId: 'aud_1',
@@ -41,10 +43,11 @@ describe('sends.list', () => {
     const result = await list({ status: 'sent', limit: 50 })
 
     const params = new URL(url!).searchParams
+    expect(new URL(url!).pathname).toBe('/api/v1/analytics/sends')
     expect(params.get('status')).toBe('sent')
     expect(params.get('limit')).toBe('50')
-    expect(result.sends[0]?.emailId).toBe('eml_promo')
-    expect(result.sends[0]?.stats?.delivered).toBe(98)
+    expect(result.data[0]?.emailId).toBe('eml_promo')
+    expect(result.data[0]?.stats?.delivered).toBe(98)
     expect(result.pagination?.hasMore).toBe(false)
   })
 })

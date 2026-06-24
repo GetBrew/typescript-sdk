@@ -48,7 +48,7 @@ describe('contacts.listAll', () => {
         requestedCursors.push(cursor)
         if (cursor === null) {
           return HttpResponse.json({
-            contacts: PAGE_1_CONTACTS,
+            data: PAGE_1_CONTACTS,
             pagination: {
               limit: 50,
               cursor: 'CURSOR_PAGE_2',
@@ -57,7 +57,7 @@ describe('contacts.listAll', () => {
           })
         }
         return HttpResponse.json({
-          contacts: PAGE_2_CONTACTS,
+          data: PAGE_2_CONTACTS,
           pagination: {
             limit: 50,
             cursor: null,
@@ -91,7 +91,7 @@ describe('contacts.listAll', () => {
       http.get('https://brew.new/api/v1/contacts', () => {
         pageRequests++
         return HttpResponse.json({
-          contacts: PAGE_1_CONTACTS,
+          data: PAGE_1_CONTACTS,
           pagination: {
             limit: 50,
             cursor: 'CURSOR_NEXT',

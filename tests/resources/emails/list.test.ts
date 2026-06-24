@@ -5,19 +5,23 @@ import { createListEmails } from '../../../src/resources/emails/list'
 import { makeTestHttpClient } from '../../helpers/http-client'
 import { server } from '../../msw/server'
 
+const PAGINATION = { limit: 100, cursor: null, hasMore: false }
+
 describe('emails.list', () => {
-  it('sends GET /v1/emails and returns the emails envelope', async () => {
+  it('sends GET /v1/emails and returns the { data, pagination } envelope', async () => {
     let capturedRequest: Request | undefined
     server.use(
       http.get('https://brew.new/api/v1/emails', ({ request }) => {
         capturedRequest = request
         return HttpResponse.json({
-          emails: [
+          data: [
             {
               emailId: 'email_123',
-              emailTitle: 'Welcome Email',
+              emailVersionId: 'emv_123_v1',
+              title: 'Welcome Email',
             },
           ],
+          pagination: PAGINATION,
         })
       })
     )
@@ -29,9 +33,9 @@ describe('emails.list', () => {
 
     expect(capturedRequest?.method).toBe('GET')
     expect(new URL(capturedRequest!.url).pathname).toBe('/api/v1/emails')
-    expect(result.emails).toHaveLength(1)
-    expect(result.emails[0]?.emailId).toBe('email_123')
-    expect(result.emails[0]?.emailTitle).toBe('Welcome Email')
+    expect(result.data).toHaveLength(1)
+    expect(result.data[0]?.emailId).toBe('email_123')
+    expect(result.data[0]?.title).toBe('Welcome Email')
   })
 
   it('serializes status and date filters as query params', async () => {
@@ -39,7 +43,7 @@ describe('emails.list', () => {
     server.use(
       http.get('https://brew.new/api/v1/emails', ({ request }) => {
         capturedRequest = request
-        return HttpResponse.json({ emails: [] })
+        return HttpResponse.json({ data: [], pagination: PAGINATION })
       })
     )
 

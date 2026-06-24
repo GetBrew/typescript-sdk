@@ -5,20 +5,25 @@ import { createListTemplates } from '../../../src/resources/templates/list'
 import { makeTestHttpClient } from '../../helpers/http-client'
 import { server } from '../../msw/server'
 
+const PAGINATION = { limit: 100, cursor: null, hasMore: false }
+
 describe('templates.list', () => {
-  it('sends GET /v1/templates with no filters and returns the templates envelope', async () => {
+  it('sends GET /v1/templates with no filters and returns the { data, pagination } envelope', async () => {
     let capturedRequest: Request | undefined
     server.use(
       http.get('https://brew.new/api/v1/templates', ({ request }) => {
         capturedRequest = request
         return HttpResponse.json({
-          templates: [
+          data: [
             {
               emailId: 'seed-vercel-newsletter',
-              emailHtml: '<html><body>Frontend digest</body></html>',
-              emailPng: 'https://cdn.brew.new/seed-vercel-newsletter.png',
+              title: 'Vercel Frontend Digest',
+              html: '<html><body>Frontend digest</body></html>',
+              previewImage: 'https://cdn.brew.new/seed-vercel-newsletter.png',
+              updatedAt: '2026-04-08T12:00:00.000Z',
             },
           ],
+          pagination: PAGINATION,
         })
       })
     )
@@ -30,8 +35,9 @@ describe('templates.list', () => {
 
     expect(capturedRequest?.method).toBe('GET')
     expect(new URL(capturedRequest!.url).pathname).toBe('/api/v1/templates')
-    expect(result.templates).toHaveLength(1)
-    expect(result.templates[0]?.emailId).toBe('seed-vercel-newsletter')
+    expect(result.data).toHaveLength(1)
+    expect(result.data[0]?.emailId).toBe('seed-vercel-newsletter')
+    expect(result.data[0]?.title).toBe('Vercel Frontend Digest')
   })
 
   it('serializes brand, category, and semantic filters as query params', async () => {
@@ -39,7 +45,7 @@ describe('templates.list', () => {
     server.use(
       http.get('https://brew.new/api/v1/templates', ({ request }) => {
         capturedRequest = request
-        return HttpResponse.json({ templates: [] })
+        return HttpResponse.json({ data: [], pagination: PAGINATION })
       })
     )
 

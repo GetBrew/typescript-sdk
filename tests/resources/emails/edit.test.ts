@@ -20,8 +20,9 @@ describe('emails.edit', () => {
           capturedBody = await request.json()
           return HttpResponse.json({
             emailId: 'email_existing',
-            emailHtml: '<html><body>Edited</body></html>',
-            emailPng: 'https://cdn.brew.new/email_existing.png',
+            emailVersionId: 'emv_existing_v2',
+            html: '<html><body>Edited</body></html>',
+            previewImage: 'https://cdn.brew.new/email_existing.png',
           })
         }
       )
@@ -33,7 +34,7 @@ describe('emails.edit', () => {
     const result = await edit({
       emailId: 'email_existing',
       prompt: 'Tighten the headline.',
-      contentUrl: 'https://vercel.com/blog/post',
+      contentUrls: ['https://vercel.com/blog/post'],
     })
 
     expect(capturedRequest?.method).toBe('PATCH')
@@ -43,12 +44,12 @@ describe('emails.edit', () => {
     // emailId must NOT be in the body — it lives on the URL.
     expect(capturedBody).toEqual({
       prompt: 'Tighten the headline.',
-      contentUrl: 'https://vercel.com/blog/post',
+      contentUrls: ['https://vercel.com/blog/post'],
     })
     expect('emailId' in result).toBe(true)
     if ('emailId' in result) {
       expect(result.emailId).toBe('email_existing')
-      expect(result.emailHtml).toContain('Edited')
+      expect(result.html).toContain('Edited')
     }
   })
 
@@ -59,7 +60,8 @@ describe('emails.edit', () => {
         captured = String(params.emailId)
         return HttpResponse.json({
           emailId: 'odd id',
-          emailHtml: '<html />',
+          emailVersionId: 'emv_odd_v1',
+          html: '<html />',
         })
       })
     )
@@ -77,7 +79,11 @@ describe('emails.edit', () => {
     server.use(
       http.patch('https://brew.new/api/v1/emails/abc', ({ request }) => {
         captured = request.clone()
-        return HttpResponse.json({ emailId: 'abc', emailHtml: '<x />' })
+        return HttpResponse.json({
+          emailId: 'abc',
+          emailVersionId: 'emv_abc_v1',
+          html: '<x />',
+        })
       })
     )
     const { client } = makeTestHttpClient()

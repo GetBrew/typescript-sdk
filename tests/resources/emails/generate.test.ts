@@ -18,9 +18,9 @@ describe('emails.generate', () => {
         capturedBody = await request.json()
         return HttpResponse.json({
           emailId: 'email_123',
-          emailHtml: '<html><body>Welcome</body></html>',
-          emailPng: 'https://cdn.brew.new/email_123.png',
-          emailMobilePng: 'https://cdn.brew.new/email_123-mobile.png',
+          emailVersionId: 'emv_123_v1',
+          html: '<html><body>Welcome</body></html>',
+          previewImage: 'https://cdn.brew.new/email_123.png',
         })
       })
     )
@@ -30,24 +30,22 @@ describe('emails.generate', () => {
 
     const result = await generate({
       prompt: 'Create a welcome email',
-      emailType: 'campaign',
-      contentUrl: 'https://vercel.com/blog',
+      contentUrls: ['https://vercel.com/blog'],
       referenceEmailId: 'seed-vercel-newsletter',
     })
 
     expect(capturedRequest?.method).toBe('POST')
     expect(capturedBody).toEqual({
       prompt: 'Create a welcome email',
-      emailType: 'campaign',
-      contentUrl: 'https://vercel.com/blog',
+      contentUrls: ['https://vercel.com/blog'],
       referenceEmailId: 'seed-vercel-newsletter',
     })
     expect(capturedRequest?.headers.get('idempotency-key')).toBeTruthy()
     expect('emailId' in result).toBe(true)
     if ('emailId' in result) {
       expect(result.emailId).toBe('email_123')
-      expect(result.emailHtml).toContain('Welcome')
-      expect(result.emailPng).toBe('https://cdn.brew.new/email_123.png')
+      expect(result.html).toContain('Welcome')
+      expect(result.previewImage).toBe('https://cdn.brew.new/email_123.png')
     }
   })
 
@@ -65,7 +63,6 @@ describe('emails.generate', () => {
 
     const result = await generate({
       prompt: 'Explain the campaign strategy only',
-      emailType: 'campaign',
     })
 
     expect('emailId' in result).toBe(false)
@@ -93,7 +90,7 @@ describe('emails.generate', () => {
 
     const controller = new AbortController()
     const pending = generate(
-      { prompt: 'Create a welcome email', emailType: 'campaign' },
+      { prompt: 'Create a welcome email' },
       { signal: controller.signal }
     )
     controller.abort()
@@ -101,14 +98,15 @@ describe('emails.generate', () => {
     await expect(pending).rejects.toThrowError()
   })
 
-  it('threads emailType through the request body', async () => {
+  it('threads contentUrls through the request body', async () => {
     let capturedBody: unknown
     server.use(
       http.post('https://brew.new/api/v1/emails', async ({ request }) => {
         capturedBody = await request.json()
         return HttpResponse.json({
           emailId: 'email_auto',
-          emailHtml: '<html>auto</html>',
+          emailVersionId: 'emv_auto_v1',
+          html: '<html>auto</html>',
         })
       })
     )
@@ -117,11 +115,11 @@ describe('emails.generate', () => {
     const generate = createGenerateEmail(client)
     await generate({
       prompt: 'day-2 nudge body for the welcome automation',
-      emailType: 'automation',
+      contentUrls: ['https://vercel.com/changelog'],
     })
 
     expect(capturedBody).toMatchObject({
-      emailType: 'automation',
+      contentUrls: ['https://vercel.com/changelog'],
     })
   })
 })

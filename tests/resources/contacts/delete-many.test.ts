@@ -6,13 +6,18 @@ import { makeTestHttpClient } from '../../helpers/http-client'
 import { server } from '../../msw/server'
 
 describe('contacts.deleteMany', () => {
-  it('sends DELETE /v1/contacts with { emails: [...] } body and returns the deletion envelope', async () => {
+  it('sends POST /v1/contacts/batch-delete with { emails: [...] } body and returns the deletion envelope', async () => {
+    let capturedRequest: Request | undefined
     let capturedBody: unknown
     server.use(
-      http.delete('https://brew.new/api/v1/contacts', async ({ request }) => {
-        capturedBody = await request.json()
-        return HttpResponse.json({ deleted: 2 })
-      })
+      http.post(
+        'https://brew.new/api/v1/contacts/batch-delete',
+        async ({ request }) => {
+          capturedRequest = request.clone()
+          capturedBody = await request.json()
+          return HttpResponse.json({ deleted: 2 })
+        }
+      )
     )
 
     const { client } = makeTestHttpClient()
@@ -22,6 +27,10 @@ describe('contacts.deleteMany', () => {
       emails: ['a@example.com', 'b@example.com'],
     })
 
+    expect(capturedRequest?.method).toBe('POST')
+    expect(new URL(capturedRequest!.url).pathname).toBe(
+      '/api/v1/contacts/batch-delete'
+    )
     expect(capturedBody).toEqual({
       emails: ['a@example.com', 'b@example.com'],
     })
@@ -31,7 +40,7 @@ describe('contacts.deleteMany', () => {
 
   it('exposes the optional notFound array when the API surfaces partial misses', async () => {
     server.use(
-      http.delete('https://brew.new/api/v1/contacts', () =>
+      http.post('https://brew.new/api/v1/contacts/batch-delete', () =>
         HttpResponse.json({
           deleted: 1,
           notFound: ['missing@example.com'],
@@ -52,7 +61,7 @@ describe('contacts.deleteMany', () => {
 
   it('returns the full BrewRawResponse when called with { raw: true }', async () => {
     server.use(
-      http.delete('https://brew.new/api/v1/contacts', () =>
+      http.post('https://brew.new/api/v1/contacts/batch-delete', () =>
         HttpResponse.json(
           { deleted: 0, notFound: ['ghost@example.com'] },
           {
