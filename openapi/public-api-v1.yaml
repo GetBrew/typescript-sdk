@@ -6374,7 +6374,7 @@ paths:
               example: &a2
                 response: No email was generated.
         "201":
-          description: A design was persisted (credits charged). `emailVersionId` pins the exact version for sends + automation `sendEmail` nodes. The `X-Credit-Cost` / `X-Credits-Remaining` headers report the charge.
+          description: "A design was persisted. Usage-metered: the actual token usage of the email agent is charged (no fixed price, so no `X-Credit-Cost` header). `emailVersionId` pins the exact version for sends + automation `sendEmail` nodes."
           headers:
             x-request-id:
               schema:
@@ -6906,7 +6906,7 @@ paths:
                   jsx: <Html><Body><Container><Text>Welcome to Brew.</Text></Container></Body></Html>
       responses:
         "200":
-          description: Updated design (a new `latest` version row was written, credits charged) or a text response if the agent returned prose without JSX. The deterministic `jsx` save branch is FREE.
+          description: Updated design (a new `latest` version row was written) or a text response if the agent returned prose without JSX. The AI `prompt` edit is usage-metered (actual token usage charged, no fixed price); the deterministic `jsx` save branch is FREE.
           headers:
             x-request-id:
               schema:
@@ -21960,7 +21960,7 @@ paths:
       tags:
         - Content
       summary: Generate an image
-      description: Generates an image via the Brew AI image pipeline. `text-to-image` (default) creates from a prompt; `image-editing` edits `image1` (required) guided by the prompt. Returns a CDN-hosted URL. Credit-metered.
+      description: "Generates an image via the Brew AI image pipeline. `text-to-image` (default) creates from a prompt; `image-editing` edits `image1` (required) guided by the prompt. Returns a CDN-hosted URL. Usage-metered: charges the actual image gateway cost (no fixed price)."
       parameters:
         - *a4
       requestBody:
@@ -22246,7 +22246,7 @@ paths:
       tags:
         - Content
       summary: Generate an animated GIF
-      description: Generates a looping animated GIF from a text prompt (via short video generation). Returns CDN-hosted `gifUrl` + source `videoUrl`. Credit-metered.
+      description: Generates a looping animated GIF from a text prompt (via short video generation). Returns CDN-hosted `gifUrl` + source `videoUrl`. Credit-metered (fixed cost).
       parameters:
         - *a4
       requestBody:
@@ -22523,7 +22523,7 @@ paths:
       tags:
         - Content
       summary: Animate an image into a GIF
-      description: Animates a source image into a looping GIF; motion is inferred from the image (and an optional prompt). Credit-metered.
+      description: Animates a source image into a looping GIF; motion is inferred from the image (and an optional prompt). Credit-metered (fixed cost).
       parameters:
         - *a4
       requestBody:
@@ -22826,7 +22826,7 @@ paths:
       tags:
         - Content
       summary: Convert a video to a GIF
-      description: Converts a source MP4 video URL into a CDN-hosted GIF. Credit-metered.
+      description: Converts a source MP4 video URL into a CDN-hosted GIF. Credit-metered (fixed cost).
       parameters:
         - *a4
       requestBody:
@@ -23103,7 +23103,7 @@ paths:
       tags:
         - Content
       summary: Optimize an image for email
-      description: Fetches a source image, optimizes it (resize ≤1200px, palette PNG via Sharp), and rehosts it to the CDN. Credit-metered.
+      description: Fetches a source image, optimizes it (resize ≤1200px, palette PNG via Sharp), and rehosts it to the CDN. Credit-metered (fixed cost).
       parameters:
         - *a4
       requestBody:
@@ -23380,7 +23380,7 @@ paths:
       tags:
         - Content
       summary: Resize an image (intelligent)
-      description: Resizes an image to exact dimensions using a vision-LLM-guided fal pipeline (deterministic Sharp cover-crop fallback). Credit-metered.
+      description: Resizes an image to exact dimensions using a vision-LLM-guided fal pipeline (deterministic Sharp cover-crop fallback). Credit-metered (fixed cost).
       parameters:
         - *a4
       requestBody:
@@ -23657,7 +23657,7 @@ paths:
       tags:
         - Content
       summary: Render HTML to a PNG
-      description: Renders an HTML document to a PNG screenshot hosted on the CDN. Credit-metered.
+      description: Renders an HTML document to a PNG screenshot hosted on the CDN. Credit-metered (fixed cost).
       parameters:
         - *a4
       requestBody:
@@ -23934,7 +23934,7 @@ paths:
       tags:
         - Content
       summary: Host an image in the brand library
-      description: Fetches a public image URL, optimizes it (resize ≤1200px, palette PNG via Sharp), saves it to the brand image library, and vector-indexes it for the email agent to find. Returns the durable cdn.brew.new URL plus dimensions. Credit-metered.
+      description: Fetches a public image URL, optimizes it (resize ≤1200px, palette PNG via Sharp), saves it to the brand image library, and vector-indexes it for the email agent to find. Returns the durable cdn.brew.new URL plus dimensions. Credit-metered (fixed cost).
       parameters:
         - *a4
       requestBody:

@@ -1140,7 +1140,7 @@ export interface paths {
         put?: never;
         /**
          * Generate an image
-         * @description Generates an image via the Brew AI image pipeline. `text-to-image` (default) creates from a prompt; `image-editing` edits `image1` (required) guided by the prompt. Returns a CDN-hosted URL. Credit-metered.
+         * @description Generates an image via the Brew AI image pipeline. `text-to-image` (default) creates from a prompt; `image-editing` edits `image1` (required) guided by the prompt. Returns a CDN-hosted URL. Usage-metered: charges the actual image gateway cost (no fixed price).
          */
         post: operations["generateContentImage"];
         delete?: never;
@@ -1160,7 +1160,7 @@ export interface paths {
         put?: never;
         /**
          * Generate an animated GIF
-         * @description Generates a looping animated GIF from a text prompt (via short video generation). Returns CDN-hosted `gifUrl` + source `videoUrl`. Credit-metered.
+         * @description Generates a looping animated GIF from a text prompt (via short video generation). Returns CDN-hosted `gifUrl` + source `videoUrl`. Credit-metered (fixed cost).
          */
         post: operations["generateContentGif"];
         delete?: never;
@@ -1180,7 +1180,7 @@ export interface paths {
         put?: never;
         /**
          * Animate an image into a GIF
-         * @description Animates a source image into a looping GIF; motion is inferred from the image (and an optional prompt). Credit-metered.
+         * @description Animates a source image into a looping GIF; motion is inferred from the image (and an optional prompt). Credit-metered (fixed cost).
          */
         post: operations["contentImageToGif"];
         delete?: never;
@@ -1200,7 +1200,7 @@ export interface paths {
         put?: never;
         /**
          * Convert a video to a GIF
-         * @description Converts a source MP4 video URL into a CDN-hosted GIF. Credit-metered.
+         * @description Converts a source MP4 video URL into a CDN-hosted GIF. Credit-metered (fixed cost).
          */
         post: operations["contentVideoToGif"];
         delete?: never;
@@ -1220,7 +1220,7 @@ export interface paths {
         put?: never;
         /**
          * Optimize an image for email
-         * @description Fetches a source image, optimizes it (resize ≤1200px, palette PNG via Sharp), and rehosts it to the CDN. Credit-metered.
+         * @description Fetches a source image, optimizes it (resize ≤1200px, palette PNG via Sharp), and rehosts it to the CDN. Credit-metered (fixed cost).
          */
         post: operations["contentOptimizeImage"];
         delete?: never;
@@ -1240,7 +1240,7 @@ export interface paths {
         put?: never;
         /**
          * Resize an image (intelligent)
-         * @description Resizes an image to exact dimensions using a vision-LLM-guided fal pipeline (deterministic Sharp cover-crop fallback). Credit-metered.
+         * @description Resizes an image to exact dimensions using a vision-LLM-guided fal pipeline (deterministic Sharp cover-crop fallback). Credit-metered (fixed cost).
          */
         post: operations["contentResize"];
         delete?: never;
@@ -1260,7 +1260,7 @@ export interface paths {
         put?: never;
         /**
          * Render HTML to a PNG
-         * @description Renders an HTML document to a PNG screenshot hosted on the CDN. Credit-metered.
+         * @description Renders an HTML document to a PNG screenshot hosted on the CDN. Credit-metered (fixed cost).
          */
         post: operations["contentHtmlToPng"];
         delete?: never;
@@ -1280,7 +1280,7 @@ export interface paths {
         put?: never;
         /**
          * Host an image in the brand library
-         * @description Fetches a public image URL, optimizes it (resize ≤1200px, palette PNG via Sharp), saves it to the brand image library, and vector-indexes it for the email agent to find. Returns the durable cdn.brew.new URL plus dimensions. Credit-metered.
+         * @description Fetches a public image URL, optimizes it (resize ≤1200px, palette PNG via Sharp), saves it to the brand image library, and vector-indexes it for the email agent to find. Returns the durable cdn.brew.new URL plus dimensions. Credit-metered (fixed cost).
          */
         post: operations["contentHostImage"];
         delete?: never;
@@ -3608,7 +3608,7 @@ export interface operations {
                     "application/json": components["schemas"]["EmailGenerateTextResponse"];
                 };
             };
-            /** @description A design was persisted (credits charged). `emailVersionId` pins the exact version for sends + automation `sendEmail` nodes. The `X-Credit-Cost` / `X-Credits-Remaining` headers report the charge. */
+            /** @description A design was persisted. Usage-metered: the actual token usage of the email agent is charged (no fixed price, so no `X-Credit-Cost` header). `emailVersionId` pins the exact version for sends + automation `sendEmail` nodes. */
             201: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -4188,7 +4188,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Updated design (a new `latest` version row was written, credits charged) or a text response if the agent returned prose without JSX. The deterministic `jsx` save branch is FREE. */
+            /** @description Updated design (a new `latest` version row was written) or a text response if the agent returned prose without JSX. The AI `prompt` edit is usage-metered (actual token usage charged, no fixed price); the deterministic `jsx` save branch is FREE. */
             200: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
