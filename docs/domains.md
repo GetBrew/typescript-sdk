@@ -9,7 +9,7 @@ List and manage sending domains. `list` returns the uniform
 | [`listSendable`](#listsendable) | `GET /v1/domains?sendableOnly=true` |
 
 > This file documents the read paths used to pick a `domainId` for
-> `brew.sends.create(...)`. The resource also exposes the lifecycle
+> `brew.emails.send(...)`. The resource also exposes the lifecycle
 > methods `get`, `add`, `verify`, `updateSettings`, and `delete` (each
 > returns the **bare** `Domain` row).
 
@@ -70,7 +70,7 @@ for (const domain of data) {
 ## `listSendable`
 
 Only the verified, send-ready domains — the safe source for `domainId`
-when you call `brew.sends.create(...)`. Returns `{ data, pagination }`.
+when you call `brew.emails.send(...)`. Returns `{ data, pagination }`.
 
 ```ts
 const { data } = await brew.domains.listSendable()

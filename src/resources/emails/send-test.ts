@@ -1,11 +1,16 @@
+import type { components } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
-import type { SendsTestRequest, SendsTestResponse } from './types'
+/** Body for `POST /v1/sends/test` — a one-off [TEST] delivery. */
+export type SendsTestRequest = components['schemas']['SendsTestRequest']
+
+/** 200 envelope for a `POST /v1/sends/test` delivery. */
+export type SendsTestResponse = components['schemas']['SendsTestResponse']
 
 /** Test-send body for `POST /v1/sends/test` — fires to a single `to` address. */
-export type TestSendInput = SendsTestRequest
-export type TestSendResponse = SendsTestResponse
+export type SendTestInput = SendsTestRequest
+export type SendTestResponse = SendsTestResponse
 
 /**
  * `POST /v1/sends/test` — fire a one-off [TEST] delivery of a design's
@@ -20,22 +25,22 @@ export type TestSendResponse = SendsTestResponse
  * `422 EMAIL_NOT_READY`.
  *
  * Pass `{ raw: true }` in `options` to receive the full
- * `BrewRawResponse<TestSendResponse>` instead of the unwrapped payload.
+ * `BrewRawResponse<SendTestResponse>` instead of the unwrapped payload.
  */
-export function createTestSend(client: HttpClient) {
-  function testSend(
-    input: TestSendInput,
+export function createSendTestEmail(client: HttpClient) {
+  function sendTestEmail(
+    input: SendTestInput,
     options: RequestOptions & { readonly raw: true }
-  ): Promise<BrewRawResponse<TestSendResponse>>
-  function testSend(
-    input: TestSendInput,
+  ): Promise<BrewRawResponse<SendTestResponse>>
+  function sendTestEmail(
+    input: SendTestInput,
     options?: RequestOptions
-  ): Promise<TestSendResponse>
-  async function testSend(
-    input: TestSendInput,
+  ): Promise<SendTestResponse>
+  async function sendTestEmail(
+    input: SendTestInput,
     options?: RequestOptions
-  ): Promise<TestSendResponse | BrewRawResponse<TestSendResponse>> {
-    const response = await client.request<TestSendResponse>({
+  ): Promise<SendTestResponse | BrewRawResponse<SendTestResponse>> {
+    const response = await client.request<SendTestResponse>({
       method: 'POST',
       path: '/v1/sends/test',
       body: input,
@@ -43,5 +48,5 @@ export function createTestSend(client: HttpClient) {
     })
     return unwrapResponse(response, options)
   }
-  return testSend
+  return sendTestEmail
 }

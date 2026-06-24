@@ -1,11 +1,11 @@
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it } from 'vitest'
 
-import { createCreateSend } from '../../../src/resources/sends/create'
+import { createSendEmail } from '../../../src/resources/emails/send'
 import { makeTestHttpClient } from '../../helpers/http-client'
 import { server } from '../../msw/server'
 
-describe('sends.create', () => {
+describe('emails.send', () => {
   it('sends POST /v1/sends with audience mode and returns the accepted response', async () => {
     let capturedRequest: Request | undefined
     let capturedBody: unknown
@@ -24,9 +24,9 @@ describe('sends.create', () => {
     )
 
     const { client } = makeTestHttpClient()
-    const create = createCreateSend(client)
+    const send = createSendEmail(client)
 
-    const result = await create({
+    const result = await send({
       emailId: 'email_123',
       domainId: 'domain_123',
       subject: 'Welcome to Brew',
@@ -35,6 +35,7 @@ describe('sends.create', () => {
       audienceId: 'aud_123',
     })
 
+    expect(new URL(capturedRequest!.url).pathname).toBe('/api/v1/sends')
     expect(capturedRequest?.method).toBe('POST')
     expect(capturedBody).toEqual({
       emailId: 'email_123',
@@ -70,9 +71,9 @@ describe('sends.create', () => {
     )
 
     const { client } = makeTestHttpClient()
-    const create = createCreateSend(client)
+    const send = createSendEmail(client)
 
-    const result = await create(
+    const result = await send(
       {
         emailId: 'email_456',
         domainId: 'domain_456',

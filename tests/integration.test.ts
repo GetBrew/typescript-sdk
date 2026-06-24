@@ -53,7 +53,9 @@ describe('createBrewClient — end-to-end', () => {
     expect(typeof brew.fields.list).toBe('function')
     expect(typeof brew.fields.create).toBe('function')
     expect(typeof brew.fields.delete).toBe('function')
-    expect(typeof brew.sends.create).toBe('function')
+    // Send actions now live on `emails` (a send = sending a design to a target).
+    expect(typeof brew.emails.send).toBe('function')
+    expect(typeof brew.emails.sendTest).toBe('function')
     expect(typeof brew.templates.list).toBe('function')
 
     // v8 nested surfaces: send reads + trigger CRUD/runs moved.
@@ -62,13 +64,13 @@ describe('createBrewClient — end-to-end', () => {
     expect(typeof brew.automations.triggers.fire).toBe('function')
     expect(typeof brew.automations.runs.list).toBe('function')
 
-    // Removed in v8: no top-level me/usage/integrations resources, and
-    // send reads no longer hang off `sends`.
+    // Removed: no top-level me/usage/integrations resources, and the
+    // top-level `sends` namespace is gone — the send actions moved to
+    // `emails.send` / `emails.sendTest` and send reads to `analytics.sends`.
     expect('me' in brew).toBe(false)
     expect('usage' in brew).toBe(false)
     expect('integrations' in brew).toBe(false)
-    expect('get' in brew.sends).toBe(false)
-    expect('list' in brew.sends).toBe(false)
+    expect('sends' in brew).toBe(false)
   })
 
   it('runs a full upsert-then-fetch happy path through contacts', async () => {

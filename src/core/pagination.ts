@@ -44,7 +44,7 @@ export type Page<TItem> = {
  * wrapper around this so callers never juggle cursor state:
  *
  * ```ts
- * for await (const send of brew.sends.listAll({ status: 'sent' })) {
+ * for await (const send of brew.analytics.sends.listAll({ status: 'sent' })) {
  *   console.log(send.emailId)
  * }
  * ```

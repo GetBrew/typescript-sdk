@@ -19,7 +19,7 @@ export type GetSendResponse = Send
  * `GET /v1/analytics/sends/{sendId}` — return the bare send row:
  * lifecycle status, the design + pinned version it delivered, audience,
  * timestamps, and the aggregated `stats` block (or `404 SEND_NOT_FOUND`
- * on a miss). Poll this after `brew.sends.create(...)`. Requires the
+ * on a miss). Poll this after `brew.emails.send(...)`. Requires the
  * `sends` scope.
  *
  * Pass `{ raw: true }` in `options` to receive the full

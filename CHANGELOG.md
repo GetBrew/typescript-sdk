@@ -1,5 +1,31 @@
 # Changelog
 
+## Unreleased
+
+### Breaking — send actions moved to `emails`, `brew.sends` removed
+
+A send is the act of sending an email design to a target — it is not
+campaign-specific — so the two send actions now live with emails, and the
+top-level `brew.sends` namespace is removed entirely.
+
+```ts
+brew.sends.create(...)  →  brew.emails.send(...)      // still POST /v1/sends
+brew.sends.test(...)    →  brew.emails.sendTest(...)  // still POST /v1/sends/test
+```
+
+The HTTP URLs (`/v1/sends`, `/v1/sends/test`) and the request/response
+shapes are unchanged — `emailId` stays a required body field and a send
+still combines `emailId` + `emailVersionId?` + `domainId` +
+`audienceId | to`. Only the SDK method location/name changed. Send
+**reads** remain on `brew.analytics.sends.*`.
+
+The exported request/response types moved accordingly: `SendsPostRequest`,
+`SendsTestRequest`, `SendsTestResponse`, `SendAcceptedResponse`,
+`SendAcceptedStatus` (plus the new `SendEmailInput` / `SendEmailResponse` /
+`SendTestInput` / `SendTestResponse` aliases) now re-export from the
+`emails` resource; the `SendsResource` type and `CreateSendInput` /
+`CreateSendResponse` / `TestSendInput` / `TestSendResponse` are gone.
+
 ## 8.0.0
 
 **BREAKING.** The v1 API was consolidated into three domains
@@ -50,7 +76,9 @@ brew.events.get(...)        →  brew.analytics.triggerInstances.get(...)
 
 The top-level **`brew.sends`** keeps only the writes:
 `brew.sends.create` (`POST /v1/sends`) and `brew.sends.test`
-(`POST /v1/sends/test`).
+(`POST /v1/sends/test`). (Superseded in _Unreleased_ above: these writes
+moved to `brew.emails.send` / `brew.emails.sendTest` and `brew.sends` was
+removed.)
 
 Underlying paths changed too: triggers now hit
 `/v1/automations/triggers(/{triggerEventId}(/fire))`, runs hit

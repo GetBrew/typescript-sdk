@@ -39,7 +39,6 @@ export type { DomainsResource } from './resources/domains/resource'
 export type { EmailsResource } from './resources/emails/resource'
 export type { FieldsResource } from './resources/fields/resource'
 export type { HelpResource } from './resources/help/resource'
-export type { SendsResource } from './resources/sends/resource'
 export type { TemplatesResource } from './resources/templates/resource'
 
 // ---------- Nested resource shapes ----------
@@ -200,14 +199,9 @@ export type {
   GeneratedEmailTextResponse,
 } from './resources/emails/types'
 // Send domain reads (`Send`, `SendStats`, `SendsListResponse`, …) are
-// exported from the `analytics/sends` block above; the top-level `sends`
-// resource keeps only the create + test request/response shapes.
-export type {
-  SendAcceptedResponse,
-  SendAcceptedStatus,
-  SendsPostRequest,
-  SendsTestResponse,
-} from './resources/sends/types'
+// exported from the `analytics/sends` block above; the send ACTIONS now
+// live on `emails` (`emails.send` / `emails.sendTest`), so their request +
+// response shapes are exported from the `emails` block below.
 export type { Template } from './resources/templates/types'
 
 // ---------- Audiences: method inputs + outputs ----------
@@ -277,11 +271,20 @@ export type {
   RestoreEmailInput,
   RestoreEmailResponse,
 } from './resources/emails/restore'
+// Send ACTIONS now live on `emails` (`emails.send` / `emails.sendTest`).
 export type {
-  CreateSendInput,
-  CreateSendResponse,
-} from './resources/sends/create'
-export type { TestSendInput, TestSendResponse } from './resources/sends/test'
+  SendEmailInput,
+  SendEmailResponse,
+  SendsPostRequest,
+  SendAcceptedResponse,
+  SendAcceptedStatus,
+} from './resources/emails/send'
+export type {
+  SendTestInput,
+  SendTestResponse,
+  SendsTestRequest,
+  SendsTestResponse,
+} from './resources/emails/send-test'
 export type {
   ListTemplatesInput,
   ListTemplatesResponse,

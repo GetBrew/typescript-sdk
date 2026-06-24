@@ -1,7 +1,7 @@
 # `brew.audiences`
 
 Full CRUD for saved audiences (named filter sets over the brand's contacts).
-An audience is the recipient target for `brew.sends.create(...)`.
+An audience is the recipient target for `brew.emails.send(...)`.
 
 | Method                    | HTTP                                       |
 | ------------------------- | ------------------------------------------ |

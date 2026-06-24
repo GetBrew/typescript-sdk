@@ -14,7 +14,7 @@ export type ListDomainsInput = PaginationInput
  * complete verification). Each row carries `status` and the derived
  * `sendable` flag. Returns the uniform `{ data, pagination }` envelope;
  * accepts `limit`/`cursor`. For only the verified, send-ready set (the
- * valid picker source for `brew.sends.create(...)`), use
+ * valid picker source for `brew.emails.send(...)`), use
  * `brew.domains.listSendable()` or filter on `row.sendable`.
  *
  * Pass `{ raw: true }` in `options` to receive the full

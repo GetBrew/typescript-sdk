@@ -115,9 +115,9 @@ for await (const event of brew.analytics.eventsAll({
 
 ## `sends`
 
-Campaign-send **reads**. (Starting a send lives on `brew.sends.create`;
-firing a test lives on `brew.sends.test` — see
-[`docs/sends.md`](./sends.md).)
+Campaign-send **reads**. (Sending a design lives on `brew.emails.send`;
+firing a test lives on `brew.emails.sendTest` — see
+[`docs/emails.md`](./emails.md).)
 
 ### Shared types
 
@@ -182,7 +182,7 @@ for await (const send of brew.analytics.sends.listAll({ status: 'sent' })) {
 
 Fetch a single send by id. Returns the **bare** `Send` row (not an
 envelope), or `404 SEND_NOT_FOUND` on a miss. Poll this after
-`brew.sends.create(...)`.
+`brew.emails.send(...)`.
 
 ```ts
 const send = await brew.analytics.sends.get({ sendId: 'snd_123' })

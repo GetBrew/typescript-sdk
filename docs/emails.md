@@ -1,12 +1,19 @@
 # `brew.emails`
 
-Three methods for listing saved emails, generating new ones, and editing existing ones.
+List saved emails, generate new ones, edit existing ones, and **send** a
+design to a target. A send delivers a saved email design to a recipient
+target (a saved audience or an inline address) — it is not
+campaign-specific, so the send actions live here on `emails`. Send
+**reads** (lifecycle, stats, per-recipient events) live on
+`brew.analytics.sends.*`; see [`docs/analytics.md`](./analytics.md#sends).
 
-| Method                  | HTTP                         |
-| ----------------------- | ---------------------------- |
-| [`list`](#list)         | `GET /v1/emails`             |
-| [`generate`](#generate) | `POST /v1/emails`            |
-| [`edit`](#edit)         | `PATCH /v1/emails/{emailId}` |
+| Method                  | HTTP                         | Scope    |
+| ----------------------- | ---------------------------- | -------- |
+| [`list`](#list)         | `GET /v1/emails`             | `emails` |
+| [`generate`](#generate) | `POST /v1/emails`            | `emails` |
+| [`edit`](#edit)         | `PATCH /v1/emails/{emailId}` | `emails` |
+| [`send`](#send)         | `POST /v1/sends`             | `sends`  |
+| [`sendTest`](#sendtest) | `POST /v1/sends/test`        | `sends`  |
 
 ## Shared types
 
@@ -218,3 +225,69 @@ await brew.emails.edit(
 | 409    | `EMAIL_IN_PROGRESS`    | The target email is currently being generated. Retry shortly                                                               |
 | 409    | `IDEMPOTENCY_CONFLICT` | Reused `Idempotency-Key` with a different request body                                                                     |
 | 422    | `BRAND_NOT_READY`      | The brand bound to the API key has not finished extraction                                                                 |
+
+---
+
+## Send shared types
+
+```ts
+type SendAcceptedResponse = {
+  readonly status: 'queued' | 'scheduled'
+  readonly runId: string
+  readonly scheduledAt?: string // ISO-8601
+}
+
+type SendsTestResponse = {
+  readonly status: 'sent'
+  readonly recipient: string
+}
+```
+
+The `Send` row, `SendStats`, and `SendStatus` types belong to the
+analytics surface — see [`docs/analytics.md`](./analytics.md#sends).
+
+---
+
+## `send`
+
+Send a saved email design to a target. Provide EXACTLY ONE recipient
+target — `audienceId` (a saved audience) or `to` (a single inline address
+or an array, max 50). Returns when the job is accepted (HTTP 202), not
+when delivery completes. Requires a verified sending `domainId`. Requires
+the `sends` scope. A design can be sent unlimited times; every call mints
+a new send.
+
+```ts
+const result = await brew.emails.send({
+  emailId: 'email_123',
+  domainId: 'domain_123',
+  subject: 'Welcome to Brew',
+  audienceId: 'aud_123',
+})
+// { status: 'queued' | 'scheduled', runId, scheduledAt? }
+```
+
+Poll the resulting send for lifecycle + stats:
+
+```ts
+const [send] = (await brew.analytics.sends.list({ emailId: 'email_123' })).data
+console.log(send.status, send.stats?.delivered)
+```
+
+---
+
+## `sendTest`
+
+Send a one-off [TEST] delivery of a design to a single recipient. Forces
+the Brew default sender (no verified domain or audience required) and
+never creates a send row. Resolves synchronously (HTTP 200). Requires the
+`sends` scope.
+
+```ts
+const { status, recipient } = await brew.emails.sendTest({
+  emailId: 'email_123',
+  subject: 'Preview: Welcome to Brew',
+  to: 'qa@example.com',
+})
+// { status: 'sent', recipient: 'qa@example.com' }
+```

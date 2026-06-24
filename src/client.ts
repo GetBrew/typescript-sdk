@@ -45,10 +45,6 @@ import {
   type HelpResource,
 } from './resources/help/resource'
 import {
-  createSendsResource,
-  type SendsResource,
-} from './resources/sends/resource'
-import {
   createTemplatesResource,
   type TemplatesResource,
 } from './resources/templates/resource'
@@ -85,12 +81,15 @@ export type BrewClient = {
   /** `POST /v1/content/*` — credit-metered media generation + image/render ops. */
   readonly content: ContentResource
   readonly domains: DomainsResource
+  /**
+   * Email designs plus the send actions: `emails.send` (`POST /v1/sends`)
+   * and `emails.sendTest` (`POST /v1/sends/test`). A send delivers a saved
+   * design to a target. (Send reads live on `analytics.sends.*`.)
+   */
   readonly emails: EmailsResource
   readonly fields: FieldsResource
   /** `GET /v1/help` — the no-auth machine-readable API catalog. */
   readonly help: HelpResource
-  /** `POST /v1/sends` + `POST /v1/sends/test` — start a campaign send or a one-off test delivery. (Send reads live on `analytics.sends.*`.) */
-  readonly sends: SendsResource
   readonly templates: TemplatesResource
 }
 
@@ -135,7 +134,6 @@ export function createBrewClient(
     emails: createEmailsResource(httpClient),
     fields: createFieldsResource(httpClient),
     help: createHelpResource(httpClient),
-    sends: createSendsResource(httpClient),
     templates: createTemplatesResource(httpClient),
   }
 }
