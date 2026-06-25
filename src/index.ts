@@ -37,6 +37,7 @@ export type { ContentResource } from './resources/content/resource'
 export type { DomainsResource } from './resources/domains/resource'
 export type { EmailsResource } from './resources/emails/resource'
 export type { FieldsResource } from './resources/fields/resource'
+export type { HealthResource } from './resources/health/resource'
 export type { HelpResource } from './resources/help/resource'
 export type { SendsResource } from './resources/sends/resource'
 export type { TemplatesResource } from './resources/templates/resource'
@@ -52,7 +53,8 @@ export type { AnalyticsTriggerInstancesResource } from './resources/analytics/tr
 export type * from './resources/content/types'
 export type * from './resources/usage/types'
 
-// ---------- Help: domain types ----------
+// ---------- Health + Help: domain types ----------
+export type { HealthResponse, GetHealthResponse } from './resources/health/get'
 export type { HelpResponse, GetHelpResponse } from './resources/help/get'
 
 // ---------- Automations › triggers: domain types ----------

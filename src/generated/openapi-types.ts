@@ -3180,7 +3180,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
+            /** @description The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit/import, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
             402: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -3193,11 +3193,11 @@ export interface operations {
                      *       "error": {
                      *         "code": "INSUFFICIENT_CREDITS",
                      *         "type": "payment_required",
-                     *         "message": "This operation costs 10 credit(s) but only 0 remain on the 'free' plan.",
+                     *         "message": "This operation required more credits than the 0 remaining on the 'free' plan. See the per-operation cost in GET /v1/help.",
                      *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/usage.",
                      *         "docs": "https://docs.brew.new/api-reference/api/credits",
                      *         "details": {
-                     *           "cost": 10,
+                     *           "cost": 2,
                      *           "remaining": 0,
                      *           "planKey": "free"
                      *         }
@@ -3465,7 +3465,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
+            /** @description The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit/import, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
             402: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -3478,11 +3478,11 @@ export interface operations {
                      *       "error": {
                      *         "code": "INSUFFICIENT_CREDITS",
                      *         "type": "payment_required",
-                     *         "message": "This operation costs 10 credit(s) but only 0 remain on the 'free' plan.",
+                     *         "message": "This operation required more credits than the 0 remaining on the 'free' plan. See the per-operation cost in GET /v1/help.",
                      *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/usage.",
                      *         "docs": "https://docs.brew.new/api-reference/api/credits",
                      *         "details": {
-                     *           "cost": 10,
+                     *           "cost": 2,
                      *           "remaining": 0,
                      *           "planKey": "free"
                      *         }
@@ -3854,7 +3854,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
+            /** @description The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit/import, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
             402: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -3867,11 +3867,11 @@ export interface operations {
                      *       "error": {
                      *         "code": "INSUFFICIENT_CREDITS",
                      *         "type": "payment_required",
-                     *         "message": "This operation costs 10 credit(s) but only 0 remain on the 'free' plan.",
+                     *         "message": "This operation required more credits than the 0 remaining on the 'free' plan. See the per-operation cost in GET /v1/help.",
                      *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/usage.",
                      *         "docs": "https://docs.brew.new/api-reference/api/credits",
                      *         "details": {
-                     *           "cost": 10,
+                     *           "cost": 2,
                      *           "remaining": 0,
                      *           "planKey": "free"
                      *         }
@@ -12526,7 +12526,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
+            /** @description The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit/import, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
             402: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -12539,11 +12539,11 @@ export interface operations {
                      *       "error": {
                      *         "code": "INSUFFICIENT_CREDITS",
                      *         "type": "payment_required",
-                     *         "message": "This operation costs 10 credit(s) but only 0 remain on the 'free' plan.",
+                     *         "message": "This operation required more credits than the 0 remaining on the 'free' plan. See the per-operation cost in GET /v1/help.",
                      *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/usage.",
                      *         "docs": "https://docs.brew.new/api-reference/api/credits",
                      *         "details": {
-                     *           "cost": 10,
+                     *           "cost": 2,
                      *           "remaining": 0,
                      *           "planKey": "free"
                      *         }
@@ -12737,7 +12737,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
+            /** @description The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit/import, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
             402: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -12750,11 +12750,11 @@ export interface operations {
                      *       "error": {
                      *         "code": "INSUFFICIENT_CREDITS",
                      *         "type": "payment_required",
-                     *         "message": "This operation costs 10 credit(s) but only 0 remain on the 'free' plan.",
+                     *         "message": "This operation required more credits than the 0 remaining on the 'free' plan. See the per-operation cost in GET /v1/help.",
                      *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/usage.",
                      *         "docs": "https://docs.brew.new/api-reference/api/credits",
                      *         "details": {
-                     *           "cost": 10,
+                     *           "cost": 2,
                      *           "remaining": 0,
                      *           "planKey": "free"
                      *         }
@@ -12996,7 +12996,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
+            /** @description The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit/import, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
             402: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -13009,11 +13009,11 @@ export interface operations {
                      *       "error": {
                      *         "code": "INSUFFICIENT_CREDITS",
                      *         "type": "payment_required",
-                     *         "message": "This operation costs 10 credit(s) but only 0 remain on the 'free' plan.",
+                     *         "message": "This operation required more credits than the 0 remaining on the 'free' plan. See the per-operation cost in GET /v1/help.",
                      *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/usage.",
                      *         "docs": "https://docs.brew.new/api-reference/api/credits",
                      *         "details": {
-                     *           "cost": 10,
+                     *           "cost": 2,
                      *           "remaining": 0,
                      *           "planKey": "free"
                      *         }
@@ -13255,7 +13255,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
+            /** @description The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit/import, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
             402: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -13268,11 +13268,11 @@ export interface operations {
                      *       "error": {
                      *         "code": "INSUFFICIENT_CREDITS",
                      *         "type": "payment_required",
-                     *         "message": "This operation costs 10 credit(s) but only 0 remain on the 'free' plan.",
+                     *         "message": "This operation required more credits than the 0 remaining on the 'free' plan. See the per-operation cost in GET /v1/help.",
                      *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/usage.",
                      *         "docs": "https://docs.brew.new/api-reference/api/credits",
                      *         "details": {
-                     *           "cost": 10,
+                     *           "cost": 2,
                      *           "remaining": 0,
                      *           "planKey": "free"
                      *         }
@@ -13514,7 +13514,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
+            /** @description The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit/import, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
             402: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -13527,11 +13527,11 @@ export interface operations {
                      *       "error": {
                      *         "code": "INSUFFICIENT_CREDITS",
                      *         "type": "payment_required",
-                     *         "message": "This operation costs 10 credit(s) but only 0 remain on the 'free' plan.",
+                     *         "message": "This operation required more credits than the 0 remaining on the 'free' plan. See the per-operation cost in GET /v1/help.",
                      *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/usage.",
                      *         "docs": "https://docs.brew.new/api-reference/api/credits",
                      *         "details": {
-                     *           "cost": 10,
+                     *           "cost": 2,
                      *           "remaining": 0,
                      *           "planKey": "free"
                      *         }
@@ -13781,7 +13781,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
+            /** @description The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit/import, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
             402: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -13794,11 +13794,11 @@ export interface operations {
                      *       "error": {
                      *         "code": "INSUFFICIENT_CREDITS",
                      *         "type": "payment_required",
-                     *         "message": "This operation costs 10 credit(s) but only 0 remain on the 'free' plan.",
+                     *         "message": "This operation required more credits than the 0 remaining on the 'free' plan. See the per-operation cost in GET /v1/help.",
                      *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/usage.",
                      *         "docs": "https://docs.brew.new/api-reference/api/credits",
                      *         "details": {
-                     *           "cost": 10,
+                     *           "cost": 2,
                      *           "remaining": 0,
                      *           "planKey": "free"
                      *         }

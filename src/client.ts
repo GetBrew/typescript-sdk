@@ -37,6 +37,10 @@ import {
   type FieldsResource,
 } from './resources/fields/resource'
 import {
+  createHealthResource,
+  type HealthResource,
+} from './resources/health/resource'
+import {
   createHelpResource,
   type HelpResource,
 } from './resources/help/resource'
@@ -91,6 +95,8 @@ export type BrewClient = {
    */
   readonly emails: EmailsResource
   readonly fields: FieldsResource
+  /** `GET /v1/health` — the no-auth liveness probe (`{ status, version }`). */
+  readonly health: HealthResource
   /** `GET /v1/help` — the no-auth machine-readable API catalog. */
   readonly help: HelpResource
   /**
@@ -146,6 +152,7 @@ export function createBrewClient(
     domains: createDomainsResource(httpClient),
     emails: createEmailsResource(httpClient),
     fields: createFieldsResource(httpClient),
+    health: createHealthResource(httpClient),
     help: createHelpResource(httpClient),
     sends: createSendsResource(httpClient),
     templates: createTemplatesResource(httpClient),
