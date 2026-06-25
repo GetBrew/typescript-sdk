@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+### Added — `brew.sends.cancel`
+
+Cancel a scheduled or queued send before it goes out:
+
+```ts
+const result = await brew.sends.cancel('snd_8fK2mQ4p')
+// { sendId: 'snd_8fK2mQ4p', status: 'canceled' }
+```
+
+Wraps `POST /v1/sends/{sendId}/cancel` (scope: `sends`). The action is
+idempotent — a send already `canceled` resolves `200` with the same body.
+A send that has already started or finished (`sending`, `sent`, `failed`)
+returns `409 SEND_NOT_CANCELLABLE`; an unknown / cross-brand `sendId` is
+`404`. This reintroduces the top-level `brew.sends` namespace (removed
+below when the send _action_ moved to `emails.send`) — it now carries only
+this lifecycle action, not `send` or `list`. New exported types:
+`SendCancelResponse`, `SendCancelStatus`, `SendsResource`.
+
 ### Breaking — `brew.account` → `brew.usage`, `content.hostImage` → `content.addImage`
 
 Two operations were renamed to match the API:

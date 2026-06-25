@@ -2063,6 +2063,20 @@ components:
             - subject
             - domainId
           additionalProperties: false
+    SendCancelResponse:
+      type: object
+      properties:
+        sendId:
+          type: string
+          minLength: 1
+        status:
+          type: string
+          enum:
+            - canceled
+      required:
+        - sendId
+        - status
+      additionalProperties: false
     CampaignAnalyticsResponse:
       type: object
       properties:
@@ -7687,7 +7701,7 @@ paths:
           schema:
             type: string
             format: date-time
-        - &a4
+        - &a5
           name: limit
           in: query
           required: false
@@ -7697,7 +7711,7 @@ paths:
             minimum: 1
             maximum: 100
           example: 50
-        - &a5
+        - &a6
           name: cursor
           in: query
           required: false
@@ -7847,7 +7861,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
+              example: &a4
                 error:
                   code: SEND_NOT_FOUND
                   type: not_found
@@ -8275,6 +8289,215 @@ paths:
                   message: An unexpected error occurred.
                   suggestion: Retry the request. If it keeps failing, contact support.
                   docs: https://docs.brew.new/api-reference/api/errors
+  /v1/sends/{sendId}/cancel:
+    post:
+      operationId: cancelSend
+      tags:
+        - Emails
+      summary: Cancel a send
+      description: "Cancels a scheduled or queued send before it goes out. Idempotent — a send already `canceled` returns `200`. A send already `sending`, `sent`, or `failed` returns `409 SEND_NOT_CANCELLABLE`. Brand-scoped: an unknown / cross-brand `sendId` is `404`."
+      parameters:
+        - *a1
+        - schema:
+            type: string
+            minLength: 1
+            maxLength: 64
+            description: Send id returned by `POST /v1/sends`.
+            example: snd_8fK2mQ4p
+          required: true
+          description: Send id returned by `POST /v1/sends`.
+          name: sendId
+          in: path
+      responses:
+        "200":
+          description: The send is canceled (or was already canceled).
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SendCancelResponse"
+              example:
+                sendId: snd_8fK2mQ4p
+                status: canceled
+        "401":
+          description: The API key was missing, invalid, or revoked.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: INVALID_API_KEY
+                  type: authentication_error
+                  message: The provided API key is invalid.
+                  suggestion: Check the API key format and retry with a valid active key.
+                  docs: https://docs.brew.new/api-reference/api/authentication
+        "403":
+          description: The caller does not have the required `sends` permission.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: INSUFFICIENT_PERMISSIONS
+                  type: authorization_error
+                  message: The caller does not have the required permission.
+                  suggestion: Use an API key or session with the required permission.
+                  docs: https://docs.brew.new/api-reference/api/authentication
+                  param: sends
+        "404":
+          description: Send not found in the API-key brand. Cross-brand ids intentionally surface as 404 (never 403) so the API does not leak cross-brand existence.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example: *a4
+        "409":
+          description: The send is past the point of cancellation (`sending` / `sent` / `failed`).
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: SEND_NOT_CANCELLABLE
+                  type: conflict
+                  message: Send 'snd_x' is 'sent' and can no longer be canceled — only 'scheduled' or 'queued' sends can be canceled.
+                  suggestion: Check the send status via GET /v1/analytics/sends?sendId=… before canceling.
+                  docs: https://docs.brew.new/api-reference/api/errors
+                  param: sendId
+        "429":
+          description: The request hit the rolling rate limit window.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+            Retry-After:
+              schema:
+                type: integer
+                description: Seconds to wait before retrying the request.
+                example: 42
+              required: true
+              description: Seconds to wait before retrying the request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: RATE_LIMITED
+                  type: rate_limit
+                  message: Too many requests.
+                  suggestion: Wait for the retry window before sending another request.
+                  docs: https://docs.brew.new/api-reference/api/rate-limits
+                  retryAfter: 42
+        "500":
+          description: Unexpected internal error.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: INTERNAL_ERROR
+                  type: internal_error
+                  message: An unexpected error occurred.
+                  suggestion: Retry the request. If it keeps failing, contact support.
+                  docs: https://docs.brew.new/api-reference/api/errors
   /v1/analytics/campaigns:
     get:
       operationId: getCampaignAnalytics
@@ -8283,8 +8506,8 @@ paths:
       summary: Campaign performance
       description: "Lifetime KPIs per campaign SEND (one row per `sendId` — a design sent twice has two rows): sent / delivered / opened / clicked / bounced / complained / unsubscribed. Read-only, cursor-paginated under `{ data, pagination }`. Requires the `emails` scope. For a single send, `GET /v1/analytics/sends?sendId=` carries the same `stats`."
       parameters:
-        - *a4
         - *a5
+        - *a6
       responses:
         "200":
           description: A page of per-send lifetime performance rows.
@@ -8992,13 +9215,13 @@ paths:
                   description: Welcome new signups
                   triggerEventId: tri_signup
                   nodes:
-                    - &a6
+                    - &a7
                       id: trg
                       label: On signup
                       type: trigger
                       config:
                         actionType: trigger
-                    - &a7
+                    - &a8
                       id: send_welcome
                       label: Welcome
                       type: sendEmail
@@ -9020,7 +9243,7 @@ paths:
                   name: preview
                   triggerEventId: tri_signup
                   nodes:
-                    - *a6
+                    - *a7
                   connections: []
                   dryRun: true
       responses:
@@ -9069,7 +9292,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AutomationRow"
-              example: &a8
+              example: &a9
                 automationId: auto_abc
                 automationVersionId: av_v1
                 triggerEventId: tri_signup
@@ -9077,8 +9300,8 @@ paths:
                 version: latest
                 published: false
                 nodes:
-                  - *a6
                   - *a7
+                  - *a8
                 connections:
                   - from: trg
                     to: send_welcome
@@ -9309,8 +9532,8 @@ paths:
           schema:
             type: string
             example: graph,versions
-        - *a4
         - *a5
+        - *a6
       responses:
         "200":
           description: "A page of lean automation rows (list mode), or `{ data: [row] }` (detail mode)."
@@ -9441,7 +9664,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
-              example: &a9
+              example: &a10
                 error:
                   code: AUTOMATION_NOT_FOUND
                   type: not_found
@@ -9559,8 +9782,8 @@ paths:
                 summary: Replace the graph
                 value:
                   nodes:
-                    - *a6
                     - *a7
+                    - *a8
                   connections:
                     - from: trg
                       to: send_welcome
@@ -9613,7 +9836,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AutomationRow"
-              example: *a8
+              example: *a9
         "400":
           description: Strict-body violation, no actionable field supplied, `published` combined with update fields, or `AUTOMATION_GRAPH_INVALID` (see `details.issues`).
           headers:
@@ -9693,7 +9916,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
-              example: *a9
+              example: *a10
         "409":
           description: "`PUBLISH_VALIDATION_FAILED` — `published: true` but the graph has blockers (see `details.blockers`)."
           headers:
@@ -10127,7 +10350,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
-              example: *a9
+              example: *a10
         "409":
           description: The same `Idempotency-Key` was reused with a different request body.
           headers:
@@ -10591,7 +10814,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/TriggerRow"
-              example: &a10
+              example: &a11
                 triggerEventId: tri_signup
                 title: User Signed Up
                 description: Fires when a user completes signup.
@@ -10779,8 +11002,8 @@ paths:
             type: string
             minLength: 1
             maxLength: 64
-        - *a4
         - *a5
+        - *a6
       responses:
         "200":
           description: "A page of trigger rows (list mode), or `{ data: [row] }` (detail mode)."
@@ -10819,7 +11042,7 @@ paths:
                 $ref: "#/components/schemas/TriggersListResponse"
               example:
                 data:
-                  - *a10
+                  - *a11
                 pagination:
                   limit: 100
                   cursor: null
@@ -10903,7 +11126,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
-              example: &a11
+              example: &a12
                 error:
                   code: TRIGGER_EVENT_NOT_FOUND
                   type: not_found
@@ -11044,7 +11267,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/TriggerRow"
-              example: *a10
+              example: *a11
         "400":
           description: Strict-body violation or no editable field supplied (a bare id with no updates is rejected).
           headers:
@@ -11124,7 +11347,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
-              example: *a11
+              example: *a12
         "422":
           description: Integration-provisioned trigger — manage it from the integration instead.
           headers:
@@ -11729,8 +11952,8 @@ paths:
             type: string
             minLength: 1
             maxLength: 256
-        - *a4
         - *a5
+        - *a6
       responses:
         "200":
           description: "A page of fired trigger-event instances (list mode), or `{ data: [row] }` (detail mode)."
@@ -12057,7 +12280,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ContactsPostSingleResponse"
               example:
-                contact: &a13
+                contact: &a14
                   email: jane@example.com
                   firstName: Jane
                   lastName: Doe
@@ -12068,7 +12291,7 @@ paths:
                   createdAt: 2026-04-08T12:00:00.000Z
                   updatedAt: 2026-04-08T12:05:00.000Z
                   importId: null
-                  customFields: &a12
+                  customFields: &a13
                     plan: enterprise
                     revenue: 4200
                 created: true
@@ -12354,7 +12577,7 @@ paths:
                   createdAt: 2026-04-08T12:00:00.000Z
                   updatedAt: 2026-04-08T12:05:00.000Z
                   importId: null
-                  customFields: *a12
+                  customFields: *a13
                 updated:
                   - firstName
                   - plan
@@ -12787,7 +13010,7 @@ paths:
                   summary: Result page
                   value:
                     data:
-                      - *a13
+                      - *a14
                       - email: john@example.com
                         firstName: John
                         lastName: Smith
@@ -13699,8 +13922,8 @@ paths:
       summary: List contact fields
       description: Lists core contact columns and custom field definitions under `{ data, pagination }`. Use the field names in audience filters, contact search, and `{{var}}` template placeholders.
       parameters:
-        - *a4
         - *a5
+        - *a6
       responses:
         "200":
           description: A page of field definitions.
@@ -14350,8 +14573,8 @@ paths:
             type: string
             enum:
               - count
-        - *a4
         - *a5
+        - *a6
       responses:
         "200":
           description: "A page of audiences (list mode), or `{ data: [row] }` (detail mode)."
@@ -14390,7 +14613,7 @@ paths:
                 $ref: "#/components/schemas/AudiencesListResponse"
               example:
                 data:
-                  - &a14
+                  - &a15
                     audienceId: jn7a8w4q8m9k2p1x7c3b5v6n9h7s2d4f
                     audienceName: Nordic Founders
                     filters:
@@ -14485,7 +14708,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
-              example: &a15
+              example: &a16
                 error:
                   code: AUDIENCE_NOT_FOUND
                   type: not_found
@@ -14622,7 +14845,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Audience"
-              example: *a14
+              example: *a15
         "400":
           description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
           headers:
@@ -14842,7 +15065,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Audience"
-              example: *a14
+              example: *a15
         "400":
           description: Strict-body violation or no editable field supplied (at least one of `name` / `filters` is required).
           headers:
@@ -14922,7 +15145,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
-              example: *a15
+              example: *a16
         "429":
           description: The request hit the rolling rate limit window.
           headers:
@@ -15189,8 +15412,8 @@ paths:
             enum:
               - "true"
               - "false"
-        - *a4
         - *a5
+        - *a6
       responses:
         "200":
           description: "A page of domains (list mode), or `{ data: [row] }` (detail mode)."
@@ -15229,7 +15452,7 @@ paths:
                 $ref: "#/components/schemas/DomainsListResponse"
               example:
                 data:
-                  - &a16
+                  - &a17
                     domainId: kx7bkh53hasmfeh5kd7sqgykt187g8ww
                     domainUrl: https://send.example.com
                     name: send.example.com
@@ -15237,7 +15460,7 @@ paths:
                     status: pending
                     sendingEnabled: true
                     sendable: false
-                    records: &a18
+                    records: &a19
                       - record: DKIM
                         name: resend._domainkey
                         type: TXT
@@ -15329,7 +15552,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
-              example: &a17
+              example: &a18
                 error:
                   code: DOMAIN_NOT_FOUND
                   type: not_found
@@ -15460,7 +15683,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Domain"
-              example: *a16
+              example: *a17
         "400":
           description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
           headers:
@@ -15681,7 +15904,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Domain"
-              example: *a16
+              example: *a17
         "400":
           description: Strict-body violation or no editable field supplied (at least one of `defaultSenderName` / `defaultFromEmail` / `defaultReplyToEmail`).
           headers:
@@ -15761,7 +15984,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
-              example: *a17
+              example: *a18
         "429":
           description: The request hit the rolling rate limit window.
           headers:
@@ -16066,7 +16289,7 @@ paths:
                 status: verified
                 sendingEnabled: true
                 sendable: true
-                records: *a18
+                records: *a19
                 createdAt: 2026-04-08T12:34:56.789Z
                 updatedAt: 2026-04-08T12:34:56.789Z
                 verifiedAt: 2026-04-08T13:00:00.000Z
@@ -16127,7 +16350,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
-              example: *a17
+              example: *a18
         "409":
           description: The same `Idempotency-Key` was reused with a different request body.
           headers:
@@ -17261,7 +17484,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
-              example: &a19
+              example: &a20
                 error:
                   code: CONTENT_OPERATION_FAILED
                   type: invalid_request
@@ -17547,7 +17770,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
-              example: *a19
+              example: *a20
         "429":
           description: The request hit the rolling rate limit window.
           headers:
@@ -17824,7 +18047,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
-              example: *a19
+              example: *a20
         "429":
           description: The request hit the rolling rate limit window.
           headers:
@@ -18101,7 +18324,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
-              example: *a19
+              example: *a20
         "429":
           description: The request hit the rolling rate limit window.
           headers:
@@ -18383,7 +18606,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
-              example: *a19
+              example: *a20
         "429":
           description: The request hit the rolling rate limit window.
           headers:

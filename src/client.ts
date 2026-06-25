@@ -41,6 +41,10 @@ import {
   type HelpResource,
 } from './resources/help/resource'
 import {
+  createSendsResource,
+  type SendsResource,
+} from './resources/sends/resource'
+import {
   createTemplatesResource,
   type TemplatesResource,
 } from './resources/templates/resource'
@@ -89,6 +93,13 @@ export type BrewClient = {
   readonly fields: FieldsResource
   /** `GET /v1/help` — the no-auth machine-readable API catalog. */
   readonly help: HelpResource
+  /**
+   * Send lifecycle actions. `sends.cancel(sendId)`
+   * (`POST /v1/sends/{sendId}/cancel`) cancels a scheduled or queued
+   * send before it goes out. (Sends are created via `emails.send`;
+   * send reads live on `analytics.sends.*`.)
+   */
+  readonly sends: SendsResource
   readonly templates: TemplatesResource
   /** `GET /v1/usage` — plan, credit balance, and email-send quota. */
   readonly usage: UsageResource
@@ -136,6 +147,7 @@ export function createBrewClient(
     emails: createEmailsResource(httpClient),
     fields: createFieldsResource(httpClient),
     help: createHelpResource(httpClient),
+    sends: createSendsResource(httpClient),
     templates: createTemplatesResource(httpClient),
     usage: createUsageResource(httpClient),
   }

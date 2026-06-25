@@ -38,6 +38,7 @@ export type { DomainsResource } from './resources/domains/resource'
 export type { EmailsResource } from './resources/emails/resource'
 export type { FieldsResource } from './resources/fields/resource'
 export type { HelpResource } from './resources/help/resource'
+export type { SendsResource } from './resources/sends/resource'
 export type { TemplatesResource } from './resources/templates/resource'
 export type { UsageResource } from './resources/usage/resource'
 
@@ -248,6 +249,12 @@ export type {
   SendEmailCampaignResponse,
   SendEmailStatus,
 } from './resources/emails/send'
+// `POST /v1/sends/{sendId}/cancel` is the send lifecycle action
+// (`sends.cancel`): cancel a scheduled or queued send before it goes out.
+export type {
+  SendCancelResponse,
+  SendCancelStatus,
+} from './resources/sends/cancel'
 export type {
   ListTemplatesInput,
   ListTemplatesResponse,

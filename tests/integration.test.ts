@@ -60,6 +60,8 @@ describe('createBrewClient — end-to-end', () => {
     expect(typeof brew.fields.delete).toBe('function')
     // `POST /v1/sends` is the single polymorphic send (campaign | test).
     expect(typeof brew.emails.send).toBe('function')
+    // `POST /v1/sends/{sendId}/cancel` — the send lifecycle action.
+    expect(typeof brew.sends.cancel).toBe('function')
     expect(typeof brew.templates.list).toBe('function')
     // `GET /v1/usage` — plan, credit balance, email-send quota.
     expect(typeof brew.usage.get).toBe('function')
@@ -71,15 +73,17 @@ describe('createBrewClient — end-to-end', () => {
     expect(typeof brew.automations.runs.list).toBe('function')
     expect(typeof brew.analytics.triggerInstances.list).toBe('function')
 
-    // Removed: no top-level me/integrations resources, and the
-    // top-level `sends` namespace is gone — the send action moved to
-    // `emails.send` and send reads to `analytics.sends`. The separate
+    // Removed: no top-level me/integrations resources. The send action
+    // lives on `emails.send` and send reads on `analytics.sends`; the
+    // top-level `sends` namespace now carries only the lifecycle action
+    // `sends.cancel` (no `sends.send` / `sends.list`). The separate
     // per-detail reads (`get`, `sendTest`, `versions`, `duplicate`)
     // collapsed into the single flat read on each resource.
     expect('me' in brew).toBe(false)
     expect('account' in brew).toBe(false)
     expect('integrations' in brew).toBe(false)
-    expect('sends' in brew).toBe(false)
+    expect('send' in brew.sends).toBe(false)
+    expect('list' in brew.sends).toBe(false)
     expect('sendTest' in brew.emails).toBe(false)
     expect('get' in brew.analytics.sends).toBe(false)
     expect('versions' in brew.automations).toBe(false)
