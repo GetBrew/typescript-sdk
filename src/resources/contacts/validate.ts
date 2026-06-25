@@ -15,8 +15,7 @@ export type ValidateContactsResponse =
   components['schemas']['ContactsValidateResponse']
 
 /** One per-email validation result in `ValidateContactsResponse.data`. */
-export type ContactValidationResult =
-  ValidateContactsResponse['data'][number]
+export type ContactValidationResult = ValidateContactsResponse['data'][number]
 
 /**
  * Validate a batch of email addresses without creating any contacts.

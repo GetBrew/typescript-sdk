@@ -1,10 +1,7 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
-import type {
-  ContentGenerateImageRequest,
-  ContentImageResponse,
-} from './types'
+import type { ContentGenerateImageRequest, ContentImageResponse } from './types'
 
 export type { ContentGenerateImageRequest, ContentImageResponse }
 

@@ -6,9 +6,9 @@ carries the actions you take on a send _after_ it exists. Send **reads**
 (lifecycle, stats, per-recipient events) live on `brew.analytics.sends.*`;
 see [`docs/analytics.md`](./analytics.md#sends).
 
-| Method              | HTTP                              | Scope   |
-| ------------------- | --------------------------------- | ------- |
-| [`cancel`](#cancel) | `POST /v1/sends/{sendId}/cancel`  | `sends` |
+| Method              | HTTP                             | Scope   |
+| ------------------- | -------------------------------- | ------- |
+| [`cancel`](#cancel) | `POST /v1/sends/{sendId}/cancel` | `sends` |
 
 ## Shared types
 

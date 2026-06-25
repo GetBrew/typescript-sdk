@@ -43,8 +43,7 @@ export type CreateFieldResponse =
  * Response from `DELETE /v1/fields/{fieldName}` — `{ fieldName, deleted }`.
  * Idempotent: deleting an unknown field resolves with `deleted: false`.
  */
-export type FieldsDeleteResponse =
-  components['schemas']['FieldsDeleteResponse']
+export type FieldsDeleteResponse = components['schemas']['FieldsDeleteResponse']
 
 /** Query params accepted by `brew.fields.list(...)` (`limit`, `cursor`). */
 export type ListFieldsInput = NonNullable<

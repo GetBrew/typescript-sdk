@@ -12,8 +12,7 @@ import type { ContactsFilter } from './types'
 export type CountContactsInput = {
   readonly search?: string
   readonly filters?: ReadonlyArray<ContactsFilter>
-  readonly logic?:
-    components['schemas']['ContactsSearchRequest']['logic']
+  readonly logic?: components['schemas']['ContactsSearchRequest']['logic']
 }
 
 type ContactsCountResponse = components['schemas']['ContactsCountResponse']
