@@ -2,7 +2,7 @@ import type { HttpClient } from '../../core/http'
 
 import { createGenerateImage } from './generate-image'
 import { createGif } from './gif'
-import { createHostImage } from './host-image'
+import { createAddImage } from './add-image'
 import { createHtmlToPng } from './html-to-png'
 import { createTransform } from './transform'
 
@@ -24,8 +24,8 @@ export type ContentResource = {
   readonly transform: ReturnType<typeof createTransform>
   /** `POST /v1/content/html-to-png` — render HTML to a hosted PNG (scope: `emails`). */
   readonly htmlToPng: ReturnType<typeof createHtmlToPng>
-  /** `POST /v1/content/host-image` — mirror an image onto Brew-hosted storage (scope: `emails`). */
-  readonly hostImage: ReturnType<typeof createHostImage>
+  /** `POST /v1/content/add-image` — mirror an image onto Brew-hosted storage (scope: `emails`). */
+  readonly addImage: ReturnType<typeof createAddImage>
 }
 
 /**
@@ -39,6 +39,6 @@ export function createContentResource(client: HttpClient): ContentResource {
     gif: createGif(client),
     transform: createTransform(client),
     htmlToPng: createHtmlToPng(client),
-    hostImage: createHostImage(client),
+    addImage: createAddImage(client),
   }
 }

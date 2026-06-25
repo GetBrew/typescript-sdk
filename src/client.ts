@@ -1,10 +1,6 @@
 import { resolveConfig } from './core/config'
 import { createHttpClient, type HttpTuning } from './core/http'
 import {
-  createAccountResource,
-  type AccountResource,
-} from './resources/account/resource'
-import {
   createAnalyticsResource,
   type AnalyticsResource,
 } from './resources/analytics/resource'
@@ -48,6 +44,10 @@ import {
   createTemplatesResource,
   type TemplatesResource,
 } from './resources/templates/resource'
+import {
+  createUsageResource,
+  type UsageResource,
+} from './resources/usage/resource'
 import type { BrewClientConfig } from './types'
 
 /**
@@ -61,8 +61,6 @@ import type { BrewClientConfig } from './types'
  * key is created in the dashboard.
  */
 export type BrewClient = {
-  /** `GET /v1/account` — plan, credit balance, and email-send quota. */
-  readonly account: AccountResource
   /**
    * Read-only analytics: campaign + automation KPIs, the unified event
    * explorer, plus the send reads (`analytics.sends.*`) and fired-trigger
@@ -92,6 +90,8 @@ export type BrewClient = {
   /** `GET /v1/help` — the no-auth machine-readable API catalog. */
   readonly help: HelpResource
   readonly templates: TemplatesResource
+  /** `GET /v1/usage` — plan, credit balance, and email-send quota. */
+  readonly usage: UsageResource
 }
 
 /**
@@ -126,7 +126,6 @@ export function createBrewClient(
   const config = resolveConfig({ userConfig })
   const httpClient = createHttpClient(config, tuning ?? {})
   return {
-    account: createAccountResource(httpClient),
     analytics: createAnalyticsResource(httpClient),
     audiences: createAudiencesResource(httpClient),
     automations: createAutomationsResource(httpClient),
@@ -138,5 +137,6 @@ export function createBrewClient(
     fields: createFieldsResource(httpClient),
     help: createHelpResource(httpClient),
     templates: createTemplatesResource(httpClient),
+    usage: createUsageResource(httpClient),
   }
 }

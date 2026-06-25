@@ -28,7 +28,6 @@ export type {
 } from './types'
 
 // ---------- Resource shapes ----------
-export type { AccountResource } from './resources/account/resource'
 export type { AnalyticsResource } from './resources/analytics/resource'
 export type { AudiencesResource } from './resources/audiences/resource'
 export type { AutomationsResource } from './resources/automations/resource'
@@ -40,6 +39,7 @@ export type { EmailsResource } from './resources/emails/resource'
 export type { FieldsResource } from './resources/fields/resource'
 export type { HelpResource } from './resources/help/resource'
 export type { TemplatesResource } from './resources/templates/resource'
+export type { UsageResource } from './resources/usage/resource'
 
 // ---------- Nested resource shapes ----------
 export type { TriggersResource } from './resources/automations/triggers/resource'
@@ -48,8 +48,8 @@ export type { AnalyticsSendsResource } from './resources/analytics/sends/resourc
 export type { AnalyticsTriggerInstancesResource } from './resources/analytics/trigger-instances/resource'
 
 // ---------- New v1 resource domain types ----------
-export type * from './resources/account/types'
 export type * from './resources/content/types'
+export type * from './resources/usage/types'
 
 // ---------- Help: domain types ----------
 export type { HelpResponse, GetHelpResponse } from './resources/help/get'

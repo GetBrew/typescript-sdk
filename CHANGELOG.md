@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+### Breaking — `brew.account` → `brew.usage`, `content.hostImage` → `content.addImage`
+
+Two operations were renamed to match the API:
+
+```ts
+brew.account.get()       →  brew.usage.get()        // GET /v1/account → GET /v1/usage
+brew.content.hostImage() →  brew.content.addImage() // POST /v1/content/host-image → /add-image
+```
+
+The request/response shapes are unchanged. The exported types moved
+accordingly: `AccountGetResponse` → `UsageGetResponse` (and the
+`Account*` sub-types → `Usage*`), and `ContentHostImageRequest` /
+`ContentHostedImageResponse` → `ContentAddImageRequest` /
+`ContentAddImageResponse`. The `AccountResource` type is now
+`UsageResource`.
+
 ### Breaking — send actions moved to `emails`, `brew.sends` removed
 
 A send is the act of sending an email design to a target — it is not
@@ -121,9 +137,9 @@ Generated types refreshed from the complete v1 OpenAPI spec (19 → 63 routes).
 ### NEW — resources
 
 ```ts
-await brew.account.get()                         // GET /v1/account — plan, credits, send quota
-await brew.me.get()                              // GET /v1/me — key identity, brand, scopes
-await brew.content.generateImage({ prompt })     // POST /v1/content/generate-image (+ 7 more media ops)
+await brew.account.get() // GET /v1/account — plan, credits, send quota
+await brew.me.get() // GET /v1/me — key identity, brand, scopes
+await brew.content.generateImage({ prompt }) // POST /v1/content/generate-image (+ 7 more media ops)
 ```
 
 `brew.content.*`: `generateImage`, `generateGif`, `imageToGif`, `videoToGif`,

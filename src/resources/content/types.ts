@@ -46,12 +46,12 @@ export type ContentHtmlToPngRequest =
 export type ContentPngResponse = components['schemas']['ContentPngResponse']
 
 /**
- * Request body for `POST /v1/content/host-image`. Carries the source
+ * Request body for `POST /v1/content/add-image`. Carries the source
  * `imageUrl` to mirror onto Brew-hosted storage.
  */
-export type ContentHostImageRequest =
-  components['schemas']['ContentHostImageRequest']
+export type ContentAddImageRequest =
+  components['schemas']['ContentAddImageRequest']
 
-/** The Brew-hosted image url returned by `POST /v1/content/host-image`. */
-export type ContentHostedImageResponse =
-  components['schemas']['ContentHostedImageResponse']
+/** The Brew-hosted image url returned by `POST /v1/content/add-image`. */
+export type ContentAddImageResponse =
+  components['schemas']['ContentAddImageResponse']

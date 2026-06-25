@@ -61,6 +61,8 @@ describe('createBrewClient — end-to-end', () => {
     // `POST /v1/sends` is the single polymorphic send (campaign | test).
     expect(typeof brew.emails.send).toBe('function')
     expect(typeof brew.templates.list).toBe('function')
+    // `GET /v1/usage` — plan, credit balance, email-send quota.
+    expect(typeof brew.usage.get).toBe('function')
 
     // Nested surfaces: send reads + trigger CRUD/runs are flat reads.
     expect(typeof brew.analytics.sends.list).toBe('function')
@@ -69,13 +71,13 @@ describe('createBrewClient — end-to-end', () => {
     expect(typeof brew.automations.runs.list).toBe('function')
     expect(typeof brew.analytics.triggerInstances.list).toBe('function')
 
-    // Removed: no top-level me/usage/integrations resources, and the
+    // Removed: no top-level me/integrations resources, and the
     // top-level `sends` namespace is gone — the send action moved to
     // `emails.send` and send reads to `analytics.sends`. The separate
     // per-detail reads (`get`, `sendTest`, `versions`, `duplicate`)
     // collapsed into the single flat read on each resource.
     expect('me' in brew).toBe(false)
-    expect('usage' in brew).toBe(false)
+    expect('account' in brew).toBe(false)
     expect('integrations' in brew).toBe(false)
     expect('sends' in brew).toBe(false)
     expect('sendTest' in brew.emails).toBe(false)

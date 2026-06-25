@@ -1,12 +1,12 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
-import type { AccountGetResponse } from './types'
+import type { UsageGetResponse } from './types'
 
-export type { AccountGetResponse }
+export type { UsageGetResponse }
 
 /**
- * `GET /v1/account` — billing snapshot for the organization behind the key.
+ * `GET /v1/usage` — billing snapshot for the organization behind the key.
  * Requires the `emails` scope.
  *
  * Returns `{ plan, credits, emailSends, period }`:
@@ -19,22 +19,22 @@ export type { AccountGetResponse }
  *   both nullable ISO date-time strings).
  *
  * Pass `{ raw: true }` in `options` to receive the full
- * `BrewRawResponse<AccountGetResponse>` instead of the unwrapped payload.
+ * `BrewRawResponse<UsageGetResponse>` instead of the unwrapped payload.
  */
-export function createGetAccount(client: HttpClient) {
-  function getAccount(
+export function createGetUsage(client: HttpClient) {
+  function getUsage(
     options: RequestOptions & { readonly raw: true }
-  ): Promise<BrewRawResponse<AccountGetResponse>>
-  function getAccount(options?: RequestOptions): Promise<AccountGetResponse>
-  async function getAccount(
+  ): Promise<BrewRawResponse<UsageGetResponse>>
+  function getUsage(options?: RequestOptions): Promise<UsageGetResponse>
+  async function getUsage(
     options?: RequestOptions
-  ): Promise<AccountGetResponse | BrewRawResponse<AccountGetResponse>> {
-    const response = await client.request<AccountGetResponse>({
+  ): Promise<UsageGetResponse | BrewRawResponse<UsageGetResponse>> {
+    const response = await client.request<UsageGetResponse>({
       method: 'GET',
-      path: '/v1/account',
+      path: '/v1/usage',
       ...(options ? { options } : {}),
     })
     return unwrapResponse(response, options)
   }
-  return getAccount
+  return getUsage
 }

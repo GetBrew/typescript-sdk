@@ -859,7 +859,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/content/host-image": {
+    "/v1/content/add-image": {
         parameters: {
             query?: never;
             header?: never;
@@ -869,17 +869,17 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Host an image in the brand library
-         * @description Fetches a public image URL, optimizes it (resize ≤1200px, palette PNG via Sharp), saves it to the brand image library, and vector-indexes it for the email agent to find. Returns the durable cdn.brew.new URL plus dimensions. Credit-metered (fixed cost).
+         * Add image
+         * @description Adds an image to the brand image library from a public URL: fetches it, optimizes it (resize ≤1200px, palette PNG via Sharp), stores it, and vector-indexes it so the email agent can find it. Returns the durable cdn.brew.new URL plus dimensions. Credit-metered (fixed cost).
          */
-        post: operations["contentHostImage"];
+        post: operations["contentAddImage"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/account": {
+    "/v1/usage": {
         parameters: {
             query?: never;
             header?: never;
@@ -887,10 +887,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get plan, credit balance, and email-send quota
-         * @description Returns the org BILLING surface: current plan, AI credit balance (limit/used/remaining — `null` = unlimited), monthly email-send quota, and the current billing period window. Use it to budget before a credit-metered call.
+         * Get usage
+         * @description Returns the org usage snapshot: current plan, AI credit balance (limit/used/remaining — `null` = unlimited), monthly email-send quota, and the billing-period window. Check it before a credit-metered call.
          */
-        get: operations["getAccount"];
+        get: operations["getUsage"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1252,7 +1252,6 @@ export interface components {
             mode: "live" | "test";
             /** @enum {string} */
             status: "pending" | "running" | "completed" | "failed" | "cancelled";
-            /** Format: email */
             recipientEmail?: string;
             /** Format: date-time */
             startedAt?: string;
@@ -2062,7 +2061,6 @@ export interface components {
                 mode: "live" | "test";
                 /** @enum {string} */
                 status: "pending" | "running" | "completed" | "failed" | "cancelled";
-                /** Format: email */
                 recipientEmail?: string;
                 /** Format: date-time */
                 startedAt?: string;
@@ -2787,18 +2785,18 @@ export interface components {
             width?: number;
             maxHeight?: number;
         };
-        ContentHostedImageResponse: {
+        ContentAddImageResponse: {
             /** Format: uri */
             url: string;
             width: number;
             height: number;
             aspectRatio: string;
         };
-        ContentHostImageRequest: {
+        ContentAddImageRequest: {
             /** Format: uri */
             imageUrl: string;
         };
-        AccountGetResponse: {
+        UsageGetResponse: {
             plan: {
                 key: string;
                 name: string;
@@ -3157,7 +3155,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/account`. No `Retry-After` — credits reset at the billing-period boundary. */
+            /** @description The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
             402: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -3171,7 +3169,7 @@ export interface operations {
                      *         "code": "INSUFFICIENT_CREDITS",
                      *         "type": "payment_required",
                      *         "message": "This operation costs 10 credit(s) but only 0 remain on the 'free' plan.",
-                     *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/account.",
+                     *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/usage.",
                      *         "docs": "https://docs.brew.new/api-reference/api/credits",
                      *         "details": {
                      *           "cost": 10,
@@ -3442,7 +3440,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/account`. No `Retry-After` — credits reset at the billing-period boundary. */
+            /** @description The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
             402: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -3456,7 +3454,7 @@ export interface operations {
                      *         "code": "INSUFFICIENT_CREDITS",
                      *         "type": "payment_required",
                      *         "message": "This operation costs 10 credit(s) but only 0 remain on the 'free' plan.",
-                     *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/account.",
+                     *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/usage.",
                      *         "docs": "https://docs.brew.new/api-reference/api/credits",
                      *         "details": {
                      *           "cost": 10,
@@ -3831,7 +3829,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/account`. No `Retry-After` — credits reset at the billing-period boundary. */
+            /** @description The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
             402: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -3845,7 +3843,7 @@ export interface operations {
                      *         "code": "INSUFFICIENT_CREDITS",
                      *         "type": "payment_required",
                      *         "message": "This operation costs 10 credit(s) but only 0 remain on the 'free' plan.",
-                     *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/account.",
+                     *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/usage.",
                      *         "docs": "https://docs.brew.new/api-reference/api/credits",
                      *         "details": {
                      *           "cost": 10,
@@ -12316,7 +12314,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/account`. No `Retry-After` — credits reset at the billing-period boundary. */
+            /** @description The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
             402: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -12330,7 +12328,7 @@ export interface operations {
                      *         "code": "INSUFFICIENT_CREDITS",
                      *         "type": "payment_required",
                      *         "message": "This operation costs 10 credit(s) but only 0 remain on the 'free' plan.",
-                     *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/account.",
+                     *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/usage.",
                      *         "docs": "https://docs.brew.new/api-reference/api/credits",
                      *         "details": {
                      *           "cost": 10,
@@ -12527,7 +12525,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/account`. No `Retry-After` — credits reset at the billing-period boundary. */
+            /** @description The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
             402: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -12541,7 +12539,7 @@ export interface operations {
                      *         "code": "INSUFFICIENT_CREDITS",
                      *         "type": "payment_required",
                      *         "message": "This operation costs 10 credit(s) but only 0 remain on the 'free' plan.",
-                     *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/account.",
+                     *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/usage.",
                      *         "docs": "https://docs.brew.new/api-reference/api/credits",
                      *         "details": {
                      *           "cost": 10,
@@ -12786,7 +12784,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/account`. No `Retry-After` — credits reset at the billing-period boundary. */
+            /** @description The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
             402: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -12800,7 +12798,7 @@ export interface operations {
                      *         "code": "INSUFFICIENT_CREDITS",
                      *         "type": "payment_required",
                      *         "message": "This operation costs 10 credit(s) but only 0 remain on the 'free' plan.",
-                     *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/account.",
+                     *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/usage.",
                      *         "docs": "https://docs.brew.new/api-reference/api/credits",
                      *         "details": {
                      *           "cost": 10,
@@ -13045,7 +13043,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/account`. No `Retry-After` — credits reset at the billing-period boundary. */
+            /** @description The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
             402: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -13059,7 +13057,7 @@ export interface operations {
                      *         "code": "INSUFFICIENT_CREDITS",
                      *         "type": "payment_required",
                      *         "message": "This operation costs 10 credit(s) but only 0 remain on the 'free' plan.",
-                     *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/account.",
+                     *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/usage.",
                      *         "docs": "https://docs.brew.new/api-reference/api/credits",
                      *         "details": {
                      *           "cost": 10,
@@ -13304,7 +13302,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/account`. No `Retry-After` — credits reset at the billing-period boundary. */
+            /** @description The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
             402: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -13318,7 +13316,7 @@ export interface operations {
                      *         "code": "INSUFFICIENT_CREDITS",
                      *         "type": "payment_required",
                      *         "message": "This operation costs 10 credit(s) but only 0 remain on the 'free' plan.",
-                     *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/account.",
+                     *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/usage.",
                      *         "docs": "https://docs.brew.new/api-reference/api/credits",
                      *         "details": {
                      *           "cost": 10,
@@ -13482,7 +13480,7 @@ export interface operations {
             };
         };
     };
-    contentHostImage: {
+    contentAddImage: {
         parameters: {
             query?: never;
             header?: {
@@ -13498,7 +13496,7 @@ export interface operations {
         /** @description Public `imageUrl` to optimize, save to the brand library, and rehost. */
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ContentHostImageRequest"];
+                "application/json": components["schemas"]["ContentAddImageRequest"];
             };
         };
         responses: {
@@ -13524,7 +13522,7 @@ export interface operations {
                      *       "aspectRatio": "wide"
                      *     }
                      */
-                    "application/json": components["schemas"]["ContentHostedImageResponse"];
+                    "application/json": components["schemas"]["ContentAddImageResponse"];
                 };
             };
             /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
@@ -13571,7 +13569,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/account`. No `Retry-After` — credits reset at the billing-period boundary. */
+            /** @description The org's remaining credit balance is below this operation's flat cost. The cost is published per-operation; check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
             402: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -13585,7 +13583,7 @@ export interface operations {
                      *         "code": "INSUFFICIENT_CREDITS",
                      *         "type": "payment_required",
                      *         "message": "This operation costs 10 credit(s) but only 0 remain on the 'free' plan.",
-                     *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/account.",
+                     *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/usage.",
                      *         "docs": "https://docs.brew.new/api-reference/api/credits",
                      *         "details": {
                      *           "cost": 10,
@@ -13749,7 +13747,7 @@ export interface operations {
             };
         };
     };
-    getAccount: {
+    getUsage: {
         parameters: {
             query?: never;
             header?: never;
@@ -13758,7 +13756,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Plan + credit + email-send-quota snapshot. */
+            /** @description Usage snapshot — plan, credits, and email-send quota. */
             200: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -13794,7 +13792,7 @@ export interface operations {
                      *       }
                      *     }
                      */
-                    "application/json": components["schemas"]["AccountGetResponse"];
+                    "application/json": components["schemas"]["UsageGetResponse"];
                 };
             };
             /** @description The API key was missing, invalid, or revoked. */
