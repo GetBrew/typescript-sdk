@@ -32,6 +32,7 @@ export type { AnalyticsResource } from './resources/analytics/resource'
 export type { AudiencesResource } from './resources/audiences/resource'
 export type { AutomationsResource } from './resources/automations/resource'
 export type { BrandResource } from './resources/brand/resource'
+export type { ChatsResource } from './resources/chats/resource'
 export type { ContactsResource } from './resources/contacts/resource'
 export type { ContentResource } from './resources/content/resource'
 export type { DomainsResource } from './resources/domains/resource'
@@ -320,6 +321,14 @@ export type {
   ListBrandImagesInput,
 } from './resources/brand/types'
 export type { GetBrandInput } from './resources/brand/get'
+
+// ---------- Chats: domain types ----------
+// (Exposed as `client.chats.get(chatId)` against /v1/chats/{chatId}.)
+export type {
+  ChatContextResponse,
+  ChatArtifact,
+  ChatMessage,
+} from './resources/chats/types'
 
 // ---------- Metadata ----------
 export { SDK_NAME, SDK_VERSION } from './version'

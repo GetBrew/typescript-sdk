@@ -956,6 +956,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/chats/{chatId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get chat context
+         * @description Read a brand-scoped digest of a Brew chat for resuming the conversation in an external agent: the emails + automations it created/referenced (latest version, with preview), the trigger events it touched, and a trimmed tail of the transcript. Read-only and free. `404 CHAT_NOT_FOUND` for an unknown id OR a chat owned by a different brand (the two are indistinguishable).
+         */
+        get: operations["getChatContext"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -14158,6 +14178,212 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HelpResponse"];
+                };
+            };
+        };
+    };
+    getChatContext: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The Brew chat id (from the chat URL / the app). */
+                chatId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The chat context digest. */
+            200: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "chatId": "Hk2mZ8t9QbY3sW1vR0pLd",
+                     *       "title": "Spring launch campaign",
+                     *       "modelId": "claude-opus-4-1",
+                     *       "updatedAt": "2026-06-30T12:34:56.789Z",
+                     *       "messageCount": 18,
+                     *       "artifacts": [
+                     *         {
+                     *           "type": "email",
+                     *           "id": "tCYL9yyvZZ5XmR6saDR-M",
+                     *           "title": "Spring Launch — Hero",
+                     *           "imageUrl": "https://cdn.brew.new/email-preview-tCYL9yyvZZ5XmR6saDR-M.png"
+                     *         },
+                     *         {
+                     *           "type": "automation",
+                     *           "id": "au_7t2",
+                     *           "title": "Welcome series"
+                     *         }
+                     *       ],
+                     *       "triggerEventIds": [
+                     *         "te_signup"
+                     *       ],
+                     *       "recentMessages": [
+                     *         {
+                     *           "role": "user",
+                     *           "text": "Make the hero bolder and add a CTA."
+                     *         },
+                     *         {
+                     *           "role": "assistant",
+                     *           "text": "Updated the hero and added a \"Shop now\" button."
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": {
+                        chatId: string;
+                        title: string | null;
+                        modelId: string | null;
+                        updatedAt: string | null;
+                        messageCount: number;
+                        artifacts: {
+                            /** @enum {string} */
+                            type: "email" | "automation";
+                            id: string;
+                            title: string;
+                            imageUrl?: string;
+                        }[];
+                        triggerEventIds: string[];
+                        recentMessages: {
+                            /** @enum {string} */
+                            role: "user" | "assistant" | "system";
+                            text: string;
+                        }[];
+                    };
+                };
+            };
+            /** @description The API key was missing, invalid, or revoked. */
+            401: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INVALID_API_KEY",
+                     *         "type": "authentication_error",
+                     *         "message": "The provided API key is invalid.",
+                     *         "suggestion": "Check the API key format and retry with a valid active key.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The caller does not have the required `emails` permission. */
+            403: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INSUFFICIENT_PERMISSIONS",
+                     *         "type": "authorization_error",
+                     *         "message": "The caller does not have the required permission.",
+                     *         "suggestion": "Use an API key or session with the required permission.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
+                     *         "param": "emails"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Chat not found in the API-key brand. Cross-brand ids intentionally surface as 404 (never 403) so the API does not leak cross-brand existence. */
+            404: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "CHAT_NOT_FOUND",
+                     *         "type": "not_found",
+                     *         "message": "The requested chat 'chat_xxx' was not found.",
+                     *         "suggestion": "Check the chatId, and that your key/connector is bound to that chat’s brand.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "chatId"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The request hit the rolling rate limit window. */
+            429: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    /** @description Seconds to wait before retrying the request. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "RATE_LIMITED",
+                     *         "type": "rate_limit",
+                     *         "message": "Too many requests.",
+                     *         "suggestion": "Wait for the retry window before sending another request.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
+                     *         "retryAfter": 42
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected internal error. */
+            500: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INTERNAL_ERROR",
+                     *         "type": "internal_error",
+                     *         "message": "An unexpected error occurred.",
+                     *         "suggestion": "Retry the request. If it keeps failing, contact support.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
         };
