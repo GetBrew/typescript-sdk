@@ -15,15 +15,15 @@ export type EditEmailResponse = components['schemas']['EmailGenerateResponse']
 
 /**
  * Default per-request timeout for `PATCH /v1/emails/{emailId}`. Edit
- * runs the same agent loop as generate (planning, JSX, HTML render,
- * screenshot), so we share the 4-minute ceiling. Caller-supplied
+ * runs the same agent loop as generate (planning, render, screenshot),
+ * so we share the 4-minute ceiling. Caller-supplied
  * `RequestOptions.timeoutMs` and `RequestOptions.signal` still win.
  */
 export const EDIT_EMAIL_DEFAULT_TIMEOUT_MS = 240_000
 
 /**
  * Edit a saved email by running the Brew email agent against its
- * current `latest` JSX. The new draft is persisted as a new
+ * current `latest` version. The new draft is persisted as a new
  * `version: "latest"` row on the same `emailId`, and the previous
  * head is demoted to a numeric historical version.
  *

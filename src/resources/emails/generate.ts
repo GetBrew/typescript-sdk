@@ -10,7 +10,7 @@ export type GenerateEmailResponse =
  * Default per-request timeout for `POST /v1/emails`.
  *
  * The Brew email agent typically takes 30–90 seconds to produce an
- * artifact (planning, JSX generation, HTML render, screenshot). The
+ * artifact (planning, render, screenshot). The
  * client default `timeoutMs` of 30s is too short for this single
  * endpoint and would surface as an `AbortError` mid-generation. We
  * raise the floor to 4 minutes here while still allowing callers to
