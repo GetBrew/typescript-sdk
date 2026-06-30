@@ -17,6 +17,10 @@ import {
   type BrandResource,
 } from './resources/brand/resource'
 import {
+  createChatsResource,
+  type ChatsResource,
+} from './resources/chats/resource'
+import {
   createContactsResource,
   type ContactsResource,
 } from './resources/contacts/resource'
@@ -83,6 +87,13 @@ export type BrewClient = {
   readonly automations: AutomationsResource
   /** `GET/PATCH /v1/brand` — the key's brand: readiness, design system, identity, assets. */
   readonly brand: BrandResource
+  /**
+   * `GET /v1/chats/{chatId}` (`chats.get`) — a free, read-only
+   * brand-scoped digest of a Brew chat (identity, the emails/automations
+   * it created/referenced, trigger events, and a trimmed transcript tail)
+   * for resuming the conversation in an external agent.
+   */
+  readonly chats: ChatsResource
   readonly contacts: ContactsResource
   /** `POST /v1/content/*` — credit-metered media generation + image/render ops. */
   readonly content: ContentResource
@@ -147,6 +158,7 @@ export function createBrewClient(
     audiences: createAudiencesResource(httpClient),
     automations: createAutomationsResource(httpClient),
     brand: createBrandResource(httpClient),
+    chats: createChatsResource(httpClient),
     contacts: createContactsResource(httpClient),
     content: createContentResource(httpClient),
     domains: createDomainsResource(httpClient),

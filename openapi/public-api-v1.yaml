@@ -55,6 +55,8 @@ tags:
     description: Public template gallery (read-only) usable as generation references.
   - name: Brand
     description: The single brand bound to the API key.
+  - name: Chats
+    description: Read a brand-scoped digest of a Brew chat — referenced emails/automations/triggers + a trimmed transcript — so an external agent can resume the conversation.
   - name: Meta
     description: "Public discovery surface (no auth): the machine-readable API catalog (`/v1/help`)."
 components:
@@ -18897,4 +18899,281 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HelpResponse"
+  /v1/chats/{chatId}:
+    get:
+      operationId: getChatContext
+      tags:
+        - Chats
+      summary: Get chat context
+      description: "Read a brand-scoped digest of a Brew chat for resuming the conversation in an external agent: the emails + automations it created/referenced (latest version, with preview), the trigger events it touched, and a trimmed tail of the transcript. Read-only and free. `404 CHAT_NOT_FOUND` for an unknown id OR a chat owned by a different brand (the two are indistinguishable)."
+      parameters:
+        - schema:
+            type: string
+            minLength: 1
+            maxLength: 64
+            description: The Brew chat id (from the chat URL / the app).
+            example: Hk2mZ8t9QbY3sW1vR0pLd
+          required: true
+          description: The Brew chat id (from the chat URL / the app).
+          name: chatId
+          in: path
+      responses:
+        "200":
+          description: The chat context digest.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  chatId:
+                    type: string
+                  title:
+                    type:
+                      - string
+                      - "null"
+                  modelId:
+                    type:
+                      - string
+                      - "null"
+                  updatedAt:
+                    type:
+                      - string
+                      - "null"
+                  messageCount:
+                    type: number
+                  artifacts:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        type:
+                          type: string
+                          enum:
+                            - email
+                            - automation
+                        id:
+                          type: string
+                        title:
+                          type: string
+                        imageUrl:
+                          type: string
+                      required:
+                        - type
+                        - id
+                        - title
+                  triggerEventIds:
+                    type: array
+                    items:
+                      type: string
+                  recentMessages:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        role:
+                          type: string
+                          enum:
+                            - user
+                            - assistant
+                            - system
+                        text:
+                          type: string
+                      required:
+                        - role
+                        - text
+                required:
+                  - chatId
+                  - title
+                  - modelId
+                  - updatedAt
+                  - messageCount
+                  - artifacts
+                  - triggerEventIds
+                  - recentMessages
+              example:
+                chatId: Hk2mZ8t9QbY3sW1vR0pLd
+                title: Spring launch campaign
+                modelId: claude-opus-4-1
+                updatedAt: 2026-06-30T12:34:56.789Z
+                messageCount: 18
+                artifacts:
+                  - type: email
+                    id: tCYL9yyvZZ5XmR6saDR-M
+                    title: Spring Launch — Hero
+                    imageUrl: https://cdn.brew.new/email-preview-tCYL9yyvZZ5XmR6saDR-M.png
+                  - type: automation
+                    id: au_7t2
+                    title: Welcome series
+                triggerEventIds:
+                  - te_signup
+                recentMessages:
+                  - role: user
+                    text: Make the hero bolder and add a CTA.
+                  - role: assistant
+                    text: Updated the hero and added a "Shop now" button.
+        "401":
+          description: The API key was missing, invalid, or revoked.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: INVALID_API_KEY
+                  type: authentication_error
+                  message: The provided API key is invalid.
+                  suggestion: Check the API key format and retry with a valid active key.
+                  docs: https://docs.brew.new/api-reference/api/authentication
+        "403":
+          description: The caller does not have the required `emails` permission.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: INSUFFICIENT_PERMISSIONS
+                  type: authorization_error
+                  message: The caller does not have the required permission.
+                  suggestion: Use an API key or session with the required permission.
+                  docs: https://docs.brew.new/api-reference/api/authentication
+                  param: emails
+        "404":
+          description: Chat not found in the API-key brand. Cross-brand ids intentionally surface as 404 (never 403) so the API does not leak cross-brand existence.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: CHAT_NOT_FOUND
+                  type: not_found
+                  message: The requested chat 'chat_xxx' was not found.
+                  suggestion: Check the chatId, and that your key/connector is bound to that chat’s brand.
+                  docs: https://docs.brew.new/api-reference/api/errors
+                  param: chatId
+        "429":
+          description: The request hit the rolling rate limit window.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+            Retry-After:
+              schema:
+                type: integer
+                description: Seconds to wait before retrying the request.
+                example: 42
+              required: true
+              description: Seconds to wait before retrying the request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: RATE_LIMITED
+                  type: rate_limit
+                  message: Too many requests.
+                  suggestion: Wait for the retry window before sending another request.
+                  docs: https://docs.brew.new/api-reference/api/rate-limits
+                  retryAfter: 42
+        "500":
+          description: Unexpected internal error.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: INTERNAL_ERROR
+                  type: internal_error
+                  message: An unexpected error occurred.
+                  suggestion: Retry the request. If it keeps failing, contact support.
+                  docs: https://docs.brew.new/api-reference/api/errors
 webhooks: {}
