@@ -134,7 +134,7 @@ generate(
 ### Long-running calls
 
 `POST /v1/emails` typically takes 30–90 seconds because the agent plans,
-generates JSX, renders HTML, and produces a screenshot before responding.
+renders the design, and produces a screenshot before responding.
 The SDK applies a per-request timeout of **4 minutes** for this endpoint
 (versus the 30-second default for everything else). You can override it:
 
@@ -215,7 +215,7 @@ console.log(imported.html)
 ## `edit`
 
 Edit a saved email by running the Brew email agent against its current
-`latest` JSX. The new draft is persisted as a fresh `version: "latest"`
+`latest` version. The new draft is persisted as a fresh `version: "latest"`
 row on the same `emailId`, and the previous head is demoted to a
 numeric historical version.
 
@@ -263,7 +263,7 @@ if ('emailId' in generated) {
 
 ### Long-running calls
 
-Edit runs the same agent loop as generate (planning, JSX, HTML render,
+Edit runs the same agent loop as generate (planning, render,
 screenshot). The SDK applies the same **4-minute** per-request timeout
 ceiling. Caller-supplied `RequestOptions.timeoutMs` and
 `RequestOptions.signal` still win. The constant

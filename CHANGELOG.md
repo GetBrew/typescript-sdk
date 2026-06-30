@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### Changed — email edits are AI-only
+
+`PATCH /v1/emails/{emailId}` (`brew.emails.edit`) now accepts only a
+natural-language `prompt` edit, which the Brew email agent applies to
+produce a new `version: "latest"` (usage-metered). The previous
+manual-save body — passing raw markup directly to persist a version
+without the agent — has been removed; that branch is no longer
+accepted and a body carrying it returns `400 INVALID_REQUEST`.
+
+`brew.emails.edit` already only accepted `{ prompt }`, so its method
+signature is unchanged. The generated `EmailJsxSaveRequest` type is
+removed, and the `EMAIL_JSX_INVALID` error code no longer exists.
+`brew.emails.import` is unaffected — it still ingests existing
+`html` / `mjml` / `jsx` markup into an editable design.
+
 ### Added — `brew.sends.cancel`
 
 Cancel a scheduled or queued send before it goes out:
@@ -639,7 +654,7 @@ edits create new versions on the same `emailId`.
 ### `emails.edit({ emailVersionId? })` — pin the source version
 
 `EditEmailInput` accepts an optional `emailVersionId`. When supplied
-the agent edits against THAT version's JSX (instead of the current
+the agent edits against THAT version (instead of the current
 latest). The newly-written row is still `version: 'latest'` and the
 caller receives a fresh `emailVersionId` to forward to the next
 `brew.automations.patch(...)`.
@@ -897,7 +912,7 @@ No breaking changes to existing 1.x methods.
 
 - `brew.emails.edit({ emailId, prompt, contentUrl? })` —
   `PATCH /v1/emails/{emailId}`. Runs the email agent's edit lane
-  against the email's current `latest` JSX and persists a new
+  against the email's current `latest` version and persists a new
   `version: "latest"` row in Convex while the previous head is
   demoted to a numeric historical version. Same response union as
   `generate` — narrow on `'emailId' in result` to access the

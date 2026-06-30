@@ -41,9 +41,9 @@ export interface paths {
         put?: never;
         /**
          * Import an email
-         * @description Converts existing markup into a NEW, fully EDITABLE Brew email design on the brand canvas. Brew’s HTML-transcription agent rewrites the markup into clean React-Email JSX, and EVERY external image is fetched, optimized, and RE-HOSTED on the Brew CDN (no hot-linking third-party assets).
+         * @description Converts existing markup into a NEW, fully EDITABLE Brew email design on the brand canvas. Brew rebuilds the markup into a clean, fully editable design, and EVERY external image is fetched, optimized, and RE-HOSTED on the Brew CDN (no hot-linking third-party assets).
          *
-         *     `content` is the raw markup as a STRING; `format` is `html` (an HTML email document or fragment), `mjml` (MJML markup, compiled to HTML first), or `jsx` (React-Email JSX, rendered to HTML first) — all then transcribed into clean editable JSX. Pass `baseUrl` to resolve relative image paths. Optional `title`.
+         *     `content` is the raw markup as a STRING; `format` describes what you supply: `html` (an HTML email document or fragment), `mjml` (MJML markup), or `jsx` (React-Email JSX) — all converted into a clean, editable design. Pass `baseUrl` to resolve relative image paths. Optional `title`.
          *
          *     USAGE-metered: the agent’s actual token in/out is billed (no fixed price, no `X-Credit-Cost` header). The call gates on a non-empty credit balance. Returns `201` with the SAME shape as `POST /v1/emails`: `{ emailId, emailVersionId, html, previewImage? }`.
          */
@@ -73,12 +73,9 @@ export interface paths {
         head?: never;
         /**
          * Edit an email design
-         * @description Writes a new `version: "latest"` row on the same `emailId` (the previous head is demoted to a numeric historical version) via one of two mutually-exclusive bodies:
+         * @description Applies a natural-language `prompt` edit (optionally a `emailVersionId` source pin + `contentUrls`) to an existing design: the Brew email agent edits the design’s current latest version (or the pinned version) and writes a new `version: "latest"` row on the same `emailId` (the previous head is demoted to a numeric historical version).
          *
-         *     - **AI edit** — `{ prompt }` (optionally a `emailVersionId` source pin + `contentUrls`): runs the Brew email agent against the design’s current latest JSX (or the pinned version).
-         *     - **Manual JSX save** — `{ jsx }`: persists hand-authored / pasted React-Email JSX verbatim (rendered to HTML server-side), no agent involved — the same operation the in-app canvas editor performs.
-         *
-         *     Supply exactly one of `prompt` / `jsx`; a body carrying both is rejected `400 INVALID_REQUEST`. Returns the generated-email shape with the new `emailVersionId`.
+         *     USAGE-metered — the agent’s actual token spend is charged. Returns the generated-email shape with the new `emailVersionId`.
          */
         patch: operations["editEmail"];
         trace?: never;
@@ -1508,9 +1505,6 @@ export interface components {
             prompt: string;
             emailVersionId?: string;
             contentUrls?: string[];
-        };
-        EmailJsxSaveRequest: {
-            jsx: string;
         };
         EmailsDeleteResponse: {
             emailId: string;
@@ -3537,7 +3531,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The markup could not be converted into a valid email (e.g. the JSX failed to render, or the HTML produced no usable design). */
+            /** @description The markup could not be converted into a valid email (e.g. it failed to render, or produced no usable design). */
             422: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -3550,7 +3544,7 @@ export interface operations {
                      *       "error": {
                      *         "code": "EMAIL_IMPORT_FAILED",
                      *         "type": "invalid_request",
-                     *         "message": "The supplied markup could not be imported as an email: the React-Email JSX could not be rendered to HTML.",
+                     *         "message": "The supplied markup could not be imported as an email: the content could not be rendered to a valid email.",
                      *         "suggestion": "Check that `content` is valid for the declared `format` and retry.",
                      *         "docs": "https://docs.brew.new/api-reference/api/errors",
                      *         "param": "content"
@@ -3785,14 +3779,14 @@ export interface operations {
             };
             cookie?: never;
         };
-        /** @description Either an AI edit (`prompt`, optional `emailVersionId` source pin, optional `contentUrls`) OR a manual JSX save (`jsx`). Identity lives on the path. Exactly one of `prompt` / `jsx` must be present. */
+        /** @description A natural-language `prompt` edit, with an optional `emailVersionId` source pin and optional `contentUrls`. Identity lives on the path. */
         requestBody: {
             content: {
-                "application/json": components["schemas"]["EmailEditRequest"] | components["schemas"]["EmailJsxSaveRequest"];
+                "application/json": components["schemas"]["EmailEditRequest"];
             };
         };
         responses: {
-            /** @description Updated design (a new `latest` version row was written) or a text response if the agent returned prose without JSX. The AI `prompt` edit is usage-metered (actual token usage charged, no fixed price); the deterministic `jsx` save branch is FREE. */
+            /** @description Updated design (a new `latest` version row was written) or a text response if the agent returned prose instead of a design. USAGE-metered: the agent’s actual token usage is charged (no fixed price). */
             200: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -3938,7 +3932,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The supplied `jsx` could not be rendered to a valid email (manual save), or — on the AI-edit path — the brand has not finished extraction. */
+            /** @description The brand has not finished extraction. */
             422: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -3946,6 +3940,17 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "BRAND_NOT_READY",
+                     *         "type": "invalid_request",
+                     *         "message": "The requested brand is not ready for email generation.",
+                     *         "suggestion": "Wait for brand extraction to complete before editing emails.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *       }
+                     *     }
+                     */
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
