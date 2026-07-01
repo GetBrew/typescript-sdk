@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+### Added — email create `category`
+
+`POST /v1/emails` (`brew.emails.generate`) now accepts an optional marketing
+`category` so a create gets the same category-tailored design treatment
+(exemplars, hero recipe, personalization) the in-app agent applies, instead of
+a generic default:
+
+```ts
+await brew.emails.generate({
+  prompt: 'Announce our new analytics dashboard',
+  category: 'product-launch',
+})
+```
+
+Accepted values are the marketing categories only: `welcome`, `newsletter`,
+`promotional`, `product-launch`, `product-update`, `cart-abandonment`,
+`event-invitation`, `event-reminder`, `feedback-request`, `re-engagement`,
+`referral`, `business`, `internal`, `general`. Omit `category` for the previous
+generic default. Transactional categories (receipts, password resets, order
+confirmations) are intentionally not accepted — those emails are sent from
+automations with a trigger. `GenerateEmailInput` gains the optional field; no
+other method signatures change.
+
 ### Changed — email edits are AI-only
 
 `PATCH /v1/emails/{emailId}` (`brew.emails.edit`) now accepts only a

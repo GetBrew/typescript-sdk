@@ -1503,6 +1503,11 @@ export interface components {
             prompt: string;
             contentUrls?: string[];
             referenceEmailId?: string;
+            /**
+             * @description Marketing email category that steers the design treatment (exemplars, hero recipe, personalization) — mirrors what the in-app agent infers per request. One of: welcome, newsletter, promotional, product-launch, product-update, cart-abandonment, event-invitation, event-reminder, feedback-request, re-engagement, referral, business, internal, general. Omit for a general treatment. Transactional emails (receipts, password resets, order confirmations) are sent via automations with a trigger, not this endpoint.
+             * @enum {string}
+             */
+            category?: "welcome" | "newsletter" | "promotional" | "product-launch" | "product-update" | "cart-abandonment" | "event-invitation" | "event-reminder" | "feedback-request" | "re-engagement" | "referral" | "business" | "internal" | "general";
         };
         EmailImportRequest: {
             /** @enum {string} */
