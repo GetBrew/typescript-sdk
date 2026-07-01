@@ -2746,8 +2746,6 @@ export interface components {
             mode?: "text-to-image" | "image-editing";
             /** @enum {string} */
             aspectRatio?: "16:9" | "3:2" | "4:3" | "1:1" | "2:3" | "3:4" | "9:16";
-            /** @enum {string} */
-            model?: "google/gemini-3-pro-image" | "google/gemini-2.5-flash-image" | "google/gemini-3.1-flash-image-preview" | "bfl/flux-2-klein-4b" | "bfl/flux-2-pro" | "bfl/flux-2-klein-9b" | "qwen/qwen-image" | "qwen/qwen-image-edit";
             /** Format: uri */
             image1?: string;
             /** Format: uri */
