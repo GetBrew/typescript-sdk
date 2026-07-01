@@ -2,7 +2,7 @@ import type { components } from '../../generated/openapi-types'
 
 /**
  * Request body for `POST /v1/content/generate-image`. Carries the
- * `prompt`, optional `mode` / `aspectRatio` / `model` / source images.
+ * `prompt`, optional `mode` / `aspectRatio` / source images.
  */
 export type ContentGenerateImageRequest =
   components['schemas']['ContentGenerateImageRequest']
