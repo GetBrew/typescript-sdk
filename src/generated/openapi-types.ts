@@ -120,6 +120,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/emails/{emailId}/client-previews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview across clients & devices
+         * @description Render the design’s latest version across REAL email clients & devices — Gmail, Outlook, Apple Mail, iOS (with dark-mode variants), plus Yahoo — and return a screenshot per client rehosted on the Brew CDN. See exactly how the email looks in a specific inbox before sending.
+         *
+         *     Pass `clients` (ids from the supported catalogue) to target specific inboxes/devices, or send `{}` for a popular default spread. Rendering is async: this is a single bounded call, so any clients still rendering when the window elapses come back in `pending` (`status: "partial"`) — call again to retry them.
+         *
+         *     FIXED cost: 10 credits, charged (`X-Credit-Cost: 10`) ONLY when at least one client renders. If ZERO clients finish in time (or the provider is unavailable), the call returns a retryable `503` and is NOT billed.
+         */
+        post: operations["previewEmailAcrossClients"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/analytics/sends": {
         parameters: {
             query?: never;
@@ -262,7 +286,9 @@ export interface paths {
         put?: never;
         /**
          * Create an automation
-         * @description Deterministic create — the body carries the full graph (`{ name, triggerEventId, nodes, connections }`). Returns `201` with the bare `AutomationRow`. The new automation starts as a draft; promote it with `PATCH /v1/automations/{automationId}` `{ "published": true }`.
+         * @description Deterministic create — the body carries the full graph (`{ name, triggerEventId?, nodes, connections }`). Returns `201` with the bare `AutomationRow`.
+         *
+         *     **Trigger binding (exactly one):** for an EVENT automation pass `triggerEventId` (then publish with `PATCH … { "published": true }`). For a MANUAL-AUDIENCE automation OMIT `triggerEventId` and give the trigger node `config: { "mode": "manualAudience", "audienceId": "aud_…" }` — it is launched on demand with `POST /v1/automations/{automationId}/run` rather than published.
          *
          *     Chain `POST /v1/emails { prompt }` first to mint the design each `sendEmail` node references — every `sendEmail` node MUST carry `emailId`, `emailVersionId`, `domainId`, `subject`, `previewText`.
          *
@@ -315,9 +341,49 @@ export interface paths {
         put?: never;
         /**
          * Test an automation
-         * @description Starts a suppression-aware TEST run of the saved automation — no real mail is delivered and test runs never count against analytics rollups. Body optionally carries a `payload` matching the trigger’s schema. Returns `202` with the started run id; follow it via `GET /v1/automations/runs?automationRunId=`.
+         * @description Runs the saved automation END-TO-END through the real workflow in TEST mode — works on drafts and for both event and manual-audience automations; every node executes (filters/splits evaluate against `payload`, wait nodes fast-forward). Pass `testRecipient` to DELIVER each send-email node’s email for real to that address (real subject/preview/sender name via the Brew test domain; customer addresses are never hit) — omit it for a silent dry-run with no mail. Test runs never count against analytics rollups or send quotas. Returns `202` with the started run id; follow per-node status via `GET /v1/automations/runs?automationRunId=&include=logs`.
          */
         post: operations["testAutomation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/automations/{automationId}/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Run a manual-audience automation
+         * @description Launches a MANUAL-AUDIENCE automation against the audience bound to its trigger node — every contact in that audience flows through the graph (filters / splits / waits / sends) with batch sending at scale. `dry_run: true` previews the recipient count + flow without sending. `scheduledAt` (ISO-8601) launches later; omit to run now. Returns `202` with the `audienceRunId` — poll it via `GET /v1/automations/audience-runs`. `422` if the automation is not manual-audience; `402` if the run would exceed the monthly send limit.
+         */
+        post: operations["runAutomation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/automations/audience-runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List manual-audience runs
+         * @description Lists manual-audience automation runs (each "Run" of a manual-audience automation), newest first — status, recipient totals, and the per-node funnel. Pass `?audienceRunId=` to fetch one, or `?automationId=` to filter to a single automation.
+         */
+        get: operations["listAudienceRuns"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -827,7 +893,7 @@ export interface paths {
         put?: never;
         /**
          * Generate a GIF
-         * @description Produces a looping animated GIF, routed by the `from` discriminator: `prompt` generates from a text prompt, `image` animates a source image (both via the AI gif workflow), and `video` converts a source MP4. Returns CDN-hosted `gifUrl` (plus `videoUrl` and motion metadata for the AI sources). Credit-metered (fixed cost: prompt 15, image 10, video 10).
+         * @description Produces a looping animated GIF (5-second source clip), routed by the `from` discriminator: `prompt` generates an on-brand still then animates it, `image` animates a source image (both via the AI gif workflow), and `video` converts a source MP4. Aspect ratio is one of `16:9`, `9:16`, `1:1`. Returns CDN-hosted `gifUrl` (plus `videoUrl` and motion metadata for the AI sources). Credit-metered (fixed cost: prompt 20, image 10, video 10).
          */
         post: operations["contentGif"];
         delete?: never;
@@ -1077,7 +1143,10 @@ export interface components {
             type: "trigger";
             config: {
                 actionType?: string;
+                /** @enum {string} */
+                mode?: "event" | "manualAudience";
                 triggerEventId?: string;
+                audienceId?: string;
                 eventName?: string;
             };
         } | {
@@ -1124,7 +1193,9 @@ export interface components {
                 conditions: {
                     field: string;
                     operator: string;
-                    value?: string | number | boolean;
+                    value?: string | number | boolean | (string | number)[];
+                    /** @enum {string} */
+                    type?: "string" | "number" | "date" | "bool";
                 }[];
             };
         } | {
@@ -1152,7 +1223,9 @@ export interface components {
                 conditions: {
                     field: string;
                     operator: string;
-                    value?: string | number | boolean;
+                    value?: string | number | boolean | (string | number)[];
+                    /** @enum {string} */
+                    type?: "string" | "number" | "date" | "bool";
                 }[];
             };
         };
@@ -1178,7 +1251,10 @@ export interface components {
                 type: "trigger";
                 config: {
                     actionType?: string;
+                    /** @enum {string} */
+                    mode?: "event" | "manualAudience";
                     triggerEventId?: string;
+                    audienceId?: string;
                     eventName?: string;
                 };
             } | {
@@ -1229,7 +1305,9 @@ export interface components {
                     conditions: {
                         field: string;
                         operator: string;
-                        value?: string | number | boolean;
+                        value?: string | number | boolean | (string | number)[];
+                        /** @enum {string} */
+                        type?: "string" | "number" | "date" | "bool";
                     }[];
                 };
             } | {
@@ -1257,7 +1335,9 @@ export interface components {
                     conditions: {
                         field: string;
                         operator: string;
-                        value?: string | number | boolean;
+                        value?: string | number | boolean | (string | number)[];
+                        /** @enum {string} */
+                        type?: "string" | "number" | "date" | "bool";
                     }[];
                 };
             })[];
@@ -1553,6 +1633,29 @@ export interface components {
                 element?: string;
             }[];
         };
+        EmailClientPreviewResponse: {
+            emailId: string;
+            inspectionId: string;
+            /** @enum {string} */
+            status: "ready" | "partial";
+            previews: {
+                id: string;
+                label: string;
+                /** @enum {string} */
+                category: "gmail" | "outlook" | "apple" | "yahoo" | "other";
+                os: string;
+                dark: boolean;
+                /** @enum {string} */
+                status: "ready" | "processing" | "failed";
+                /** Format: uri */
+                imageUrl: string | null;
+            }[];
+            pending: string[];
+        };
+        EmailClientPreviewRequest: {
+            /** @description Client ids to render. Omit for a default popular spread of Gmail, Outlook, Apple Mail & iOS. Supported: gmailcom-lm_chrcurrent_win10 = Gmail (Web); gmailcom-dm_chrcurrent_win10 = Gmail (Web, Dark); android16_gmailapp_pixel10_lm = Gmail (Android); android16_gmailapp_pixel10_dm = Gmail (Android, Dark); iphone16gmail_18 = Gmail (iOS); outlook2021_win11_lm_dt = Outlook 2021 (Windows); outlook2021_win11_dm_dt = Outlook 2021 (Windows, Dark); o365_w10_lm_dt = Outlook 365 (Windows); outlookcom-lm_chrcurrent_win10 = Outlook.com (Web); applemail16 = Apple Mail (macOS); applemail16_dm = Apple Mail (macOS, Dark); iphone16_18 = Apple Mail (iOS); iphone16_18_dm = Apple Mail (iOS, Dark); yahoocom-lm_chrcurrent_win10 = Yahoo Mail (Web). */
+            clients?: string[];
+        };
         SendsListResponse: {
             data: {
                 sendId: string;
@@ -1750,7 +1853,7 @@ export interface components {
         AutomationsPostRequest: {
             name: string;
             description?: string;
-            triggerEventId: string;
+            triggerEventId?: string;
             nodes: ({
                 id: string;
                 label: string;
@@ -1759,7 +1862,10 @@ export interface components {
                 type: "trigger";
                 config: {
                     actionType?: string;
+                    /** @enum {string} */
+                    mode?: "event" | "manualAudience";
                     triggerEventId?: string;
+                    audienceId?: string;
                     eventName?: string;
                 };
             } | {
@@ -1806,7 +1912,9 @@ export interface components {
                     conditions: {
                         field: string;
                         operator: string;
-                        value?: string | number | boolean;
+                        value?: string | number | boolean | (string | number)[];
+                        /** @enum {string} */
+                        type?: "string" | "number" | "date" | "bool";
                     }[];
                 };
             } | {
@@ -1834,7 +1942,9 @@ export interface components {
                     conditions: {
                         field: string;
                         operator: string;
-                        value?: string | number | boolean;
+                        value?: string | number | boolean | (string | number)[];
+                        /** @enum {string} */
+                        type?: "string" | "number" | "date" | "bool";
                     }[];
                 };
             })[];
@@ -1864,7 +1974,10 @@ export interface components {
                     type: "trigger";
                     config: {
                         actionType?: string;
+                        /** @enum {string} */
+                        mode?: "event" | "manualAudience";
                         triggerEventId?: string;
+                        audienceId?: string;
                         eventName?: string;
                     };
                 } | {
@@ -1915,7 +2028,9 @@ export interface components {
                         conditions: {
                             field: string;
                             operator: string;
-                            value?: string | number | boolean;
+                            value?: string | number | boolean | (string | number)[];
+                            /** @enum {string} */
+                            type?: "string" | "number" | "date" | "bool";
                         }[];
                     };
                 } | {
@@ -1943,7 +2058,9 @@ export interface components {
                         conditions: {
                             field: string;
                             operator: string;
-                            value?: string | number | boolean;
+                            value?: string | number | boolean | (string | number)[];
+                            /** @enum {string} */
+                            type?: "string" | "number" | "date" | "bool";
                         }[];
                     };
                 })[];
@@ -1983,7 +2100,10 @@ export interface components {
                 type: "trigger";
                 config: {
                     actionType?: string;
+                    /** @enum {string} */
+                    mode?: "event" | "manualAudience";
                     triggerEventId?: string;
+                    audienceId?: string;
                     eventName?: string;
                 };
             } | {
@@ -2030,7 +2150,9 @@ export interface components {
                     conditions: {
                         field: string;
                         operator: string;
-                        value?: string | number | boolean;
+                        value?: string | number | boolean | (string | number)[];
+                        /** @enum {string} */
+                        type?: "string" | "number" | "date" | "bool";
                     }[];
                 };
             } | {
@@ -2058,7 +2180,9 @@ export interface components {
                     conditions: {
                         field: string;
                         operator: string;
-                        value?: string | number | boolean;
+                        value?: string | number | boolean | (string | number)[];
+                        /** @enum {string} */
+                        type?: "string" | "number" | "date" | "bool";
                     }[];
                 };
             })[];
@@ -2094,6 +2218,52 @@ export interface components {
             payload?: {
                 [key: string]: unknown;
             };
+            /** Format: email */
+            testRecipient?: string;
+        };
+        AutomationRunDryRunResponse: {
+            /** @enum {boolean} */
+            dry_run: true;
+            automationId: string;
+            audienceId: string;
+            audienceName?: string;
+            recipientCount: number;
+            sendNodeCount: number;
+            scheduledAt?: string;
+        };
+        AutomationRunRequest: {
+            dry_run?: boolean;
+            /** Format: date-time */
+            scheduledAt?: string;
+        };
+        AudienceRunsListResponse: {
+            data: {
+                audienceRunId: string;
+                automationId: string;
+                automationName?: string;
+                audienceId: string;
+                audienceName?: string;
+                /** @enum {string} */
+                status: "queued" | "scheduled" | "running" | "sent" | "failed" | "canceled";
+                scheduledAt?: string;
+                totalRecipients?: number;
+                sentCount?: number;
+                failedCount?: number;
+                skippedCount?: number;
+                nodeStats?: {
+                    nodeId: string;
+                    nodeType: string;
+                    entered?: number;
+                    sent?: number;
+                    failed?: number;
+                    skipped?: number;
+                }[];
+                error?: string;
+                startedAt?: string;
+                completedAt?: string;
+                createdAt: string;
+                updatedAt: string;
+            }[];
         };
         AutomationRunsListResponse: {
             data: {
@@ -2741,21 +2911,39 @@ export interface components {
             warnings?: string[];
         };
         ContentGenerateImageRequest: {
-            prompt: string;
+            prompt?: string;
             /** @enum {string} */
             mode?: "text-to-image" | "image-editing";
             /** @enum {string} */
-            aspectRatio?: "16:9" | "3:2" | "4:3" | "1:1" | "2:3" | "3:4" | "9:16";
+            aspectRatio?: "16:9" | "3:2" | "4:3" | "1:1" | "4:5" | "2:3" | "3:4" | "9:16";
             /** Format: uri */
             image1?: string;
             /** Format: uri */
             image2?: string;
+            adCreative?: {
+                brandName: string;
+                headline: string;
+                cta: string;
+                /** @enum {string} */
+                format: "1:1" | "4:5" | "9:16" | "16:9";
+                /** @enum {string} */
+                archetype: "product-ui-card" | "mascot" | "flat-illustration" | "abstract-brand" | "type-led" | "photo-ui-overlay" | "conceptual-3d";
+                palette: {
+                    background: string;
+                    accent: string;
+                    headlineColor: string;
+                };
+                supportingVisual?: string;
+                subhead?: string;
+            };
         };
         ContentGifResponse: {
             /** Format: uri */
             gifUrl: string;
             /** Format: uri */
             videoUrl?: string;
+            /** Format: uri */
+            generatedImageUrl?: string;
             altText?: string;
             duration?: number;
             fps?: number;
@@ -2766,10 +2954,9 @@ export interface components {
             /** @enum {string} */
             from: "prompt";
             prompt: string;
-            duration?: number;
             fps?: number;
             /** @enum {string} */
-            aspectRatio?: "16:9" | "4:3" | "1:1" | "3:4" | "9:16" | "21:9" | "9:21";
+            aspectRatio?: "16:9" | "9:16" | "1:1";
             loop?: boolean;
         } | {
             /** @enum {string} */
@@ -2777,10 +2964,9 @@ export interface components {
             /** Format: uri */
             imageUrl: string;
             prompt?: string;
-            duration?: number;
             fps?: number;
             /** @enum {string} */
-            aspectRatio?: "16:9" | "4:3" | "1:1" | "3:4" | "9:16" | "21:9" | "9:21";
+            aspectRatio?: "16:9" | "9:16" | "1:1";
             loop?: boolean;
         } | {
             /** @enum {string} */
@@ -4459,6 +4645,290 @@ export interface operations {
                      *         "type": "internal_error",
                      *         "message": "An unexpected error occurred.",
                      *         "suggestion": "Retry the request. If it keeps failing, contact support.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    previewEmailAcrossClients: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description Optional idempotency key for safe retries. Reusing the same key with the same request body returns the original response for 24 hours.
+                 * @example api-request-2026-04-08-001
+                 */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                /** @description Design id returned by `POST /v1/emails` and listed by `GET /v1/emails`. */
+                emailId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailClientPreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Per-client screenshots. `ready` clients carry a rehosted `imageUrl`; clients still rendering are listed in `pending` with `status: "processing"`. */
+            200: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "emailId": "eml_welcome",
+                     *       "inspectionId": "DdbNga1MdL3N7sO19v5MAmpOKIqFrLg9cgpCIgS4othXJ",
+                     *       "status": "partial",
+                     *       "previews": [
+                     *         {
+                     *           "id": "gmailcom-lm_chrcurrent_win10",
+                     *           "label": "Gmail (Web)",
+                     *           "category": "gmail",
+                     *           "os": "Web",
+                     *           "dark": false,
+                     *           "status": "ready",
+                     *           "imageUrl": "https://cdn.brew.new/email-preview/eml_welcome/gmailcom-lm_chrcurrent_win10-abc.png"
+                     *         },
+                     *         {
+                     *           "id": "outlook2021_win11_lm_dt",
+                     *           "label": "Outlook 2021 (Windows)",
+                     *           "category": "outlook",
+                     *           "os": "Windows",
+                     *           "dark": false,
+                     *           "status": "processing",
+                     *           "imageUrl": null
+                     *         }
+                     *       ],
+                     *       "pending": [
+                     *         "outlook2021_win11_lm_dt"
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["EmailClientPreviewResponse"];
+                };
+            };
+            /** @description The API key was missing, invalid, or revoked. */
+            401: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INVALID_API_KEY",
+                     *         "type": "authentication_error",
+                     *         "message": "The provided API key is invalid.",
+                     *         "suggestion": "Check the API key format and retry with a valid active key.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit/import, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
+            402: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INSUFFICIENT_CREDITS",
+                     *         "type": "payment_required",
+                     *         "message": "This operation required more credits than the 0 remaining on the 'free' plan. See the per-operation cost in GET /v1/help.",
+                     *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/usage.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/credits",
+                     *         "details": {
+                     *           "cost": 2,
+                     *           "remaining": 0,
+                     *           "planKey": "free"
+                     *         }
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The caller does not have the required `emails` permission. */
+            403: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INSUFFICIENT_PERMISSIONS",
+                     *         "type": "authorization_error",
+                     *         "message": "The caller does not have the required permission.",
+                     *         "suggestion": "Use an API key or session with the required permission.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
+                     *         "param": "emails"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description No email exists with that id (cross-brand ids surface as 404). */
+            404: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "EMAIL_NOT_FOUND",
+                     *         "type": "not_found",
+                     *         "message": "No email exists with id 'eml_welcome'.",
+                     *         "suggestion": "Verify the emailId via GET /v1/emails.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The same `Idempotency-Key` was reused with a different request body. */
+            409: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "IDEMPOTENCY_CONFLICT",
+                     *         "type": "conflict",
+                     *         "message": "The same idempotency key was reused with a different request payload.",
+                     *         "suggestion": "Reuse the original payload or send a new idempotency key.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/idempotency"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The email has no rendered HTML yet, or no supported clients were requested. */
+            422: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "CONTENT_OPERATION_FAILED",
+                     *         "type": "invalid_request",
+                     *         "message": "The client-preview operation could not be completed: the email has no rendered HTML yet (it may still be generating).",
+                     *         "suggestion": "Poll GET /v1/emails?emailId= until status is complete, then retry.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The request hit the rolling rate limit window. */
+            429: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    /** @description Seconds to wait before retrying the request. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "RATE_LIMITED",
+                     *         "type": "rate_limit",
+                     *         "message": "Too many requests.",
+                     *         "suggestion": "Wait for the retry window before sending another request.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
+                     *         "retryAfter": 42
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected internal error. */
+            500: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INTERNAL_ERROR",
+                     *         "type": "internal_error",
+                     *         "message": "An unexpected error occurred.",
+                     *         "suggestion": "Retry the request. If it keeps failing, contact support.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description RETRYABLE. Either no client finished rendering within the time limit (or the preview provider is temporarily unavailable) — in which case you are NOT billed — or the credit balance could not be verified (fail-closed rather than doing unmeterable paid work). */
+            503: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "SERVICE_UNAVAILABLE",
+                     *         "type": "service_unavailable",
+                     *         "message": "The email preview is still rendering — no client finished within the time limit.",
+                     *         "suggestion": "Retry in a few seconds. You are not charged when no preview is produced.",
                      *         "docs": "https://docs.brew.new/api-reference/api/errors"
                      *       }
                      *     }
@@ -6565,8 +7035,10 @@ export interface operations {
                 /**
                  * @example {
                  *       "payload": {
-                 *         "email": "qa@example.com"
-                 *       }
+                 *         "email": "qa@example.com",
+                 *         "plan": "pro"
+                 *       },
+                 *       "testRecipient": "qa@example.com"
                  *     }
                  */
                 "application/json": components["schemas"]["AutomationTestRequest"];
@@ -6706,6 +7178,383 @@ export interface operations {
                      *         "message": "The same idempotency key was reused with a different request payload.",
                      *         "suggestion": "Reuse the original payload or send a new idempotency key.",
                      *         "docs": "https://docs.brew.new/api-reference/api/idempotency"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The request hit the rolling rate limit window. */
+            429: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    /** @description Seconds to wait before retrying the request. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "RATE_LIMITED",
+                     *         "type": "rate_limit",
+                     *         "message": "Too many requests.",
+                     *         "suggestion": "Wait for the retry window before sending another request.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
+                     *         "retryAfter": 42
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected internal error. */
+            500: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INTERNAL_ERROR",
+                     *         "type": "internal_error",
+                     *         "message": "An unexpected error occurred.",
+                     *         "suggestion": "Retry the request. If it keeps failing, contact support.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    runAutomation: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description Optional idempotency key for safe retries. Reusing the same key with the same request body returns the original response for 24 hours.
+                 * @example api-request-2026-04-08-001
+                 */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                /** @description Automation id returned by `POST /v1/automations` and listed by `GET /v1/automations`. */
+                automationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                /**
+                 * @example {
+                 *       "scheduledAt": "2026-07-01T15:00:00.000Z"
+                 *     }
+                 */
+                "application/json": components["schemas"]["AutomationRunRequest"];
+            };
+        };
+        responses: {
+            /** @description Dry-run preview (no run started). */
+            200: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "dry_run": true,
+                     *       "automationId": "auto_abc",
+                     *       "audienceId": "aud_123",
+                     *       "audienceName": "Active trial users",
+                     *       "recipientCount": 12400,
+                     *       "sendNodeCount": 2
+                     *     }
+                     */
+                    "application/json": components["schemas"]["AutomationRunDryRunResponse"];
+                };
+            };
+            /** @description Run launched (or scheduled). */
+            202: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "audienceRunId": "arun_01HZ",
+                     *       "automationId": "auto_abc",
+                     *       "status": "queued",
+                     *       "totalRecipients": 12400,
+                     *       "receivedAt": "2026-04-08T12:34:56.789Z"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["AutomationRunStartedResponse"];
+                };
+            };
+            /** @description The API key was missing, invalid, or revoked. */
+            401: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INVALID_API_KEY",
+                     *         "type": "authentication_error",
+                     *         "message": "The provided API key is invalid.",
+                     *         "suggestion": "Check the API key format and retry with a valid active key.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The caller does not have the required `automations` permission. */
+            403: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INSUFFICIENT_PERMISSIONS",
+                     *         "type": "authorization_error",
+                     *         "message": "The caller does not have the required permission.",
+                     *         "suggestion": "Use an API key or session with the required permission.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
+                     *         "param": "automations"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Automation not found in the API-key brand. Cross-brand ids intentionally surface as 404 (never 403) so the API does not leak cross-brand existence. */
+            404: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "AUTOMATION_NOT_FOUND",
+                     *         "type": "not_found",
+                     *         "message": "Automation 'auto_xxx' was not found.",
+                     *         "suggestion": "List automations with GET /v1/automations.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "automationId"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The same `Idempotency-Key` was reused with a different request body. */
+            409: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "IDEMPOTENCY_CONFLICT",
+                     *         "type": "conflict",
+                     *         "message": "The same idempotency key was reused with a different request payload.",
+                     *         "suggestion": "Reuse the original payload or send a new idempotency key.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/idempotency"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The request hit the rolling rate limit window. */
+            429: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    /** @description Seconds to wait before retrying the request. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "RATE_LIMITED",
+                     *         "type": "rate_limit",
+                     *         "message": "Too many requests.",
+                     *         "suggestion": "Wait for the retry window before sending another request.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
+                     *         "retryAfter": 42
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected internal error. */
+            500: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INTERNAL_ERROR",
+                     *         "type": "internal_error",
+                     *         "message": "An unexpected error occurred.",
+                     *         "suggestion": "Retry the request. If it keeps failing, contact support.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    listAudienceRuns: {
+        parameters: {
+            query?: {
+                /** @description Fetch a single audience run by id. */
+                audienceRunId?: string;
+                /** @description Filter runs to a single automation. */
+                automationId?: string;
+                /** @description Max rows to return (1–200, default 50). */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Audience runs (list mode), or `{ data: [row] }` (detail). */
+            200: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "data": [
+                     *         {
+                     *           "audienceRunId": "arun_01HZ",
+                     *           "automationId": "auto_abc",
+                     *           "audienceId": "aud_123",
+                     *           "audienceName": "Active trial users",
+                     *           "status": "sent",
+                     *           "totalRecipients": 12400,
+                     *           "sentCount": 12180,
+                     *           "failedCount": 0,
+                     *           "skippedCount": 220,
+                     *           "createdAt": "2026-04-08T12:34:56.789Z",
+                     *           "updatedAt": "2026-04-08T12:41:10.000Z"
+                     *         }
+                     *       ]
+                     *     }
+                     */
+                    "application/json": components["schemas"]["AudienceRunsListResponse"];
+                };
+            };
+            /** @description The API key was missing, invalid, or revoked. */
+            401: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INVALID_API_KEY",
+                     *         "type": "authentication_error",
+                     *         "message": "The provided API key is invalid.",
+                     *         "suggestion": "Check the API key format and retry with a valid active key.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The caller does not have the required `automations` permission. */
+            403: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INSUFFICIENT_PERMISSIONS",
+                     *         "type": "authorization_error",
+                     *         "message": "The caller does not have the required permission.",
+                     *         "suggestion": "Use an API key or session with the required permission.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
+                     *         "param": "automations"
                      *       }
                      *     }
                      */
@@ -12697,7 +13546,7 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        /** @description Prompt + optional mode / aspect ratio / model / source images. */
+        /** @description Prompt + optional mode / aspect ratio / source images. */
         requestBody: {
             content: {
                 "application/json": components["schemas"]["ContentGenerateImageRequest"];

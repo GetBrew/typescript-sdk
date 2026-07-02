@@ -367,7 +367,14 @@ components:
               properties:
                 actionType:
                   type: string
+                mode:
+                  type: string
+                  enum:
+                    - event
+                    - manualAudience
                 triggerEventId:
+                  type: string
+                audienceId:
                   type: string
                 eventName:
                   type: string
@@ -511,6 +518,18 @@ components:
                           - type: string
                           - type: number
                           - type: boolean
+                          - type: array
+                            items:
+                              anyOf:
+                                - type: string
+                                - type: number
+                      type:
+                        type: string
+                        enum:
+                          - string
+                          - number
+                          - date
+                          - bool
                     required:
                       - field
                       - operator
@@ -591,6 +610,18 @@ components:
                               - type: string
                               - type: number
                               - type: boolean
+                              - type: array
+                                items:
+                                  anyOf:
+                                    - type: string
+                                    - type: number
+                          type:
+                            type: string
+                            enum:
+                              - string
+                              - number
+                              - date
+                              - bool
                         required:
                           - field
                           - operator
@@ -678,7 +709,14 @@ components:
                     properties:
                       actionType:
                         type: string
+                      mode:
+                        type: string
+                        enum:
+                          - event
+                          - manualAudience
                       triggerEventId:
+                        type: string
+                      audienceId:
                         type: string
                       eventName:
                         type: string
@@ -811,6 +849,18 @@ components:
                                 - type: string
                                 - type: number
                                 - type: boolean
+                                - type: array
+                                  items:
+                                    anyOf:
+                                      - type: string
+                                      - type: number
+                            type:
+                              type: string
+                              enum:
+                                - string
+                                - number
+                                - date
+                                - bool
                           required:
                             - field
                             - operator
@@ -890,6 +940,18 @@ components:
                                     - type: string
                                     - type: number
                                     - type: boolean
+                                    - type: array
+                                      items:
+                                        anyOf:
+                                          - type: string
+                                          - type: number
+                                type:
+                                  type: string
+                                  enum:
+                                    - string
+                                    - number
+                                    - date
+                                    - bool
                               required:
                                 - field
                                 - operator
@@ -1802,6 +1864,83 @@ components:
         - summary
         - issues
       additionalProperties: false
+    EmailClientPreviewResponse:
+      type: object
+      properties:
+        emailId:
+          type: string
+        inspectionId:
+          type: string
+        status:
+          type: string
+          enum:
+            - ready
+            - partial
+        previews:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              label:
+                type: string
+              category:
+                type: string
+                enum:
+                  - gmail
+                  - outlook
+                  - apple
+                  - yahoo
+                  - other
+              os:
+                type: string
+              dark:
+                type: boolean
+              status:
+                type: string
+                enum:
+                  - ready
+                  - processing
+                  - failed
+              imageUrl:
+                type:
+                  - string
+                  - "null"
+                format: uri
+            required:
+              - id
+              - label
+              - category
+              - os
+              - dark
+              - status
+              - imageUrl
+            additionalProperties: false
+        pending:
+          type: array
+          items:
+            type: string
+      required:
+        - emailId
+        - inspectionId
+        - status
+        - previews
+        - pending
+      additionalProperties: false
+    EmailClientPreviewRequest:
+      type: object
+      properties:
+        clients:
+          type: array
+          items:
+            type: string
+            minLength: 1
+            maxLength: 80
+          minItems: 1
+          maxItems: 12
+          description: "Client ids to render. Omit for a default popular spread of Gmail, Outlook, Apple Mail & iOS. Supported: gmailcom-lm_chrcurrent_win10 = Gmail (Web); gmailcom-dm_chrcurrent_win10 = Gmail (Web, Dark); android16_gmailapp_pixel10_lm = Gmail (Android); android16_gmailapp_pixel10_dm = Gmail (Android, Dark); iphone16gmail_18 = Gmail (iOS); outlook2021_win11_lm_dt = Outlook 2021 (Windows); outlook2021_win11_dm_dt = Outlook 2021 (Windows, Dark); o365_w10_lm_dt = Outlook 365 (Windows); outlookcom-lm_chrcurrent_win10 = Outlook.com (Web); applemail16 = Apple Mail (macOS); applemail16_dm = Apple Mail (macOS, Dark); iphone16_18 = Apple Mail (iOS); iphone16_18_dm = Apple Mail (iOS, Dark); yahoocom-lm_chrcurrent_win10 = Yahoo Mail (Web)."
+      additionalProperties: false
     SendsListResponse:
       type: object
       properties:
@@ -2437,7 +2576,14 @@ components:
                     properties:
                       actionType:
                         type: string
+                      mode:
+                        type: string
+                        enum:
+                          - event
+                          - manualAudience
                       triggerEventId:
+                        type: string
+                      audienceId:
                         type: string
                       eventName:
                         type: string
@@ -2581,6 +2727,18 @@ components:
                                 - type: string
                                 - type: number
                                 - type: boolean
+                                - type: array
+                                  items:
+                                    anyOf:
+                                      - type: string
+                                      - type: number
+                            type:
+                              type: string
+                              enum:
+                                - string
+                                - number
+                                - date
+                                - bool
                           required:
                             - field
                             - operator
@@ -2661,6 +2819,18 @@ components:
                                     - type: string
                                     - type: number
                                     - type: boolean
+                                    - type: array
+                                      items:
+                                        anyOf:
+                                          - type: string
+                                          - type: number
+                                type:
+                                  type: string
+                                  enum:
+                                    - string
+                                    - number
+                                    - date
+                                    - bool
                               required:
                                 - field
                                 - operator
@@ -2703,7 +2873,6 @@ components:
           type: boolean
       required:
         - name
-        - triggerEventId
         - nodes
       additionalProperties: false
     AutomationsListResponse:
@@ -2765,7 +2934,14 @@ components:
                           properties:
                             actionType:
                               type: string
+                            mode:
+                              type: string
+                              enum:
+                                - event
+                                - manualAudience
                             triggerEventId:
+                              type: string
+                            audienceId:
                               type: string
                             eventName:
                               type: string
@@ -2898,6 +3074,18 @@ components:
                                       - type: string
                                       - type: number
                                       - type: boolean
+                                      - type: array
+                                        items:
+                                          anyOf:
+                                            - type: string
+                                            - type: number
+                                  type:
+                                    type: string
+                                    enum:
+                                      - string
+                                      - number
+                                      - date
+                                      - bool
                                 required:
                                   - field
                                   - operator
@@ -2977,6 +3165,18 @@ components:
                                           - type: string
                                           - type: number
                                           - type: boolean
+                                          - type: array
+                                            items:
+                                              anyOf:
+                                                - type: string
+                                                - type: number
+                                      type:
+                                        type: string
+                                        enum:
+                                          - string
+                                          - number
+                                          - date
+                                          - bool
                                     required:
                                       - field
                                       - operator
@@ -3109,7 +3309,14 @@ components:
                     properties:
                       actionType:
                         type: string
+                      mode:
+                        type: string
+                        enum:
+                          - event
+                          - manualAudience
                       triggerEventId:
+                        type: string
+                      audienceId:
                         type: string
                       eventName:
                         type: string
@@ -3253,6 +3460,18 @@ components:
                                 - type: string
                                 - type: number
                                 - type: boolean
+                                - type: array
+                                  items:
+                                    anyOf:
+                                      - type: string
+                                      - type: number
+                            type:
+                              type: string
+                              enum:
+                                - string
+                                - number
+                                - date
+                                - bool
                           required:
                             - field
                             - operator
@@ -3333,6 +3552,18 @@ components:
                                     - type: string
                                     - type: number
                                     - type: boolean
+                                    - type: array
+                                      items:
+                                        anyOf:
+                                          - type: string
+                                          - type: number
+                                type:
+                                  type: string
+                                  enum:
+                                    - string
+                                    - number
+                                    - date
+                                    - bool
                               required:
                                 - field
                                 - operator
@@ -3447,7 +3678,120 @@ components:
         payload:
           type: object
           additionalProperties: {}
+        testRecipient:
+          type: string
+          format: email
       additionalProperties: false
+    AutomationRunDryRunResponse:
+      type: object
+      properties:
+        dry_run:
+          type: boolean
+          enum:
+            - true
+        automationId:
+          type: string
+        audienceId:
+          type: string
+        audienceName:
+          type: string
+        recipientCount:
+          type: number
+        sendNodeCount:
+          type: number
+        scheduledAt:
+          type: string
+      required:
+        - dry_run
+        - automationId
+        - audienceId
+        - recipientCount
+        - sendNodeCount
+    AutomationRunRequest:
+      type: object
+      properties:
+        dry_run:
+          type: boolean
+        scheduledAt:
+          type: string
+          format: date-time
+      additionalProperties: false
+    AudienceRunsListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              audienceRunId:
+                type: string
+              automationId:
+                type: string
+              automationName:
+                type: string
+              audienceId:
+                type: string
+              audienceName:
+                type: string
+              status:
+                type: string
+                enum:
+                  - queued
+                  - scheduled
+                  - running
+                  - sent
+                  - failed
+                  - canceled
+              scheduledAt:
+                type: string
+              totalRecipients:
+                type: number
+              sentCount:
+                type: number
+              failedCount:
+                type: number
+              skippedCount:
+                type: number
+              nodeStats:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    nodeId:
+                      type: string
+                    nodeType:
+                      type: string
+                    entered:
+                      type: number
+                    sent:
+                      type: number
+                    failed:
+                      type: number
+                    skipped:
+                      type: number
+                  required:
+                    - nodeId
+                    - nodeType
+              error:
+                type: string
+              startedAt:
+                type: string
+              completedAt:
+                type: string
+              createdAt:
+                type: string
+              updatedAt:
+                type: string
+            required:
+              - audienceRunId
+              - automationId
+              - audienceId
+              - status
+              - createdAt
+              - updatedAt
+      required:
+        - data
     AutomationRunsListResponse:
       type: object
       properties:
@@ -5329,6 +5673,7 @@ components:
             - 3:2
             - 4:3
             - 1:1
+            - 4:5
             - 2:3
             - 3:4
             - 9:16
@@ -5338,8 +5683,69 @@ components:
         image2:
           type: string
           format: uri
-      required:
-        - prompt
+        adCreative:
+          type: object
+          properties:
+            brandName:
+              type: string
+              minLength: 1
+              maxLength: 200
+            headline:
+              type: string
+              minLength: 1
+              maxLength: 200
+            cta:
+              type: string
+              minLength: 1
+              maxLength: 100
+            format:
+              type: string
+              enum:
+                - 1:1
+                - 4:5
+                - 9:16
+                - 16:9
+            archetype:
+              type: string
+              enum:
+                - product-ui-card
+                - mascot
+                - flat-illustration
+                - abstract-brand
+                - type-led
+                - photo-ui-overlay
+                - conceptual-3d
+            palette:
+              type: object
+              properties:
+                background:
+                  type: string
+                  minLength: 1
+                accent:
+                  type: string
+                  minLength: 1
+                headlineColor:
+                  type: string
+                  minLength: 1
+              required:
+                - background
+                - accent
+                - headlineColor
+              additionalProperties: false
+            supportingVisual:
+              type: string
+              maxLength: 600
+            subhead:
+              type: string
+              maxLength: 200
+          required:
+            - brandName
+            - headline
+            - cta
+            - format
+            - archetype
+            - palette
+          additionalProperties: false
       additionalProperties: false
     ContentGifResponse:
       type: object
@@ -5348,6 +5754,9 @@ components:
           type: string
           format: uri
         videoUrl:
+          type: string
+          format: uri
+        generatedImageUrl:
           type: string
           format: uri
         altText:
@@ -5375,10 +5784,6 @@ components:
               type: string
               minLength: 1
               maxLength: 2000
-            duration:
-              type: integer
-              minimum: 1
-              maximum: 10
             fps:
               type: integer
               minimum: 1
@@ -5387,12 +5792,8 @@ components:
               type: string
               enum:
                 - 16:9
-                - 4:3
-                - 1:1
-                - 3:4
                 - 9:16
-                - 21:9
-                - 9:21
+                - 1:1
             loop:
               type: boolean
           required:
@@ -5412,10 +5813,6 @@ components:
               type: string
               minLength: 1
               maxLength: 2000
-            duration:
-              type: integer
-              minimum: 1
-              maximum: 10
             fps:
               type: integer
               minimum: 1
@@ -5424,12 +5821,8 @@ components:
               type: string
               enum:
                 - 16:9
-                - 4:3
-                - 1:1
-                - 3:4
                 - 9:16
-                - 21:9
-                - 9:21
+                - 1:1
             loop:
               type: boolean
           required:
@@ -7623,6 +8016,327 @@ paths:
                   message: An unexpected error occurred.
                   suggestion: Retry the request. If it keeps failing, contact support.
                   docs: https://docs.brew.new/api-reference/api/errors
+  /v1/emails/{emailId}/client-previews:
+    post:
+      operationId: previewEmailAcrossClients
+      tags:
+        - Emails
+      summary: Preview across clients & devices
+      description: |-
+        Render the design’s latest version across REAL email clients & devices — Gmail, Outlook, Apple Mail, iOS (with dark-mode variants), plus Yahoo — and return a screenshot per client rehosted on the Brew CDN. See exactly how the email looks in a specific inbox before sending.
+
+        Pass `clients` (ids from the supported catalogue) to target specific inboxes/devices, or send `{}` for a popular default spread. Rendering is async: this is a single bounded call, so any clients still rendering when the window elapses come back in `pending` (`status: "partial"`) — call again to retry them.
+
+        FIXED cost: 10 credits, charged (`X-Credit-Cost: 10`) ONLY when at least one client renders. If ZERO clients finish in time (or the provider is unavailable), the call returns a retryable `503` and is NOT billed.
+      parameters:
+        - *a1
+        - schema:
+            type: string
+            minLength: 1
+            maxLength: 64
+            description: Design id returned by `POST /v1/emails` and listed by `GET /v1/emails`.
+            example: eml_2SmZOWV3ZQ7W5x6g3m4p
+          required: true
+          description: Design id returned by `POST /v1/emails` and listed by `GET /v1/emails`.
+          name: emailId
+          in: path
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailClientPreviewRequest"
+            examples:
+              default:
+                summary: Popular default spread
+                value: {}
+              specific:
+                summary: Target specific inboxes/devices
+                value:
+                  clients:
+                    - gmailcom-lm_chrcurrent_win10
+                    - outlook2021_win11_lm_dt
+                    - iphone16_18
+      responses:
+        "200":
+          description: 'Per-client screenshots. `ready` clients carry a rehosted `imageUrl`; clients still rendering are listed in `pending` with `status: "processing"`.'
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmailClientPreviewResponse"
+              example:
+                emailId: eml_welcome
+                inspectionId: DdbNga1MdL3N7sO19v5MAmpOKIqFrLg9cgpCIgS4othXJ
+                status: partial
+                previews:
+                  - id: gmailcom-lm_chrcurrent_win10
+                    label: Gmail (Web)
+                    category: gmail
+                    os: Web
+                    dark: false
+                    status: ready
+                    imageUrl: https://cdn.brew.new/email-preview/eml_welcome/gmailcom-lm_chrcurrent_win10-abc.png
+                  - id: outlook2021_win11_lm_dt
+                    label: Outlook 2021 (Windows)
+                    category: outlook
+                    os: Windows
+                    dark: false
+                    status: processing
+                    imageUrl: null
+                pending:
+                  - outlook2021_win11_lm_dt
+        "401":
+          description: The API key was missing, invalid, or revoked.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: INVALID_API_KEY
+                  type: authentication_error
+                  message: The provided API key is invalid.
+                  suggestion: Check the API key format and retry with a valid active key.
+                  docs: https://docs.brew.new/api-reference/api/authentication
+        "402":
+          description: "The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit/import, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary."
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: INSUFFICIENT_CREDITS
+                  type: payment_required
+                  message: This operation required more credits than the 0 remaining on the 'free' plan. See the per-operation cost in GET /v1/help.
+                  suggestion: Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/usage.
+                  docs: https://docs.brew.new/api-reference/api/credits
+                  details:
+                    cost: 2
+                    remaining: 0
+                    planKey: free
+        "403":
+          description: The caller does not have the required `emails` permission.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: INSUFFICIENT_PERMISSIONS
+                  type: authorization_error
+                  message: The caller does not have the required permission.
+                  suggestion: Use an API key or session with the required permission.
+                  docs: https://docs.brew.new/api-reference/api/authentication
+                  param: emails
+        "404":
+          description: No email exists with that id (cross-brand ids surface as 404).
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: EMAIL_NOT_FOUND
+                  type: not_found
+                  message: No email exists with id 'eml_welcome'.
+                  suggestion: Verify the emailId via GET /v1/emails.
+                  docs: https://docs.brew.new/api-reference/api/errors
+        "409":
+          description: The same `Idempotency-Key` was reused with a different request body.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: IDEMPOTENCY_CONFLICT
+                  type: conflict
+                  message: The same idempotency key was reused with a different request payload.
+                  suggestion: Reuse the original payload or send a new idempotency key.
+                  docs: https://docs.brew.new/api-reference/api/idempotency
+        "422":
+          description: The email has no rendered HTML yet, or no supported clients were requested.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: CONTENT_OPERATION_FAILED
+                  type: invalid_request
+                  message: "The client-preview operation could not be completed: the email has no rendered HTML yet (it may still be generating)."
+                  suggestion: Poll GET /v1/emails?emailId= until status is complete, then retry.
+                  docs: https://docs.brew.new/api-reference/api/errors
+        "429":
+          description: The request hit the rolling rate limit window.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+            Retry-After:
+              schema:
+                type: integer
+                description: Seconds to wait before retrying the request.
+                example: 42
+              required: true
+              description: Seconds to wait before retrying the request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: RATE_LIMITED
+                  type: rate_limit
+                  message: Too many requests.
+                  suggestion: Wait for the retry window before sending another request.
+                  docs: https://docs.brew.new/api-reference/api/rate-limits
+                  retryAfter: 42
+        "500":
+          description: Unexpected internal error.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: INTERNAL_ERROR
+                  type: internal_error
+                  message: An unexpected error occurred.
+                  suggestion: Retry the request. If it keeps failing, contact support.
+                  docs: https://docs.brew.new/api-reference/api/errors
+        "503":
+          description: RETRYABLE. Either no client finished rendering within the time limit (or the preview provider is temporarily unavailable) — in which case you are NOT billed — or the credit balance could not be verified (fail-closed rather than doing unmeterable paid work).
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: SERVICE_UNAVAILABLE
+                  type: service_unavailable
+                  message: The email preview is still rendering — no client finished within the time limit.
+                  suggestion: Retry in a few seconds. You are not charged when no preview is produced.
+                  docs: https://docs.brew.new/api-reference/api/errors
   /v1/analytics/sends:
     get:
       operationId: listSends
@@ -9172,7 +9886,9 @@ paths:
         - Automations
       summary: Create an automation
       description: |-
-        Deterministic create — the body carries the full graph (`{ name, triggerEventId, nodes, connections }`). Returns `201` with the bare `AutomationRow`. The new automation starts as a draft; promote it with `PATCH /v1/automations/{automationId}` `{ "published": true }`.
+        Deterministic create — the body carries the full graph (`{ name, triggerEventId?, nodes, connections }`). Returns `201` with the bare `AutomationRow`.
+
+        **Trigger binding (exactly one):** for an EVENT automation pass `triggerEventId` (then publish with `PATCH … { "published": true }`). For a MANUAL-AUDIENCE automation OMIT `triggerEventId` and give the trigger node `config: { "mode": "manualAudience", "audienceId": "aud_…" }` — it is launched on demand with `POST /v1/automations/{automationId}/run` rather than published.
 
         Chain `POST /v1/emails { prompt }` first to mint the design each `sendEmail` node references — every `sendEmail` node MUST carry `emailId`, `emailVersionId`, `domainId`, `subject`, `previewText`.
 
@@ -10186,7 +10902,7 @@ paths:
       tags:
         - Automations
       summary: Test an automation
-      description: Starts a suppression-aware TEST run of the saved automation — no real mail is delivered and test runs never count against analytics rollups. Body optionally carries a `payload` matching the trigger’s schema. Returns `202` with the started run id; follow it via `GET /v1/automations/runs?automationRunId=`.
+      description: Runs the saved automation END-TO-END through the real workflow in TEST mode — works on drafts and for both event and manual-audience automations; every node executes (filters/splits evaluate against `payload`, wait nodes fast-forward). Pass `testRecipient` to DELIVER each send-email node’s email for real to that address (real subject/preview/sender name via the Brew test domain; customer addresses are never hit) — omit it for a silent dry-run with no mail. Test runs never count against analytics rollups or send quotas. Returns `202` with the started run id; follow per-node status via `GET /v1/automations/runs?automationRunId=&include=logs`.
       parameters:
         - *a1
         - schema:
@@ -10208,6 +10924,8 @@ paths:
             example:
               payload:
                 email: qa@example.com
+                plan: pro
+              testRecipient: qa@example.com
       responses:
         "202":
           description: Test run started.
@@ -10350,6 +11068,462 @@ paths:
                   message: The same idempotency key was reused with a different request payload.
                   suggestion: Reuse the original payload or send a new idempotency key.
                   docs: https://docs.brew.new/api-reference/api/idempotency
+        "429":
+          description: The request hit the rolling rate limit window.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+            Retry-After:
+              schema:
+                type: integer
+                description: Seconds to wait before retrying the request.
+                example: 42
+              required: true
+              description: Seconds to wait before retrying the request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: RATE_LIMITED
+                  type: rate_limit
+                  message: Too many requests.
+                  suggestion: Wait for the retry window before sending another request.
+                  docs: https://docs.brew.new/api-reference/api/rate-limits
+                  retryAfter: 42
+        "500":
+          description: Unexpected internal error.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: INTERNAL_ERROR
+                  type: internal_error
+                  message: An unexpected error occurred.
+                  suggestion: Retry the request. If it keeps failing, contact support.
+                  docs: https://docs.brew.new/api-reference/api/errors
+  /v1/automations/{automationId}/run:
+    post:
+      operationId: runAutomation
+      tags:
+        - Automations
+      summary: Run a manual-audience automation
+      description: "Launches a MANUAL-AUDIENCE automation against the audience bound to its trigger node — every contact in that audience flows through the graph (filters / splits / waits / sends) with batch sending at scale. `dry_run: true` previews the recipient count + flow without sending. `scheduledAt` (ISO-8601) launches later; omit to run now. Returns `202` with the `audienceRunId` — poll it via `GET /v1/automations/audience-runs`. `422` if the automation is not manual-audience; `402` if the run would exceed the monthly send limit."
+      parameters:
+        - *a1
+        - schema:
+            type: string
+            minLength: 1
+            maxLength: 64
+            description: Automation id returned by `POST /v1/automations` and listed by `GET /v1/automations`.
+            example: auto_abc
+          required: true
+          description: Automation id returned by `POST /v1/automations` and listed by `GET /v1/automations`.
+          name: automationId
+          in: path
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AutomationRunRequest"
+            example:
+              scheduledAt: 2026-07-01T15:00:00.000Z
+      responses:
+        "200":
+          description: Dry-run preview (no run started).
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AutomationRunDryRunResponse"
+              example:
+                dry_run: true
+                automationId: auto_abc
+                audienceId: aud_123
+                audienceName: Active trial users
+                recipientCount: 12400
+                sendNodeCount: 2
+        "202":
+          description: Run launched (or scheduled).
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AutomationRunStartedResponse"
+              example:
+                audienceRunId: arun_01HZ
+                automationId: auto_abc
+                status: queued
+                totalRecipients: 12400
+                receivedAt: 2026-04-08T12:34:56.789Z
+        "401":
+          description: The API key was missing, invalid, or revoked.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: INVALID_API_KEY
+                  type: authentication_error
+                  message: The provided API key is invalid.
+                  suggestion: Check the API key format and retry with a valid active key.
+                  docs: https://docs.brew.new/api-reference/api/authentication
+        "403":
+          description: The caller does not have the required `automations` permission.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: INSUFFICIENT_PERMISSIONS
+                  type: authorization_error
+                  message: The caller does not have the required permission.
+                  suggestion: Use an API key or session with the required permission.
+                  docs: https://docs.brew.new/api-reference/api/authentication
+                  param: automations
+        "404":
+          description: Automation not found in the API-key brand. Cross-brand ids intentionally surface as 404 (never 403) so the API does not leak cross-brand existence.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example: *a10
+        "409":
+          description: The same `Idempotency-Key` was reused with a different request body.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: IDEMPOTENCY_CONFLICT
+                  type: conflict
+                  message: The same idempotency key was reused with a different request payload.
+                  suggestion: Reuse the original payload or send a new idempotency key.
+                  docs: https://docs.brew.new/api-reference/api/idempotency
+        "429":
+          description: The request hit the rolling rate limit window.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+            Retry-After:
+              schema:
+                type: integer
+                description: Seconds to wait before retrying the request.
+                example: 42
+              required: true
+              description: Seconds to wait before retrying the request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: RATE_LIMITED
+                  type: rate_limit
+                  message: Too many requests.
+                  suggestion: Wait for the retry window before sending another request.
+                  docs: https://docs.brew.new/api-reference/api/rate-limits
+                  retryAfter: 42
+        "500":
+          description: Unexpected internal error.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: INTERNAL_ERROR
+                  type: internal_error
+                  message: An unexpected error occurred.
+                  suggestion: Retry the request. If it keeps failing, contact support.
+                  docs: https://docs.brew.new/api-reference/api/errors
+  /v1/automations/audience-runs:
+    get:
+      operationId: listAudienceRuns
+      tags:
+        - Automations
+      summary: List manual-audience runs
+      description: Lists manual-audience automation runs (each "Run" of a manual-audience automation), newest first — status, recipient totals, and the per-node funnel. Pass `?audienceRunId=` to fetch one, or `?automationId=` to filter to a single automation.
+      parameters:
+        - name: audienceRunId
+          in: query
+          required: false
+          description: Fetch a single audience run by id.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 64
+        - name: automationId
+          in: query
+          required: false
+          description: Filter runs to a single automation.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 64
+        - name: limit
+          in: query
+          required: false
+          description: Max rows to return (1–200, default 50).
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+      responses:
+        "200":
+          description: "Audience runs (list mode), or `{ data: [row] }` (detail)."
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AudienceRunsListResponse"
+              example:
+                data:
+                  - audienceRunId: arun_01HZ
+                    automationId: auto_abc
+                    audienceId: aud_123
+                    audienceName: Active trial users
+                    status: sent
+                    totalRecipients: 12400
+                    sentCount: 12180
+                    failedCount: 0
+                    skippedCount: 220
+                    createdAt: 2026-04-08T12:34:56.789Z
+                    updatedAt: 2026-04-08T12:41:10.000Z
+        "401":
+          description: The API key was missing, invalid, or revoked.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: INVALID_API_KEY
+                  type: authentication_error
+                  message: The provided API key is invalid.
+                  suggestion: Check the API key format and retry with a valid active key.
+                  docs: https://docs.brew.new/api-reference/api/authentication
+        "403":
+          description: The caller does not have the required `automations` permission.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: INSUFFICIENT_PERMISSIONS
+                  type: authorization_error
+                  message: The caller does not have the required permission.
+                  suggestion: Use an API key or session with the required permission.
+                  docs: https://docs.brew.new/api-reference/api/authentication
+                  param: automations
         "429":
           description: The request hit the rolling rate limit window.
           headers:
@@ -17297,7 +18471,7 @@ paths:
         - *a1
       requestBody:
         required: true
-        description: Prompt + optional mode / aspect ratio / model / source images.
+        description: Prompt + optional mode / aspect ratio / source images.
         content:
           application/json:
             schema:
@@ -17578,7 +18752,7 @@ paths:
       tags:
         - Content
       summary: Generate a GIF
-      description: "Produces a looping animated GIF, routed by the `from` discriminator: `prompt` generates from a text prompt, `image` animates a source image (both via the AI gif workflow), and `video` converts a source MP4. Returns CDN-hosted `gifUrl` (plus `videoUrl` and motion metadata for the AI sources). Credit-metered (fixed cost: prompt 15, image 10, video 10)."
+      description: "Produces a looping animated GIF (5-second source clip), routed by the `from` discriminator: `prompt` generates an on-brand still then animates it, `image` animates a source image (both via the AI gif workflow), and `video` converts a source MP4. Aspect ratio is one of `16:9`, `9:16`, `1:1`. Returns CDN-hosted `gifUrl` (plus `videoUrl` and motion metadata for the AI sources). Credit-metered (fixed cost: prompt 20, image 10, video 10)."
       parameters:
         - *a1
       requestBody:
