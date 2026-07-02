@@ -188,6 +188,49 @@ describe('BrewApiError', () => {
       expect(error.retryAfter).toBeUndefined()
     })
 
+    it('parses a 402 payment_required envelope into its real code/type (not unknown_error)', () => {
+      // Regression pin: payment_required was missing from VALID_ERROR_TYPES,
+      // so real INSUFFICIENT_CREDITS envelopes degraded to unknown_error.
+      const error = BrewApiError.fromResponse({
+        status: 402,
+        headers: new Headers(),
+        body: {
+          error: {
+            code: 'INSUFFICIENT_CREDITS',
+            type: 'payment_required',
+            message: 'You have used all your credits for this period.',
+            suggestion: 'Upgrade your plan or wait for the period reset.',
+            docs: 'https://docs.brew.new/api-reference/api/credits',
+          },
+        },
+      })
+
+      expect(error.code).toBe('INSUFFICIENT_CREDITS')
+      expect(error.type).toBe('payment_required')
+      expect(error.status).toBe(402)
+    })
+
+    it('parses a 503 service_unavailable envelope into its real code/type (not unknown_error)', () => {
+      // Regression pin: service_unavailable was missing from VALID_ERROR_TYPES.
+      const error = BrewApiError.fromResponse({
+        status: 503,
+        headers: new Headers({ 'retry-after': '5' }),
+        body: {
+          error: {
+            code: 'SERVICE_UNAVAILABLE',
+            type: 'service_unavailable',
+            message: 'The email preview service is temporarily unavailable.',
+            suggestion: 'Retry in a few seconds.',
+            docs: 'https://docs.brew.new/api-reference/api/errors',
+          },
+        },
+      })
+
+      expect(error.code).toBe('SERVICE_UNAVAILABLE')
+      expect(error.type).toBe('service_unavailable')
+      expect(error.retryAfter).toBe(5)
+    })
+
     it('falls back to a generic envelope when body is not a Brew error shape', () => {
       const error = BrewApiError.fromResponse({
         status: 502,
