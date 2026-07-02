@@ -1,6 +1,7 @@
 import type { HttpClient } from '../../core/http'
 
 import { createAuditEmailAccessibility } from './accessibility-audit'
+import { createPreviewEmailClients } from './client-previews'
 import { createDeleteEmail } from './delete'
 import { createEditEmail } from './edit'
 import { createGenerateEmail } from './generate'
@@ -24,6 +25,8 @@ export type EmailsResource = {
   readonly delete: ReturnType<typeof createDeleteEmail>
   /** `GET /v1/emails/{emailId}/accessibility-audit` — free WCAG 2.1 rule-based audit (`score`, `summary`, `issues`) (scope: `emails`). */
   readonly auditAccessibility: ReturnType<typeof createAuditEmailAccessibility>
+  /** `POST /v1/emails/{emailId}/client-previews` — render the design in real inboxes/devices (Gmail, Outlook, Apple Mail, iOS — light & dark) → a screenshot per client; fixed 10 credits, billed only when ≥1 renders (scope: `emails`). */
+  readonly previewClients: ReturnType<typeof createPreviewEmailClients>
   /** `POST /v1/sends` — the single polymorphic send: campaign by default, or a one-off TEST delivery via `test: true` (scope: `sends`). */
   readonly send: ReturnType<typeof createSendEmail>
 }
@@ -37,6 +40,7 @@ export function createEmailsResource(client: HttpClient): EmailsResource {
     restore: createRestoreEmail(client),
     delete: createDeleteEmail(client),
     auditAccessibility: createAuditEmailAccessibility(client),
+    previewClients: createPreviewEmailClients(client),
     send: createSendEmail(client),
   }
 }

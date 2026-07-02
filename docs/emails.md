@@ -12,13 +12,14 @@ Reads are flat — one read per resource, identity in the query
 Detail mode = pass the id key → a single-row page `{ data: [row] }`, no
 `pagination`.
 
-| Method                  | HTTP                         | Scope    |
-| ----------------------- | ---------------------------- | -------- |
-| [`list`](#list)         | `GET /v1/emails`             | `emails` |
-| [`generate`](#generate) | `POST /v1/emails`            | `emails` |
-| [`import`](#import)     | `POST /v1/emails/import`     | `emails` |
-| [`edit`](#edit)         | `PATCH /v1/emails/{emailId}` | `emails` |
-| [`send`](#send)         | `POST /v1/sends`             | `sends`  |
+| Method                              | HTTP                                        | Scope    |
+| ----------------------------------- | ------------------------------------------- | -------- |
+| [`list`](#list)                     | `GET /v1/emails`                            | `emails` |
+| [`generate`](#generate)             | `POST /v1/emails`                           | `emails` |
+| [`import`](#import)                 | `POST /v1/emails/import`                    | `emails` |
+| [`edit`](#edit)                     | `PATCH /v1/emails/{emailId}`                | `emails` |
+| [`previewClients`](#previewclients) | `POST /v1/emails/{emailId}/client-previews` | `emails` |
+| [`send`](#send)                     | `POST /v1/sends`                            | `sends`  |
 
 ## Shared types
 
@@ -292,6 +293,94 @@ await brew.emails.edit(
 | 409    | `EMAIL_IN_PROGRESS`    | The target email is currently being generated. Retry shortly                                                               |
 | 409    | `IDEMPOTENCY_CONFLICT` | Reused `Idempotency-Key` with a different request body                                                                     |
 | 422    | `BRAND_NOT_READY`      | The brand bound to the API key has not finished extraction                                                                 |
+
+---
+
+## `previewClients`
+
+Render the design's latest version across **real email clients &
+devices** — Gmail (web/Android/iOS), Outlook (2021/365/web), Apple Mail
+(macOS/iOS), and Yahoo, with dark-mode variants — and get back a
+screenshot per client, rehosted on the Brew CDN. Use it to verify a
+design in a specific inbox before sending.
+
+The `emailId` is sent on the URL path. Pass `clients` (ids from the
+supported catalogue — the OpenAPI description of the field carries the
+full `id = label` list, e.g. `outlook2021_win11_dm_dt = Outlook 2021
+(Windows, Dark)`) to target specific inboxes/devices, or omit it for a
+popular default spread.
+
+```ts
+type PreviewEmailClientsInput = {
+  readonly emailId: string // path parameter
+  readonly clients?: ReadonlyArray<string> // omit → default spread
+}
+
+type EmailClientPreviewResponse = {
+  readonly emailId: string
+  readonly inspectionId: string
+  readonly status: 'ready' | 'partial'
+  readonly previews: ReadonlyArray<{
+    readonly id: string
+    readonly label: string // e.g. "Apple Mail (iOS, Dark)"
+    readonly category: 'gmail' | 'outlook' | 'apple' | 'yahoo' | 'other'
+    readonly os: string
+    readonly dark: boolean
+    readonly status: 'ready' | 'processing' | 'failed'
+    readonly imageUrl: string | null // cdn.brew.new screenshot when ready
+  }>
+  readonly pending: ReadonlyArray<string> // client ids still rendering
+}
+
+previewClients(
+  input: PreviewEmailClientsInput,
+  options?: RequestOptions
+): Promise<EmailClientPreviewResponse>
+```
+
+```ts
+const batch = await brew.emails.previewClients({
+  emailId: 'email_123',
+  clients: ['outlook2021_win11_dm_dt', 'iphone16_18'],
+})
+
+for (const preview of batch.previews) {
+  if (preview.status === 'ready') {
+    console.log(preview.label, preview.imageUrl)
+  }
+}
+if (batch.pending.length > 0) {
+  // Slow clients (Outlook desktop especially) can outlive the bounded
+  // window — call previewClients again to retry just those.
+}
+```
+
+### Cost & billing semantics
+
+Fixed **10 credits** per call, charged only when at least one client
+renders (`X-Credit-Cost: 10` on the response — read it via
+`{ raw: true }`). A batch where **zero** clients finish in time, or a
+preview-provider outage, returns a retryable `503 SERVICE_UNAVAILABLE`
+and is **not** billed. Unknown client ids are rejected with a `422`
+before any paid work happens.
+
+### Long-running calls
+
+Rendering happens in real clients and the server blocks up to ~55s
+before returning whatever finished. The SDK applies a **90-second**
+per-request timeout for this endpoint; the constant
+`PREVIEW_EMAIL_CLIENTS_DEFAULT_TIMEOUT_MS` is the default and
+caller-supplied `RequestOptions.timeoutMs` / `RequestOptions.signal`
+still win.
+
+### Errors
+
+| Status | Code                       | Cause                                                                              |
+| ------ | -------------------------- | ---------------------------------------------------------------------------------- |
+| 404    | `EMAIL_NOT_FOUND`          | The email doesn't exist for the brand bound to your key                            |
+| 409    | `IDEMPOTENCY_CONFLICT`     | Reused `Idempotency-Key` with a different request body                             |
+| 422    | `CONTENT_OPERATION_FAILED` | Unknown client id(s), or the email has no rendered HTML yet                        |
+| 503    | `SERVICE_UNAVAILABLE`      | Zero previews rendered in the window / provider outage — retryable, **not billed** |
 
 ---
 

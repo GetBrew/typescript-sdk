@@ -2,6 +2,38 @@
 
 ## Unreleased
 
+### Added — `brew.emails.previewClients`
+
+`POST /v1/emails/{emailId}/client-previews` renders a design's latest
+version across real email clients & devices — Gmail, Outlook, Apple
+Mail, iOS (with dark-mode variants), plus Yahoo — and returns a
+screenshot per client, rehosted on the Brew CDN:
+
+```ts
+const batch = await brew.emails.previewClients({
+  emailId: 'email_123',
+  clients: ['outlook2021_win11_dm_dt'], // omit for a default spread
+})
+```
+
+Fixed cost of 10 credits, charged only when at least one client renders
+(`X-Credit-Cost` via `{ raw: true }`); a zero-preview batch returns a
+retryable `503 SERVICE_UNAVAILABLE` and is not billed. 90-second
+per-call default timeout (`PREVIEW_EMAIL_CLIENTS_DEFAULT_TIMEOUT_MS`,
+exported from the entrypoint along with `PreviewEmailClientsInput` and
+`EmailClientPreviewResponse`).
+
+### Fixed — `402` / `503` error envelopes no longer degrade to `unknown_error`
+
+`BrewApiError` was rejecting `payment_required` and
+`service_unavailable` as envelope types (they were missing from the
+internal allowlist), so real `402 INSUFFICIENT_CREDITS` and
+`503 SERVICE_UNAVAILABLE` responses surfaced with
+`code: 'unknown_error'` / `type: 'internal_error'` instead of their
+documented values — breaking branch-on-`code` handling for credit
+exhaustion and retryable-outage flows across every endpoint. Both types
+now parse into their real `code`/`type`.
+
 ### Added — email create `category`
 
 `POST /v1/emails` (`brew.emails.generate`) now accepts an optional marketing

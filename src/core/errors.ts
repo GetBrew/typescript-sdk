@@ -119,6 +119,13 @@ const VALID_ERROR_TYPES: ReadonlySet<BrewErrorType> = new Set<BrewErrorType>([
   'not_implemented',
   'conflict',
   'rate_limit',
+  // Missing from this set previously — real `402 INSUFFICIENT_CREDITS` and
+  // `503 SERVICE_UNAVAILABLE` envelopes degraded to `code: 'unknown_error'`,
+  // breaking the documented branch-on-`code` contract. tsc guards each entry
+  // against the generated union; keep this list in sync when the spec adds a
+  // type (a missing entry silently downgrades that error family).
+  'payment_required',
+  'service_unavailable',
   'internal_error',
 ])
 
