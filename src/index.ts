@@ -225,6 +225,11 @@ export type {
 } from './resources/emails/generate'
 export { EDIT_EMAIL_DEFAULT_TIMEOUT_MS } from './resources/emails/edit'
 export type { EditEmailInput, EditEmailResponse } from './resources/emails/edit'
+export { PREVIEW_EMAIL_CLIENTS_DEFAULT_TIMEOUT_MS } from './resources/emails/client-previews'
+export type {
+  PreviewEmailClientsInput,
+  EmailClientPreviewResponse,
+} from './resources/emails/client-previews'
 export type {
   ListEmailsInput,
   ListEmailsResponse,
