@@ -4790,6 +4790,8 @@ components:
                   - invalid
               reason:
                 type: string
+              didYouMean:
+                type: string
             required:
               - email
               - valid
@@ -7796,12 +7798,12 @@ paths:
                   suggestion: Retry the request. If it keeps failing, contact support.
                   docs: https://docs.brew.new/api-reference/api/errors
   /v1/emails/{emailId}/accessibility-audit:
-    get:
+    post:
       operationId: auditEmailAccessibility
       tags:
         - Emails
       summary: Accessibility audit
-      description: A FREE, deterministic rule-based accessibility audit of the email’s rendered HTML against WCAG 2.1 (missing alt text, non-descriptive links, low text contrast, tiny fonts, missing `lang`, empty headings). Returns a `score` (0–100), a `summary`, and a list of `issues` with their WCAG criterion. No credits, no side effects.
+      description: "Audit the email’s latest rendered HTML for accessibility issues against WCAG 2.1 (missing alt text, non-descriptive links, low text contrast, tiny fonts, missing `lang`, empty headings). Returns a `score` (0–100), a `summary`, and a list of `issues` with their WCAG criterion. FIXED cost: 5 credits (`X-Credit-Cost: 5`), charged ONLY on success — if the audit cannot complete in time, the call returns a retryable `503` and is NOT billed."
       parameters:
         - schema:
             type: string
@@ -7881,6 +7883,31 @@ paths:
                   message: The provided API key is invalid.
                   suggestion: Check the API key format and retry with a valid active key.
                   docs: https://docs.brew.new/api-reference/api/authentication
+        "402":
+          description: "The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit/import, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary."
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: INSUFFICIENT_CREDITS
+                  type: payment_required
+                  message: This operation required more credits than the 0 remaining on the 'free' plan. See the per-operation cost in GET /v1/help.
+                  suggestion: Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/usage.
+                  docs: https://docs.brew.new/api-reference/api/credits
+                  details:
+                    cost: 2
+                    remaining: 0
+                    planKey: free
         "403":
           description: The caller does not have the required `emails` permission.
           headers:
@@ -8016,6 +8043,35 @@ paths:
                   message: An unexpected error occurred.
                   suggestion: Retry the request. If it keeps failing, contact support.
                   docs: https://docs.brew.new/api-reference/api/errors
+        "503":
+          description: The credit balance could not be verified (a transient billing dependency outage). The gate fails closed rather than do paid work it cannot meter. Retryable — `Retry-After` indicates when.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            Retry-After:
+              schema:
+                type: integer
+                description: Seconds to wait before retrying the request.
+                example: 42
+              required: true
+              description: Seconds to wait before retrying the request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: SERVICE_UNAVAILABLE
+                  type: service_unavailable
+                  message: Your credit balance could not be verified because a billing dependency is temporarily unavailable.
+                  suggestion: Retry the request after a short delay.
+                  docs: https://docs.brew.new/api-reference/api/credits
+                  retryAfter: 2
   /v1/emails/{emailId}/client-previews:
     post:
       operationId: previewEmailAcrossClients
@@ -8027,7 +8083,7 @@ paths:
 
         Pass `clients` (ids from the supported catalogue) to target specific inboxes/devices, or send `{}` for a popular default spread. Rendering is async: this is a single bounded call, so any clients still rendering when the window elapses come back in `pending` (`status: "partial"`) — call again to retry them.
 
-        FIXED cost: 10 credits, charged (`X-Credit-Cost: 10`) ONLY when at least one client renders. If ZERO clients finish in time (or the provider is unavailable), the call returns a retryable `503` and is NOT billed.
+        FIXED cost: 10 credits, charged (`X-Credit-Cost: 10`) ONLY when at least one client renders. If ZERO clients finish in time (or the preview service is temporarily unavailable), the call returns a retryable `503` and is NOT billed.
       parameters:
         - *a1
         - schema:
@@ -8317,7 +8373,7 @@ paths:
                   suggestion: Retry the request. If it keeps failing, contact support.
                   docs: https://docs.brew.new/api-reference/api/errors
         "503":
-          description: RETRYABLE. Either no client finished rendering within the time limit (or the preview provider is temporarily unavailable) — in which case you are NOT billed — or the credit balance could not be verified (fail-closed rather than doing unmeterable paid work).
+          description: RETRYABLE. Either no client finished rendering within the time limit (or the preview service is temporarily unavailable) — in which case you are NOT billed — or the credit balance could not be verified (fail-closed rather than doing unmeterable paid work).
           headers:
             x-request-id:
               schema:
@@ -14325,7 +14381,7 @@ paths:
       tags:
         - Contacts
       summary: Validate email deliverability
-      description: "Batch deliverability pre-check (no write, no external call, FREE) — run BEFORE importing or sending. Each address is classified `valid` (safe), `risky` (deliverable but flagged, e.g. role accounts), or `invalid` (likely to bounce: malformed, disposable, or typo’d domain), with a machine-readable `reason`."
+      description: "Batch deliverability check (up to 100 addresses) — run BEFORE importing or sending. Each address is classified `valid` (safe), `risky` (deliverable but flagged — e.g. role account, disposable, catch-all), or `invalid` (undeliverable / do-not-send), with a machine-readable `reason` and a `didYouMean` typo correction when applicable. Cost: 2 credits PER ADDRESS (`X-Credit-Cost` = 2 × the number of addresses), charged ONLY on success — if the check cannot complete for the whole batch, the call returns a retryable `503` and is NOT billed."
       requestBody:
         required: true
         content:
@@ -14381,11 +14437,16 @@ paths:
                   - email: temp@mailinator.com
                     valid: false
                     status: invalid
-                    reason: disposable_domain
-                  - email: admin@stripe.com
-                    valid: true
+                    reason: undeliverable
+                  - email: ada@gmial.com
+                    valid: false
                     status: risky
-                    reason: role_based
+                    reason: unknown
+                    didYouMean: ada@gmail.com
+                  - email: admin@stripe.com
+                    valid: false
+                    status: risky
+                    reason: role_address
         "400":
           description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
           headers:
@@ -14429,6 +14490,31 @@ paths:
                   message: The provided API key is invalid.
                   suggestion: Check the API key format and retry with a valid active key.
                   docs: https://docs.brew.new/api-reference/api/authentication
+        "402":
+          description: "The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit/import, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary."
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: INSUFFICIENT_CREDITS
+                  type: payment_required
+                  message: This operation required more credits than the 0 remaining on the 'free' plan. See the per-operation cost in GET /v1/help.
+                  suggestion: Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/usage.
+                  docs: https://docs.brew.new/api-reference/api/credits
+                  details:
+                    cost: 2
+                    remaining: 0
+                    planKey: free
         "403":
           description: The caller does not have the required `contacts` permission.
           headers:
@@ -14522,6 +14608,35 @@ paths:
                   message: An unexpected error occurred.
                   suggestion: Retry the request. If it keeps failing, contact support.
                   docs: https://docs.brew.new/api-reference/api/errors
+        "503":
+          description: The credit balance could not be verified (a transient billing dependency outage). The gate fails closed rather than do paid work it cannot meter. Retryable — `Retry-After` indicates when.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            Retry-After:
+              schema:
+                type: integer
+                description: Seconds to wait before retrying the request.
+                example: 42
+              required: true
+              description: Seconds to wait before retrying the request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: SERVICE_UNAVAILABLE
+                  type: service_unavailable
+                  message: Your credit balance could not be verified because a billing dependency is temporarily unavailable.
+                  suggestion: Retry the request after a short delay.
+                  docs: https://docs.brew.new/api-reference/api/credits
+                  retryAfter: 2
   /v1/contacts/import-csv:
     post:
       operationId: importContactsCsv

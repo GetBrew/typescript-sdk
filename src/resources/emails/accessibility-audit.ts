@@ -11,20 +11,21 @@ export type AuditAccessibilityInput = {
   readonly emailId: string
 }
 
-/** Audit result returned by `GET /v1/emails/{emailId}/accessibility-audit`. */
+/** Audit result returned by `POST /v1/emails/{emailId}/accessibility-audit`. */
 export type EmailAccessibilityAuditResponse =
   components['schemas']['EmailAccessibilityAuditResponse']
 
 /**
- * `GET /v1/emails/{emailId}/accessibility-audit` — a FREE, deterministic
- * rule-based accessibility audit of the email's rendered HTML against
- * WCAG 2.1 (missing alt text, non-descriptive links, low text contrast,
- * tiny fonts, missing `lang`, empty headings). Requires the `emails`
- * scope.
+ * `POST /v1/emails/{emailId}/accessibility-audit` — a WCAG 2.1
+ * accessibility audit of the email's rendered HTML (missing alt text,
+ * non-descriptive links, low text contrast, tiny fonts, missing `lang`,
+ * empty headings). Requires the `emails` scope.
  *
  * Returns a `score` (0–100), a `summary` (`{ errors, warnings }`), and a
  * list of `issues`, each with its `rule`, `severity`, `message`, and the
- * WCAG criterion. No credits, no side effects.
+ * WCAG criterion. Fixed credit cost, charged only on success (see the
+ * `X-Credit-Cost` header); if the audit can't complete it returns a
+ * retryable `503` and is not billed.
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<EmailAccessibilityAuditResponse>` instead of the
@@ -47,7 +48,7 @@ export function createAuditEmailAccessibility(client: HttpClient) {
     | BrewRawResponse<EmailAccessibilityAuditResponse>
   > {
     const response = await client.request<EmailAccessibilityAuditResponse>({
-      method: 'GET',
+      method: 'POST',
       path: `/v1/emails/${encodeURIComponent(input.emailId)}/accessibility-audit`,
       ...(options ? { options } : {}),
     })

@@ -18,13 +18,17 @@ export type ValidateContactsResponse =
 export type ContactValidationResult = ValidateContactsResponse['data'][number]
 
 /**
- * Validate a batch of email addresses without creating any contacts.
+ * Run a real deliverability check on a batch of email addresses (up to
+ * 100) without creating any contacts.
  *
  * The wire format is `{ emails: [...] }`. Each address comes back in
  * `data` with a `valid` boolean, a `status` of `valid` | `risky` |
- * `invalid`, and an optional human-readable `reason` when the address is
- * risky or invalid. Order is not guaranteed to match the input — match on
- * `email`.
+ * `invalid`, an optional machine-readable `reason`, and a `didYouMean`
+ * typo correction when the address looks mistyped. Order is not guaranteed
+ * to match the input — match on `email`.
+ *
+ * Metered 2 credits per address, charged only on success (a total-outage
+ * batch returns a retryable `503` and is not billed).
  *
  * Returns the full `ContactsValidateResponse` envelope (`{ data }`).
  *
