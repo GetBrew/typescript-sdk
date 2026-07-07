@@ -36,7 +36,7 @@ export type ContactsResource = {
   readonly delete: ReturnType<typeof createDeleteContact>
   /** `POST /v1/contacts/batch-delete` — delete up to 1000 contacts by email (scope: `contacts`). */
   readonly deleteMany: ReturnType<typeof createDeleteManyContacts>
-  /** `POST /v1/contacts/validate` — batch-validate emails without creating contacts (scope: `contacts`). */
+  /** `POST /v1/contacts/validate` — batch deliverability check for emails (valid/risky/invalid + `reason` + `didYouMean`) without creating contacts; metered 2 credits per address (scope: `contacts`). */
   readonly validate: ReturnType<typeof createValidateContacts>
   /** `POST /v1/contacts/import-csv` — bulk-import contacts from a raw CSV string (scope: `contacts`). */
   readonly importCsv: ReturnType<typeof createImportCsvContacts>

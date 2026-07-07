@@ -23,7 +23,7 @@ export type EmailsResource = {
   readonly restore: ReturnType<typeof createRestoreEmail>
   /** `DELETE /v1/emails/{emailId}` — idempotent hard-delete of all versions (scope: `emails`). */
   readonly delete: ReturnType<typeof createDeleteEmail>
-  /** `GET /v1/emails/{emailId}/accessibility-audit` — free WCAG 2.1 rule-based audit (`score`, `summary`, `issues`) (scope: `emails`). */
+  /** `POST /v1/emails/{emailId}/accessibility-audit` — WCAG 2.1 audit (`score`, `summary`, `issues`); fixed credit cost, billed only on success (scope: `emails`). */
   readonly auditAccessibility: ReturnType<typeof createAuditEmailAccessibility>
   /** `POST /v1/emails/{emailId}/client-previews` — render the design in real inboxes/devices (Gmail, Outlook, Apple Mail, iOS — light & dark) → a screenshot per client; fixed 10 credits, billed only when ≥1 renders (scope: `emails`). */
   readonly previewClients: ReturnType<typeof createPreviewEmailClients>

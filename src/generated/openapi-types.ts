@@ -107,13 +107,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        get?: never;
+        put?: never;
         /**
          * Accessibility audit
-         * @description A FREE, deterministic rule-based accessibility audit of the email’s rendered HTML against WCAG 2.1 (missing alt text, non-descriptive links, low text contrast, tiny fonts, missing `lang`, empty headings). Returns a `score` (0–100), a `summary`, and a list of `issues` with their WCAG criterion. No credits, no side effects.
+         * @description Audit the email’s latest rendered HTML for accessibility issues against WCAG 2.1 (missing alt text, non-descriptive links, low text contrast, tiny fonts, missing `lang`, empty headings). Returns a `score` (0–100), a `summary`, and a list of `issues` with their WCAG criterion. FIXED cost: 5 credits (`X-Credit-Cost: 5`), charged ONLY on success — if the audit cannot complete in time, the call returns a retryable `503` and is NOT billed.
          */
-        get: operations["auditEmailAccessibility"];
-        put?: never;
-        post?: never;
+        post: operations["auditEmailAccessibility"];
         delete?: never;
         options?: never;
         head?: never;
@@ -135,7 +135,7 @@ export interface paths {
          *
          *     Pass `clients` (ids from the supported catalogue) to target specific inboxes/devices, or send `{}` for a popular default spread. Rendering is async: this is a single bounded call, so any clients still rendering when the window elapses come back in `pending` (`status: "partial"`) — call again to retry them.
          *
-         *     FIXED cost: 10 credits, charged (`X-Credit-Cost: 10`) ONLY when at least one client renders. If ZERO clients finish in time (or the provider is unavailable), the call returns a retryable `503` and is NOT billed.
+         *     FIXED cost: 10 credits, charged (`X-Credit-Cost: 10`) ONLY when at least one client renders. If ZERO clients finish in time (or the preview service is temporarily unavailable), the call returns a retryable `503` and is NOT billed.
          */
         post: operations["previewEmailAcrossClients"];
         delete?: never;
@@ -587,7 +587,7 @@ export interface paths {
         put?: never;
         /**
          * Validate email deliverability
-         * @description Batch deliverability pre-check (no write, no external call, FREE) — run BEFORE importing or sending. Each address is classified `valid` (safe), `risky` (deliverable but flagged, e.g. role accounts), or `invalid` (likely to bounce: malformed, disposable, or typo’d domain), with a machine-readable `reason`.
+         * @description Batch deliverability check (up to 100 addresses) — run BEFORE importing or sending. Each address is classified `valid` (safe), `risky` (deliverable but flagged — e.g. role account, disposable, catch-all), or `invalid` (undeliverable / do-not-send), with a machine-readable `reason` and a `didYouMean` typo correction when applicable. Cost: 2 credits PER ADDRESS (`X-Credit-Cost` = 2 × the number of addresses), charged ONLY on success — if the check cannot complete for the whole batch, the call returns a retryable `503` and is NOT billed.
          */
         post: operations["validateContacts"];
         delete?: never;
@@ -2642,6 +2642,7 @@ export interface components {
                 /** @enum {string} */
                 status: "valid" | "risky" | "invalid";
                 reason?: string;
+                didYouMean?: string;
             }[];
         };
         ContactsValidateRequest: {
@@ -4532,6 +4533,33 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
+            /** @description The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit/import, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
+            402: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INSUFFICIENT_CREDITS",
+                     *         "type": "payment_required",
+                     *         "message": "This operation required more credits than the 0 remaining on the 'free' plan. See the per-operation cost in GET /v1/help.",
+                     *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/usage.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/credits",
+                     *         "details": {
+                     *           "cost": 2,
+                     *           "remaining": 0,
+                     *           "planKey": "free"
+                     *         }
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
             /** @description The caller does not have the required `emails` permission. */
             403: {
                 headers: {
@@ -4646,6 +4674,31 @@ export interface operations {
                      *         "message": "An unexpected error occurred.",
                      *         "suggestion": "Retry the request. If it keeps failing, contact support.",
                      *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The credit balance could not be verified (a transient billing dependency outage). The gate fails closed rather than do paid work it cannot meter. Retryable — `Retry-After` indicates when. */
+            503: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Seconds to wait before retrying the request. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "SERVICE_UNAVAILABLE",
+                     *         "type": "service_unavailable",
+                     *         "message": "Your credit balance could not be verified because a billing dependency is temporarily unavailable.",
+                     *         "suggestion": "Retry the request after a short delay.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/credits",
+                     *         "retryAfter": 2
                      *       }
                      *     }
                      */
@@ -4914,7 +4967,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description RETRYABLE. Either no client finished rendering within the time limit (or the preview provider is temporarily unavailable) — in which case you are NOT billed — or the credit balance could not be verified (fail-closed rather than doing unmeterable paid work). */
+            /** @description RETRYABLE. Either no client finished rendering within the time limit (or the preview service is temporarily unavailable) — in which case you are NOT billed — or the credit balance could not be verified (fail-closed rather than doing unmeterable paid work). */
             503: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -9975,13 +10028,20 @@ export interface operations {
                      *           "email": "temp@mailinator.com",
                      *           "valid": false,
                      *           "status": "invalid",
-                     *           "reason": "disposable_domain"
+                     *           "reason": "undeliverable"
+                     *         },
+                     *         {
+                     *           "email": "ada@gmial.com",
+                     *           "valid": false,
+                     *           "status": "risky",
+                     *           "reason": "unknown",
+                     *           "didYouMean": "ada@gmail.com"
                      *         },
                      *         {
                      *           "email": "admin@stripe.com",
-                     *           "valid": true,
+                     *           "valid": false,
                      *           "status": "risky",
-                     *           "reason": "role_based"
+                     *           "reason": "role_address"
                      *         }
                      *       ]
                      *     }
@@ -10028,6 +10088,33 @@ export interface operations {
                      *         "message": "The provided API key is invalid.",
                      *         "suggestion": "Check the API key format and retry with a valid active key.",
                      *         "docs": "https://docs.brew.new/api-reference/api/authentication"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit/import, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
+            402: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INSUFFICIENT_CREDITS",
+                     *         "type": "payment_required",
+                     *         "message": "This operation required more credits than the 0 remaining on the 'free' plan. See the per-operation cost in GET /v1/help.",
+                     *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/usage.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/credits",
+                     *         "details": {
+                     *           "cost": 2,
+                     *           "remaining": 0,
+                     *           "planKey": "free"
+                     *         }
                      *       }
                      *     }
                      */
@@ -10104,6 +10191,31 @@ export interface operations {
                      *         "message": "An unexpected error occurred.",
                      *         "suggestion": "Retry the request. If it keeps failing, contact support.",
                      *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The credit balance could not be verified (a transient billing dependency outage). The gate fails closed rather than do paid work it cannot meter. Retryable — `Retry-After` indicates when. */
+            503: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Seconds to wait before retrying the request. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "SERVICE_UNAVAILABLE",
+                     *         "type": "service_unavailable",
+                     *         "message": "Your credit balance could not be verified because a billing dependency is temporarily unavailable.",
+                     *         "suggestion": "Retry the request after a short delay.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/credits",
+                     *         "retryAfter": 2
                      *       }
                      *     }
                      */
