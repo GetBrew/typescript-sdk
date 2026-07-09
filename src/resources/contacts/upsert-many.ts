@@ -17,6 +17,17 @@ export type UpsertManyContactRow = {
 
 export type UpsertManyContactsInput = {
   readonly contacts: ReadonlyArray<UpsertManyContactRow>
+  /**
+   * When `true`, every address in the batch is deliverability-checked and
+   * the verdict is saved onto each matching contact. Batches of ≤100
+   * addresses validate INLINE — the response gains an optional `validation`
+   * counts object (`{ valid, risky, invalid, unscored }`). Batches of >100
+   * upsert first, then validate as a BACKGROUND job — the response instead
+   * gains a `validationJobId` string. Metered 2 credits per address,
+   * charged only on success; insufficient credits fail the request with
+   * `402 INSUFFICIENT_CREDITS`.
+   */
+  readonly validate?: boolean
 }
 
 export type UpsertManyContactsResponse =
@@ -35,6 +46,13 @@ export type UpsertManyContactsResponse =
  * `errors` array (per-row failures), and `warnings`. Batch responses
  * are 200 on full success and 207 on partial failure — both come back
  * as the same envelope shape, the transport does not throw on 207.
+ *
+ * Pass `validate: true` to deliverability-check every address and persist
+ * the verdict onto each contact. ≤100 addresses validate inline and the
+ * envelope gains a `validation` counts object; >100 addresses upsert first
+ * then validate as a background job and the envelope gains a
+ * `validationJobId` instead. Metered 2 credits per address, charged only on
+ * success; insufficient credits fail with `402 INSUFFICIENT_CREDITS`.
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<UpsertManyContactsResponse>` instead of the

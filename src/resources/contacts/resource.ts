@@ -28,7 +28,9 @@ export type ContactsResource = {
   readonly searchAll: ReturnType<typeof createSearchAllContacts>
   /** `POST /v1/contacts/search` with `count: true` — count matching contacts (scope: `contacts`). */
   readonly count: ReturnType<typeof createCountContacts>
+  /** `POST /v1/contacts` — create or update a single contact by email; pass `validate: true` to deliverability-check and persist the verdict inline at 2 credits per address (scope: `contacts`). */
   readonly upsert: ReturnType<typeof createUpsertContact>
+  /** `POST /v1/contacts` — batch create/update contacts; pass `validate: true` to deliverability-check each address (inline ≤100, else a background `validationJobId`) at 2 credits per address (scope: `contacts`). */
   readonly upsertMany: ReturnType<typeof createUpsertManyContacts>
   /** `PATCH /v1/contacts/{email}` — partially update a contact (scope: `contacts`). */
   readonly patch: ReturnType<typeof createPatchContact>
@@ -36,9 +38,9 @@ export type ContactsResource = {
   readonly delete: ReturnType<typeof createDeleteContact>
   /** `POST /v1/contacts/batch-delete` — delete up to 1000 contacts by email (scope: `contacts`). */
   readonly deleteMany: ReturnType<typeof createDeleteManyContacts>
-  /** `POST /v1/contacts/validate` — batch deliverability check for emails (valid/risky/invalid + `reason` + `didYouMean`) without creating contacts; metered 2 credits per address (scope: `contacts`). */
+  /** `POST /v1/contacts/validate` — batch deliverability check for emails (valid/risky/invalid + `reason` + `didYouMean` + `risk`/`isDisposable`/`isRole`); PERSISTS the verdict onto any matching existing contacts; metered 2 credits per address (scope: `contacts`). */
   readonly validate: ReturnType<typeof createValidateContacts>
-  /** `POST /v1/contacts/import-csv` — bulk-import contacts from a raw CSV string (scope: `contacts`). */
+  /** `POST /v1/contacts/import-csv` — bulk-import contacts from a raw CSV string; pass `validate: true` to deliverability-check the imported addresses (inline ≤100, else a background `validationJobId`) at 2 credits per address (scope: `contacts`). */
   readonly importCsv: ReturnType<typeof createImportCsvContacts>
 }
 

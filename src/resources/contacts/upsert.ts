@@ -18,6 +18,16 @@ export type UpsertContactInput = {
   readonly lastName?: string
   readonly subscribed?: boolean
   readonly customFields?: { readonly [key: string]: unknown }
+  /**
+   * When `true`, the contact's email is deliverability-checked via the
+   * validation provider after the upsert and the verdict is saved onto the
+   * contact (`validationStatus` / `validationDetails` / `lastValidatedAt`).
+   * Metered 2 credits per address, charged only on success; insufficient
+   * credits fail the request with `402 INSUFFICIENT_CREDITS`. A single
+   * upsert always validates inline, so the response `contact` reflects the
+   * saved verdict and `validation` carries the (single-address) counts.
+   */
+  readonly validate?: boolean
 }
 
 export type UpsertContactResponse =
@@ -37,6 +47,15 @@ export type UpsertContactResponse =
  * distinguishes insert from update, `fieldsCreated` lists any custom
  * fields the upsert auto-defined, and `warnings` surfaces non-fatal
  * normalizations.
+ *
+ * Pass `validate: true` to deliverability-check the address after the
+ * upsert and persist the verdict onto the contact. On the single-upsert
+ * path this always runs inline (the batch `upsertMany` path defers to a
+ * background job past 100 addresses); the response gains an optional
+ * `validation` counts object and the returned `contact` reflects the saved
+ * `validationStatus` / `validationDetails` / `lastValidatedAt`. Metered 2
+ * credits per address, charged only on success; insufficient credits fail
+ * with `402 INSUFFICIENT_CREDITS`.
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<UpsertContactResponse>` instead of the unwrapped

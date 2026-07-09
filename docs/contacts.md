@@ -25,7 +25,19 @@ type Contact = {
   readonly firstName?: string
   readonly lastName?: string
   readonly subscribed: boolean // default true
+  readonly validationStatus?: 'valid' | 'risky' | 'invalid'
+  // Deprecated legacy mirror of validationStatus — same value, kept for
+  // back-compat. Read validationStatus instead.
   readonly verificationStatus?: 'valid' | 'risky' | 'invalid'
+  readonly validationDetails?: {
+    readonly provider: 'mailgun'
+    readonly reason?: string
+    readonly didYouMean?: string
+    readonly risk?: string
+    readonly isDisposable?: boolean
+    readonly isRole?: boolean
+  }
+  readonly lastValidatedAt?: string // ISO-8601 date-time (last provider check)
   readonly suppressed: boolean // default false
   readonly suppressedReason?: string | null
   readonly createdAt: number // UNIX millis, NOT a string
