@@ -215,6 +215,14 @@ components:
           type: string
         previewText:
           type: string
+        fromAddress:
+          type: string
+        senderName:
+          type: string
+        replyTo:
+          type: string
+        domainId:
+          type: string
         audienceId:
           type: string
           minLength: 1
@@ -1281,12 +1289,19 @@ components:
         subscribed:
           type: boolean
           default: true
+        validationStatus:
+          type: string
+          enum:
+            - valid
+            - risky
+            - invalid
         verificationStatus:
           type: string
           enum:
             - valid
             - risky
             - invalid
+          description: "Deprecated: legacy mirror of validationStatus. Will be removed; read validationStatus."
         suppressed:
           type: boolean
           default: false
@@ -1294,6 +1309,29 @@ components:
           type:
             - string
             - "null"
+        lastValidatedAt:
+          type: string
+          format: date-time
+        validationDetails:
+          type: object
+          properties:
+            provider:
+              type: string
+              enum:
+                - mailgun
+            reason:
+              type: string
+            didYouMean:
+              type: string
+            risk:
+              type: string
+            isDisposable:
+              type: boolean
+            isRole:
+              type: boolean
+          required:
+            - provider
+          additionalProperties: false
         createdAt:
           type: string
           format: date-time
@@ -1976,6 +2014,14 @@ components:
                 type: string
               previewText:
                 type: string
+              fromAddress:
+                type: string
+              senderName:
+                type: string
+              replyTo:
+                type: string
+              domainId:
+                type: string
               audienceId:
                 type: string
                 minLength: 1
@@ -2189,6 +2235,14 @@ components:
             replyTo:
               type: string
               description: Reply-to address. Accepts a bare email (`a@b.com`) or the display-name form (`Name <a@b.com>`).
+            senderName:
+              type: string
+              minLength: 1
+              maxLength: 128
+            fromEmail:
+              type: string
+              minLength: 1
+              maxLength: 64
             domainId:
               type: string
               minLength: 1
@@ -2372,6 +2426,10 @@ components:
                 type: number
                 minimum: 0
                 maximum: 1
+              clickThroughRate:
+                type: number
+                minimum: 0
+                maximum: 1
               lastRunAt:
                 type: string
                 format: date-time
@@ -2392,6 +2450,7 @@ components:
               - successRate
               - openRate
               - clickRate
+              - clickThroughRate
             additionalProperties: false
         totals:
           type: object
@@ -3740,6 +3799,7 @@ components:
                   - queued
                   - scheduled
                   - running
+                  - paused
                   - sent
                   - failed
                   - canceled
@@ -3762,6 +3822,12 @@ components:
                       type: string
                     nodeType:
                       type: string
+                    status:
+                      type: string
+                      enum:
+                        - running
+                        - completed
+                        - failed
                     entered:
                       type: number
                     sent:
@@ -3792,6 +3858,32 @@ components:
               - updatedAt
       required:
         - data
+    AudienceRunControlResponse:
+      type: object
+      properties:
+        audienceRunId:
+          type: string
+        status:
+          type: string
+          enum:
+            - paused
+            - running
+            - canceled
+      required:
+        - audienceRunId
+        - status
+    AudienceRunControlRequest:
+      type: object
+      properties:
+        action:
+          type: string
+          enum:
+            - pause
+            - resume
+            - cancel
+      required:
+        - action
+      additionalProperties: false
     AutomationRunsListResponse:
       type: object
       properties:
@@ -4406,6 +4498,29 @@ components:
               - code
               - message
             additionalProperties: false
+        validation:
+          type: object
+          properties:
+            valid:
+              type: integer
+              minimum: 0
+            risky:
+              type: integer
+              minimum: 0
+            invalid:
+              type: integer
+              minimum: 0
+            unscored:
+              type: integer
+              minimum: 0
+          required:
+            - valid
+            - risky
+            - invalid
+            - unscored
+          additionalProperties: false
+        validationJobId:
+          type: string
       required:
         - summary
         - fieldsCreated
@@ -4428,12 +4543,19 @@ components:
             subscribed:
               type: boolean
               default: true
+            validationStatus:
+              type: string
+              enum:
+                - valid
+                - risky
+                - invalid
             verificationStatus:
               type: string
               enum:
                 - valid
                 - risky
                 - invalid
+              description: "Deprecated: legacy mirror of validationStatus. Will be removed; read validationStatus."
             suppressed:
               type: boolean
               default: false
@@ -4441,6 +4563,29 @@ components:
               type:
                 - string
                 - "null"
+            lastValidatedAt:
+              type: string
+              format: date-time
+            validationDetails:
+              type: object
+              properties:
+                provider:
+                  type: string
+                  enum:
+                    - mailgun
+                reason:
+                  type: string
+                didYouMean:
+                  type: string
+                risk:
+                  type: string
+                isDisposable:
+                  type: boolean
+                isRole:
+                  type: boolean
+              required:
+                - provider
+              additionalProperties: false
             createdAt:
               type: string
               format: date-time
@@ -4496,6 +4641,27 @@ components:
               - code
               - message
             additionalProperties: false
+        validation:
+          type: object
+          properties:
+            valid:
+              type: integer
+              minimum: 0
+            risky:
+              type: integer
+              minimum: 0
+            invalid:
+              type: integer
+              minimum: 0
+            unscored:
+              type: integer
+              minimum: 0
+          required:
+            - valid
+            - risky
+            - invalid
+            - unscored
+          additionalProperties: false
       required:
         - contact
         - created
@@ -4521,6 +4687,9 @@ components:
         customFields:
           type: object
           additionalProperties: {}
+        validate:
+          type: boolean
+          description: Optional deliverability check on ingestion. When true, each address is validated with the provider (2 credits per address, charged on success) and the verdict is saved to the contact’s `validationStatus`. Submissions above the inline cap (100 addresses) upsert first and validate as a background job, returning a `validationJobId`.
       required:
         - email
       additionalProperties: false
@@ -4546,6 +4715,9 @@ components:
             additionalProperties: false
           minItems: 1
           maxItems: 1000
+        validate:
+          type: boolean
+          description: Optional deliverability check on ingestion. When true, each address is validated with the provider (2 credits per address, charged on success) and the verdict is saved to the contact’s `validationStatus`. Submissions above the inline cap (100 addresses) upsert first and validate as a background job, returning a `validationJobId`.
       required:
         - contacts
       additionalProperties: false
@@ -4565,12 +4737,19 @@ components:
             subscribed:
               type: boolean
               default: true
+            validationStatus:
+              type: string
+              enum:
+                - valid
+                - risky
+                - invalid
             verificationStatus:
               type: string
               enum:
                 - valid
                 - risky
                 - invalid
+              description: "Deprecated: legacy mirror of validationStatus. Will be removed; read validationStatus."
             suppressed:
               type: boolean
               default: false
@@ -4578,6 +4757,29 @@ components:
               type:
                 - string
                 - "null"
+            lastValidatedAt:
+              type: string
+              format: date-time
+            validationDetails:
+              type: object
+              properties:
+                provider:
+                  type: string
+                  enum:
+                    - mailgun
+                reason:
+                  type: string
+                didYouMean:
+                  type: string
+                risk:
+                  type: string
+                isDisposable:
+                  type: boolean
+                isRole:
+                  type: boolean
+              required:
+                - provider
+              additionalProperties: false
             createdAt:
               type: string
               format: date-time
@@ -4650,12 +4852,19 @@ components:
               subscribed:
                 type: boolean
                 default: true
+              validationStatus:
+                type: string
+                enum:
+                  - valid
+                  - risky
+                  - invalid
               verificationStatus:
                 type: string
                 enum:
                   - valid
                   - risky
                   - invalid
+                description: "Deprecated: legacy mirror of validationStatus. Will be removed; read validationStatus."
               suppressed:
                 type: boolean
                 default: false
@@ -4663,6 +4872,29 @@ components:
                 type:
                   - string
                   - "null"
+              lastValidatedAt:
+                type: string
+                format: date-time
+              validationDetails:
+                type: object
+                properties:
+                  provider:
+                    type: string
+                    enum:
+                      - mailgun
+                  reason:
+                    type: string
+                  didYouMean:
+                    type: string
+                  risk:
+                    type: string
+                  isDisposable:
+                    type: boolean
+                  isRole:
+                    type: boolean
+                required:
+                  - provider
+                additionalProperties: false
               createdAt:
                 type: string
                 format: date-time
@@ -4792,6 +5024,12 @@ components:
                 type: string
               didYouMean:
                 type: string
+              risk:
+                type: string
+              isDisposable:
+                type: boolean
+              isRole:
+                type: boolean
             required:
               - email
               - valid
@@ -4887,6 +5125,29 @@ components:
               - code
               - message
             additionalProperties: false
+        validation:
+          type: object
+          properties:
+            valid:
+              type: integer
+              minimum: 0
+            risky:
+              type: integer
+              minimum: 0
+            invalid:
+              type: integer
+              minimum: 0
+            unscored:
+              type: integer
+              minimum: 0
+          required:
+            - valid
+            - risky
+            - invalid
+            - unscored
+          additionalProperties: false
+        validationJobId:
+          type: string
       required:
         - summary
         - fieldsCreated
@@ -4904,6 +5165,9 @@ components:
           type: object
           additionalProperties:
             type: string
+        validate:
+          type: boolean
+          description: Optional deliverability check on ingestion. When true, each address is validated with the provider (2 credits per address, charged on success) and the verdict is saved to the contact’s `validationStatus`. Submissions above the inline cap (100 addresses) upsert first and validate as a background job, returning a `validationJobId`.
       required:
         - csv
       additionalProperties: false
@@ -9535,6 +9799,7 @@ paths:
                     successRate: 0.983
                     openRate: 0.6
                     clickRate: 0.182
+                    clickThroughRate: 0.304
                     lastRunAt: 2026-04-08T12:34:56.789Z
                     lastRunStatus: completed
                 totals:
@@ -9948,7 +10213,7 @@ paths:
 
         Chain `POST /v1/emails { prompt }` first to mint the design each `sendEmail` node references — every `sendEmail` node MUST carry `emailId`, `emailVersionId`, `domainId`, `subject`, `previewText`.
 
-        **Dry-run** — add `dryRun: true` to validate without persisting; returns `200` with `{ valid, blockers[], warnings[], nodeCounts }`.
+        **Dry-run** — add `dryRun: true` to validate without persisting; returns `200` with `{ valid, blockers[], warnings[], blockingIssues[], nodeCounts }`. `blockingIssues[]` lists per-node references to a trigger-payload variable the bound trigger cannot provide (`{ nodeId, nodeLabel, surface, variable, reason, fatal }`) — e.g. after swapping the trigger or removing a payload field. `fatal: true` (filter/split conditions and triple-brace `{{{ }}}` body tokens) fails publish; `fatal: false` (subject/previewText/fromName/replyTo and double-brace body tags) renders empty at send time and is advisory only. `valid` is false when any `fatal` blocking issue is present.
       parameters:
         - *a1
       requestBody:
@@ -11580,6 +11845,228 @@ paths:
                   suggestion: Use an API key or session with the required permission.
                   docs: https://docs.brew.new/api-reference/api/authentication
                   param: automations
+        "429":
+          description: The request hit the rolling rate limit window.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+            Retry-After:
+              schema:
+                type: integer
+                description: Seconds to wait before retrying the request.
+                example: 42
+              required: true
+              description: Seconds to wait before retrying the request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: RATE_LIMITED
+                  type: rate_limit
+                  message: Too many requests.
+                  suggestion: Wait for the retry window before sending another request.
+                  docs: https://docs.brew.new/api-reference/api/rate-limits
+                  retryAfter: 42
+        "500":
+          description: Unexpected internal error.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: INTERNAL_ERROR
+                  type: internal_error
+                  message: An unexpected error occurred.
+                  suggestion: Retry the request. If it keeps failing, contact support.
+                  docs: https://docs.brew.new/api-reference/api/errors
+  /v1/automations/audience-runs/{audienceRunId}/control:
+    post:
+      operationId: controlAudienceRun
+      tags:
+        - Automations
+      summary: Pause, resume, or cancel a manual-audience run
+      description: Controls an in-flight manual-audience run. `pause` holds delivery at the next step boundary (resumable); `resume` continues a paused run; `cancel` stops it for good — emails already sent are NOT recalled and a canceled run can't be resumed. `409` if the run is not in a state that allows the action (e.g. resuming a run that isn't paused); `404` for an unknown `audienceRunId`.
+      parameters:
+        - schema:
+            type: string
+            minLength: 1
+            maxLength: 64
+            description: The audience run id (from `POST /v1/automations/{automationId}/run` or `GET /v1/automations/audience-runs`).
+            example: arun_01HZ
+          required: true
+          description: The audience run id (from `POST /v1/automations/{automationId}/run` or `GET /v1/automations/audience-runs`).
+          name: audienceRunId
+          in: path
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AudienceRunControlRequest"
+            example:
+              action: pause
+      responses:
+        "200":
+          description: The run's new status after the control action.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AudienceRunControlResponse"
+              example:
+                audienceRunId: arun_01HZ
+                status: paused
+        "401":
+          description: The API key was missing, invalid, or revoked.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: INVALID_API_KEY
+                  type: authentication_error
+                  message: The provided API key is invalid.
+                  suggestion: Check the API key format and retry with a valid active key.
+                  docs: https://docs.brew.new/api-reference/api/authentication
+        "403":
+          description: The caller does not have the required `automations` permission.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: INSUFFICIENT_PERMISSIONS
+                  type: authorization_error
+                  message: The caller does not have the required permission.
+                  suggestion: Use an API key or session with the required permission.
+                  docs: https://docs.brew.new/api-reference/api/authentication
+                  param: automations
+        "404":
+          description: Audience run not found in the API-key brand. Cross-brand ids intentionally surface as 404 (never 403) so the API does not leak cross-brand existence.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: NOT_FOUND
+                  type: not_found
+                  message: Audience run 'arun_xxx' was not found.
+                  suggestion: List runs with GET /v1/automations/audience-runs.
+                  docs: https://docs.brew.new/api-reference/api/errors
+                  param: audienceRunId
+        "409":
+          description: The run is not in a state that allows the action (e.g. pausing a run that already finished, or resuming a run that is not paused).
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: RUN_NOT_PAUSABLE
+                  type: conflict
+                  message: This run is already sent and can’t be paused.
+                  suggestion: Only a running run can be paused.
+                  docs: https://docs.brew.new/api-reference/api/errors
         "429":
           description: The request hit the rolling rate limit window.
           headers:
@@ -13493,6 +13980,7 @@ paths:
                   firstName: Jane
                   lastName: Doe
                   subscribed: true
+                  validationStatus: valid
                   verificationStatus: valid
                   suppressed: false
                   suppressedReason: null
@@ -13779,6 +14267,7 @@ paths:
                   firstName: Janet
                   lastName: Doe
                   subscribed: true
+                  validationStatus: valid
                   verificationStatus: valid
                   suppressed: false
                   suppressedReason: null
@@ -14223,6 +14712,7 @@ paths:
                         firstName: John
                         lastName: Smith
                         subscribed: true
+                        validationStatus: valid
                         verificationStatus: valid
                         suppressed: false
                         suppressedReason: null
@@ -14643,7 +15133,7 @@ paths:
       tags:
         - Contacts
       summary: Bulk-import contacts from CSV
-      description: Parse a raw CSV string and upsert the rows as contacts (≤ 1000). By default each column header maps to a field of the same name (`email` is required); pass `mapping` to remap columns explicitly. Rows with a missing/invalid/disposable email are SKIPPED (counted in `summary.skipped`), not errored. Returns the same `{ summary, fieldsCreated, errors, warnings }` as batch-create — `207` when some rows fail validation.
+      description: 'Parse a raw CSV string and upsert the rows as contacts (≤ 1000). By default each column header maps to a field of the same name (`email` is required); pass `mapping` to remap columns explicitly. Rows with a missing/invalid email are SKIPPED (counted in `summary.skipped`), not errored; disposable-domain rows are imported with `validationStatus: "risky"` (deliverable but flagged). Returns the same `{ summary, fieldsCreated, errors, warnings }` as batch-create — `207` when some rows fail validation.'
       requestBody:
         required: true
         content:
@@ -14811,6 +15301,29 @@ paths:
                         - code
                         - message
                       additionalProperties: false
+                  validation:
+                    type: object
+                    properties:
+                      valid:
+                        type: integer
+                        minimum: 0
+                      risky:
+                        type: integer
+                        minimum: 0
+                      invalid:
+                        type: integer
+                        minimum: 0
+                      unscored:
+                        type: integer
+                        minimum: 0
+                    required:
+                      - valid
+                      - risky
+                      - invalid
+                      - unscored
+                    additionalProperties: false
+                  validationJobId:
+                    type: string
                 required:
                   - summary
                   - fieldsCreated

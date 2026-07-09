@@ -292,7 +292,7 @@ export interface paths {
          *
          *     Chain `POST /v1/emails { prompt }` first to mint the design each `sendEmail` node references — every `sendEmail` node MUST carry `emailId`, `emailVersionId`, `domainId`, `subject`, `previewText`.
          *
-         *     **Dry-run** — add `dryRun: true` to validate without persisting; returns `200` with `{ valid, blockers[], warnings[], nodeCounts }`.
+         *     **Dry-run** — add `dryRun: true` to validate without persisting; returns `200` with `{ valid, blockers[], warnings[], blockingIssues[], nodeCounts }`. `blockingIssues[]` lists per-node references to a trigger-payload variable the bound trigger cannot provide (`{ nodeId, nodeLabel, surface, variable, reason, fatal }`) — e.g. after swapping the trigger or removing a payload field. `fatal: true` (filter/split conditions and triple-brace `{{{ }}}` body tokens) fails publish; `fatal: false` (subject/previewText/fromName/replyTo and double-brace body tags) renders empty at send time and is advisory only. `valid` is false when any `fatal` blocking issue is present.
          */
         post: operations["createAutomation"];
         delete?: never;
@@ -384,6 +384,26 @@ export interface paths {
         get: operations["listAudienceRuns"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/automations/audience-runs/{audienceRunId}/control": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pause, resume, or cancel a manual-audience run
+         * @description Controls an in-flight manual-audience run. `pause` holds delivery at the next step boundary (resumable); `resume` continues a paused run; `cancel` stops it for good — emails already sent are NOT recalled and a canceled run can't be resumed. `409` if the run is not in a state that allows the action (e.g. resuming a run that isn't paused); `404` for an unknown `audienceRunId`.
+         */
+        post: operations["controlAudienceRun"];
         delete?: never;
         options?: never;
         head?: never;
@@ -607,7 +627,7 @@ export interface paths {
         put?: never;
         /**
          * Bulk-import contacts from CSV
-         * @description Parse a raw CSV string and upsert the rows as contacts (≤ 1000). By default each column header maps to a field of the same name (`email` is required); pass `mapping` to remap columns explicitly. Rows with a missing/invalid/disposable email are SKIPPED (counted in `summary.skipped`), not errored. Returns the same `{ summary, fieldsCreated, errors, warnings }` as batch-create — `207` when some rows fail validation.
+         * @description Parse a raw CSV string and upsert the rows as contacts (≤ 1000). By default each column header maps to a field of the same name (`email` is required); pass `mapping` to remap columns explicitly. Rows with a missing/invalid email are SKIPPED (counted in `summary.skipped`), not errored; disposable-domain rows are imported with `validationStatus: "risky"` (deliverable but flagged). Returns the same `{ summary, fieldsCreated, errors, warnings }` as batch-create — `207` when some rows fail validation.
          */
         post: operations["importContactsCsv"];
         delete?: never;
@@ -1092,6 +1112,10 @@ export interface components {
             status: "scheduled" | "queued" | "sending" | "sent" | "failed" | "canceled";
             subject?: string;
             previewText?: string;
+            fromAddress?: string;
+            senderName?: string;
+            replyTo?: string;
+            domainId?: string;
             audienceId?: string;
             audienceName?: string;
             recipientCount?: number;
@@ -1448,10 +1472,26 @@ export interface components {
             /** @default true */
             subscribed: boolean;
             /** @enum {string} */
+            validationStatus?: "valid" | "risky" | "invalid";
+            /**
+             * @description Deprecated: legacy mirror of validationStatus. Will be removed; read validationStatus.
+             * @enum {string}
+             */
             verificationStatus?: "valid" | "risky" | "invalid";
             /** @default false */
             suppressed: boolean;
             suppressedReason?: string | null;
+            /** Format: date-time */
+            lastValidatedAt?: string;
+            validationDetails?: {
+                /** @enum {string} */
+                provider: "mailgun";
+                reason?: string;
+                didYouMean?: string;
+                risk?: string;
+                isDisposable?: boolean;
+                isRole?: boolean;
+            };
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -1667,6 +1707,10 @@ export interface components {
                 status: "scheduled" | "queued" | "sending" | "sent" | "failed" | "canceled";
                 subject?: string;
                 previewText?: string;
+                fromAddress?: string;
+                senderName?: string;
+                replyTo?: string;
+                domainId?: string;
                 audienceId?: string;
                 audienceName?: string;
                 recipientCount?: number;
@@ -1742,6 +1786,8 @@ export interface components {
             previewText?: string;
             /** @description Reply-to address. Accepts a bare email (`a@b.com`) or the display-name form (`Name <a@b.com>`). */
             replyTo?: string;
+            senderName?: string;
+            fromEmail?: string;
             domainId: string;
             audienceId?: string;
             to?: string | string[];
@@ -1796,6 +1842,7 @@ export interface components {
                 successRate: number;
                 openRate: number;
                 clickRate: number;
+                clickThroughRate: number;
                 /** Format: date-time */
                 lastRunAt?: string;
                 lastRunStatus?: string;
@@ -2244,7 +2291,7 @@ export interface components {
                 audienceId: string;
                 audienceName?: string;
                 /** @enum {string} */
-                status: "queued" | "scheduled" | "running" | "sent" | "failed" | "canceled";
+                status: "queued" | "scheduled" | "running" | "paused" | "sent" | "failed" | "canceled";
                 scheduledAt?: string;
                 totalRecipients?: number;
                 sentCount?: number;
@@ -2253,6 +2300,8 @@ export interface components {
                 nodeStats?: {
                     nodeId: string;
                     nodeType: string;
+                    /** @enum {string} */
+                    status?: "running" | "completed" | "failed";
                     entered?: number;
                     sent?: number;
                     failed?: number;
@@ -2264,6 +2313,15 @@ export interface components {
                 createdAt: string;
                 updatedAt: string;
             }[];
+        };
+        AudienceRunControlResponse: {
+            audienceRunId: string;
+            /** @enum {string} */
+            status: "paused" | "running" | "canceled";
+        };
+        AudienceRunControlRequest: {
+            /** @enum {string} */
+            action: "pause" | "resume" | "cancel";
         };
         AutomationRunsListResponse: {
             data: {
@@ -2483,6 +2541,13 @@ export interface components {
                 original?: string;
                 normalized?: string;
             }[];
+            validation?: {
+                valid: number;
+                risky: number;
+                invalid: number;
+                unscored: number;
+            };
+            validationJobId?: string;
         };
         ContactsPostSingleResponse: {
             contact: {
@@ -2493,10 +2558,26 @@ export interface components {
                 /** @default true */
                 subscribed: boolean;
                 /** @enum {string} */
+                validationStatus?: "valid" | "risky" | "invalid";
+                /**
+                 * @description Deprecated: legacy mirror of validationStatus. Will be removed; read validationStatus.
+                 * @enum {string}
+                 */
                 verificationStatus?: "valid" | "risky" | "invalid";
                 /** @default false */
                 suppressed: boolean;
                 suppressedReason?: string | null;
+                /** Format: date-time */
+                lastValidatedAt?: string;
+                validationDetails?: {
+                    /** @enum {string} */
+                    provider: "mailgun";
+                    reason?: string;
+                    didYouMean?: string;
+                    risk?: string;
+                    isDisposable?: boolean;
+                    isRole?: boolean;
+                };
                 /** Format: date-time */
                 createdAt: string;
                 /** Format: date-time */
@@ -2518,6 +2599,12 @@ export interface components {
                 original?: string;
                 normalized?: string;
             }[];
+            validation?: {
+                valid: number;
+                risky: number;
+                invalid: number;
+                unscored: number;
+            };
         };
         ContactsPostRequest: components["schemas"]["ContactsPostSingleRequest"] | components["schemas"]["ContactsPostBatchRequest"];
         ContactsPostSingleRequest: {
@@ -2528,6 +2615,8 @@ export interface components {
             customFields?: {
                 [key: string]: unknown;
             };
+            /** @description Optional deliverability check on ingestion. When true, each address is validated with the provider (2 credits per address, charged on success) and the verdict is saved to the contact’s `validationStatus`. Submissions above the inline cap (100 addresses) upsert first and validate as a background job, returning a `validationJobId`. */
+            validate?: boolean;
         };
         ContactsPostBatchRequest: {
             contacts: {
@@ -2539,6 +2628,8 @@ export interface components {
                     [key: string]: unknown;
                 };
             }[];
+            /** @description Optional deliverability check on ingestion. When true, each address is validated with the provider (2 credits per address, charged on success) and the verdict is saved to the contact’s `validationStatus`. Submissions above the inline cap (100 addresses) upsert first and validate as a background job, returning a `validationJobId`. */
+            validate?: boolean;
         };
         ContactsPatchResponse: {
             contact: {
@@ -2549,10 +2640,26 @@ export interface components {
                 /** @default true */
                 subscribed: boolean;
                 /** @enum {string} */
+                validationStatus?: "valid" | "risky" | "invalid";
+                /**
+                 * @description Deprecated: legacy mirror of validationStatus. Will be removed; read validationStatus.
+                 * @enum {string}
+                 */
                 verificationStatus?: "valid" | "risky" | "invalid";
                 /** @default false */
                 suppressed: boolean;
                 suppressedReason?: string | null;
+                /** Format: date-time */
+                lastValidatedAt?: string;
+                validationDetails?: {
+                    /** @enum {string} */
+                    provider: "mailgun";
+                    reason?: string;
+                    didYouMean?: string;
+                    risk?: string;
+                    isDisposable?: boolean;
+                    isRole?: boolean;
+                };
                 /** Format: date-time */
                 createdAt: string;
                 /** Format: date-time */
@@ -2585,10 +2692,26 @@ export interface components {
                 /** @default true */
                 subscribed: boolean;
                 /** @enum {string} */
+                validationStatus?: "valid" | "risky" | "invalid";
+                /**
+                 * @description Deprecated: legacy mirror of validationStatus. Will be removed; read validationStatus.
+                 * @enum {string}
+                 */
                 verificationStatus?: "valid" | "risky" | "invalid";
                 /** @default false */
                 suppressed: boolean;
                 suppressedReason?: string | null;
+                /** Format: date-time */
+                lastValidatedAt?: string;
+                validationDetails?: {
+                    /** @enum {string} */
+                    provider: "mailgun";
+                    reason?: string;
+                    didYouMean?: string;
+                    risk?: string;
+                    isDisposable?: boolean;
+                    isRole?: boolean;
+                };
                 /** Format: date-time */
                 createdAt: string;
                 /** Format: date-time */
@@ -2643,6 +2766,9 @@ export interface components {
                 status: "valid" | "risky" | "invalid";
                 reason?: string;
                 didYouMean?: string;
+                risk?: string;
+                isDisposable?: boolean;
+                isRole?: boolean;
             }[];
         };
         ContactsValidateRequest: {
@@ -2670,12 +2796,21 @@ export interface components {
                 original?: string;
                 normalized?: string;
             }[];
+            validation?: {
+                valid: number;
+                risky: number;
+                invalid: number;
+                unscored: number;
+            };
+            validationJobId?: string;
         };
         ContactsImportCsvRequest: {
             csv: string;
             mapping?: {
                 [key: string]: string;
             };
+            /** @description Optional deliverability check on ingestion. When true, each address is validated with the provider (2 credits per address, charged on success) and the verdict is saved to the contact’s `validationStatus`. Submissions above the inline cap (100 addresses) upsert first and validate as a background job, returning a `validationJobId`. */
+            validate?: boolean;
         };
         ContactsBatchDeleteResponse: {
             deleted: number;
@@ -5878,6 +6013,7 @@ export interface operations {
                      *           "successRate": 0.983,
                      *           "openRate": 0.6,
                      *           "clickRate": 0.182,
+                     *           "clickThroughRate": 0.304,
                      *           "lastRunAt": "2026-04-08T12:34:56.789Z",
                      *           "lastRunStatus": "completed"
                      *         }
@@ -7669,6 +7805,195 @@ export interface operations {
             };
         };
     };
+    controlAudienceRun: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The audience run id (from `POST /v1/automations/{automationId}/run` or `GET /v1/automations/audience-runs`). */
+                audienceRunId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "action": "pause"
+                 *     }
+                 */
+                "application/json": components["schemas"]["AudienceRunControlRequest"];
+            };
+        };
+        responses: {
+            /** @description The run's new status after the control action. */
+            200: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "audienceRunId": "arun_01HZ",
+                     *       "status": "paused"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["AudienceRunControlResponse"];
+                };
+            };
+            /** @description The API key was missing, invalid, or revoked. */
+            401: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INVALID_API_KEY",
+                     *         "type": "authentication_error",
+                     *         "message": "The provided API key is invalid.",
+                     *         "suggestion": "Check the API key format and retry with a valid active key.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The caller does not have the required `automations` permission. */
+            403: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INSUFFICIENT_PERMISSIONS",
+                     *         "type": "authorization_error",
+                     *         "message": "The caller does not have the required permission.",
+                     *         "suggestion": "Use an API key or session with the required permission.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
+                     *         "param": "automations"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Audience run not found in the API-key brand. Cross-brand ids intentionally surface as 404 (never 403) so the API does not leak cross-brand existence. */
+            404: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "NOT_FOUND",
+                     *         "type": "not_found",
+                     *         "message": "Audience run 'arun_xxx' was not found.",
+                     *         "suggestion": "List runs with GET /v1/automations/audience-runs.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "audienceRunId"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The run is not in a state that allows the action (e.g. pausing a run that already finished, or resuming a run that is not paused). */
+            409: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "RUN_NOT_PAUSABLE",
+                     *         "type": "conflict",
+                     *         "message": "This run is already sent and can’t be paused.",
+                     *         "suggestion": "Only a running run can be paused.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The request hit the rolling rate limit window. */
+            429: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    /** @description Seconds to wait before retrying the request. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "RATE_LIMITED",
+                     *         "type": "rate_limit",
+                     *         "message": "Too many requests.",
+                     *         "suggestion": "Wait for the retry window before sending another request.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
+                     *         "retryAfter": 42
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected internal error. */
+            500: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INTERNAL_ERROR",
+                     *         "type": "internal_error",
+                     *         "message": "An unexpected error occurred.",
+                     *         "suggestion": "Retry the request. If it keeps failing, contact support.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
     listAutomationRuns: {
         parameters: {
             query?: {
@@ -9240,6 +9565,7 @@ export interface operations {
                      *         "firstName": "Jane",
                      *         "lastName": "Doe",
                      *         "subscribed": true,
+                     *         "validationStatus": "valid",
                      *         "verificationStatus": "valid",
                      *         "suppressed": false,
                      *         "suppressedReason": null,
@@ -9638,6 +9964,7 @@ export interface operations {
                      *         "firstName": "Janet",
                      *         "lastName": "Doe",
                      *         "subscribed": true,
+                     *         "validationStatus": "valid",
                      *         "verificationStatus": "valid",
                      *         "suppressed": false,
                      *         "suppressedReason": null,
@@ -10332,6 +10659,13 @@ export interface operations {
                             original?: string;
                             normalized?: string;
                         }[];
+                        validation?: {
+                            valid: number;
+                            risky: number;
+                            invalid: number;
+                            unscored: number;
+                        };
+                        validationJobId?: string;
                     };
                 };
             };
