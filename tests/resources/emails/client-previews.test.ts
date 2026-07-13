@@ -10,7 +10,6 @@ import { server } from '../../msw/server'
 
 const READY_BODY = {
   emailId: 'email_existing',
-  inspectionId: 'insp_abc123',
   status: 'ready',
   previews: [
     {
