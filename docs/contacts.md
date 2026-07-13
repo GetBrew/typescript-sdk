@@ -30,7 +30,7 @@ type Contact = {
   // back-compat. Read validationStatus instead.
   readonly verificationStatus?: 'valid' | 'risky' | 'invalid'
   readonly validationDetails?: {
-    readonly provider: 'mailgun'
+    readonly provider: 'brew'
     readonly reason?: string
     readonly didYouMean?: string
     readonly risk?: string

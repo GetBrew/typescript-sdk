@@ -1318,7 +1318,7 @@ components:
             provider:
               type: string
               enum:
-                - mailgun
+                - brew
             reason:
               type: string
             didYouMean:
@@ -1907,8 +1907,6 @@ components:
       properties:
         emailId:
           type: string
-        inspectionId:
-          type: string
         status:
           type: string
           enum:
@@ -1961,7 +1959,6 @@ components:
             type: string
       required:
         - emailId
-        - inspectionId
         - status
         - previews
         - pending
@@ -4572,7 +4569,7 @@ components:
                 provider:
                   type: string
                   enum:
-                    - mailgun
+                    - brew
                 reason:
                   type: string
                 didYouMean:
@@ -4766,7 +4763,7 @@ components:
                 provider:
                   type: string
                   enum:
-                    - mailgun
+                    - brew
                 reason:
                   type: string
                 didYouMean:
@@ -4881,7 +4878,7 @@ components:
                   provider:
                     type: string
                     enum:
-                      - mailgun
+                      - brew
                   reason:
                     type: string
                   didYouMean:
@@ -8415,7 +8412,6 @@ paths:
                 $ref: "#/components/schemas/EmailClientPreviewResponse"
               example:
                 emailId: eml_welcome
-                inspectionId: DdbNga1MdL3N7sO19v5MAmpOKIqFrLg9cgpCIgS4othXJ
                 status: partial
                 previews:
                   - id: gmailcom-lm_chrcurrent_win10

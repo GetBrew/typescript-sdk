@@ -1485,7 +1485,7 @@ export interface components {
             lastValidatedAt?: string;
             validationDetails?: {
                 /** @enum {string} */
-                provider: "mailgun";
+                provider: "brew";
                 reason?: string;
                 didYouMean?: string;
                 risk?: string;
@@ -1675,7 +1675,6 @@ export interface components {
         };
         EmailClientPreviewResponse: {
             emailId: string;
-            inspectionId: string;
             /** @enum {string} */
             status: "ready" | "partial";
             previews: {
@@ -2571,7 +2570,7 @@ export interface components {
                 lastValidatedAt?: string;
                 validationDetails?: {
                     /** @enum {string} */
-                    provider: "mailgun";
+                    provider: "brew";
                     reason?: string;
                     didYouMean?: string;
                     risk?: string;
@@ -2653,7 +2652,7 @@ export interface components {
                 lastValidatedAt?: string;
                 validationDetails?: {
                     /** @enum {string} */
-                    provider: "mailgun";
+                    provider: "brew";
                     reason?: string;
                     didYouMean?: string;
                     risk?: string;
@@ -2705,7 +2704,7 @@ export interface components {
                 lastValidatedAt?: string;
                 validationDetails?: {
                     /** @enum {string} */
-                    provider: "mailgun";
+                    provider: "brew";
                     reason?: string;
                     didYouMean?: string;
                     risk?: string;
@@ -4881,7 +4880,6 @@ export interface operations {
                     /**
                      * @example {
                      *       "emailId": "eml_welcome",
-                     *       "inspectionId": "DdbNga1MdL3N7sO19v5MAmpOKIqFrLg9cgpCIgS4othXJ",
                      *       "status": "partial",
                      *       "previews": [
                      *         {

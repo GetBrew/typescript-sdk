@@ -318,7 +318,6 @@ type PreviewEmailClientsInput = {
 
 type EmailClientPreviewResponse = {
   readonly emailId: string
-  readonly inspectionId: string
   readonly status: 'ready' | 'partial'
   readonly previews: ReadonlyArray<{
     readonly id: string
