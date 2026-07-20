@@ -29,6 +29,7 @@ describe('emails.send', () => {
     const result = await send({
       emailId: 'email_123',
       domainId: 'domain_123',
+      messageClass: 'marketing',
       subject: 'Welcome to Brew',
       previewText: 'Quick intro',
       replyTo: 'hello@example.com',
@@ -40,6 +41,7 @@ describe('emails.send', () => {
     expect(capturedBody).toEqual({
       emailId: 'email_123',
       domainId: 'domain_123',
+      messageClass: 'marketing',
       subject: 'Welcome to Brew',
       previewText: 'Quick intro',
       replyTo: 'hello@example.com',
@@ -77,6 +79,7 @@ describe('emails.send', () => {
       {
         emailId: 'email_456',
         domainId: 'domain_456',
+        messageClass: 'marketing',
         subject: 'Scheduled launch',
         audienceId: 'audience_456',
         scheduledAt: '2099-01-01T00:00:00.000Z',
@@ -87,6 +90,7 @@ describe('emails.send', () => {
     expect(capturedBody).toEqual({
       emailId: 'email_456',
       domainId: 'domain_456',
+      messageClass: 'marketing',
       subject: 'Scheduled launch',
       audienceId: 'audience_456',
       scheduledAt: '2099-01-01T00:00:00.000Z',
