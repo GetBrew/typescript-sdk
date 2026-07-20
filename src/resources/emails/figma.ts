@@ -10,15 +10,15 @@ import type { BrewRawResponse, RequestOptions } from '../../types'
  * whole file. In Figma, select the email frame and copy the link to it.
  */
 export type ImportFigmaDesignInput =
-  components['schemas']['EmailFigmaImportRequest']
+  components['schemas']['FigmaToEmailRequest']
 
 /**
  * 201 result of `POST /v1/emails/figma` — the persisted design plus the
- * conversion report (`{ emailId, emailVersionId, title, warningCount,
- * exportedNodeCount }`).
+ * requested source representation (`format` + `content`) and conversion
+ * report.
  */
 export type ImportFigmaDesignResponse =
-  components['schemas']['EmailFigmaImportResponse']
+  components['schemas']['FigmaToEmailResponse']
 
 /**
  * Default per-request timeout for `POST /v1/emails/figma`. The transpile
@@ -42,23 +42,22 @@ export const IMPORT_FIGMA_DEFAULT_TIMEOUT_MS = 800_000
  * and the operation is FREE (unlike `emails.import`, which runs the email
  * agent and is usage-metered).
  *
- * Figma authentication resolves two ways. By default the brand's connected
- * Figma account is used, which is set up once from Integrations in the Brew
- * app. To import without that interactive step, pass `figmaAccessToken`; it
- * authenticates this single request and is never stored. With neither, the
- * call fails `422 FIGMA_NOT_CONNECTED`.
+ * The API-key brand must have Figma connected in Brew Integrations. With no
+ * usable brand-scoped connection, the call fails `422 FIGMA_NOT_CONNECTED`.
+ * Credentials never travel through this method or its request history.
  *
  * A link that is malformed, is not a figma.com URL, or is missing the
- * `node-id` that identifies the frame surfaces as `400 INVALID_REQUEST`. A
+ * `node-id` that identifies the frame surfaces as `400 FIGMA_URL_INVALID`. A
  * frame that is fetched but cannot be transpiled is `422
  * FIGMA_CONVERSION_FAILED`; its `error.details.emailId` points at the design
  * row that was created before the transpile ran, so you can inspect or delete
  * it.
  *
- * Figma carries no link data, so button hrefs default to `#`; `warningCount`
- * reports how many placeholders to fill in with a follow-up
- * `brew.emails.edit(...)`. Supply `options.idempotencyKey` to make retries
- * safe; one is generated automatically otherwise.
+ * Set `format` to `jsx` (default) or `html`; the selected representation is
+ * returned in `content`. Figma carries no link data, so button hrefs default
+ * to `#`; `warningCount` reports how many placeholders to fill in with a
+ * follow-up `brew.emails.edit(...)`. Supply `options.idempotencyKey` to make
+ * retries safe; one is generated automatically otherwise.
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<ImportFigmaDesignResponse>` instead of the unwrapped

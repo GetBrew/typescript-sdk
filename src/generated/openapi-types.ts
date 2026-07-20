@@ -54,6 +54,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/emails/figma": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import a Figma frame
+         * @description Deterministically converts one selected Figma frame into a new editable Brew email design. No model runs and no credits are charged.
+         *
+         *     `figmaUrl` must be a Figma frame link containing `node-id`. The API-key brand must already have Figma connected in Brew Integrations, and that connected account must be able to read the file.
+         *
+         *     Set `format` to `jsx` (default) for React Email JSX or `html` for rendered email HTML. The requested representation is returned in `content`; the persisted design is identified by `emailId` and `emailVersionId`.
+         */
+        post: operations["importFigmaDesign"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/emails/{emailId}": {
         parameters: {
             query?: never;
@@ -116,32 +140,6 @@ export interface paths {
          * @description Non-destructive restore: clones the numbered version into a NEW `latest` row (demoting the current head) and returns the same generated-email shape as an edit, including the fresh `emailVersionId`.
          */
         post: operations["restoreEmailVersion"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/emails/figma": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Import a Figma frame
-         * @description Converts a Figma frame into a NEW, fully EDITABLE Brew email design. The transpile is deterministic — no model is in the loop, so the same frame always converts the same way — and every exported node image is re-hosted on the Brew CDN.
-         *
-         *     `figmaUrl` must be a `figma.com` design/file/proto link that INCLUDES a `node-id` query param, i.e. the link to one specific frame rather than the whole file. In Figma, select the email frame and copy the link to it.
-         *
-         *     Authentication to Figma resolves in two ways. By default the brand's connected Figma account is used (connect it from Integrations in the Brew app). To import without that interactive step, pass `figmaAccessToken` on the request; it authenticates this single import and is never stored. With neither, the call fails `422 FIGMA_NOT_CONNECTED`.
-         *
-         *     FREE — this operation is not credit-metered. Returns `201` with `{ emailId, emailVersionId, title, warningCount, exportedNodeCount }`. Figma carries no link data, so button hrefs default to `#`; `warningCount` reports how many placeholders to fill in with a follow-up edit.
-         */
-        post: operations["importFigmaDesign"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1327,6 +1325,18 @@ export interface components {
                 complained: number;
                 unsubscribed: number;
             };
+            delivery?: {
+                accepted: number;
+                pending: number;
+                delayed: number;
+                delivered: number;
+                bounced: number;
+                failed: number;
+                providerSuppressed: number;
+                preSendSkipped: number;
+                /** Format: date-time */
+                updatedAt: string;
+            };
             gradualSend?: {
                 startingPercentage: number;
                 incrementPercentage: number;
@@ -1358,7 +1368,7 @@ export interface components {
             updatedAt: string;
             events?: {
                 /** @enum {string} */
-                eventType: "sent" | "delivered" | "delivery_delayed" | "opened" | "clicked" | "bounced" | "complained" | "failed" | "suppressed" | "quota_skipped" | "received" | "unsubscribed";
+                eventType: "sent" | "delivered" | "delivery_delayed" | "opened" | "clicked" | "bounced" | "complained" | "failed" | "provider_suppressed" | "suppressed" | "quota_skipped" | "received" | "unsubscribed";
                 /** Format: date-time */
                 occurredAt: string;
                 recipientEmail?: string;
@@ -1367,7 +1377,7 @@ export interface components {
         };
         SendEvent: {
             /** @enum {string} */
-            eventType: "sent" | "delivered" | "delivery_delayed" | "opened" | "clicked" | "bounced" | "complained" | "failed" | "suppressed" | "quota_skipped" | "received" | "unsubscribed";
+            eventType: "sent" | "delivered" | "delivery_delayed" | "opened" | "clicked" | "bounced" | "complained" | "failed" | "provider_suppressed" | "suppressed" | "quota_skipped" | "received" | "unsubscribed";
             /** Format: date-time */
             occurredAt: string;
             recipientEmail?: string;
@@ -2082,6 +2092,33 @@ export interface components {
             /** Format: uri */
             baseUrl?: string;
         };
+        FigmaToEmailResponse: {
+            emailId: string;
+            emailVersionId: string;
+            title: string;
+            /** @enum {string} */
+            format: "jsx" | "html";
+            content: string;
+            warningCount: number;
+            exportedNodeCount: number;
+            /** Format: uri */
+            previewImage?: string;
+        };
+        FigmaToEmailRequest: {
+            /**
+             * Format: uri
+             * @description A figma.com design, file, or prototype URL for a specific frame. The URL must include a node-id query parameter.
+             */
+            figmaUrl: string;
+            /** @description Optional design title; defaults to the Figma frame name. */
+            title?: string;
+            /**
+             * @description Source representation returned in `content`: React Email JSX by default, or rendered email-safe HTML.
+             * @default jsx
+             * @enum {string}
+             */
+            format?: "jsx" | "html";
+        };
         EmailGenerateResponse: {
             emailId: string;
             emailVersionId: string;
@@ -2109,18 +2146,6 @@ export interface components {
         };
         EmailRestoreRequest: {
             version: number;
-        };
-        EmailFigmaImportResponse: {
-            emailId: string;
-            emailVersionId: string;
-            title: string;
-            warningCount: number;
-            exportedNodeCount: number;
-        };
-        EmailFigmaImportRequest: {
-            figmaUrl: string;
-            title?: string;
-            figmaAccessToken?: string;
         };
         EmailExportResponse: {
             emailId: string;
@@ -2367,6 +2392,18 @@ export interface components {
                     complained: number;
                     unsubscribed: number;
                 };
+                delivery?: {
+                    accepted: number;
+                    pending: number;
+                    delayed: number;
+                    delivered: number;
+                    bounced: number;
+                    failed: number;
+                    providerSuppressed: number;
+                    preSendSkipped: number;
+                    /** Format: date-time */
+                    updatedAt: string;
+                };
                 gradualSend?: {
                     startingPercentage: number;
                     incrementPercentage: number;
@@ -2398,7 +2435,7 @@ export interface components {
                 updatedAt: string;
                 events?: {
                     /** @enum {string} */
-                    eventType: "sent" | "delivered" | "delivery_delayed" | "opened" | "clicked" | "bounced" | "complained" | "failed" | "suppressed" | "quota_skipped" | "received" | "unsubscribed";
+                    eventType: "sent" | "delivered" | "delivery_delayed" | "opened" | "clicked" | "bounced" | "complained" | "failed" | "provider_suppressed" | "suppressed" | "quota_skipped" | "received" | "unsubscribed";
                     /** Format: date-time */
                     occurredAt: string;
                     recipientEmail?: string;
@@ -2499,6 +2536,8 @@ export interface components {
         };
         AnalyticsOverviewResponse: {
             totals: {
+                /** @default 0 */
+                accepted?: number;
                 sent: number;
                 delivered: number;
                 opened: number;
@@ -2509,7 +2548,15 @@ export interface components {
                 complained: number;
                 unsubscribed: number;
                 failed: number;
+                /** @default 0 */
+                providerSuppressed?: number;
                 suppressed: number;
+                /** @default 0 */
+                quotaSkipped?: number;
+                /** @default 0 */
+                preSendSkipped?: number;
+                /** @default 0 */
+                pending?: number;
                 deliveryDelayed: number;
             };
             rates: {
@@ -2531,7 +2578,11 @@ export interface components {
                 bounced: number;
                 complained: number;
                 failed: number;
+                /** @default 0 */
+                providerSuppressed?: number;
                 suppressed: number;
+                /** @default 0 */
+                quotaSkipped?: number;
                 unsubscribed: number;
             }[];
             /** @enum {string} */
@@ -2556,6 +2607,8 @@ export interface components {
                 /** Format: date-time */
                 sentAt?: string;
                 stats: {
+                    /** @default 0 */
+                    accepted?: number;
                     sent: number;
                     delivered: number;
                     opened: number;
@@ -4537,11 +4590,13 @@ export interface components {
                 limit: number | null;
                 used: number;
                 remaining: number | null;
+                reserved?: number;
             };
             emailSends: {
                 limit: number | null;
                 used: number;
                 remaining: number | null;
+                reserved?: number;
             };
             period: {
                 /** Format: date-time */
@@ -5347,6 +5402,253 @@ export interface operations {
             };
         };
     };
+    importFigmaDesign: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description Optional idempotency key for safe retries. Reusing the same key with the same request body returns the original response for 24 hours.
+                 * @example api-request-2026-04-08-001
+                 */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FigmaToEmailRequest"];
+            };
+        };
+        responses: {
+            /** @description The converted design was persisted and the requested source representation is returned in `content`. */
+            201: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "emailId": "eml_figma_launch",
+                     *       "emailVersionId": "emv_figma_launch_v1",
+                     *       "title": "Launch email",
+                     *       "format": "jsx",
+                     *       "content": "<Html><Body><Container><Heading>Launch day</Heading></Container></Body></Html>",
+                     *       "warningCount": 0,
+                     *       "exportedNodeCount": 2,
+                     *       "previewImage": "https://cdn.brew.new/p/eml_figma_launch.png"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["FigmaToEmailResponse"];
+                };
+            };
+            /** @description The JSON body is invalid, or the URL is not a Figma frame link containing `node-id`. */
+            400: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "FIGMA_URL_INVALID",
+                     *         "type": "invalid_request",
+                     *         "message": "The Figma link is missing a frame reference.",
+                     *         "suggestion": "In Figma, select the email frame and copy its link. The URL must include a node-id.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "figmaUrl"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The API key was missing, invalid, or revoked. */
+            401: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INVALID_API_KEY",
+                     *         "type": "authentication_error",
+                     *         "message": "The provided API key is invalid.",
+                     *         "suggestion": "Check the API key format and retry with a valid active key.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The API key lacks the emails scope, or the connected Figma account cannot read the file. */
+            403: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The Figma file or selected frame no longer exists. */
+            404: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "FIGMA_FRAME_NOT_FOUND",
+                     *         "type": "not_found",
+                     *         "message": "Figma could not find that design or selected frame.",
+                     *         "suggestion": "Confirm the file and frame still exist, then copy a fresh frame link from Figma.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "figmaUrl",
+                     *         "details": {
+                     *           "emailId": "eml_figma_launch"
+                     *         }
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The same `Idempotency-Key` was reused with a different request body. */
+            409: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "IDEMPOTENCY_CONFLICT",
+                     *         "type": "conflict",
+                     *         "message": "The same idempotency key was reused with a different request payload.",
+                     *         "suggestion": "Reuse the original payload or send a new idempotency key.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/idempotency"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Figma is not connected for the API-key brand, or the selected frame could not be converted. */
+            422: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The request hit the rolling rate limit window. */
+            429: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    /** @description Seconds to wait before retrying the request. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "RATE_LIMITED",
+                     *         "type": "rate_limit",
+                     *         "message": "Too many requests.",
+                     *         "suggestion": "Wait for the retry window before sending another request.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
+                     *         "retryAfter": 42
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected internal error. */
+            500: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INTERNAL_ERROR",
+                     *         "type": "internal_error",
+                     *         "message": "An unexpected error occurred.",
+                     *         "suggestion": "Retry the request. If it keeps failing, contact support.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Figma is temporarily unavailable. */
+            503: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Seconds to wait before retrying the request. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "FIGMA_UNAVAILABLE",
+                     *         "type": "service_unavailable",
+                     *         "message": "Figma is temporarily unavailable. Please try again.",
+                     *         "suggestion": "Retry after a short delay.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "figmaUrl",
+                     *         "retryAfter": 2,
+                     *         "details": {
+                     *           "emailId": "eml_figma_launch"
+                     *         }
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
     deleteEmail: {
         parameters: {
             query?: never;
@@ -6137,207 +6439,6 @@ export interface operations {
                      *       }
                      *     }
                      */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The request hit the rolling rate limit window. */
-            429: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    /** @description Requests allowed in the current rolling rate limit window. */
-                    "X-RateLimit-Limit": number;
-                    /** @description Requests remaining in the current rolling rate limit window. */
-                    "X-RateLimit-Remaining": number;
-                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
-                    "X-RateLimit-Reset": number;
-                    /** @description Seconds to wait before retrying the request. */
-                    "Retry-After": number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "RATE_LIMITED",
-                     *         "type": "rate_limit",
-                     *         "message": "Too many requests.",
-                     *         "suggestion": "Wait for the retry window before sending another request.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
-                     *         "retryAfter": 42
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description Unexpected internal error. */
-            500: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INTERNAL_ERROR",
-                     *         "type": "internal_error",
-                     *         "message": "An unexpected error occurred.",
-                     *         "suggestion": "Retry the request. If it keeps failing, contact support.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-        };
-    };
-    importFigmaDesign: {
-        parameters: {
-            query?: never;
-            header?: {
-                /**
-                 * @description Optional idempotency key for safe retries. Reusing the same key with the same request body returns the original response for 24 hours.
-                 * @example api-request-2026-04-08-001
-                 */
-                "Idempotency-Key"?: string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["EmailFigmaImportRequest"];
-            };
-        };
-        responses: {
-            /** @description The frame was converted + persisted as an editable design. `emailVersionId` pins the exact version for sends + automation nodes. */
-            201: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    /** @description Requests allowed in the current rolling rate limit window. */
-                    "X-RateLimit-Limit": number;
-                    /** @description Requests remaining in the current rolling rate limit window. */
-                    "X-RateLimit-Remaining": number;
-                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
-                    "X-RateLimit-Reset": number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "emailId": "em_7GkQ2p",
-                     *       "emailVersionId": "ev_3Nb8xR",
-                     *       "title": "Spring sale",
-                     *       "warningCount": 2,
-                     *       "exportedNodeCount": 5
-                     *     }
-                     */
-                    "application/json": components["schemas"]["EmailFigmaImportResponse"];
-                };
-            };
-            /** @description The Figma link is malformed, is not a figma.com URL, or is missing the `node-id` that identifies the frame. */
-            400: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INVALID_REQUEST",
-                     *         "type": "invalid_request",
-                     *         "message": "That Figma link is missing a frame reference — open the design in Figma, select the email frame, and copy its link (it must include a node-id).",
-                     *         "suggestion": "Fix the request payload and retry.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
-                     *         "param": "figmaUrl"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The API key was missing, invalid, or revoked. */
-            401: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INVALID_API_KEY",
-                     *         "type": "authentication_error",
-                     *         "message": "The provided API key is invalid.",
-                     *         "suggestion": "Check the API key format and retry with a valid active key.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The caller does not have the required `emails` permission. */
-            403: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INSUFFICIENT_PERMISSIONS",
-                     *         "type": "authorization_error",
-                     *         "message": "The caller does not have the required permission.",
-                     *         "suggestion": "Use an API key or session with the required permission.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
-                     *         "param": "emails"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The same `Idempotency-Key` was reused with a different request body. */
-            409: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "IDEMPOTENCY_CONFLICT",
-                     *         "type": "conflict",
-                     *         "message": "The same idempotency key was reused with a different request payload.",
-                     *         "suggestion": "Reuse the original payload or send a new idempotency key.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/idempotency"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description Either the brand has no usable Figma credential, or the frame was fetched but could not be transpiled. */
-            422: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
