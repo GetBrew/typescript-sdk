@@ -6576,6 +6576,30 @@ components:
         - audienceId
         - recipientCount
         - sendNodeCount
+    AudienceAutomationRunStartedResponse:
+      type: object
+      properties:
+        audienceRunId:
+          type: string
+        automationId:
+          type: string
+        status:
+          type: string
+          enum:
+            - queued
+            - scheduled
+        totalRecipients:
+          type: number
+        workflowRunId:
+          type: string
+        receivedAt:
+          type: string
+      required:
+        - audienceRunId
+        - automationId
+        - status
+        - totalRecipients
+        - receivedAt
     AutomationRunRequest:
       type: object
       properties:
@@ -17233,7 +17257,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AutomationRunStartedResponse"
+                $ref: "#/components/schemas/AudienceAutomationRunStartedResponse"
               example:
                 audienceRunId: arun_01HZ
                 automationId: auto_abc

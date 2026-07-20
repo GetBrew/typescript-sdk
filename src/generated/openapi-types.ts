@@ -3510,6 +3510,15 @@ export interface components {
             sendNodeCount: number;
             scheduledAt?: string;
         };
+        AudienceAutomationRunStartedResponse: {
+            audienceRunId: string;
+            automationId: string;
+            /** @enum {string} */
+            status: "queued" | "scheduled";
+            totalRecipients: number;
+            workflowRunId?: string;
+            receivedAt: string;
+        };
         AutomationRunRequest: {
             dry_run?: boolean;
             /** Format: date-time */
@@ -10729,7 +10738,7 @@ export interface operations {
                      *       "receivedAt": "2026-04-08T12:34:56.789Z"
                      *     }
                      */
-                    "application/json": components["schemas"]["AutomationRunStartedResponse"];
+                    "application/json": components["schemas"]["AudienceAutomationRunStartedResponse"];
                 };
             };
             /** @description The API key was missing, invalid, or revoked. */

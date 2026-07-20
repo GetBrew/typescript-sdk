@@ -47,6 +47,7 @@ export type { UsageResource } from './resources/usage/resource'
 // ---------- Nested resource shapes ----------
 export type { TriggersResource } from './resources/automations/triggers/resource'
 export type { AutomationRunsResource } from './resources/automations/runs/resource'
+export type { AudienceRunsResource } from './resources/automations/audience-runs/resource'
 export type { AnalyticsSendsResource } from './resources/analytics/sends/resource'
 export type { AnalyticsTriggerInstancesResource } from './resources/analytics/trigger-instances/resource'
 
@@ -127,6 +128,26 @@ export type {
   ListAutomationRunsResponse,
   AutomationRunsIncludeToken,
 } from './resources/automations/runs/list'
+export type {
+  RunAutomationInput,
+  RunAutomationResponse,
+  RunAutomationDryRunResponse,
+  RunAutomationStartedResponse,
+} from './resources/automations/run'
+export type {
+  AudienceRun,
+  AudienceRunControlAction,
+  AudienceRunControlResponse,
+  AudienceRunsListResponse,
+} from './resources/automations/audience-runs/types'
+export type {
+  ListAudienceRunsInput,
+  ListAudienceRunsResponse,
+} from './resources/automations/audience-runs/list'
+export type {
+  ControlAudienceRunInput,
+  ControlAudienceRunResponse,
+} from './resources/automations/audience-runs/control'
 
 // ---------- Analytics: domain types + method outputs ----------
 export type {
@@ -139,6 +160,10 @@ export type {
 } from './resources/analytics/types'
 export type { AutomationAnalyticsInput } from './resources/analytics/automations'
 export type { CampaignAnalyticsInput } from './resources/analytics/campaigns'
+export type {
+  AnalyticsOverviewInput,
+  AnalyticsOverviewResponse,
+} from './resources/analytics/overview'
 export type {
   EventsAnalyticsInput,
   EventsAnalyticsAllInput,
@@ -218,6 +243,10 @@ export type {
   DeleteDomainInput,
   DeleteDomainResponse,
 } from './resources/domains/delete'
+export type {
+  GetDomainHealthInput,
+  GetDomainHealthResponse,
+} from './resources/domains/health'
 export { GENERATE_EMAIL_DEFAULT_TIMEOUT_MS } from './resources/emails/generate'
 export type {
   GenerateEmailInput,

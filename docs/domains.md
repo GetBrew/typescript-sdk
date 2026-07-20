@@ -5,9 +5,10 @@ identity in the query (`?domainId`); writes are path-based. In list mode
 `list` returns the uniform `{ data, pagination }` envelope; in detail
 mode it returns a single-row page `{ data: [row] }` with no `pagination`.
 
-| Method          | HTTP              |
-| --------------- | ----------------- |
-| [`list`](#list) | `GET /v1/domains` |
+| Method              | HTTP                                |
+| ------------------- | ----------------------------------- |
+| [`list`](#list)     | `GET /v1/domains`                   |
+| [`health`](#health) | `GET /v1/domains/{domainId}/health` |
 
 > This file documents the single read path used to pick a `domainId`
 > for `brew.emails.send(...)`. The resource also exposes the lifecycle
@@ -98,4 +99,22 @@ Look one domain up by id — the result is a single-row page, so read
 const { data } = await brew.domains.list({ domainId: 'domain_123' })
 const domain = data[0]
 console.log(domain.status, domain.records)
+```
+
+---
+
+## `health`
+
+Returns one aggregate deliverability report: score and verdict, SPF/DKIM/DMARC,
+tracking posture, active gradual sends, recent volume, bounce and complaint
+signals, workspace reputation, recent inbox-placement tests, and prioritized
+remediation signals.
+
+```ts
+const health = await brew.domains.health({ domainId: 'domain_123' })
+
+console.log(health.score.value, health.verdict)
+for (const signal of health.signals) {
+  console.log(signal.severity, signal.summary, signal.suggestion)
+}
 ```
