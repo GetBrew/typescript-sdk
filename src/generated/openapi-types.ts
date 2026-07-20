@@ -1294,7 +1294,7 @@ export interface components {
              * @default marketing
              * @enum {string}
              */
-            messageClass: "marketing" | "transactional";
+            messageClass?: "marketing" | "transactional";
             emailId: string;
             emailVersionId?: string;
             /** @enum {string} */
@@ -1404,7 +1404,7 @@ export interface components {
                  * @default marketing
                  * @enum {string}
                  */
-                messageClass: "marketing" | "transactional";
+                messageClass?: "marketing" | "transactional";
                 fromName?: string;
                 /** Format: email */
                 replyTo?: string;
@@ -1899,7 +1899,7 @@ export interface components {
             firstName?: string;
             lastName?: string;
             /** @default true */
-            subscribed: boolean;
+            subscribed?: boolean;
             /** @enum {string} */
             validationStatus?: "valid" | "risky" | "invalid";
             /**
@@ -1908,7 +1908,7 @@ export interface components {
              */
             verificationStatus?: "valid" | "risky" | "invalid";
             /** @default false */
-            suppressed: boolean;
+            suppressed?: boolean;
             suppressedReason?: string | null;
             /** Format: date-time */
             lastValidatedAt?: string;
@@ -1927,7 +1927,7 @@ export interface components {
             updatedAt: string;
             importId?: string | null;
             /** @default {} */
-            customFields: {
+            customFields?: {
                 [key: string]: unknown;
             };
         };
@@ -2334,7 +2334,7 @@ export interface components {
                  * @default marketing
                  * @enum {string}
                  */
-                messageClass: "marketing" | "transactional";
+                messageClass?: "marketing" | "transactional";
                 emailId: string;
                 emailVersionId?: string;
                 /** @enum {string} */
@@ -2453,7 +2453,7 @@ export interface components {
              * @default marketing
              * @enum {string}
              */
-            messageClass: "marketing" | "transactional";
+            messageClass?: "marketing" | "transactional";
             consent?: {
                 /** @enum {string} */
                 source: "api" | "form" | "import";
@@ -2683,7 +2683,7 @@ export interface components {
                      * @default marketing
                      * @enum {string}
                      */
-                    messageClass: "marketing" | "transactional";
+                    messageClass?: "marketing" | "transactional";
                     fromName?: string;
                     /** Format: email */
                     replyTo?: string;
@@ -2958,7 +2958,7 @@ export interface components {
                 };
             })[];
             /** @default [] */
-            connections: {
+            connections?: {
                 from: string;
                 to: string;
                 /** @enum {string} */
@@ -3136,7 +3136,7 @@ export interface components {
                      * @default marketing
                      * @enum {string}
                      */
-                    messageClass: "marketing" | "transactional";
+                    messageClass?: "marketing" | "transactional";
                     fromName?: string;
                     /** Format: email */
                     replyTo?: string;
@@ -3775,7 +3775,7 @@ export interface components {
                 firstName?: string;
                 lastName?: string;
                 /** @default true */
-                subscribed: boolean;
+                subscribed?: boolean;
                 /** @enum {string} */
                 validationStatus?: "valid" | "risky" | "invalid";
                 /**
@@ -3784,7 +3784,7 @@ export interface components {
                  */
                 verificationStatus?: "valid" | "risky" | "invalid";
                 /** @default false */
-                suppressed: boolean;
+                suppressed?: boolean;
                 suppressedReason?: string | null;
                 /** Format: date-time */
                 lastValidatedAt?: string;
@@ -3803,7 +3803,7 @@ export interface components {
                 updatedAt: string;
                 importId?: string | null;
                 /** @default {} */
-                customFields: {
+                customFields?: {
                     [key: string]: unknown;
                 };
             };
@@ -3857,7 +3857,7 @@ export interface components {
                 firstName?: string;
                 lastName?: string;
                 /** @default true */
-                subscribed: boolean;
+                subscribed?: boolean;
                 /** @enum {string} */
                 validationStatus?: "valid" | "risky" | "invalid";
                 /**
@@ -3866,7 +3866,7 @@ export interface components {
                  */
                 verificationStatus?: "valid" | "risky" | "invalid";
                 /** @default false */
-                suppressed: boolean;
+                suppressed?: boolean;
                 suppressedReason?: string | null;
                 /** Format: date-time */
                 lastValidatedAt?: string;
@@ -3885,7 +3885,7 @@ export interface components {
                 updatedAt: string;
                 importId?: string | null;
                 /** @default {} */
-                customFields: {
+                customFields?: {
                     [key: string]: unknown;
                 };
             };
@@ -3909,7 +3909,7 @@ export interface components {
                 firstName?: string;
                 lastName?: string;
                 /** @default true */
-                subscribed: boolean;
+                subscribed?: boolean;
                 /** @enum {string} */
                 validationStatus?: "valid" | "risky" | "invalid";
                 /**
@@ -3918,7 +3918,7 @@ export interface components {
                  */
                 verificationStatus?: "valid" | "risky" | "invalid";
                 /** @default false */
-                suppressed: boolean;
+                suppressed?: boolean;
                 suppressedReason?: string | null;
                 /** Format: date-time */
                 lastValidatedAt?: string;
@@ -3937,7 +3937,7 @@ export interface components {
                 updatedAt: string;
                 importId?: string | null;
                 /** @default {} */
-                customFields: {
+                customFields?: {
                     [key: string]: unknown;
                 };
             }[];
@@ -3953,7 +3953,7 @@ export interface components {
         ContactsSearchRequest: {
             search?: string;
             /** @default [] */
-            filters: {
+            filters?: {
                 /** @description The contact column or custom-field name to filter on (e.g. `email`, `firstName`, or a key from `list_custom_fields`). */
                 field: string;
                 /** @description One of: equals, not_equals, contains, not_contains, contains_any, not_contains_any, starts_with, ends_with, gt, gte, lt, lte, between, is_true, is_false, in, not_in, is_empty, not_exists, is_not_empty, exists, is_set, before, after, on_date. Unrecognized operators are ignored (the clause is dropped), so stick to this list — e.g. use `equals`, not `eq`. */
@@ -3966,18 +3966,18 @@ export interface components {
              * @default and
              * @enum {string}
              */
-            logic: "and" | "or" | "none";
+            logic?: "and" | "or" | "none";
             /** @default createdAt */
-            sort: string;
+            sort?: string;
             /**
              * @default desc
              * @enum {string}
              */
-            order: "asc" | "desc";
+            order?: "asc" | "desc";
             /** @default false */
-            count: boolean;
+            count?: boolean;
             /** @default 50 */
-            limit: number;
+            limit?: number;
             cursor?: string;
         };
         ContactsValidateResponse: {
