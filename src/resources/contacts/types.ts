@@ -53,5 +53,6 @@ export type ContactCustomFields = Contact['customFields']
  * { field: 'customFields.plan', operator: 'equals', value: 'enterprise' }
  * ```
  */
-export type ContactsFilter =
-  components['schemas']['ContactsSearchRequest']['filters'][number]
+export type ContactsFilter = NonNullable<
+  components['schemas']['ContactsSearchRequest']['filters']
+>[number]

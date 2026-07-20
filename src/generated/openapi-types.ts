@@ -54,6 +54,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/emails/figma": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import a Figma frame
+         * @description Deterministically converts one selected Figma frame into a new editable Brew email design. No model runs and no credits are charged.
+         *
+         *     `figmaUrl` must be a Figma frame link containing `node-id`. The API-key brand must already have Figma connected in Brew Integrations, and that connected account must be able to read the file.
+         *
+         *     Set `format` to `jsx` (default) for React Email JSX or `html` for rendered email HTML. The requested representation is returned in `content`; the persisted design is identified by `emailId` and `emailVersionId`.
+         */
+        post: operations["importFigmaDesign"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/emails/{emailId}": {
         parameters: {
             query?: never;
@@ -80,6 +104,28 @@ export interface paths {
         patch: operations["editEmail"];
         trace?: never;
     };
+    "/v1/emails/{emailId}/clone": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Clone an email design
+         * @description Creates a NEW design by copying the persisted source snapshot exactly. This is a deterministic database fork: it does not invoke an AI agent, reinterpret markup, re-host assets, or regenerate the preview.
+         *
+         *     Omit `emailVersionId` to clone the current latest row, or pass a version id from `GET /v1/emails?emailId=<id>&include=versions` to clone that exact historical snapshot. The clone receives fresh design/version ids and a `Copy of …` title while JSX, rendered HTML, and the preview image remain identical.
+         */
+        post: operations["cloneEmail"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/emails/{emailId}/restore": {
         parameters: {
             query?: never;
@@ -94,6 +140,26 @@ export interface paths {
          * @description Non-destructive restore: clones the numbered version into a NEW `latest` row (demoting the current head) and returns the same generated-email shape as an edit, including the fresh `emailVersionId`.
          */
         post: operations["restoreEmailVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/emails/{emailId}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Export a design to an ESP
+         * @description Export a finished email DESIGN to a connected third-party ESP (Klaviyo, Mailchimp, HubSpot, Braze, Iterable, Postmark, OneSignal, SendGrid, Mailgun) as a reusable TEMPLATE. This is NOT a Brew send — it creates a template in the destination platform and does NOT deliver to recipients, and is unrelated to Brew sending domains or audiences. The `provider` must already be connected for the brand (connect ESPs in the Brew app). The exported HTML is automatically made ESP-portable. Pass `dry_run: true` to validate the design, brand ownership, and ESP connection without creating a template. Free (no credits).
+         */
+        post: operations["exportEmailDesign"];
         delete?: never;
         options?: never;
         head?: never;
@@ -138,6 +204,34 @@ export interface paths {
          *     FIXED cost: 10 credits, charged (`X-Credit-Cost: 10`) ONLY when at least one client renders. If ZERO clients finish in time (or the preview service is temporarily unavailable), the call returns a retryable `503` and is NOT billed.
          */
         post: operations["previewEmailAcrossClients"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/emails/{emailId}/inbox-placement-tests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get inbox placement results
+         * @description With `testId`: the current status + placement of ONE test — while `status` is `collecting`, this live-refreshes from the provider (re-poll every ~30s until `completed`) and returns per-provider inbox/spam/missing tallies with folder/tab `categories` and ACTUAL `folders` (e.g. Gmail Promotions, Yahoo bulk, gmx spamverdacht), each provider's OWN SPF/DKIM/DMARC verdicts (`byProvider[].authentication`), Microsoft's filter telemetry (`microsoftFilter` — SCL >= 5 lands in Junk), a spoofing check (`spoofingDetected`), header checks (`headers` — one-click unsubscribe, plain-text part), a `spamFilter` content verdict with the triggered rules, and a `diagnosis` array of per-provider findings with concrete remediation. WITHOUT `testId`: lists the design's recent tests (lean rows, persisted snapshots — poll a `testId` to refresh) for comparing subject/preview/version variants side by side. FREE.
+         */
+        get: operations["getInboxPlacementResults"];
+        put?: never;
+        /**
+         * Run an inbox placement test
+         * @description Test where the design’s latest version LANDS — inbox vs spam vs missing — across real mailbox providers (Gmail, Outlook, Yahoo, Apple, …). Brew provisions a Mailgun seed list and sends the email to the seed addresses through your REAL send pipeline on a VERIFIED sending `domainId`, so the result reflects that domain’s true deliverability plus SPF/DKIM/DMARC.
+         *
+         *     Returns immediately with a `testId` and `status: "collecting"`. Results accrue over a few minutes — poll `GET /v1/emails/{emailId}/inbox-placement-tests?testId=` until `status` is `completed`.
+         *
+         *     This performs a real (small) send to the seeds IN ADDITION to the FIXED 10-credit test fee (`X-Credit-Cost: 10`), charged only on a 2xx. Requires a verified sending domain.
+         */
+        post: operations["createInboxPlacementTest"];
         delete?: never;
         options?: never;
         head?: never;
@@ -202,9 +296,69 @@ export interface paths {
         put?: never;
         /**
          * Cancel a send
-         * @description Cancels a scheduled or queued send before it goes out. Idempotent — a send already `canceled` returns `200`. A send already `sending`, `sent`, or `failed` returns `409 SEND_NOT_CANCELLABLE`. Brand-scoped: an unknown / cross-brand `sendId` is `404`.
+         * @description Cancels a scheduled or queued send before it goes out, or STOPS any in-flight campaign send. A campaign in `sending` or `paused` is canceled the same way the in-app Stop button does it: the remaining recipients are never delivered while already-sent ones stay sent (every shape re-checks liveness at regular points mid-flight — smart per time bucket, gradual and plain blast at bounded chunk intervals — so a small tail may still deliver after the cancel lands). Idempotent — a send already `canceled` returns `200`. A send already `sent` or `failed`, or a non-campaign (automation) send, returns `409 SEND_NOT_CANCELLABLE`. Brand-scoped: an unknown / cross-brand `sendId` is `404`.
          */
         post: operations["cancelSend"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sends/{sendId}/pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pause a gradual send
+         * @description Manually pauses an in-flight GRADUAL (domain-warmup) send. The delivering workflow parks the current day’s remaining tranche at its next gate poll (≤120s) and holds until `POST /v1/sends/{sendId}/resume` (or a cancel). A send that is not a `sending` gradual send returns `409 SEND_NOT_PAUSABLE`. Brand-scoped: an unknown / cross-brand `sendId` is `404`.
+         */
+        post: operations["pauseSend"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sends/{sendId}/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resume a paused gradual send
+         * @description Resumes a manually paused GRADUAL send. The unsent tail is re-spread and later batches shift so missed intervals do not compress into a burst. A send that is not a `paused` gradual send returns `409 SEND_NOT_RESUMABLE`. Brand-scoped: an unknown / cross-brand `sendId` is `404`.
+         */
+        post: operations["resumeSend"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/analytics/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Brand overview (totals, rates, timeseries)
+         * @description Windowed brand overview — the EXACT read behind the app's /analytics metric cards + chart (same unique-recipient and machine-click rules), so API/MCP numbers can never disagree with the page. Defaults to the last 7 days. Optional filters, all of which COMPOSE freely: `source` (csv of send sources), `automationId`, `emailId`, `audienceId` (csv, ≤20), `triggerEventId` (csv, ≤10 — integration trigger-events, resolved to their wired automations), and `domain` (sending domain). A single filter is answered from pre-aggregated rollup rows; any combination (and anything with `domain`, which has no rollup dimension) is answered by aggregating raw events instead — exact, but capped, so watch `truncated` on wide windows. Returns `{ totals, rates, buckets, granularity, timeZone, range, truncated }` — `truncated: true` means the window exceeded the scan budget; narrow the range. Requires the `emails` scope.
+         */
+        get: operations["getAnalyticsOverview"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -260,7 +414,7 @@ export interface paths {
         };
         /**
          * Unified events feed
-         * @description Read-only window over the brand’s analytics events across domains (email, automation, trigger, inbound). Defaults to the last 7 days. Equality filters: `recipientEmail`, `eventType`, `automationId`, `sendId` (join back to `/v1/analytics/sends?sendId=`). Cursor pagination — pass `pagination.cursor` back as `?cursor=`; loop `while (cursor !== null)`. Requires the `emails` scope.
+         * @description Read-only window over the brand’s analytics events across domains (email, automation, trigger, inbound). Defaults to the last 7 days. Equality filters: `recipientEmail`, `eventType`, `automationId`, `sendId` (join back to `/v1/analytics/sends?sendId=`). Send-object facets — `source` (csv of send sources), `audienceId` (csv, ≤20), `emailId` (design), `domain` (sending domain), `triggerEventId` (csv, ≤10 — integration trigger-events resolved to their wired automations): when ANY facet is present the feed narrows to EMAIL events only and each row is enriched with `sendSource` + `sendContext` (plus `triggerProvider`/`triggerTitle` on integration/custom-triggered rows). Machine/bot-classified `clicked` rows are EXCLUDED by default (matching `/v1/analytics/overview`); pass `includeMachineClicks=true` to include the raw rows (audit/debug only). Cursor pagination — pass `pagination.cursor` back as `?cursor=`; loop `while (cursor !== null)`. Requires the `emails` scope.
          */
         get: operations["getEventsAnalytics"];
         put?: never;
@@ -289,6 +443,8 @@ export interface paths {
          * @description Deterministic create — the body carries the full graph (`{ name, triggerEventId?, nodes, connections }`). Returns `201` with the bare `AutomationRow`.
          *
          *     **Trigger binding (exactly one):** for an EVENT automation pass `triggerEventId` (then publish with `PATCH … { "published": true }`). For a MANUAL-AUDIENCE automation OMIT `triggerEventId` and give the trigger node `config: { "mode": "manualAudience", "audienceId": "aud_…" }` — it is launched on demand with `POST /v1/automations/{automationId}/run` rather than published.
+         *
+         *     **Typed conditions:** every filter and condition-mode split uses a non-empty `conditions` array. Each condition requires `field`, `type` (`string`, `number`, `date`, or `bool`), and a canonical snake_case `operator`. Unary operators omit `value`; comparisons require a type-correct scalar, non-empty array, or exact two-value `between` tuple as documented by `AutomationNode`.
          *
          *     Chain `POST /v1/emails { prompt }` first to mint the design each `sendEmail` node references — every `sendEmail` node MUST carry `emailId`, `emailVersionId`, `domainId`, `subject`, `previewText`.
          *
@@ -324,6 +480,8 @@ export interface paths {
          *
          *     - **Update** — supply one or more of `name`, `description`, `nodes`, `connections`, `triggerEventId`. Graph updates persist a new `automationVersionId` on the same `automationId`. Add `dryRun: true` to validate a graph update without persisting.
          *     - **Lifecycle** — supply `published: true` to promote the stored latest version live (validates the graph first → `409 PUBLISH_VALIDATION_FAILED` on blockers; optionally pin `automationVersionId` to publish a specific version), or `published: false` to unpublish.
+         *
+         *     Graph updates use the same strict typed filter/split condition contract as create: explicit `type`, canonical snake_case `operator`, no `value` for unary operators, and type-correct values everywhere else.
          *
          *     The two modes cannot be combined: publishing promotes the stored graph, so update first, then PATCH `{ "published": true }`. Returns the bare automation row.
          */
@@ -361,7 +519,7 @@ export interface paths {
         put?: never;
         /**
          * Run a manual-audience automation
-         * @description Launches a MANUAL-AUDIENCE automation against the audience bound to its trigger node — every contact in that audience flows through the graph (filters / splits / waits / sends) with batch sending at scale. `dry_run: true` previews the recipient count + flow without sending. `scheduledAt` (ISO-8601) launches later; omit to run now. Returns `202` with the `audienceRunId` — poll it via `GET /v1/automations/audience-runs`. `422` if the automation is not manual-audience; `402` if the run would exceed the monthly send limit.
+         * @description Launches a MANUAL-AUDIENCE automation against the audience bound to its trigger node. `dry_run: true` previews without sending; `scheduledAt` launches later. Percentage-based `gradualSend` delivers each send step in custom hour or calendar-day batches and supports manual pause/resume/cancel. `400` when the resolved plan exceeds 50,000 recipients, 30 batches, or 30 elapsed days. Returns `202` with the `audienceRunId`.
          */
         post: operations["runAutomation"];
         delete?: never;
@@ -419,7 +577,7 @@ export interface paths {
         };
         /**
          * Get automation runs
-         * @description Unified automation-run read. Omit `automationRunId` to LIST recent runs (newest first) under `{ data, pagination }`. Filters: `automationId`, `triggerEventId`, `triggerInstanceId`, `recipientEmail`, `status` (pending | running | completed | failed | cancelled), `mode` (live | test), and the `from`/`to` ISO-8601 window. Pass `?automationRunId=` to fetch ONE run — returns `{ data: [row] }` (no `pagination`), `404 AUTOMATION_RUN_NOT_FOUND` on an unknown / cross-brand id. List + detail rows are lean by default; add `?include=logs` (detail only) for the per-node execution `logs[]`.
+         * @description Unified automation-run read. Omit `automationRunId` to LIST recent runs (newest first) under `{ data, pagination }`. Filters: `automationId`, `triggerEventId`, `triggerInstanceId`, `recipientEmail`, `status` (pending | running | completed | failed | canceled), `mode` (live | test), and the `from`/`to` ISO-8601 window. Pass `?automationRunId=` to fetch ONE run — returns `{ data: [row] }` (no `pagination`), `404 AUTOMATION_RUN_NOT_FOUND` on an unknown / cross-brand id. List + detail rows are lean by default; add `?include=logs` (detail only) for the per-node execution `logs[]`.
          */
         get: operations["listAutomationRuns"];
         put?: never;
@@ -665,7 +823,7 @@ export interface paths {
         };
         /**
          * List contact fields
-         * @description Lists core contact columns and custom field definitions under `{ data, pagination }`. Use the field names in audience filters, contact search, and `{{var}}` template placeholders.
+         * @description Lists core contact columns and custom field definitions under `{ data, pagination }`. Use the field names in audience filters, contact search, and `{{ field | fallback }}` merge tags. Add `?include=coverage` to decorate each row with fill stats — the % of contacts holding a non-empty value plus the most common values (sampled; `approximate: true` on large populations) — and optionally `audienceId` to scope those stats to one saved audience. Check coverage before personalizing on a field so most recipients see a real value, not the fallback.
          */
         get: operations["listContactFields"];
         put?: never;
@@ -810,6 +968,26 @@ export interface paths {
          * @description Re-checks the DNS records with the provider and refreshes the row. Empty body. Safe to poll — keep calling until `sendable: true` (DNS propagation can take minutes to hours). Returns the bare refreshed row.
          */
         post: operations["verifyDomain"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/domains/{domainId}/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get domain health
+         * @description The domain's deliverability health in one FREE read: a `verdict` (`healthy` / `at_risk` / `critical`) with actionable `signals`, DNS/auth state incl. DMARC, active percentage-based gradual sends + recent UTC-day volume, general bounce/complaint reporting, workspace reputation, and inbox-placement history. No bounce or complaint threshold is attached to a gradual-send configuration.
+         */
+        get: operations["getDomainHealth"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1076,6 +1254,8 @@ export interface components {
             previewImage?: string;
             /** Format: date-time */
             updatedAt: string;
+            /** @description The design's inbox preview line, read directly from the latest version's JSX <Preview> (its single source of truth) — what a send delivers when no explicit `previewText` override is passed to POST /v1/sends. Detail-only; absent when the design has no <Preview>. */
+            previewText?: string;
             html?: string;
             versions?: {
                 version: number | "latest";
@@ -1088,6 +1268,8 @@ export interface components {
             title: string;
             /** @enum {string} */
             status: "streaming" | "complete" | "error";
+            /** @description The design's inbox preview line, read directly from the latest version's JSX <Preview> — what a send delivers when no explicit `previewText` override is passed to POST /v1/sends. */
+            previewText?: string;
             html?: string;
             /** Format: uri */
             previewImage?: string;
@@ -1106,10 +1288,15 @@ export interface components {
             sendId: string;
             /** @enum {string} */
             kind: "campaign" | "automation";
+            /**
+             * @default marketing
+             * @enum {string}
+             */
+            messageClass?: "marketing" | "transactional";
             emailId: string;
             emailVersionId?: string;
             /** @enum {string} */
-            status: "scheduled" | "queued" | "sending" | "sent" | "failed" | "canceled";
+            status: "scheduled" | "queued" | "sending" | "paused" | "sent" | "failed" | "canceled";
             subject?: string;
             previewText?: string;
             fromAddress?: string;
@@ -1138,13 +1325,50 @@ export interface components {
                 complained: number;
                 unsubscribed: number;
             };
+            delivery?: {
+                accepted: number;
+                pending: number;
+                delayed: number;
+                delivered: number;
+                bounced: number;
+                failed: number;
+                providerSuppressed: number;
+                preSendSkipped: number;
+                /** Format: date-time */
+                updatedAt: string;
+            };
+            gradualSend?: {
+                startingPercentage: number;
+                incrementPercentage: number;
+                interval: {
+                    value: number;
+                    /** @enum {string} */
+                    unit: "hour";
+                } | {
+                    value: number;
+                    /** @enum {string} */
+                    unit: "day";
+                };
+                /** @description IANA timezone used to preserve local wall-clock time for day intervals. */
+                timeZone: string;
+                /** Format: date-time */
+                rampEndsAt?: string;
+                currentTranche?: number;
+                sentSoFar?: number;
+                /** Format: date-time */
+                pausedAt?: string;
+                /** @enum {string} */
+                pauseReason?: "manual";
+                /** Format: date-time */
+                resumedAt?: string;
+            };
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
             events?: {
                 /** @enum {string} */
-                eventType: "sent" | "delivered" | "delivery_delayed" | "opened" | "clicked" | "bounced" | "complained" | "failed" | "suppressed" | "received" | "unsubscribed";
+                eventType: "sent" | "delivered" | "delivery_delayed" | "opened" | "clicked" | "bounced" | "complained" | "failed" | "provider_suppressed" | "suppressed" | "quota_skipped" | "received" | "unsubscribed";
                 /** Format: date-time */
                 occurredAt: string;
                 recipientEmail?: string;
@@ -1153,7 +1377,7 @@ export interface components {
         };
         SendEvent: {
             /** @enum {string} */
-            eventType: "sent" | "delivered" | "delivery_delayed" | "opened" | "clicked" | "bounced" | "complained" | "failed" | "suppressed" | "received" | "unsubscribed";
+            eventType: "sent" | "delivered" | "delivery_delayed" | "opened" | "clicked" | "bounced" | "complained" | "failed" | "provider_suppressed" | "suppressed" | "quota_skipped" | "received" | "unsubscribed";
             /** Format: date-time */
             occurredAt: string;
             recipientEmail?: string;
@@ -1186,6 +1410,11 @@ export interface components {
                 domainId: string;
                 subject: string;
                 previewText: string;
+                /**
+                 * @default marketing
+                 * @enum {string}
+                 */
+                messageClass?: "marketing" | "transactional";
                 fromName?: string;
                 /** Format: email */
                 replyTo?: string;
@@ -1214,13 +1443,116 @@ export interface components {
                 actionType?: string;
                 /** @enum {string} */
                 logicalOperator: "AND" | "OR";
-                conditions: {
+                conditions: ({
+                    /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
                     field: string;
-                    operator: string;
-                    value?: string | number | boolean | (string | number)[];
                     /** @enum {string} */
-                    type?: "string" | "number" | "date" | "bool";
-                }[];
+                    type: "string";
+                    /** @enum {string} */
+                    operator: "equals" | "not_equals" | "contains" | "not_contains" | "starts_with" | "ends_with";
+                    /** @description String value to compare against. */
+                    value: string;
+                } | {
+                    /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                    field: string;
+                    /** @enum {string} */
+                    type: "number";
+                    /** @enum {string} */
+                    operator: "equals" | "not_equals" | "gt" | "gte" | "lt" | "lte";
+                    /** @description Finite numeric value to compare against. */
+                    value: number;
+                } | {
+                    /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                    field: string;
+                    /** @enum {string} */
+                    type: "date";
+                    /** @enum {string} */
+                    operator: "equals" | "not_equals" | "gt" | "gte" | "lt" | "lte";
+                    /** @description ISO date string or Unix timestamp in milliseconds to compare against. */
+                    value: string | number;
+                } | {
+                    /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                    field: string;
+                    /** @enum {string} */
+                    type: "string";
+                    /** @enum {string} */
+                    operator: "in" | "not_in" | "contains_any" | "not_contains_any";
+                    /** @description Non-empty array of string values to compare against. */
+                    value: string[];
+                } | {
+                    /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                    field: string;
+                    /** @enum {string} */
+                    type: "number";
+                    /** @enum {string} */
+                    operator: "in" | "not_in";
+                    /** @description Non-empty array of finite numbers to compare against. */
+                    value: number[];
+                } | {
+                    /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                    field: string;
+                    /** @enum {string} */
+                    type: "number";
+                    /** @enum {string} */
+                    operator: "between";
+                    /** @description Inclusive [minimum, maximum] numeric bounds. */
+                    value: [
+                        number,
+                        number
+                    ];
+                } | {
+                    /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                    field: string;
+                    /** @enum {string} */
+                    type: "date";
+                    /** @enum {string} */
+                    operator: "between";
+                    /** @description Inclusive [start, end] ISO-date or Unix-millisecond timestamp bounds. */
+                    value: [
+                        string | number,
+                        string | number
+                    ];
+                } | {
+                    /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                    field: string;
+                    /** @enum {string} */
+                    type: "string";
+                    /**
+                     * @description Unary empty check; do not provide a value.
+                     * @enum {string}
+                     */
+                    operator: "is_empty" | "is_not_empty";
+                } | {
+                    /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                    field: string;
+                    /** @enum {string} */
+                    type: "number";
+                    /**
+                     * @description Unary empty check; do not provide a value.
+                     * @enum {string}
+                     */
+                    operator: "is_empty" | "is_not_empty";
+                } | {
+                    /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                    field: string;
+                    /** @enum {string} */
+                    type: "date";
+                    /**
+                     * @description Unary empty check; do not provide a value.
+                     * @enum {string}
+                     */
+                    operator: "is_empty" | "is_not_empty";
+                } | {
+                    /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                    field: string;
+                    /** @enum {string} */
+                    type: "bool";
+                    /**
+                     * @description Unary boolean check; do not provide a value.
+                     * @enum {string}
+                     */
+                    operator: "is_true" | "is_false";
+                })[];
             };
         } | {
             id: string;
@@ -1244,13 +1576,116 @@ export interface components {
                 rightLabel: string;
                 /** @enum {string} */
                 logicalOperator: "AND" | "OR";
-                conditions: {
+                conditions: ({
+                    /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
                     field: string;
-                    operator: string;
-                    value?: string | number | boolean | (string | number)[];
                     /** @enum {string} */
-                    type?: "string" | "number" | "date" | "bool";
-                }[];
+                    type: "string";
+                    /** @enum {string} */
+                    operator: "equals" | "not_equals" | "contains" | "not_contains" | "starts_with" | "ends_with";
+                    /** @description String value to compare against. */
+                    value: string;
+                } | {
+                    /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                    field: string;
+                    /** @enum {string} */
+                    type: "number";
+                    /** @enum {string} */
+                    operator: "equals" | "not_equals" | "gt" | "gte" | "lt" | "lte";
+                    /** @description Finite numeric value to compare against. */
+                    value: number;
+                } | {
+                    /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                    field: string;
+                    /** @enum {string} */
+                    type: "date";
+                    /** @enum {string} */
+                    operator: "equals" | "not_equals" | "gt" | "gte" | "lt" | "lte";
+                    /** @description ISO date string or Unix timestamp in milliseconds to compare against. */
+                    value: string | number;
+                } | {
+                    /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                    field: string;
+                    /** @enum {string} */
+                    type: "string";
+                    /** @enum {string} */
+                    operator: "in" | "not_in" | "contains_any" | "not_contains_any";
+                    /** @description Non-empty array of string values to compare against. */
+                    value: string[];
+                } | {
+                    /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                    field: string;
+                    /** @enum {string} */
+                    type: "number";
+                    /** @enum {string} */
+                    operator: "in" | "not_in";
+                    /** @description Non-empty array of finite numbers to compare against. */
+                    value: number[];
+                } | {
+                    /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                    field: string;
+                    /** @enum {string} */
+                    type: "number";
+                    /** @enum {string} */
+                    operator: "between";
+                    /** @description Inclusive [minimum, maximum] numeric bounds. */
+                    value: [
+                        number,
+                        number
+                    ];
+                } | {
+                    /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                    field: string;
+                    /** @enum {string} */
+                    type: "date";
+                    /** @enum {string} */
+                    operator: "between";
+                    /** @description Inclusive [start, end] ISO-date or Unix-millisecond timestamp bounds. */
+                    value: [
+                        string | number,
+                        string | number
+                    ];
+                } | {
+                    /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                    field: string;
+                    /** @enum {string} */
+                    type: "string";
+                    /**
+                     * @description Unary empty check; do not provide a value.
+                     * @enum {string}
+                     */
+                    operator: "is_empty" | "is_not_empty";
+                } | {
+                    /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                    field: string;
+                    /** @enum {string} */
+                    type: "number";
+                    /**
+                     * @description Unary empty check; do not provide a value.
+                     * @enum {string}
+                     */
+                    operator: "is_empty" | "is_not_empty";
+                } | {
+                    /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                    field: string;
+                    /** @enum {string} */
+                    type: "date";
+                    /**
+                     * @description Unary empty check; do not provide a value.
+                     * @enum {string}
+                     */
+                    operator: "is_empty" | "is_not_empty";
+                } | {
+                    /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                    field: string;
+                    /** @enum {string} */
+                    type: "bool";
+                    /**
+                     * @description Unary boolean check; do not provide a value.
+                     * @enum {string}
+                     */
+                    operator: "is_true" | "is_false";
+                })[];
             };
         };
         AutomationConnection: {
@@ -1267,6 +1702,8 @@ export interface components {
             description?: string;
             version: number | "latest";
             published: boolean;
+            paused?: boolean;
+            pausedAt?: number;
             nodes?: ({
                 id: string;
                 label: string;
@@ -1294,6 +1731,8 @@ export interface components {
                     emailTitle?: string;
                     subject?: string;
                     previewText?: string;
+                    /** @enum {string} */
+                    messageClass?: "marketing" | "transactional";
                     fromName?: string;
                     fromAddress?: string;
                     domainId?: string;
@@ -1392,7 +1831,7 @@ export interface components {
             /** @enum {string} */
             mode: "live" | "test";
             /** @enum {string} */
-            status: "pending" | "running" | "completed" | "failed" | "cancelled";
+            status: "pending" | "running" | "completed" | "failed" | "canceled";
             recipientEmail?: string;
             /** Format: date-time */
             startedAt?: string;
@@ -1470,7 +1909,7 @@ export interface components {
             firstName?: string;
             lastName?: string;
             /** @default true */
-            subscribed: boolean;
+            subscribed?: boolean;
             /** @enum {string} */
             validationStatus?: "valid" | "risky" | "invalid";
             /**
@@ -1479,7 +1918,7 @@ export interface components {
              */
             verificationStatus?: "valid" | "risky" | "invalid";
             /** @default false */
-            suppressed: boolean;
+            suppressed?: boolean;
             suppressedReason?: string | null;
             /** Format: date-time */
             lastValidatedAt?: string;
@@ -1498,7 +1937,7 @@ export interface components {
             updatedAt: string;
             importId?: string | null;
             /** @default {} */
-            customFields: {
+            customFields?: {
                 [key: string]: unknown;
             };
         };
@@ -1511,6 +1950,16 @@ export interface components {
             isFilterable?: boolean;
             isSortable?: boolean;
             isSearchable?: boolean;
+            coverage?: {
+                percent: number;
+                approximate: boolean;
+                topValues: {
+                    value: string;
+                    count: number;
+                    percent: number;
+                }[];
+                dominantValue?: string;
+            };
         };
         Audience: {
             audienceId: string;
@@ -1521,6 +1970,7 @@ export interface components {
                     /** @enum {string} */
                     operator: "equals" | "not_equals" | "contains" | "not_contains" | "contains_any" | "not_contains_any" | "starts_with" | "ends_with" | "gt" | "gte" | "lt" | "lte" | "between" | "is_true" | "is_false" | "in" | "not_in" | "is_empty" | "not_exists" | "is_not_empty" | "exists" | "is_set" | "before" | "after" | "on_date";
                     value?: unknown;
+                    /** @description The field's value type — set `number`, `date`, or `boolean` for typed comparisons (dates are stored as epoch-ms, so a string `equals` on a date never matches). Omit for plain string fields. */
                     type?: string;
                 }[];
                 /** @enum {string} */
@@ -1581,6 +2031,8 @@ export interface components {
                 previewImage?: string;
                 /** Format: date-time */
                 updatedAt: string;
+                /** @description The design's inbox preview line, read directly from the latest version's JSX <Preview> (its single source of truth) — what a send delivers when no explicit `previewText` override is passed to POST /v1/sends. Detail-only; absent when the design has no <Preview>. */
+                previewText?: string;
                 html?: string;
                 versions?: {
                     version: number | "latest";
@@ -1620,8 +2072,11 @@ export interface components {
             previewImage?: string;
         };
         EmailGenerateRequest: {
+            /** @description What the email is about — campaign goal, key content, offer, tone. The more specific (product names, dates, discount, audience), the better the design. */
             prompt: string;
+            /** @description Up to 8 source URLs to build the email FROM — each is crawled and synthesized into one email (newsletters, recaps, product roundups). */
             contentUrls?: string[];
+            /** @description An existing design (`emailId` from `list_email_designs`) to use as the style/layout reference for the new email. */
             referenceEmailId?: string;
             /**
              * @description Marketing email category that steers the design treatment (exemplars, hero recipe, personalization) — mirrors what the in-app agent infers per request. One of: welcome, newsletter, promotional, product-launch, product-update, cart-abandonment, event-invitation, event-reminder, feedback-request, re-engagement, referral, business, internal, general. Omit for a general treatment. Transactional emails (receipts, password resets, order confirmations) are sent via automations with a trigger, not this endpoint.
@@ -1637,6 +2092,33 @@ export interface components {
             /** Format: uri */
             baseUrl?: string;
         };
+        FigmaToEmailResponse: {
+            emailId: string;
+            emailVersionId: string;
+            title: string;
+            /** @enum {string} */
+            format: "jsx" | "html";
+            content: string;
+            warningCount: number;
+            exportedNodeCount: number;
+            /** Format: uri */
+            previewImage?: string;
+        };
+        FigmaToEmailRequest: {
+            /**
+             * Format: uri
+             * @description A figma.com design, file, or prototype URL for a specific frame. The URL must include a node-id query parameter.
+             */
+            figmaUrl: string;
+            /** @description Optional design title; defaults to the Figma frame name. */
+            title?: string;
+            /**
+             * @description Source representation returned in `content`: React Email JSX by default, or rendered email-safe HTML.
+             * @default jsx
+             * @enum {string}
+             */
+            format?: "jsx" | "html";
+        };
         EmailGenerateResponse: {
             emailId: string;
             emailVersionId: string;
@@ -1647,16 +2129,43 @@ export interface components {
             response: string;
         };
         EmailEditRequest: {
+            /** @description The edit to make, in plain language — e.g. "swap the hero for the spring campaign image and tighten the CTA copy". Scoped edits beat full rewrites. */
             prompt: string;
+            /** @description Pin the edit to a specific source version (from `list_email_designs` `include: ["versions"]`). Omit to edit the current latest. */
             emailVersionId?: string;
+            /** @description Up to 8 URLs whose content grounds the edit (e.g. the product page the new section should describe). */
             contentUrls?: string[];
         };
         EmailsDeleteResponse: {
             emailId: string;
             deleted: boolean;
         };
+        EmailCloneRequest: {
+            /** @description Exact source version to clone (from `list_email_designs` with `include: ["versions"]`). Omit to clone the current latest version. */
+            emailVersionId?: string;
+        };
         EmailRestoreRequest: {
             version: number;
+        };
+        EmailExportResponse: {
+            emailId: string;
+            /** @enum {string} */
+            provider: "braze" | "hubspot" | "klaviyo" | "mailchimp" | "iterable" | "postmark" | "onesignal" | "mailgun" | "sendgrid";
+            providerName: string;
+            templateName: string;
+            templateId?: string;
+            dryRun: boolean;
+        };
+        EmailExportRequest: {
+            /**
+             * @description The connected ESP to export the design to as a template.
+             * @enum {string}
+             */
+            provider: "braze" | "hubspot" | "klaviyo" | "mailchimp" | "iterable" | "postmark" | "onesignal" | "mailgun" | "sendgrid";
+            /** @description Template name in the ESP. Defaults to the email title. */
+            templateName?: string;
+            /** @description Validate the design, brand ownership, and ESP connection without creating a template. */
+            dry_run?: boolean;
         };
         EmailAccessibilityAuditResponse: {
             score: number;
@@ -1695,15 +2204,166 @@ export interface components {
             /** @description Client ids to render. Omit for a default popular spread of Gmail, Outlook, Apple Mail & iOS. Supported: gmailcom-lm_chrcurrent_win10 = Gmail (Web); gmailcom-dm_chrcurrent_win10 = Gmail (Web, Dark); android16_gmailapp_pixel10_lm = Gmail (Android); android16_gmailapp_pixel10_dm = Gmail (Android, Dark); iphone16gmail_18 = Gmail (iOS); outlook2021_win11_lm_dt = Outlook 2021 (Windows); outlook2021_win11_dm_dt = Outlook 2021 (Windows, Dark); o365_w10_lm_dt = Outlook 365 (Windows); outlookcom-lm_chrcurrent_win10 = Outlook.com (Web); applemail16 = Apple Mail (macOS); applemail16_dm = Apple Mail (macOS, Dark); iphone16_18 = Apple Mail (iOS); iphone16_18_dm = Apple Mail (iOS, Dark); yahoocom-lm_chrcurrent_win10 = Yahoo Mail (Web). */
             clients?: string[];
         };
+        EmailInboxPlacementTest: {
+            testId: string;
+            emailId: string;
+            /** @enum {string} */
+            status: "pending" | "sending" | "collecting" | "completed" | "partial" | "failed";
+            domainId: string;
+            subject?: string;
+            previewText?: string;
+            emailVersionId?: string;
+            seedCount: number;
+            results: {
+                overall: {
+                    provider: string;
+                    total: number;
+                    inbox: number;
+                    spam: number;
+                    missing: number;
+                    pending: number;
+                    categories?: {
+                        [key: string]: number;
+                    };
+                    folders?: {
+                        [key: string]: number;
+                    };
+                    authentication?: {
+                        /** @enum {string} */
+                        spf?: "pass" | "fail" | "mixed";
+                        /** @enum {string} */
+                        dkim?: "pass" | "fail" | "mixed";
+                        /** @enum {string} */
+                        dmarc?: "pass" | "fail" | "mixed";
+                    };
+                };
+                byProvider: {
+                    provider: string;
+                    total: number;
+                    inbox: number;
+                    spam: number;
+                    missing: number;
+                    pending: number;
+                    categories?: {
+                        [key: string]: number;
+                    };
+                    folders?: {
+                        [key: string]: number;
+                    };
+                    authentication?: {
+                        /** @enum {string} */
+                        spf?: "pass" | "fail" | "mixed";
+                        /** @enum {string} */
+                        dkim?: "pass" | "fail" | "mixed";
+                        /** @enum {string} */
+                        dmarc?: "pass" | "fail" | "mixed";
+                    };
+                }[];
+                authentication: {
+                    spf?: string;
+                    dkim?: string;
+                    dmarc?: string;
+                };
+                spamFilter?: {
+                    flagged: boolean;
+                    score: number;
+                    threshold: number;
+                    rules: {
+                        name: string;
+                        score: number;
+                        description?: string;
+                    }[];
+                };
+                microsoftFilter?: {
+                    spamConfidenceLevel: number;
+                    bulkComplaintLevel: number;
+                    sampleCount: number;
+                    junked: boolean;
+                };
+                spoofingDetected?: boolean;
+                headers?: {
+                    listUnsubscribe: boolean;
+                    oneClickUnsubscribe: boolean;
+                    plainTextPart: boolean;
+                    feedbackId: boolean;
+                };
+            } | null;
+            diagnosis?: {
+                /** @enum {string} */
+                id: "spoofing_detected" | "aggregate_auth_failure" | "provider_auth_failure" | "microsoft_junk_filtering" | "provider_spam_placement" | "promotions_tab_placement" | "bulk_folder_placement" | "content_filter_flagged" | "content_rule" | "missing_list_unsubscribe" | "missing_plain_text_part";
+                /** @enum {string} */
+                severity: "critical" | "warning" | "info";
+                provider?: string;
+                summary: string;
+                remediation: string;
+            }[];
+            errorMessage?: string;
+            createdAt: string;
+            updatedAt: string;
+        };
+        EmailInboxPlacementRequest: {
+            /** @description Verified sending domain id to test FROM (the seed send goes out on this domain, so the result reflects its real reputation). */
+            domainId: string;
+            /** @description Subject line for the seed send; defaults to the email title. A VARIANT dimension — run several tests on one design varying only the subject to compare placement. */
+            subject?: string;
+            /** @description Preview/preheader text for the seed send — overrides the design's JSX <Preview> for this test. A VARIANT dimension, like `subject`: run several tests varying only the preheader to compare placement. */
+            previewText?: string;
+            /** @description Pin a specific design version to test (from `list_email_designs` with `include: ["versions"]`); omit for the latest. A VARIANT dimension — test two versions of one design against each other. */
+            emailVersionId?: string;
+            /** @description Restrict seed mailbox providers (e.g. ["gmail.com","outlook.com","yahoo.com"]); omit for a broad default spread. */
+            providers?: string[];
+        };
+        EmailInboxPlacementGetResponse: components["schemas"]["EmailInboxPlacementTest"] | components["schemas"]["EmailInboxPlacementTestList"];
+        EmailInboxPlacementTestList: {
+            data: {
+                testId: string;
+                /** @enum {string} */
+                status: "pending" | "sending" | "collecting" | "completed" | "partial" | "failed";
+                domainId: string;
+                subject: string;
+                previewText?: string;
+                emailVersionId?: string;
+                seedCount: number;
+                overall: {
+                    provider: string;
+                    total: number;
+                    inbox: number;
+                    spam: number;
+                    missing: number;
+                    pending: number;
+                    categories?: {
+                        [key: string]: number;
+                    };
+                    folders?: {
+                        [key: string]: number;
+                    };
+                    authentication?: {
+                        /** @enum {string} */
+                        spf?: "pass" | "fail" | "mixed";
+                        /** @enum {string} */
+                        dkim?: "pass" | "fail" | "mixed";
+                        /** @enum {string} */
+                        dmarc?: "pass" | "fail" | "mixed";
+                    };
+                } | null;
+                createdAt: string;
+                updatedAt: string;
+            }[];
+        };
         SendsListResponse: {
             data: {
                 sendId: string;
                 /** @enum {string} */
                 kind: "campaign" | "automation";
+                /**
+                 * @default marketing
+                 * @enum {string}
+                 */
+                messageClass?: "marketing" | "transactional";
                 emailId: string;
                 emailVersionId?: string;
                 /** @enum {string} */
-                status: "scheduled" | "queued" | "sending" | "sent" | "failed" | "canceled";
+                status: "scheduled" | "queued" | "sending" | "paused" | "sent" | "failed" | "canceled";
                 subject?: string;
                 previewText?: string;
                 fromAddress?: string;
@@ -1732,13 +2392,50 @@ export interface components {
                     complained: number;
                     unsubscribed: number;
                 };
+                delivery?: {
+                    accepted: number;
+                    pending: number;
+                    delayed: number;
+                    delivered: number;
+                    bounced: number;
+                    failed: number;
+                    providerSuppressed: number;
+                    preSendSkipped: number;
+                    /** Format: date-time */
+                    updatedAt: string;
+                };
+                gradualSend?: {
+                    startingPercentage: number;
+                    incrementPercentage: number;
+                    interval: {
+                        value: number;
+                        /** @enum {string} */
+                        unit: "hour";
+                    } | {
+                        value: number;
+                        /** @enum {string} */
+                        unit: "day";
+                    };
+                    /** @description IANA timezone used to preserve local wall-clock time for day intervals. */
+                    timeZone: string;
+                    /** Format: date-time */
+                    rampEndsAt?: string;
+                    currentTranche?: number;
+                    sentSoFar?: number;
+                    /** Format: date-time */
+                    pausedAt?: string;
+                    /** @enum {string} */
+                    pauseReason?: "manual";
+                    /** Format: date-time */
+                    resumedAt?: string;
+                };
                 /** Format: date-time */
                 createdAt: string;
                 /** Format: date-time */
                 updatedAt: string;
                 events?: {
                     /** @enum {string} */
-                    eventType: "sent" | "delivered" | "delivery_delayed" | "opened" | "clicked" | "bounced" | "complained" | "failed" | "suppressed" | "received" | "unsubscribed";
+                    eventType: "sent" | "delivered" | "delivery_delayed" | "opened" | "clicked" | "bounced" | "complained" | "failed" | "provider_suppressed" | "suppressed" | "quota_skipped" | "received" | "unsubscribed";
                     /** Format: date-time */
                     occurredAt: string;
                     recipientEmail?: string;
@@ -1771,6 +2468,7 @@ export interface components {
             emailId: string;
             emailVersionId?: string;
             subject: string;
+            /** @description Inbox preheader for this test send — overrides the design's JSX <Preview>. Omit to deliver the design's own preview line. */
             previewText?: string;
             /** Format: email */
             to: string;
@@ -1782,21 +2480,121 @@ export interface components {
             emailId: string;
             emailVersionId?: string;
             subject: string;
+            /** @description Inbox preheader for THIS send — overrides the design's JSX <Preview>. Omit to deliver the design's own preview line (returned as `previewText` on `GET /v1/emails?emailId=`). */
             previewText?: string;
             /** @description Reply-to address. Accepts a bare email (`a@b.com`) or the display-name form (`Name <a@b.com>`). */
             replyTo?: string;
             senderName?: string;
             fromEmail?: string;
+            /**
+             * @default marketing
+             * @enum {string}
+             */
+            messageClass?: "marketing" | "transactional";
+            consent?: {
+                /** @enum {string} */
+                source: "api" | "form" | "import";
+                /** Format: date-time */
+                capturedAt: string;
+                policyVersion: string;
+            };
             domainId: string;
             audienceId?: string;
             to?: string | string[];
             /** Format: date-time */
             scheduledAt?: string;
+            gradualSend?: {
+                startingPercentage: number;
+                incrementPercentage: number;
+                interval: {
+                    value: number;
+                    /** @enum {string} */
+                    unit: "hour";
+                } | {
+                    value: number;
+                    /** @enum {string} */
+                    unit: "day";
+                };
+                /** @description IANA timezone used to preserve local wall-clock time for day intervals. */
+                timeZone: string;
+            };
         };
         SendCancelResponse: {
             sendId: string;
             /** @enum {string} */
             status: "canceled";
+        };
+        SendPauseResponse: {
+            sendId: string;
+            /** @enum {string} */
+            status: "paused";
+        };
+        SendResumeResponse: {
+            sendId: string;
+            /** @enum {string} */
+            status: "sending";
+        };
+        AnalyticsOverviewResponse: {
+            totals: {
+                /** @default 0 */
+                accepted?: number;
+                sent: number;
+                delivered: number;
+                opened: number;
+                openedTotal: number;
+                clicked: number;
+                clickedTotal: number;
+                bounced: number;
+                complained: number;
+                unsubscribed: number;
+                failed: number;
+                /** @default 0 */
+                providerSuppressed?: number;
+                suppressed: number;
+                /** @default 0 */
+                quotaSkipped?: number;
+                /** @default 0 */
+                preSendSkipped?: number;
+                /** @default 0 */
+                pending?: number;
+                deliveryDelayed: number;
+            };
+            rates: {
+                deliveryRate: number;
+                openRate: number;
+                clickRate: number;
+                bounceRate: number;
+                complaintRate: number;
+                unsubscribeRate: number;
+            };
+            buckets: {
+                /** Format: date-time */
+                at: string;
+                sent: number;
+                delivered: number;
+                deliveryDelayed: number;
+                opened: number;
+                clicked: number;
+                bounced: number;
+                complained: number;
+                failed: number;
+                /** @default 0 */
+                providerSuppressed?: number;
+                suppressed: number;
+                /** @default 0 */
+                quotaSkipped?: number;
+                unsubscribed: number;
+            }[];
+            /** @enum {string} */
+            granularity: "5m" | "1h" | "1d";
+            timeZone: string;
+            range: {
+                /** Format: date-time */
+                from: string;
+                /** Format: date-time */
+                to: string;
+            };
+            truncated: boolean;
         };
         CampaignAnalyticsResponse: {
             data: {
@@ -1804,11 +2602,13 @@ export interface components {
                 emailId: string;
                 title: string;
                 /** @enum {string} */
-                status: "scheduled" | "queued" | "sending" | "sent" | "failed" | "canceled";
+                status: "scheduled" | "queued" | "sending" | "paused" | "sent" | "failed" | "canceled";
                 audienceName?: string;
                 /** Format: date-time */
                 sentAt?: string;
                 stats: {
+                    /** @default 0 */
+                    accepted?: number;
                     sent: number;
                     delivered: number;
                     opened: number;
@@ -1883,6 +2683,11 @@ export interface components {
                 /** @enum {string} */
                 mode?: "live" | "test";
                 summary?: string;
+                /** @enum {string} */
+                sendSource?: "audience" | "api" | "automation_manual" | "automation_integration" | "automation_custom";
+                sendContext?: string;
+                triggerProvider?: string;
+                triggerTitle?: string;
             }[];
             pagination: {
                 limit: number;
@@ -1927,6 +2732,11 @@ export interface components {
                     domainId: string;
                     subject: string;
                     previewText: string;
+                    /**
+                     * @default marketing
+                     * @enum {string}
+                     */
+                    messageClass?: "marketing" | "transactional";
                     fromName?: string;
                     /** Format: email */
                     replyTo?: string;
@@ -1955,13 +2765,116 @@ export interface components {
                     actionType?: string;
                     /** @enum {string} */
                     logicalOperator: "AND" | "OR";
-                    conditions: {
+                    conditions: ({
+                        /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
                         field: string;
-                        operator: string;
-                        value?: string | number | boolean | (string | number)[];
                         /** @enum {string} */
-                        type?: "string" | "number" | "date" | "bool";
-                    }[];
+                        type: "string";
+                        /** @enum {string} */
+                        operator: "equals" | "not_equals" | "contains" | "not_contains" | "starts_with" | "ends_with";
+                        /** @description String value to compare against. */
+                        value: string;
+                    } | {
+                        /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                        field: string;
+                        /** @enum {string} */
+                        type: "number";
+                        /** @enum {string} */
+                        operator: "equals" | "not_equals" | "gt" | "gte" | "lt" | "lte";
+                        /** @description Finite numeric value to compare against. */
+                        value: number;
+                    } | {
+                        /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                        field: string;
+                        /** @enum {string} */
+                        type: "date";
+                        /** @enum {string} */
+                        operator: "equals" | "not_equals" | "gt" | "gte" | "lt" | "lte";
+                        /** @description ISO date string or Unix timestamp in milliseconds to compare against. */
+                        value: string | number;
+                    } | {
+                        /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                        field: string;
+                        /** @enum {string} */
+                        type: "string";
+                        /** @enum {string} */
+                        operator: "in" | "not_in" | "contains_any" | "not_contains_any";
+                        /** @description Non-empty array of string values to compare against. */
+                        value: string[];
+                    } | {
+                        /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                        field: string;
+                        /** @enum {string} */
+                        type: "number";
+                        /** @enum {string} */
+                        operator: "in" | "not_in";
+                        /** @description Non-empty array of finite numbers to compare against. */
+                        value: number[];
+                    } | {
+                        /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                        field: string;
+                        /** @enum {string} */
+                        type: "number";
+                        /** @enum {string} */
+                        operator: "between";
+                        /** @description Inclusive [minimum, maximum] numeric bounds. */
+                        value: [
+                            number,
+                            number
+                        ];
+                    } | {
+                        /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                        field: string;
+                        /** @enum {string} */
+                        type: "date";
+                        /** @enum {string} */
+                        operator: "between";
+                        /** @description Inclusive [start, end] ISO-date or Unix-millisecond timestamp bounds. */
+                        value: [
+                            string | number,
+                            string | number
+                        ];
+                    } | {
+                        /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                        field: string;
+                        /** @enum {string} */
+                        type: "string";
+                        /**
+                         * @description Unary empty check; do not provide a value.
+                         * @enum {string}
+                         */
+                        operator: "is_empty" | "is_not_empty";
+                    } | {
+                        /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                        field: string;
+                        /** @enum {string} */
+                        type: "number";
+                        /**
+                         * @description Unary empty check; do not provide a value.
+                         * @enum {string}
+                         */
+                        operator: "is_empty" | "is_not_empty";
+                    } | {
+                        /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                        field: string;
+                        /** @enum {string} */
+                        type: "date";
+                        /**
+                         * @description Unary empty check; do not provide a value.
+                         * @enum {string}
+                         */
+                        operator: "is_empty" | "is_not_empty";
+                    } | {
+                        /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                        field: string;
+                        /** @enum {string} */
+                        type: "bool";
+                        /**
+                         * @description Unary boolean check; do not provide a value.
+                         * @enum {string}
+                         */
+                        operator: "is_true" | "is_false";
+                    })[];
                 };
             } | {
                 id: string;
@@ -1985,17 +2898,120 @@ export interface components {
                     rightLabel: string;
                     /** @enum {string} */
                     logicalOperator: "AND" | "OR";
-                    conditions: {
+                    conditions: ({
+                        /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
                         field: string;
-                        operator: string;
-                        value?: string | number | boolean | (string | number)[];
                         /** @enum {string} */
-                        type?: "string" | "number" | "date" | "bool";
-                    }[];
+                        type: "string";
+                        /** @enum {string} */
+                        operator: "equals" | "not_equals" | "contains" | "not_contains" | "starts_with" | "ends_with";
+                        /** @description String value to compare against. */
+                        value: string;
+                    } | {
+                        /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                        field: string;
+                        /** @enum {string} */
+                        type: "number";
+                        /** @enum {string} */
+                        operator: "equals" | "not_equals" | "gt" | "gte" | "lt" | "lte";
+                        /** @description Finite numeric value to compare against. */
+                        value: number;
+                    } | {
+                        /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                        field: string;
+                        /** @enum {string} */
+                        type: "date";
+                        /** @enum {string} */
+                        operator: "equals" | "not_equals" | "gt" | "gte" | "lt" | "lte";
+                        /** @description ISO date string or Unix timestamp in milliseconds to compare against. */
+                        value: string | number;
+                    } | {
+                        /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                        field: string;
+                        /** @enum {string} */
+                        type: "string";
+                        /** @enum {string} */
+                        operator: "in" | "not_in" | "contains_any" | "not_contains_any";
+                        /** @description Non-empty array of string values to compare against. */
+                        value: string[];
+                    } | {
+                        /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                        field: string;
+                        /** @enum {string} */
+                        type: "number";
+                        /** @enum {string} */
+                        operator: "in" | "not_in";
+                        /** @description Non-empty array of finite numbers to compare against. */
+                        value: number[];
+                    } | {
+                        /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                        field: string;
+                        /** @enum {string} */
+                        type: "number";
+                        /** @enum {string} */
+                        operator: "between";
+                        /** @description Inclusive [minimum, maximum] numeric bounds. */
+                        value: [
+                            number,
+                            number
+                        ];
+                    } | {
+                        /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                        field: string;
+                        /** @enum {string} */
+                        type: "date";
+                        /** @enum {string} */
+                        operator: "between";
+                        /** @description Inclusive [start, end] ISO-date or Unix-millisecond timestamp bounds. */
+                        value: [
+                            string | number,
+                            string | number
+                        ];
+                    } | {
+                        /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                        field: string;
+                        /** @enum {string} */
+                        type: "string";
+                        /**
+                         * @description Unary empty check; do not provide a value.
+                         * @enum {string}
+                         */
+                        operator: "is_empty" | "is_not_empty";
+                    } | {
+                        /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                        field: string;
+                        /** @enum {string} */
+                        type: "number";
+                        /**
+                         * @description Unary empty check; do not provide a value.
+                         * @enum {string}
+                         */
+                        operator: "is_empty" | "is_not_empty";
+                    } | {
+                        /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                        field: string;
+                        /** @enum {string} */
+                        type: "date";
+                        /**
+                         * @description Unary empty check; do not provide a value.
+                         * @enum {string}
+                         */
+                        operator: "is_empty" | "is_not_empty";
+                    } | {
+                        /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                        field: string;
+                        /** @enum {string} */
+                        type: "bool";
+                        /**
+                         * @description Unary boolean check; do not provide a value.
+                         * @enum {string}
+                         */
+                        operator: "is_true" | "is_false";
+                    })[];
                 };
             })[];
             /** @default [] */
-            connections: {
+            connections?: {
                 from: string;
                 to: string;
                 /** @enum {string} */
@@ -2012,6 +3028,8 @@ export interface components {
                 description?: string;
                 version: number | "latest";
                 published: boolean;
+                paused?: boolean;
+                pausedAt?: number;
                 nodes?: ({
                     id: string;
                     label: string;
@@ -2039,6 +3057,8 @@ export interface components {
                         emailTitle?: string;
                         subject?: string;
                         previewText?: string;
+                        /** @enum {string} */
+                        messageClass?: "marketing" | "transactional";
                         fromName?: string;
                         fromAddress?: string;
                         domainId?: string;
@@ -2165,6 +3185,11 @@ export interface components {
                     domainId: string;
                     subject: string;
                     previewText: string;
+                    /**
+                     * @default marketing
+                     * @enum {string}
+                     */
+                    messageClass?: "marketing" | "transactional";
                     fromName?: string;
                     /** Format: email */
                     replyTo?: string;
@@ -2193,13 +3218,116 @@ export interface components {
                     actionType?: string;
                     /** @enum {string} */
                     logicalOperator: "AND" | "OR";
-                    conditions: {
+                    conditions: ({
+                        /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
                         field: string;
-                        operator: string;
-                        value?: string | number | boolean | (string | number)[];
                         /** @enum {string} */
-                        type?: "string" | "number" | "date" | "bool";
-                    }[];
+                        type: "string";
+                        /** @enum {string} */
+                        operator: "equals" | "not_equals" | "contains" | "not_contains" | "starts_with" | "ends_with";
+                        /** @description String value to compare against. */
+                        value: string;
+                    } | {
+                        /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                        field: string;
+                        /** @enum {string} */
+                        type: "number";
+                        /** @enum {string} */
+                        operator: "equals" | "not_equals" | "gt" | "gte" | "lt" | "lte";
+                        /** @description Finite numeric value to compare against. */
+                        value: number;
+                    } | {
+                        /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                        field: string;
+                        /** @enum {string} */
+                        type: "date";
+                        /** @enum {string} */
+                        operator: "equals" | "not_equals" | "gt" | "gte" | "lt" | "lte";
+                        /** @description ISO date string or Unix timestamp in milliseconds to compare against. */
+                        value: string | number;
+                    } | {
+                        /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                        field: string;
+                        /** @enum {string} */
+                        type: "string";
+                        /** @enum {string} */
+                        operator: "in" | "not_in" | "contains_any" | "not_contains_any";
+                        /** @description Non-empty array of string values to compare against. */
+                        value: string[];
+                    } | {
+                        /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                        field: string;
+                        /** @enum {string} */
+                        type: "number";
+                        /** @enum {string} */
+                        operator: "in" | "not_in";
+                        /** @description Non-empty array of finite numbers to compare against. */
+                        value: number[];
+                    } | {
+                        /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                        field: string;
+                        /** @enum {string} */
+                        type: "number";
+                        /** @enum {string} */
+                        operator: "between";
+                        /** @description Inclusive [minimum, maximum] numeric bounds. */
+                        value: [
+                            number,
+                            number
+                        ];
+                    } | {
+                        /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                        field: string;
+                        /** @enum {string} */
+                        type: "date";
+                        /** @enum {string} */
+                        operator: "between";
+                        /** @description Inclusive [start, end] ISO-date or Unix-millisecond timestamp bounds. */
+                        value: [
+                            string | number,
+                            string | number
+                        ];
+                    } | {
+                        /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                        field: string;
+                        /** @enum {string} */
+                        type: "string";
+                        /**
+                         * @description Unary empty check; do not provide a value.
+                         * @enum {string}
+                         */
+                        operator: "is_empty" | "is_not_empty";
+                    } | {
+                        /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                        field: string;
+                        /** @enum {string} */
+                        type: "number";
+                        /**
+                         * @description Unary empty check; do not provide a value.
+                         * @enum {string}
+                         */
+                        operator: "is_empty" | "is_not_empty";
+                    } | {
+                        /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                        field: string;
+                        /** @enum {string} */
+                        type: "date";
+                        /**
+                         * @description Unary empty check; do not provide a value.
+                         * @enum {string}
+                         */
+                        operator: "is_empty" | "is_not_empty";
+                    } | {
+                        /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                        field: string;
+                        /** @enum {string} */
+                        type: "bool";
+                        /**
+                         * @description Unary boolean check; do not provide a value.
+                         * @enum {string}
+                         */
+                        operator: "is_true" | "is_false";
+                    })[];
                 };
             } | {
                 id: string;
@@ -2223,13 +3351,116 @@ export interface components {
                     rightLabel: string;
                     /** @enum {string} */
                     logicalOperator: "AND" | "OR";
-                    conditions: {
+                    conditions: ({
+                        /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
                         field: string;
-                        operator: string;
-                        value?: string | number | boolean | (string | number)[];
                         /** @enum {string} */
-                        type?: "string" | "number" | "date" | "bool";
-                    }[];
+                        type: "string";
+                        /** @enum {string} */
+                        operator: "equals" | "not_equals" | "contains" | "not_contains" | "starts_with" | "ends_with";
+                        /** @description String value to compare against. */
+                        value: string;
+                    } | {
+                        /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                        field: string;
+                        /** @enum {string} */
+                        type: "number";
+                        /** @enum {string} */
+                        operator: "equals" | "not_equals" | "gt" | "gte" | "lt" | "lte";
+                        /** @description Finite numeric value to compare against. */
+                        value: number;
+                    } | {
+                        /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                        field: string;
+                        /** @enum {string} */
+                        type: "date";
+                        /** @enum {string} */
+                        operator: "equals" | "not_equals" | "gt" | "gte" | "lt" | "lte";
+                        /** @description ISO date string or Unix timestamp in milliseconds to compare against. */
+                        value: string | number;
+                    } | {
+                        /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                        field: string;
+                        /** @enum {string} */
+                        type: "string";
+                        /** @enum {string} */
+                        operator: "in" | "not_in" | "contains_any" | "not_contains_any";
+                        /** @description Non-empty array of string values to compare against. */
+                        value: string[];
+                    } | {
+                        /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                        field: string;
+                        /** @enum {string} */
+                        type: "number";
+                        /** @enum {string} */
+                        operator: "in" | "not_in";
+                        /** @description Non-empty array of finite numbers to compare against. */
+                        value: number[];
+                    } | {
+                        /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                        field: string;
+                        /** @enum {string} */
+                        type: "number";
+                        /** @enum {string} */
+                        operator: "between";
+                        /** @description Inclusive [minimum, maximum] numeric bounds. */
+                        value: [
+                            number,
+                            number
+                        ];
+                    } | {
+                        /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                        field: string;
+                        /** @enum {string} */
+                        type: "date";
+                        /** @enum {string} */
+                        operator: "between";
+                        /** @description Inclusive [start, end] ISO-date or Unix-millisecond timestamp bounds. */
+                        value: [
+                            string | number,
+                            string | number
+                        ];
+                    } | {
+                        /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                        field: string;
+                        /** @enum {string} */
+                        type: "string";
+                        /**
+                         * @description Unary empty check; do not provide a value.
+                         * @enum {string}
+                         */
+                        operator: "is_empty" | "is_not_empty";
+                    } | {
+                        /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                        field: string;
+                        /** @enum {string} */
+                        type: "number";
+                        /**
+                         * @description Unary empty check; do not provide a value.
+                         * @enum {string}
+                         */
+                        operator: "is_empty" | "is_not_empty";
+                    } | {
+                        /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                        field: string;
+                        /** @enum {string} */
+                        type: "date";
+                        /**
+                         * @description Unary empty check; do not provide a value.
+                         * @enum {string}
+                         */
+                        operator: "is_empty" | "is_not_empty";
+                    } | {
+                        /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
+                        field: string;
+                        /** @enum {string} */
+                        type: "bool";
+                        /**
+                         * @description Unary boolean check; do not provide a value.
+                         * @enum {string}
+                         */
+                        operator: "is_true" | "is_false";
+                    })[];
                 };
             })[];
             connections?: {
@@ -2242,6 +3473,8 @@ export interface components {
             dryRun?: boolean;
             published?: boolean;
             automationVersionId?: string;
+            stop_in_flight?: boolean;
+            paused?: boolean;
         };
         AutomationsDeleteResponse: {
             automationId: string;
@@ -2277,10 +3510,34 @@ export interface components {
             sendNodeCount: number;
             scheduledAt?: string;
         };
+        AudienceAutomationRunStartedResponse: {
+            audienceRunId: string;
+            automationId: string;
+            /** @enum {string} */
+            status: "queued" | "scheduled";
+            totalRecipients: number;
+            workflowRunId?: string;
+            receivedAt: string;
+        };
         AutomationRunRequest: {
             dry_run?: boolean;
             /** Format: date-time */
             scheduledAt?: string;
+            gradualSend?: {
+                startingPercentage: number;
+                incrementPercentage: number;
+                interval: {
+                    value: number;
+                    /** @enum {string} */
+                    unit: "hour";
+                } | {
+                    value: number;
+                    /** @enum {string} */
+                    unit: "day";
+                };
+                /** @description IANA timezone used to preserve local wall-clock time for day intervals. */
+                timeZone: string;
+            };
         };
         AudienceRunsListResponse: {
             data: {
@@ -2306,6 +3563,31 @@ export interface components {
                     failed?: number;
                     skipped?: number;
                 }[];
+                gradualSend?: {
+                    startingPercentage: number;
+                    incrementPercentage: number;
+                    interval: {
+                        value: number;
+                        /** @enum {string} */
+                        unit: "hour";
+                    } | {
+                        value: number;
+                        /** @enum {string} */
+                        unit: "day";
+                    };
+                    /** @description IANA timezone used to preserve local wall-clock time for day intervals. */
+                    timeZone: string;
+                    /** Format: date-time */
+                    rampEndsAt?: string;
+                    currentTranche?: number;
+                    sentSoFar?: number;
+                    /** Format: date-time */
+                    pausedAt?: string;
+                    /** @enum {string} */
+                    pauseReason?: "manual";
+                    /** Format: date-time */
+                    resumedAt?: string;
+                };
                 error?: string;
                 startedAt?: string;
                 completedAt?: string;
@@ -2331,7 +3613,7 @@ export interface components {
                 /** @enum {string} */
                 mode: "live" | "test";
                 /** @enum {string} */
-                status: "pending" | "running" | "completed" | "failed" | "cancelled";
+                status: "pending" | "running" | "completed" | "failed" | "canceled";
                 recipientEmail?: string;
                 /** Format: date-time */
                 startedAt?: string;
@@ -2555,7 +3837,7 @@ export interface components {
                 firstName?: string;
                 lastName?: string;
                 /** @default true */
-                subscribed: boolean;
+                subscribed?: boolean;
                 /** @enum {string} */
                 validationStatus?: "valid" | "risky" | "invalid";
                 /**
@@ -2564,7 +3846,7 @@ export interface components {
                  */
                 verificationStatus?: "valid" | "risky" | "invalid";
                 /** @default false */
-                suppressed: boolean;
+                suppressed?: boolean;
                 suppressedReason?: string | null;
                 /** Format: date-time */
                 lastValidatedAt?: string;
@@ -2583,7 +3865,7 @@ export interface components {
                 updatedAt: string;
                 importId?: string | null;
                 /** @default {} */
-                customFields: {
+                customFields?: {
                     [key: string]: unknown;
                 };
             };
@@ -2637,7 +3919,7 @@ export interface components {
                 firstName?: string;
                 lastName?: string;
                 /** @default true */
-                subscribed: boolean;
+                subscribed?: boolean;
                 /** @enum {string} */
                 validationStatus?: "valid" | "risky" | "invalid";
                 /**
@@ -2646,7 +3928,7 @@ export interface components {
                  */
                 verificationStatus?: "valid" | "risky" | "invalid";
                 /** @default false */
-                suppressed: boolean;
+                suppressed?: boolean;
                 suppressedReason?: string | null;
                 /** Format: date-time */
                 lastValidatedAt?: string;
@@ -2665,7 +3947,7 @@ export interface components {
                 updatedAt: string;
                 importId?: string | null;
                 /** @default {} */
-                customFields: {
+                customFields?: {
                     [key: string]: unknown;
                 };
             };
@@ -2689,7 +3971,7 @@ export interface components {
                 firstName?: string;
                 lastName?: string;
                 /** @default true */
-                subscribed: boolean;
+                subscribed?: boolean;
                 /** @enum {string} */
                 validationStatus?: "valid" | "risky" | "invalid";
                 /**
@@ -2698,7 +3980,7 @@ export interface components {
                  */
                 verificationStatus?: "valid" | "risky" | "invalid";
                 /** @default false */
-                suppressed: boolean;
+                suppressed?: boolean;
                 suppressedReason?: string | null;
                 /** Format: date-time */
                 lastValidatedAt?: string;
@@ -2717,7 +3999,7 @@ export interface components {
                 updatedAt: string;
                 importId?: string | null;
                 /** @default {} */
-                customFields: {
+                customFields?: {
                     [key: string]: unknown;
                 };
             }[];
@@ -2733,9 +4015,12 @@ export interface components {
         ContactsSearchRequest: {
             search?: string;
             /** @default [] */
-            filters: {
+            filters?: {
+                /** @description The contact column or custom-field name to filter on (e.g. `email`, `firstName`, or a key from `list_custom_fields`). */
                 field: string;
+                /** @description One of: equals, not_equals, contains, not_contains, contains_any, not_contains_any, starts_with, ends_with, gt, gte, lt, lte, between, is_true, is_false, in, not_in, is_empty, not_exists, is_not_empty, exists, is_set, before, after, on_date. Unrecognized operators are ignored (the clause is dropped), so stick to this list — e.g. use `equals`, not `eq`. */
                 operator: string;
+                /** @description The comparison value, as a string. Unary operators (`is_set`, `is_empty`, `exists`, …) ignore it — pass "". */
                 value: string;
             }[];
             audienceId?: string;
@@ -2743,18 +4028,18 @@ export interface components {
              * @default and
              * @enum {string}
              */
-            logic: "and" | "or" | "none";
+            logic?: "and" | "or" | "none";
             /** @default createdAt */
-            sort: string;
+            sort?: string;
             /**
              * @default desc
              * @enum {string}
              */
-            order: "asc" | "desc";
+            order?: "asc" | "desc";
             /** @default false */
-            count: boolean;
+            count?: boolean;
             /** @default 50 */
-            limit: number;
+            limit?: number;
             cursor?: string;
         };
         ContactsValidateResponse: {
@@ -2828,6 +4113,16 @@ export interface components {
                 isFilterable?: boolean;
                 isSortable?: boolean;
                 isSearchable?: boolean;
+                coverage?: {
+                    percent: number;
+                    approximate: boolean;
+                    topValues: {
+                        value: string;
+                        count: number;
+                        percent: number;
+                    }[];
+                    dominantValue?: string;
+                };
             }[];
             pagination: {
                 limit: number;
@@ -2854,6 +4149,7 @@ export interface components {
                         /** @enum {string} */
                         operator: "equals" | "not_equals" | "contains" | "not_contains" | "contains_any" | "not_contains_any" | "starts_with" | "ends_with" | "gt" | "gte" | "lt" | "lte" | "between" | "is_true" | "is_false" | "in" | "not_in" | "is_empty" | "not_exists" | "is_not_empty" | "exists" | "is_set" | "before" | "after" | "on_date";
                         value?: unknown;
+                        /** @description The field's value type — set `number`, `date`, or `boolean` for typed comparisons (dates are stored as epoch-ms, so a string `equals` on a date never matches). Omit for plain string fields. */
                         type?: string;
                     }[];
                     /** @enum {string} */
@@ -2879,6 +4175,7 @@ export interface components {
                     /** @enum {string} */
                     operator: "equals" | "not_equals" | "contains" | "not_contains" | "contains_any" | "not_contains_any" | "starts_with" | "ends_with" | "gt" | "gte" | "lt" | "lte" | "between" | "is_true" | "is_false" | "in" | "not_in" | "is_empty" | "not_exists" | "is_not_empty" | "exists" | "is_set" | "before" | "after" | "on_date";
                     value?: unknown;
+                    /** @description The field's value type — set `number`, `date`, or `boolean` for typed comparisons (dates are stored as epoch-ms, so a string `equals` on a date never matches). Omit for plain string fields. */
                     type?: string;
                 }[];
                 /** @enum {string} */
@@ -2893,6 +4190,7 @@ export interface components {
                     /** @enum {string} */
                     operator: "equals" | "not_equals" | "contains" | "not_contains" | "contains_any" | "not_contains_any" | "starts_with" | "ends_with" | "gt" | "gte" | "lt" | "lte" | "between" | "is_true" | "is_false" | "in" | "not_in" | "is_empty" | "not_exists" | "is_not_empty" | "exists" | "is_set" | "before" | "after" | "on_date";
                     value?: unknown;
+                    /** @description The field's value type — set `number`, `date`, or `boolean` for typed comparisons (dates are stored as epoch-ms, so a string `equals` on a date never matches). Omit for plain string fields. */
                     type?: string;
                 }[];
                 /** @enum {string} */
@@ -2954,6 +4252,133 @@ export interface components {
         DomainsDeleteResponse: {
             domainId: string;
             deleted: boolean;
+        };
+        DomainHealth: {
+            domainId: string;
+            name: string;
+            /** @enum {string} */
+            status: "not_started" | "pending" | "verified" | "failed" | "temporary_failure" | "partially_verified" | "partially_failed";
+            sendable: boolean;
+            /** @enum {string} */
+            verdict: "healthy" | "at_risk" | "critical";
+            score: {
+                value: number;
+                /** @enum {string} */
+                grade: "excellent" | "good" | "fair" | "poor" | "critical";
+                /** @enum {string} */
+                confidence: "high" | "medium" | "low";
+                components: {
+                    placement: {
+                        score: number;
+                        weight: number;
+                        basis: string;
+                    };
+                    authentication: {
+                        score: number;
+                        weight: number;
+                        basis: string;
+                    };
+                    reputation: {
+                        score: number;
+                        weight: number;
+                        basis: string;
+                    };
+                    content: {
+                        score: number;
+                        weight: number;
+                        basis: string;
+                    };
+                    posture: {
+                        score: number;
+                        weight: number;
+                        basis: string;
+                    };
+                };
+                trend: {
+                    /** @enum {string} */
+                    direction: "up" | "down" | "flat";
+                    previousScore: number;
+                    /** Format: date-time */
+                    previousComputedAt: string;
+                } | null;
+            };
+            authentication: {
+                /** @enum {string} */
+                spf: "verified" | "pending" | "failed" | "missing";
+                /** @enum {string} */
+                dkim: "verified" | "pending" | "failed" | "missing";
+                /** @enum {string} */
+                dmarc: "verified" | "pending" | "missing";
+            };
+            tracking: {
+                /** @enum {string} */
+                linksStatus?: "live" | "no_cert" | "unreachable" | "unknown";
+                openTracking?: boolean;
+                clickTracking?: boolean;
+            };
+            warmup: {
+                sendId: string;
+                currentTranche?: number;
+                sentSoFar?: number;
+                pausedAt?: string;
+                pauseReason?: string;
+                rampEndsAt?: string;
+            }[];
+            dailyVolume: {
+                day: string;
+                sent: number;
+            }[];
+            domainActivity: {
+                /** @enum {boolean} */
+                sampled: true;
+                sampleSendCount: number;
+                sentCount: number;
+                bouncedCount: number;
+                complainedCount: number;
+                bounceRate: number;
+                complaintRate: number;
+            } | null;
+            orgReputation: {
+                /** @enum {string} */
+                scope: "org";
+                totalSent: number;
+                bounceRate: number;
+                complaintRate: number;
+            } | null;
+            recentPlacementTests: {
+                testId: string;
+                emailId: string;
+                status: string;
+                overall: {
+                    total: number;
+                    inbox: number;
+                    spam: number;
+                    missing: number;
+                    pending: number;
+                } | null;
+                authentication: {
+                    spf?: string;
+                    dkim?: string;
+                    dmarc?: string;
+                } | null;
+                spamFilterFlagged: boolean;
+                /** Format: date-time */
+                createdAt: string;
+            }[];
+            signals: {
+                /** @enum {string} */
+                id: "domain_not_verified" | "dns_record_failed" | "dmarc_missing" | "sending_disabled" | "tracking_links_broken" | "high_bounce_rate" | "high_complaint_rate" | "placement_spam_heavy" | "content_spam_filter_flagged" | "auth_failing_in_tests" | "warmup_paused";
+                /** @enum {string} */
+                severity: "critical" | "warning" | "info";
+                summary: string;
+                suggestion: string;
+                action?: {
+                    tool: string;
+                    note?: string;
+                };
+            }[];
+            /** Format: date-time */
+            checkedAt: string;
         };
         TemplatesListResponse: {
             data: {
@@ -3062,7 +4487,13 @@ export interface components {
                 /** @enum {string} */
                 format: "1:1" | "4:5" | "9:16" | "16:9";
                 /** @enum {string} */
-                archetype: "product-ui-card" | "mascot" | "flat-illustration" | "abstract-brand" | "type-led" | "photo-ui-overlay" | "conceptual-3d";
+                archetype: "product-ui-card" | "mascot" | "flat-illustration" | "abstract-brand" | "type-led" | "photo-ui-overlay" | "conceptual-3d" | "gradient-field" | "editorial-photo" | "collage" | "isometric-blueprint" | "data-viz";
+                /** @enum {string} */
+                layout?: "split-right" | "split-left" | "stacked-center" | "visual-first" | "type-poster" | "immersive-field" | "layered-collage" | "badge-offer" | "diagonal-stage" | "editorial-grid";
+                eyebrow?: string;
+                /** Format: uri */
+                subjectImageUrl?: string;
+                emailCanvasColor?: string;
                 palette: {
                     background: string;
                     accent: string;
@@ -3168,11 +4599,13 @@ export interface components {
                 limit: number | null;
                 used: number;
                 remaining: number | null;
+                reserved?: number;
             };
             emailSends: {
                 limit: number | null;
                 used: number;
                 remaining: number | null;
+                reserved?: number;
             };
             period: {
                 /** Format: date-time */
@@ -3978,6 +5411,253 @@ export interface operations {
             };
         };
     };
+    importFigmaDesign: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description Optional idempotency key for safe retries. Reusing the same key with the same request body returns the original response for 24 hours.
+                 * @example api-request-2026-04-08-001
+                 */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FigmaToEmailRequest"];
+            };
+        };
+        responses: {
+            /** @description The converted design was persisted and the requested source representation is returned in `content`. */
+            201: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "emailId": "eml_figma_launch",
+                     *       "emailVersionId": "emv_figma_launch_v1",
+                     *       "title": "Launch email",
+                     *       "format": "jsx",
+                     *       "content": "<Html><Body><Container><Heading>Launch day</Heading></Container></Body></Html>",
+                     *       "warningCount": 0,
+                     *       "exportedNodeCount": 2,
+                     *       "previewImage": "https://cdn.brew.new/p/eml_figma_launch.png"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["FigmaToEmailResponse"];
+                };
+            };
+            /** @description The JSON body is invalid, or the URL is not a Figma frame link containing `node-id`. */
+            400: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "FIGMA_URL_INVALID",
+                     *         "type": "invalid_request",
+                     *         "message": "The Figma link is missing a frame reference.",
+                     *         "suggestion": "In Figma, select the email frame and copy its link. The URL must include a node-id.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "figmaUrl"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The API key was missing, invalid, or revoked. */
+            401: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INVALID_API_KEY",
+                     *         "type": "authentication_error",
+                     *         "message": "The provided API key is invalid.",
+                     *         "suggestion": "Check the API key format and retry with a valid active key.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The API key lacks the emails scope, or the connected Figma account cannot read the file. */
+            403: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The Figma file or selected frame no longer exists. */
+            404: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "FIGMA_FRAME_NOT_FOUND",
+                     *         "type": "not_found",
+                     *         "message": "Figma could not find that design or selected frame.",
+                     *         "suggestion": "Confirm the file and frame still exist, then copy a fresh frame link from Figma.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "figmaUrl",
+                     *         "details": {
+                     *           "emailId": "eml_figma_launch"
+                     *         }
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The same `Idempotency-Key` was reused with a different request body. */
+            409: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "IDEMPOTENCY_CONFLICT",
+                     *         "type": "conflict",
+                     *         "message": "The same idempotency key was reused with a different request payload.",
+                     *         "suggestion": "Reuse the original payload or send a new idempotency key.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/idempotency"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Figma is not connected for the API-key brand, or the selected frame could not be converted. */
+            422: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The request hit the rolling rate limit window. */
+            429: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    /** @description Seconds to wait before retrying the request. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "RATE_LIMITED",
+                     *         "type": "rate_limit",
+                     *         "message": "Too many requests.",
+                     *         "suggestion": "Wait for the retry window before sending another request.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
+                     *         "retryAfter": 42
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected internal error. */
+            500: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INTERNAL_ERROR",
+                     *         "type": "internal_error",
+                     *         "message": "An unexpected error occurred.",
+                     *         "suggestion": "Retry the request. If it keeps failing, contact support.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Figma is temporarily unavailable. */
+            503: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Seconds to wait before retrying the request. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "FIGMA_UNAVAILABLE",
+                     *         "type": "service_unavailable",
+                     *         "message": "Figma is temporarily unavailable. Please try again.",
+                     *         "suggestion": "Retry after a short delay.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "figmaUrl",
+                     *         "retryAfter": 2,
+                     *         "details": {
+                     *           "emailId": "eml_figma_launch"
+                     *         }
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
     deleteEmail: {
         parameters: {
             query?: never;
@@ -4378,6 +6058,234 @@ export interface operations {
             };
         };
     };
+    cloneEmail: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description Optional idempotency key for safe retries. Reusing the same key with the same request body returns the original response for 24 hours.
+                 * @example api-request-2026-04-08-001
+                 */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                /** @description Design id returned by `POST /v1/emails` and listed by `GET /v1/emails`. */
+                emailId: string;
+            };
+            cookie?: never;
+        };
+        /** @description Optional exact source-version pin. Omit the body or send an empty object to clone latest. */
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["EmailCloneRequest"];
+            };
+        };
+        responses: {
+            /** @description Exact clone created. The response carries the clone’s new ids plus the unchanged rendered HTML and preview. */
+            201: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "emailId": "eml_2SmZOWV3ZQ7W5x6g3m4p",
+                     *       "emailVersionId": "emv_2SmZOWV3ZQ7W5x6g3m4p_v1",
+                     *       "html": "<!DOCTYPE html><html><body>Welcome to Brew.</body></html>",
+                     *       "previewImage": "https://storage.example.com/emails/eml_2SmZOWV3ZQ7W5x6g3m4p.png"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["EmailGenerateGeneratedResponse"];
+                };
+            };
+            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
+            400: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INVALID_REQUEST",
+                     *         "type": "invalid_request",
+                     *         "message": "Request validation failed.",
+                     *         "suggestion": "Fix the field reported in `param` and retry.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "emailVersionId"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The API key was missing, invalid, or revoked. */
+            401: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INVALID_API_KEY",
+                     *         "type": "authentication_error",
+                     *         "message": "The provided API key is invalid.",
+                     *         "suggestion": "Check the API key format and retry with a valid active key.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The caller does not have the required `emails` permission. */
+            403: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INSUFFICIENT_PERMISSIONS",
+                     *         "type": "authorization_error",
+                     *         "message": "The caller does not have the required permission.",
+                     *         "suggestion": "Use an API key or session with the required permission.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
+                     *         "param": "emails"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The source design or requested source version does not exist in the API-key brand. */
+            404: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "EMAIL_NOT_FOUND",
+                     *         "type": "not_found",
+                     *         "message": "No email exists with id 'eml_x'.",
+                     *         "suggestion": "List designs with GET /v1/emails.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "emailId"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The source is still generating, or the idempotency key was reused with a different payload. */
+            409: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The source design failed to generate. */
+            422: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "EMAIL_NOT_READY",
+                     *         "type": "invalid_request",
+                     *         "message": "Email 'eml_x' failed to generate and cannot be cloned.",
+                     *         "suggestion": "Regenerate the source email, then clone the completed design.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "emailId"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The request hit the rolling rate limit window. */
+            429: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    /** @description Seconds to wait before retrying the request. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "RATE_LIMITED",
+                     *         "type": "rate_limit",
+                     *         "message": "Too many requests.",
+                     *         "suggestion": "Wait for the retry window before sending another request.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
+                     *         "retryAfter": 42
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected internal error. */
+            500: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INTERNAL_ERROR",
+                     *         "type": "internal_error",
+                     *         "message": "An unexpected error occurred.",
+                     *         "suggestion": "Retry the request. If it keeps failing, contact support.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
     restoreEmailVersion: {
         parameters: {
             query?: never;
@@ -4589,6 +6497,277 @@ export interface operations {
                      *         "type": "internal_error",
                      *         "message": "An unexpected error occurred.",
                      *         "suggestion": "Retry the request. If it keeps failing, contact support.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    exportEmailDesign: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description Optional idempotency key for safe retries. Reusing the same key with the same request body returns the original response for 24 hours.
+                 * @example api-request-2026-04-08-001
+                 */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                /** @description Design id returned by `POST /v1/emails` and listed by `GET /v1/emails`. */
+                emailId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "provider": "klaviyo",
+                 *       "templateName": "Welcome — Brew export"
+                 *     }
+                 */
+                "application/json": components["schemas"]["EmailExportRequest"];
+            };
+        };
+        responses: {
+            /** @description Dry run — the design + ESP connection were validated without creating a template. */
+            200: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "emailId": "eml_2SmZOWV3ZQ7W5x6g3m4p",
+                     *       "provider": "klaviyo",
+                     *       "providerName": "Klaviyo",
+                     *       "templateName": "Welcome — Brew export",
+                     *       "dryRun": true
+                     *     }
+                     */
+                    "application/json": components["schemas"]["EmailExportResponse"];
+                };
+            };
+            /** @description The design was exported to the ESP as a new template. */
+            201: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "emailId": "eml_2SmZOWV3ZQ7W5x6g3m4p",
+                     *       "provider": "klaviyo",
+                     *       "providerName": "Klaviyo",
+                     *       "templateName": "Welcome — Brew export",
+                     *       "templateId": "Ab3Kd9",
+                     *       "dryRun": false
+                     *     }
+                     */
+                    "application/json": components["schemas"]["EmailExportResponse"];
+                };
+            };
+            /** @description The requested ESP is not connected for this brand. */
+            400: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INTEGRATION_NOT_CONNECTED",
+                     *         "type": "invalid_request",
+                     *         "message": "Klaviyo isn't connected for this brand. Connect it on the Integrations page, then export.",
+                     *         "suggestion": "Connect Klaviyo on the Integrations page, then retry the export.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "provider"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The API key was missing, invalid, or revoked. */
+            401: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INVALID_API_KEY",
+                     *         "type": "authentication_error",
+                     *         "message": "The provided API key is invalid.",
+                     *         "suggestion": "Check the API key format and retry with a valid active key.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The caller does not have the required `emails` permission. */
+            403: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INSUFFICIENT_PERMISSIONS",
+                     *         "type": "authorization_error",
+                     *         "message": "The caller does not have the required permission.",
+                     *         "suggestion": "Use an API key or session with the required permission.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
+                     *         "param": "emails"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Email design not found in the API-key brand. Cross-brand ids intentionally surface as 404 (never 403) so the API does not leak cross-brand existence. */
+            404: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "EMAIL_NOT_FOUND",
+                     *         "type": "not_found",
+                     *         "message": "No email exists with id 'eml_2SmZOWV3ZQ7W5x6g3m4p'.",
+                     *         "suggestion": "List designs with GET /v1/emails to find a valid emailId.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "emailId"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The same `Idempotency-Key` was reused with a different request body. */
+            409: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "IDEMPOTENCY_CONFLICT",
+                     *         "type": "conflict",
+                     *         "message": "The same idempotency key was reused with a different request payload.",
+                     *         "suggestion": "Reuse the original payload or send a new idempotency key.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/idempotency"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The request hit the rolling rate limit window. */
+            429: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    /** @description Seconds to wait before retrying the request. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "RATE_LIMITED",
+                     *         "type": "rate_limit",
+                     *         "message": "Too many requests.",
+                     *         "suggestion": "Wait for the retry window before sending another request.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
+                     *         "retryAfter": 42
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected internal error. */
+            500: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INTERNAL_ERROR",
+                     *         "type": "internal_error",
+                     *         "message": "An unexpected error occurred.",
+                     *         "suggestion": "Retry the request. If it keeps failing, contact support.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The ESP rejected the export or is temporarily unavailable. */
+            502: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "EXPORT_PROVIDER_ERROR",
+                     *         "type": "service_unavailable",
+                     *         "message": "Klaviyo rejected the template export.",
+                     *         "suggestion": "Check the connection in Klaviyo and retry. Reconnect it if authorization has expired.",
                      *         "docs": "https://docs.brew.new/api-reference/api/errors"
                      *       }
                      *     }
@@ -5124,6 +7303,464 @@ export interface operations {
             };
         };
     };
+    getInboxPlacementResults: {
+        parameters: {
+            query?: {
+                /** @description The test id returned by the create endpoint; omit to list the design's recent tests. */
+                testId?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Design id returned by `POST /v1/emails` and listed by `GET /v1/emails`. */
+                emailId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description With `testId`: the test resource. Without: `{ data: [lean test rows] }`. */
+            200: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "testId": "ibp_2f1c9d8a-4e77-4b0e-9a1c-6d5e2f0b7c31",
+                     *       "emailId": "eml_welcome",
+                     *       "status": "completed",
+                     *       "domainId": "k57e9m3q1w8r",
+                     *       "seedCount": 42,
+                     *       "results": {
+                     *         "overall": {
+                     *           "provider": "all",
+                     *           "total": 42,
+                     *           "inbox": 38,
+                     *           "spam": 3,
+                     *           "missing": 1,
+                     *           "pending": 0,
+                     *           "categories": {
+                     *             "inbox": 34,
+                     *             "promotions": 4,
+                     *             "spam": 3
+                     *           }
+                     *         },
+                     *         "byProvider": [
+                     *           {
+                     *             "provider": "gmail.com",
+                     *             "total": 4,
+                     *             "inbox": 4,
+                     *             "spam": 0,
+                     *             "missing": 0,
+                     *             "pending": 0,
+                     *             "categories": {
+                     *               "inbox": 3,
+                     *               "promotions": 1
+                     *             }
+                     *           }
+                     *         ],
+                     *         "authentication": {
+                     *           "spf": "pass",
+                     *           "dkim": "pass",
+                     *           "dmarc": "pass"
+                     *         },
+                     *         "spamFilter": {
+                     *           "flagged": false,
+                     *           "score": -0.2,
+                     *           "threshold": 5,
+                     *           "rules": [
+                     *             {
+                     *               "name": "DKIM_SIGNED",
+                     *               "score": 0.1,
+                     *               "description": "Message has a DKIM signature"
+                     *             }
+                     *           ]
+                     *         }
+                     *       },
+                     *       "createdAt": "2026-07-13T17:00:06.675Z",
+                     *       "updatedAt": "2026-07-13T17:00:06.675Z"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["EmailInboxPlacementGetResponse"];
+                };
+            };
+            /** @description The API key was missing, invalid, or revoked. */
+            401: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INVALID_API_KEY",
+                     *         "type": "authentication_error",
+                     *         "message": "The provided API key is invalid.",
+                     *         "suggestion": "Check the API key format and retry with a valid active key.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The caller does not have the required `emails` permission. */
+            403: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INSUFFICIENT_PERMISSIONS",
+                     *         "type": "authorization_error",
+                     *         "message": "The caller does not have the required permission.",
+                     *         "suggestion": "Use an API key or session with the required permission.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
+                     *         "param": "emails"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description No test exists with that id for this email (cross-brand ids surface as 404). */
+            404: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "EMAIL_NOT_FOUND",
+                     *         "type": "not_found",
+                     *         "message": "No email exists with id 'eml_welcome'.",
+                     *         "suggestion": "Verify the testId returned by the create endpoint.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The request hit the rolling rate limit window. */
+            429: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    /** @description Seconds to wait before retrying the request. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "RATE_LIMITED",
+                     *         "type": "rate_limit",
+                     *         "message": "Too many requests.",
+                     *         "suggestion": "Wait for the retry window before sending another request.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
+                     *         "retryAfter": 42
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected internal error. */
+            500: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INTERNAL_ERROR",
+                     *         "type": "internal_error",
+                     *         "message": "An unexpected error occurred.",
+                     *         "suggestion": "Retry the request. If it keeps failing, contact support.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    createInboxPlacementTest: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description Optional idempotency key for safe retries. Reusing the same key with the same request body returns the original response for 24 hours.
+                 * @example api-request-2026-04-08-001
+                 */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                /** @description Design id returned by `POST /v1/emails` and listed by `GET /v1/emails`. */
+                emailId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailInboxPlacementRequest"];
+            };
+        };
+        responses: {
+            /** @description The test was created and the seed send is in flight. Poll the GET endpoint for results. */
+            202: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "testId": "ibp_2f1c9d8a-4e77-4b0e-9a1c-6d5e2f0b7c31",
+                     *       "emailId": "eml_welcome",
+                     *       "status": "collecting",
+                     *       "domainId": "k57e9m3q1w8r",
+                     *       "seedCount": 42,
+                     *       "results": null,
+                     *       "createdAt": "2026-07-13T17:00:06.675Z",
+                     *       "updatedAt": "2026-07-13T17:00:06.675Z"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["EmailInboxPlacementTest"];
+                };
+            };
+            /** @description The API key was missing, invalid, or revoked. */
+            401: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INVALID_API_KEY",
+                     *         "type": "authentication_error",
+                     *         "message": "The provided API key is invalid.",
+                     *         "suggestion": "Check the API key format and retry with a valid active key.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit/import, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
+            402: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INSUFFICIENT_CREDITS",
+                     *         "type": "payment_required",
+                     *         "message": "This operation required more credits than the 0 remaining on the 'free' plan. See the per-operation cost in GET /v1/help.",
+                     *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/usage.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/credits",
+                     *         "details": {
+                     *           "cost": 2,
+                     *           "remaining": 0,
+                     *           "planKey": "free"
+                     *         }
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The caller does not have the required `emails` permission. */
+            403: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INSUFFICIENT_PERMISSIONS",
+                     *         "type": "authorization_error",
+                     *         "message": "The caller does not have the required permission.",
+                     *         "suggestion": "Use an API key or session with the required permission.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
+                     *         "param": "emails"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description No email exists with that id, or the domain is unknown (cross-brand ids surface as 404). */
+            404: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "EMAIL_NOT_FOUND",
+                     *         "type": "not_found",
+                     *         "message": "No email exists with id 'eml_welcome'.",
+                     *         "suggestion": "Verify the emailId via GET /v1/emails.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The same `Idempotency-Key` was reused with a different request body. */
+            409: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "IDEMPOTENCY_CONFLICT",
+                     *         "type": "conflict",
+                     *         "message": "The same idempotency key was reused with a different request payload.",
+                     *         "suggestion": "Reuse the original payload or send a new idempotency key.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/idempotency"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The request hit the rolling rate limit window. */
+            429: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    /** @description Seconds to wait before retrying the request. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "RATE_LIMITED",
+                     *         "type": "rate_limit",
+                     *         "message": "Too many requests.",
+                     *         "suggestion": "Wait for the retry window before sending another request.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
+                     *         "retryAfter": 42
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected internal error. */
+            500: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INTERNAL_ERROR",
+                     *         "type": "internal_error",
+                     *         "message": "An unexpected error occurred.",
+                     *         "suggestion": "Retry the request. If it keeps failing, contact support.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The credit balance could not be verified (a transient billing dependency outage). The gate fails closed rather than do paid work it cannot meter. Retryable — `Retry-After` indicates when. */
+            503: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Seconds to wait before retrying the request. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "SERVICE_UNAVAILABLE",
+                     *         "type": "service_unavailable",
+                     *         "message": "Your credit balance could not be verified because a billing dependency is temporarily unavailable.",
+                     *         "suggestion": "Retry the request after a short delay.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/credits",
+                     *         "retryAfter": 2
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
     listSends: {
         parameters: {
             query?: {
@@ -5133,7 +7770,7 @@ export interface operations {
                 emailId?: string;
                 /** @description Detail-only expansion: `events` inlines a bounded first page of the send’s analytics events. Rejected without `sendId`. */
                 include?: "events";
-                status?: "scheduled" | "queued" | "sending" | "sent" | "failed" | "canceled";
+                status?: "scheduled" | "queued" | "sending" | "paused" | "sent" | "failed" | "canceled";
                 from?: string;
                 to?: string;
                 /**
@@ -5701,7 +8338,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The send is past the point of cancellation (`sending` / `sent` / `failed`). */
+            /** @description The send is past the point of cancellation (terminal `sent` / `failed`, or a non-campaign send). */
             409: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -5714,10 +8351,596 @@ export interface operations {
                      *       "error": {
                      *         "code": "SEND_NOT_CANCELLABLE",
                      *         "type": "conflict",
-                     *         "message": "Send 'snd_x' is 'sent' and can no longer be canceled — only 'scheduled' or 'queued' sends can be canceled.",
+                     *         "message": "Send 'snd_x' is 'sent' and can no longer be canceled — only campaign sends that are 'scheduled', 'queued', 'sending', or 'paused' can be canceled.",
                      *         "suggestion": "Check the send status via GET /v1/analytics/sends?sendId=… before canceling.",
                      *         "docs": "https://docs.brew.new/api-reference/api/errors",
                      *         "param": "sendId"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The request hit the rolling rate limit window. */
+            429: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    /** @description Seconds to wait before retrying the request. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "RATE_LIMITED",
+                     *         "type": "rate_limit",
+                     *         "message": "Too many requests.",
+                     *         "suggestion": "Wait for the retry window before sending another request.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
+                     *         "retryAfter": 42
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected internal error. */
+            500: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INTERNAL_ERROR",
+                     *         "type": "internal_error",
+                     *         "message": "An unexpected error occurred.",
+                     *         "suggestion": "Retry the request. If it keeps failing, contact support.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    pauseSend: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description Optional idempotency key for safe retries. Reusing the same key with the same request body returns the original response for 24 hours.
+                 * @example api-request-2026-04-08-001
+                 */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                /** @description Send id returned by `POST /v1/sends`. */
+                sendId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The send is paused. */
+            200: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "sendId": "snd_8fK2mQ4p",
+                     *       "status": "paused"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["SendPauseResponse"];
+                };
+            };
+            /** @description The API key was missing, invalid, or revoked. */
+            401: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INVALID_API_KEY",
+                     *         "type": "authentication_error",
+                     *         "message": "The provided API key is invalid.",
+                     *         "suggestion": "Check the API key format and retry with a valid active key.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The caller does not have the required `sends` permission. */
+            403: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INSUFFICIENT_PERMISSIONS",
+                     *         "type": "authorization_error",
+                     *         "message": "The caller does not have the required permission.",
+                     *         "suggestion": "Use an API key or session with the required permission.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
+                     *         "param": "sends"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Send not found in the API-key brand. Cross-brand ids intentionally surface as 404 (never 403) so the API does not leak cross-brand existence. */
+            404: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "SEND_NOT_FOUND",
+                     *         "type": "not_found",
+                     *         "message": "No send was found with id 'snd_xxx'.",
+                     *         "suggestion": "List sends with GET /v1/analytics/sends, or start one with POST /v1/sends.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "sendId"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The send is not a delivering gradual send (not gradual, or not `sending`). */
+            409: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "SEND_NOT_PAUSABLE",
+                     *         "type": "conflict",
+                     *         "message": "Send 'snd_x' is 'paused' and cannot be paused — only a delivering ('sending') gradual send can be paused.",
+                     *         "suggestion": "Check the send status via GET /v1/analytics/sends?sendId=… — only a `sending` gradual send can be paused.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "sendId"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The request hit the rolling rate limit window. */
+            429: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    /** @description Seconds to wait before retrying the request. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "RATE_LIMITED",
+                     *         "type": "rate_limit",
+                     *         "message": "Too many requests.",
+                     *         "suggestion": "Wait for the retry window before sending another request.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
+                     *         "retryAfter": 42
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected internal error. */
+            500: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INTERNAL_ERROR",
+                     *         "type": "internal_error",
+                     *         "message": "An unexpected error occurred.",
+                     *         "suggestion": "Retry the request. If it keeps failing, contact support.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    resumeSend: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description Optional idempotency key for safe retries. Reusing the same key with the same request body returns the original response for 24 hours.
+                 * @example api-request-2026-04-08-001
+                 */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                /** @description Send id returned by `POST /v1/sends`. */
+                sendId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The send is delivering again. */
+            200: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "sendId": "snd_8fK2mQ4p",
+                     *       "status": "sending"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["SendResumeResponse"];
+                };
+            };
+            /** @description The API key was missing, invalid, or revoked. */
+            401: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INVALID_API_KEY",
+                     *         "type": "authentication_error",
+                     *         "message": "The provided API key is invalid.",
+                     *         "suggestion": "Check the API key format and retry with a valid active key.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The caller does not have the required `sends` permission. */
+            403: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INSUFFICIENT_PERMISSIONS",
+                     *         "type": "authorization_error",
+                     *         "message": "The caller does not have the required permission.",
+                     *         "suggestion": "Use an API key or session with the required permission.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
+                     *         "param": "sends"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Send not found in the API-key brand. Cross-brand ids intentionally surface as 404 (never 403) so the API does not leak cross-brand existence. */
+            404: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "SEND_NOT_FOUND",
+                     *         "type": "not_found",
+                     *         "message": "No send was found with id 'snd_xxx'.",
+                     *         "suggestion": "List sends with GET /v1/analytics/sends, or start one with POST /v1/sends.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "sendId"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The send is not a paused gradual send (not gradual, or not `paused`). */
+            409: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "SEND_NOT_RESUMABLE",
+                     *         "type": "conflict",
+                     *         "message": "Send 'snd_x' is 'sending' and cannot be resumed — only a 'paused' gradual send can be resumed.",
+                     *         "suggestion": "Check the send status via GET /v1/analytics/sends?sendId=… — only a paused gradual send can be resumed.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "sendId"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The request hit the rolling rate limit window. */
+            429: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    /** @description Seconds to wait before retrying the request. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "RATE_LIMITED",
+                     *         "type": "rate_limit",
+                     *         "message": "Too many requests.",
+                     *         "suggestion": "Wait for the retry window before sending another request.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
+                     *         "retryAfter": 42
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected internal error. */
+            500: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INTERNAL_ERROR",
+                     *         "type": "internal_error",
+                     *         "message": "An unexpected error occurred.",
+                     *         "suggestion": "Retry the request. If it keeps failing, contact support.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    getAnalyticsOverview: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+                /** @description CSV of send sources to include (e.g. `audience,api`; valid values: audience, api, automation_manual, automation_integration, automation_custom). Composes with every other filter. */
+                source?: string;
+                /** @description CSV of automation ids (max 20) — a single id is still valid. Composes with every other filter; one id reads a pre-aggregated rollup partition, several take the raw-event path. */
+                automationId?: string;
+                /** @description Scope to one email design. Composes with every other filter — a design used by several automations can be narrowed with `automationId`. */
+                emailId?: string;
+                /** @description CSV of audience ids (max 20). Composes with every other filter. */
+                audienceId?: string;
+                /** @description CSV of integration trigger-event ids (max 10), resolved to their wired automations. Composes with every other filter. */
+                triggerEventId?: string;
+                /** @description Sending domain (`fromEmail` match). Has no rollup dimension, so requests carrying it are answered from raw events — check `truncated` on wide windows. */
+                domain?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Brand-wide totals, rates, and a zero-filled timeseries for the window. */
+            200: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "totals": {
+                     *         "sent": 5000,
+                     *         "delivered": 4920,
+                     *         "opened": 2110,
+                     *         "openedTotal": 3480,
+                     *         "clicked": 540,
+                     *         "clickedTotal": 812,
+                     *         "bounced": 80,
+                     *         "complained": 3,
+                     *         "unsubscribed": 12,
+                     *         "failed": 0,
+                     *         "suppressed": 14,
+                     *         "deliveryDelayed": 2
+                     *       },
+                     *       "rates": {
+                     *         "deliveryRate": 0.984,
+                     *         "openRate": 0.4289,
+                     *         "clickRate": 0.1098,
+                     *         "bounceRate": 0.016,
+                     *         "complaintRate": 0.0006,
+                     *         "unsubscribeRate": 0.0024
+                     *       },
+                     *       "buckets": [
+                     *         {
+                     *           "at": "2026-04-08T00:00:00.000Z",
+                     *           "sent": 5000,
+                     *           "delivered": 4920,
+                     *           "deliveryDelayed": 2,
+                     *           "opened": 2110,
+                     *           "clicked": 540,
+                     *           "bounced": 80,
+                     *           "complained": 3,
+                     *           "failed": 0,
+                     *           "suppressed": 14,
+                     *           "unsubscribed": 12
+                     *         }
+                     *       ],
+                     *       "granularity": "1d",
+                     *       "timeZone": "America/New_York",
+                     *       "range": {
+                     *         "from": "2026-04-01T12:34:56.789Z",
+                     *         "to": "2026-04-08T12:34:56.789Z"
+                     *       },
+                     *       "truncated": false
+                     *     }
+                     */
+                    "application/json": components["schemas"]["AnalyticsOverviewResponse"];
+                };
+            };
+            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
+            400: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INVALID_REQUEST",
+                     *         "type": "invalid_request",
+                     *         "message": "Request validation failed.",
+                     *         "suggestion": "Fix the field reported in `param` and retry.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "from"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The API key was missing, invalid, or revoked. */
+            401: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INVALID_API_KEY",
+                     *         "type": "authentication_error",
+                     *         "message": "The provided API key is invalid.",
+                     *         "suggestion": "Check the API key format and retry with a valid active key.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The caller does not have the required `emails` permission. */
+            403: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INSUFFICIENT_PERMISSIONS",
+                     *         "type": "authorization_error",
+                     *         "message": "The caller does not have the required permission.",
+                     *         "suggestion": "Use an API key or session with the required permission.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
+                     *         "param": "emails"
                      *       }
                      *     }
                      */
@@ -6167,6 +9390,18 @@ export interface operations {
                 eventType?: string;
                 automationId?: string;
                 sendId?: string;
+                /** @description Send-object facet: CSV of send sources (valid values: audience, api, automation_manual, automation_integration, automation_custom). Narrows the feed to email events. */
+                source?: string;
+                /** @description Send-object facet: CSV of audience ids (max 20) — events from the audiences' sends. Narrows the feed to email events. */
+                audienceId?: string;
+                /** @description Send-object facet: one email design id. Narrows the feed to email events. */
+                emailId?: string;
+                /** @description Send-object facet: a sending domain (`fromEmail` match). Narrows the feed to email events. */
+                domain?: string;
+                /** @description Send-object facet: CSV of integration trigger-event ids (max 10), resolved to their wired automations. Narrows the feed to email events. */
+                triggerEventId?: string;
+                /** @description Machine/bot-classified `clicked` rows are excluded by default. Pass `true` to include the raw rows (they carry `machineGenerated: true` + a `clickBotReason`; audit/debug only). */
+                includeMachineClicks?: boolean;
                 limit?: number;
                 cursor?: string;
             };
@@ -7503,7 +10738,7 @@ export interface operations {
                      *       "receivedAt": "2026-04-08T12:34:56.789Z"
                      *     }
                      */
-                    "application/json": components["schemas"]["AutomationRunStartedResponse"];
+                    "application/json": components["schemas"]["AudienceAutomationRunStartedResponse"];
                 };
             };
             /** @description The API key was missing, invalid, or revoked. */
@@ -8003,7 +11238,7 @@ export interface operations {
                 triggerEventId?: string;
                 triggerInstanceId?: string;
                 recipientEmail?: string;
-                status?: "pending" | "running" | "completed" | "failed" | "cancelled";
+                status?: "pending" | "running" | "completed" | "failed" | "canceled";
                 mode?: "live" | "test";
                 from?: string;
                 to?: string;
@@ -10990,6 +14225,10 @@ export interface operations {
     listContactFields: {
         parameters: {
             query?: {
+                /** @description Opt-in expansion: `coverage` adds per-field fill stats (percent of contacts with a non-empty value + top values). */
+                include?: "coverage";
+                /** @description Scope `include=coverage` stats to one saved audience (`404 AUDIENCE_NOT_FOUND` on an unknown / cross-brand id). Ignored without the include. */
+                audienceId?: string;
                 /**
                  * @description Page size (1–100). Defaults to 100.
                  * @example 50
@@ -11037,7 +14276,24 @@ export interface operations {
                      *           "isCore": false,
                      *           "isFilterable": true,
                      *           "isSortable": true,
-                     *           "isSearchable": false
+                     *           "isSearchable": false,
+                     *           "coverage": {
+                     *             "percent": 62,
+                     *             "approximate": true,
+                     *             "topValues": [
+                     *               {
+                     *                 "value": "scale",
+                     *                 "count": 610,
+                     *                 "percent": 51
+                     *               },
+                     *               {
+                     *                 "value": "starter",
+                     *                 "count": 420,
+                     *                 "percent": 35
+                     *               }
+                     *             ],
+                     *             "dominantValue": "scale"
+                     *           }
                      *         }
                      *       ],
                      *       "pagination": {
@@ -13229,6 +16485,240 @@ export interface operations {
                      *         "message": "The same idempotency key was reused with a different request payload.",
                      *         "suggestion": "Reuse the original payload or send a new idempotency key.",
                      *         "docs": "https://docs.brew.new/api-reference/api/idempotency"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The request hit the rolling rate limit window. */
+            429: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    /** @description Seconds to wait before retrying the request. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "RATE_LIMITED",
+                     *         "type": "rate_limit",
+                     *         "message": "Too many requests.",
+                     *         "suggestion": "Wait for the retry window before sending another request.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
+                     *         "retryAfter": 42
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected internal error. */
+            500: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INTERNAL_ERROR",
+                     *         "type": "internal_error",
+                     *         "message": "An unexpected error occurred.",
+                     *         "suggestion": "Retry the request. If it keeps failing, contact support.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    getDomainHealth: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Domain id (opaque Convex document id) returned by `POST /v1/domains` and listed by `GET /v1/domains`. */
+                domainId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The aggregate health report. */
+            200: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "domainId": "kx7bkh53hasmfeh5kd7sqgykt187g8ww",
+                     *       "name": "send.example.com",
+                     *       "status": "verified",
+                     *       "sendable": true,
+                     *       "verdict": "at_risk",
+                     *       "authentication": {
+                     *         "spf": "verified",
+                     *         "dkim": "verified",
+                     *         "dmarc": "missing"
+                     *       },
+                     *       "tracking": {
+                     *         "linksStatus": "live",
+                     *         "openTracking": true,
+                     *         "clickTracking": true
+                     *       },
+                     *       "warmup": [
+                     *         {
+                     *           "sendId": "snd_x1",
+                     *           "currentTranche": 3,
+                     *           "sentSoFar": 175,
+                     *           "rampEndsAt": "2026-07-15T00:00:00.000Z"
+                     *         }
+                     *       ],
+                     *       "dailyVolume": [
+                     *         {
+                     *           "day": "2026-07-11",
+                     *           "sent": 50
+                     *         },
+                     *         {
+                     *           "day": "2026-07-12",
+                     *           "sent": 63
+                     *         }
+                     *       ],
+                     *       "domainActivity": {
+                     *         "sampled": true,
+                     *         "sampleSendCount": 12,
+                     *         "sentCount": 2400,
+                     *         "bouncedCount": 31,
+                     *         "complainedCount": 1,
+                     *         "bounceRate": 0.0129,
+                     *         "complaintRate": 0.0004
+                     *       },
+                     *       "orgReputation": {
+                     *         "scope": "org",
+                     *         "totalSent": 18250,
+                     *         "bounceRate": 0.011,
+                     *         "complaintRate": 0.0003
+                     *       },
+                     *       "recentPlacementTests": [
+                     *         {
+                     *           "testId": "ibp_2f1c9d8a",
+                     *           "emailId": "eml_welcome",
+                     *           "status": "completed",
+                     *           "overall": {
+                     *             "total": 41,
+                     *             "inbox": 33,
+                     *             "spam": 8,
+                     *             "missing": 0,
+                     *             "pending": 0
+                     *           },
+                     *           "authentication": {
+                     *             "spf": "pass",
+                     *             "dkim": "pass",
+                     *             "dmarc": "pass"
+                     *           },
+                     *           "spamFilterFlagged": false,
+                     *           "createdAt": "2026-07-13T17:00:00.000Z"
+                     *         }
+                     *       ],
+                     *       "signals": [
+                     *         {
+                     *           "id": "dmarc_missing",
+                     *           "severity": "warning",
+                     *           "summary": "No DMARC record is configured for this domain.",
+                     *           "suggestion": "Add a TXT record: _dmarc TXT \"v=DMARC1; p=reject; rua=mailto:dmarc@send.example.com\" — Gmail/Yahoo bulk-sender rules require DMARC, and it blocks spoofing."
+                     *         }
+                     *       ],
+                     *       "checkedAt": "2026-07-13T18:00:00.000Z"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["DomainHealth"];
+                };
+            };
+            /** @description The API key was missing, invalid, or revoked. */
+            401: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INVALID_API_KEY",
+                     *         "type": "authentication_error",
+                     *         "message": "The provided API key is invalid.",
+                     *         "suggestion": "Check the API key format and retry with a valid active key.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The caller does not have the required `domains` permission. */
+            403: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INSUFFICIENT_PERMISSIONS",
+                     *         "type": "authorization_error",
+                     *         "message": "The caller does not have the required permission.",
+                     *         "suggestion": "Use an API key or session with the required permission.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
+                     *         "param": "domains"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Domain not found in the API-key brand. Cross-brand ids intentionally surface as 404 (never 403) so the API does not leak cross-brand existence. */
+            404: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "DOMAIN_NOT_FOUND",
+                     *         "type": "not_found",
+                     *         "message": "The requested domain 'dom_xxx' was not found.",
+                     *         "suggestion": "List domains with GET /v1/domains.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "domainId"
                      *       }
                      *     }
                      */

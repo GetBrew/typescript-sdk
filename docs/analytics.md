@@ -6,6 +6,7 @@ fired-trigger instance history (`analytics.triggerInstances.*`).
 
 | Method                                          | HTTP                                          | Scope         |
 | ----------------------------------------------- | --------------------------------------------- | ------------- |
+| [`overview`](#overview)                         | `GET /v1/analytics/overview`                  | `emails`      |
 | [`campaigns`](#campaigns)                       | `GET /v1/analytics/campaigns`                 | `emails`      |
 | [`automations`](#automations)                   | `GET /v1/analytics/automations`               | `automations` |
 | [`events`](#events)                             | `GET /v1/analytics/events`                    | `emails`      |
@@ -20,6 +21,27 @@ Reads are flat — one read per resource, identity in the query (`?<id>`),
 `{ data, pagination? }` envelope (detail mode = a single-row page
 `{ data: [row] }`, no `pagination`). `automations` and `events`
 additionally carry a `range`.
+
+---
+
+## `overview`
+
+The exact brand-wide totals, rates, and zero-filled timeseries shown in
+Brew's analytics overview. Filters compose, including comma-separated source,
+automation, audience, and trigger ids. A wide raw-event query can return
+`truncated: true`; narrow the time window before treating that response as a
+complete report.
+
+```ts
+const overview = await brew.analytics.overview({
+  from: '2026-07-01T00:00:00.000Z',
+  to: '2026-07-08T00:00:00.000Z',
+  source: 'api,automation_manual',
+  automationId: 'auto_launch',
+})
+
+console.log(overview.totals.sent, overview.rates.deliveryRate)
+```
 
 ---
 

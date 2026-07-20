@@ -68,6 +68,7 @@ etc.).
 | Topic                       | File                                                                   |
 | --------------------------- | ---------------------------------------------------------------------- |
 | Analytics resource          | [`docs/analytics.md`](./docs/analytics.md)                             |
+| Automations resource        | [`docs/automations.md`](./docs/automations.md)                         |
 | Audiences resource          | [`docs/audiences.md`](./docs/audiences.md)                             |
 | Brand resource              | [`docs/brand.md`](./docs/brand.md)                                     |
 | Client configuration        | [`docs/configuration.md`](./docs/configuration.md)                     |

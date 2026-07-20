@@ -1,5 +1,9 @@
 import type { HttpClient } from '../../core/http'
 
+import {
+  createAudienceRunsResource,
+  type AudienceRunsResource,
+} from './audience-runs/resource'
 import { createCreateAutomation } from './create'
 import { createDeleteAutomation } from './delete'
 import { createListAutomations } from './list'
@@ -12,6 +16,7 @@ import {
   createAutomationRunsResource,
   type AutomationRunsResource,
 } from './runs/resource'
+import { createRunAutomation } from './run'
 import { createTestAutomation } from './test'
 import {
   createTriggersResource,
@@ -25,6 +30,8 @@ export type AutomationsResource = {
   readonly create: ReturnType<typeof createCreateAutomation>
   /** `POST /v1/automations/{automationId}/test` — start a suppression-aware TEST run (no real mail) (scope: `automations`). */
   readonly test: ReturnType<typeof createTestAutomation>
+  /** `POST /v1/automations/{automationId}/run` — preview, launch, or schedule a manual-audience run (scope: `automations`). */
+  readonly run: ReturnType<typeof createRunAutomation>
   /** `PATCH /v1/automations/{automationId}` — update metadata and/or the graph, OR change the published lifecycle (scope: `automations`). */
   readonly patch: ReturnType<typeof createPatchAutomation>
   /** `PATCH /v1/automations/{automationId}` with `{ published: true }`. Pass `automationVersionId` to publish a specific historical version (scope: `automations`). */
@@ -37,6 +44,8 @@ export type AutomationsResource = {
   readonly triggers: TriggersResource
   /** `/v1/automations/runs` — read-only run history. */
   readonly runs: AutomationRunsResource
+  /** `/v1/automations/audience-runs` — manual-audience lifecycle history and controls. */
+  readonly audienceRuns: AudienceRunsResource
 }
 
 export function createAutomationsResource(
@@ -46,11 +55,13 @@ export function createAutomationsResource(
     list: createListAutomations(client),
     create: createCreateAutomation(client),
     test: createTestAutomation(client),
+    run: createRunAutomation(client),
     patch: createPatchAutomation(client),
     publish: createPublishAutomation(client),
     unpublish: createUnpublishAutomation(client),
     delete: createDeleteAutomation(client),
     triggers: createTriggersResource(client),
     runs: createAutomationRunsResource(client),
+    audienceRuns: createAudienceRunsResource(client),
   }
 }
