@@ -11816,7 +11816,7 @@ paths:
                   suggestion: Reuse the original payload or send a new idempotency key.
                   docs: https://docs.brew.new/api-reference/api/idempotency
         "422":
-          description: The brand has no usable Figma connection and no `figmaAccessToken` was supplied.
+          description: Either the brand has no usable Figma credential, or the frame was fetched but could not be transpiled.
           headers:
             x-request-id:
               schema:
@@ -11829,13 +11829,28 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: FIGMA_NOT_CONNECTED
-                  type: invalid_request
-                  message: Figma is not connected for this brand.
-                  suggestion: Connect Figma from Integrations in the Brew app, or pass a `figmaAccessToken` on the request to authenticate this import directly.
-                  docs: https://docs.brew.new/api-reference/api/errors
+              examples:
+                notConnected:
+                  summary: No Figma credential for this brand
+                  value:
+                    error:
+                      code: FIGMA_NOT_CONNECTED
+                      type: invalid_request
+                      message: Figma is not connected for this brand.
+                      suggestion: Connect Figma from Integrations in the Brew app, or pass a `figmaAccessToken` on the request to authenticate this import directly.
+                      docs: https://docs.brew.new/api-reference/api/errors
+                conversionFailed:
+                  summary: Frame fetched but not convertible
+                  value:
+                    error:
+                      code: FIGMA_CONVERSION_FAILED
+                      type: invalid_request
+                      message: The Figma frame could not be converted into an email.
+                      suggestion: Open the frame in Figma and confirm it is a self-contained email design, then retry. The partially created design is referenced by `details.emailId`.
+                      docs: https://docs.brew.new/api-reference/api/errors
+                      param: figmaUrl
+                      details:
+                        emailId: eml_2SmZOWV3ZQ7W5x6g3m4p
         "429":
           description: The request hit the rolling rate limit window.
           headers:

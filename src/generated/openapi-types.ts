@@ -6330,7 +6330,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The brand has no usable Figma connection and no `figmaAccessToken` was supplied. */
+            /** @description Either the brand has no usable Figma credential, or the frame was fetched but could not be transpiled. */
             422: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -6338,17 +6338,6 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "FIGMA_NOT_CONNECTED",
-                     *         "type": "invalid_request",
-                     *         "message": "Figma is not connected for this brand.",
-                     *         "suggestion": "Connect Figma from Integrations in the Brew app, or pass a `figmaAccessToken` on the request to authenticate this import directly.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
-                     *       }
-                     *     }
-                     */
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
