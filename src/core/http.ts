@@ -84,6 +84,7 @@ export function createHttpClient(
 
     const headers = buildHeaders({
       apiKey: config.apiKey,
+      ...(config.brandId !== undefined ? { brandId: config.brandId } : {}),
       userAgent: config.userAgent,
       hasBody,
       ...(idempotencyKey !== undefined ? { idempotencyKey } : {}),

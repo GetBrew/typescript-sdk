@@ -12,6 +12,9 @@ import { createBrewClient } from '@brew.new/sdk'
 const brew = createBrewClient({
   apiKey: process.env.BREW_API_KEY!,
 
+  // optional — organization-scoped keys only; see below
+  brandId: 'kx7b3s7fapqz8mjm12ekz1kxdx87yceg',
+
   // optional — defaults shown
   baseUrl: 'https://brew.new/api',
   timeoutMs: 30_000,
@@ -31,6 +34,27 @@ Your Brew API key. Sent on every request as
 The SDK validates this at the boundary — passing an empty or
 whitespace-only string throws a `TypeError` immediately rather than
 letting the request go out and come back as a confusing 401.
+
+### `brandId` (optional)
+
+The brand every request acts on, sent as `X-Brand-Id`.
+
+Only meaningful for an **organization-scoped** key. A brand-scoped key resolves
+its own brand and rejects a different one with `403 BRAND_SCOPE_MISMATCH`; an
+organization-scoped key that names none gets `400 BRAND_ID_REQUIRED`, because
+there is deliberately no default brand.
+
+Validated at the boundary like `apiKey`: an empty or whitespace-only string
+throws a `TypeError` rather than silently omitting the header and failing
+server-side.
+
+Prefer [`client.withBrand(id)`](./brands.md) when you work across several
+brands — it returns a pinned client instead of rebuilding one:
+
+```ts
+const acme = brew.withBrand(brandId)
+await acme.emails.list()
+```
 
 API keys are server-side secrets. **Never bundle this SDK into a browser
 build with a real key.**

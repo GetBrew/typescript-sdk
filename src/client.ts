@@ -17,6 +17,10 @@ import {
   type BrandResource,
 } from './resources/brand/resource'
 import {
+  createBrandsResource,
+  type BrandsResource,
+} from './resources/brands/resource'
+import {
   createChatsResource,
   type ChatsResource,
 } from './resources/chats/resource'
@@ -60,19 +64,31 @@ import {
   createUsageResource,
   type UsageResource,
 } from './resources/usage/resource'
-import type { BrewClientConfig } from './types'
+import type { BrewClientConfig, ResolvedBrewClientConfig } from './types'
 
 /**
  * The public shape of a Brew API client. Expand this union as new
  * resource modules land — the only place that has to change is here plus
  * the wire-up in `createBrewClient`.
  *
- * Note: there is no `brands` resource. The Brew public API does not
- * expose brand management. The single brand bound to your API key is
- * the only brand the public API can act on; it is selected when the
- * key is created in the dashboard.
+ * A client acts on ONE brand at a time. A brand-scoped key resolves its own;
+ * an ORGANIZATION-scoped key names one per request — set `brandId` in the
+ * config, or use `withBrand()` to pin one. `brands` manages the brands
+ * themselves and is organization-level, so it needs no brand.
  */
 export type BrewClient = {
+  /**
+   * Return a client pinned to `brandId` (sent as `X-Brand-Id`). Same auth,
+   * transport and tuning; only the brand differs. Use this with an
+   * ORGANIZATION-scoped key to work across brands without rebuilding a client.
+   */
+  readonly withBrand: (brandId: string) => BrewClient
+  /**
+   * Brand LIFECYCLE (`/v1/brands`) — list, create, and poll brands. The only
+   * ORGANIZATION-level resource: it takes no brand. Distinct from `brand`
+   * (singular), which reads the design context of the current brand.
+   */
+  readonly brands: BrandsResource
   /**
    * Read-only analytics: campaign + automation KPIs, the unified event
    * explorer, plus the send reads (`analytics.sends.*`) and fired-trigger
@@ -151,9 +167,30 @@ export function createBrewClient(
   userConfig: BrewClientConfig,
   tuning?: HttpTuning
 ): BrewClient {
-  const config = resolveConfig({ userConfig })
-  const httpClient = createHttpClient(config, tuning ?? {})
+  return buildClient(resolveConfig({ userConfig }), tuning ?? {})
+}
+
+/**
+ * Assemble a client from an ALREADY-resolved config.
+ *
+ * Both `createBrewClient` and `withBrand` route through here. `withBrand`
+ * must not re-run `resolveConfig` — that would re-derive defaults from the
+ * user's original input and silently drop the `tuning` the caller passed,
+ * so a pinned client would quietly stop honouring its retry/timeout setup.
+ */
+function buildClient(
+  config: ResolvedBrewClientConfig,
+  tuning: HttpTuning
+): BrewClient {
+  const httpClient = createHttpClient(config, tuning)
   return {
+    withBrand: (brandId: string): BrewClient => {
+      if (typeof brandId !== 'string' || brandId.trim() === '') {
+        throw new TypeError('withBrand: `brandId` must be a non-empty string')
+      }
+      return buildClient({ ...config, brandId }, tuning)
+    },
+    brands: createBrandsResource(httpClient),
     analytics: createAnalyticsResource(httpClient),
     audiences: createAudiencesResource(httpClient),
     automations: createAutomationsResource(httpClient),

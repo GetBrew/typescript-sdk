@@ -247,7 +247,7 @@ export interface paths {
         };
         /**
          * Get email sends
-         * @description Unified send read. A send is the unit of delivery + analytics: one design delivered to a target (audience, inline list, or single address) via one domain. Omit `sendId` to LIST the brand’s sends, newest first, under `{ data, pagination }`; filter with `?status=` (scheduled | queued | sending | sent | failed | canceled), the `from`/`to` ISO-8601 window, or `?emailId=` (one design’s sends). Pass `?sendId=` to fetch ONE — returns `{ data: [row] }` (no `pagination`), `404 SEND_NOT_FOUND` on an unknown / cross-brand id; add `?include=events` (detail only) for a bounded first page of the send’s analytics events. `sendId` and `emailId` are mutually exclusive.
+         * @description Unified send read. A send is the unit of delivery + analytics: one design delivered to a target (audience, inline list, or single address) via one domain. Omit `sendId` to LIST the brand’s sends, newest first, under `{ data, pagination }`; filter with `?status=` (scheduled | queued | sending | sent | partially_sent | failed | canceled), the `from`/`to` ISO-8601 window, or `?emailId=` (one design’s sends). Pass `?sendId=` to fetch ONE — returns `{ data: [row] }` (no `pagination`), `404 SEND_NOT_FOUND` on an unknown / cross-brand id; add `?include=events` (detail only) for a bounded first page of the send’s analytics events. `sendId` and `emailId` are mutually exclusive.
          */
         get: operations["listSends"];
         put?: never;
@@ -354,7 +354,7 @@ export interface paths {
         };
         /**
          * Brand overview (totals, rates, timeseries)
-         * @description Windowed brand overview — the EXACT read behind the app's /analytics metric cards + chart (same unique-recipient and machine-click rules), so API/MCP numbers can never disagree with the page. Defaults to the last 7 days. Optional filters, all of which COMPOSE freely: `source` (csv of send sources), `automationId`, `emailId`, `audienceId` (csv, ≤20), `triggerEventId` (csv, ≤10 — integration trigger-events, resolved to their wired automations), and `domain` (sending domain). A single filter is answered from pre-aggregated rollup rows; any combination (and anything with `domain`, which has no rollup dimension) is answered by aggregating raw events instead — exact, but capped, so watch `truncated` on wide windows. Returns `{ totals, rates, buckets, granularity, timeZone, range, truncated }` — `truncated: true` means the window exceeded the scan budget; narrow the range. Requires the `emails` scope.
+         * @description Windowed brand overview — the EXACT read behind the app's /analytics metric cards + chart (same unique-recipient and machine-click rules), so API/MCP numbers can never disagree with the page. Defaults to the last 7 days. Optional filters, all of which COMPOSE freely: `source` (csv of send sources), `automationId`, `emailId`, `audienceId` (csv, ≤20), `triggerEventId` (csv, ≤10 — integration trigger-events, resolved to their wired automations), `domain` (sending domain), and `recipient` (csv of recipient rules — same grammar and name as `GET /v1/analytics/events`). A single filter is answered from pre-aggregated rollup rows; any combination (and anything with `domain` or `recipient`, neither of which has a rollup dimension) is answered by aggregating raw events instead — exact, but capped, so watch `truncated` on wide windows. Returns `{ totals, rates, buckets, granularity, timeZone, range, truncated }` — `truncated: true` means the window exceeded the scan budget; narrow the range. Requires the `emails` scope.
          */
         get: operations["getAnalyticsOverview"];
         put?: never;
@@ -414,7 +414,7 @@ export interface paths {
         };
         /**
          * Unified events feed
-         * @description Read-only window over the brand’s analytics events across domains (email, automation, trigger, inbound). Defaults to the last 7 days. Equality filters: `recipientEmail`, `eventType`, `automationId`, `sendId` (join back to `/v1/analytics/sends?sendId=`). Send-object facets — `source` (csv of send sources), `audienceId` (csv, ≤20), `emailId` (design), `domain` (sending domain), `triggerEventId` (csv, ≤10 — integration trigger-events resolved to their wired automations): when ANY facet is present the feed narrows to EMAIL events only and each row is enriched with `sendSource` + `sendContext` (plus `triggerProvider`/`triggerTitle` on integration/custom-triggered rows). Machine/bot-classified `clicked` rows are EXCLUDED by default (matching `/v1/analytics/overview`); pass `includeMachineClicks=true` to include the raw rows (audit/debug only). Cursor pagination — pass `pagination.cursor` back as `?cursor=`; loop `while (cursor !== null)`. Requires the `emails` scope.
+         * @description Read-only window over the brand’s analytics events across domains (email, automation, trigger, inbound). Defaults to the last 7 days. Equality filters: `recipientEmail`, `eventType`, `automationId`, `sendId` (join back to `/v1/analytics/sends?sendId=`). Recipient rules — `recipient` (csv, ≤10): a full address matches exactly, `@domain` matches everyone on that domain, any other text matches as a substring, and a `!` prefix excludes (`recipient=@clay.com,!ceo@clay.com` = clay recipients except the CEO); includes OR together, excludes always apply. Send-object facets — `source` (csv of send sources), `audienceId` (csv, ≤20), `emailId` (design), `domain` (sending domain), `triggerEventId` (csv, ≤10 — integration trigger-events resolved to their wired automations): when ANY facet or recipient rule is present the feed narrows to EMAIL events only and each row is enriched with `sendSource` + `sendContext` (plus `triggerProvider`/`triggerTitle` on integration/custom-triggered rows). Machine/bot-classified `clicked` rows are EXCLUDED by default (matching `/v1/analytics/overview`); pass `includeMachineClicks=true` to include the raw rows (audit/debug only). Cursor pagination — pass `pagination.cursor` back as `?cursor=`; loop `while (cursor !== null)`. Requires the `emails` scope.
          */
         get: operations["getEventsAnalytics"];
         put?: never;
@@ -1060,6 +1060,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/brands": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the brands this credential can reach
+         * @description Organization-scoped credentials see every brand in the organization; a brand-scoped credential sees exactly the one brand it is bound to.
+         *
+         *     This is how an organization-scoped credential discovers the ids it passes in `X-Brand-Id` on every other endpoint.
+         */
+        get: operations["listBrands"];
+        put?: never;
+        /**
+         * Create a brand and start its extraction
+         * @description Starts an asynchronous brand extraction that crawls the site and builds the design system. Returns `201` immediately with `status: "extracting"` — poll `GET /v1/brands/{brandId}` until `ready` is `true` (typically 1–3 minutes) before calling `POST /v1/emails`, which returns `422 BRAND_NOT_READY` until then.
+         *
+         *     Requires an ORGANIZATION-scoped credential (`403 ORG_SCOPE_REQUIRED` otherwise) and the `brands` scope, which is NOT implied by `emails`.
+         *
+         *     Extraction requires a non-empty credit balance but is not itself charged to your credits.
+         */
+        post: operations["createBrand"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/brands/{brandId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get one brand’s lifecycle state
+         * @description The polling endpoint for `POST /v1/brands`. Reports `status`, `progress` and `phase` while extracting, and `error` when extraction failed. Terminal states are `completed` and `failed`.
+         *
+         *     For the brand’s DESIGN CONTEXT (identity, markdown design system, logos) use `GET /v1/brand` instead.
+         */
+        get: operations["getBrandById"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/content/generate-image": {
         parameters: {
             query?: never;
@@ -1296,7 +1348,7 @@ export interface components {
             emailId: string;
             emailVersionId?: string;
             /** @enum {string} */
-            status: "scheduled" | "queued" | "sending" | "paused" | "sent" | "failed" | "canceled";
+            status: "scheduled" | "queued" | "sending" | "paused" | "sent" | "partially_sent" | "failed" | "canceled";
             subject?: string;
             previewText?: string;
             fromAddress?: string;
@@ -1442,6 +1494,8 @@ export interface components {
             config: {
                 actionType?: string;
                 /** @enum {string} */
+                mode?: "payload";
+                /** @enum {string} */
                 logicalOperator: "AND" | "OR";
                 conditions: ({
                     /** @description Trigger payload field name or dot path, for example trackingNumber or order.total. */
@@ -1553,6 +1607,30 @@ export interface components {
                      */
                     operator: "is_true" | "is_false";
                 })[];
+            } | {
+                actionType?: string;
+                /** @enum {string} */
+                mode: "engagement";
+                /** @description Id of the upstream sendEmail node this filter watches for opens/clicks. */
+                sourceNodeId: string;
+                window: {
+                    duration: number;
+                    /** @enum {string} */
+                    unit: "ms" | "seconds" | "minutes" | "hours" | "days" | "weeks";
+                };
+                branches: {
+                    id: string;
+                    label?: string;
+                    condition: {
+                        /** @enum {string} */
+                        kind: "engaged" | "not_engaged" | "clicked_link";
+                        /** @enum {string} */
+                        events?: "opened" | "clicked" | "opened_or_clicked";
+                        url?: string;
+                        /** @enum {string} */
+                        position?: "any" | "first" | "last";
+                    };
+                }[];
             };
         } | {
             id: string;
@@ -1691,8 +1769,7 @@ export interface components {
         AutomationConnection: {
             from: string;
             to: string;
-            /** @enum {string} */
-            branch?: "left" | "right";
+            branch?: string;
         };
         AutomationRow: {
             automationId: string;
@@ -1764,6 +1841,8 @@ export interface components {
                 config: {
                     actionType?: string;
                     /** @enum {string} */
+                    mode?: "payload";
+                    /** @enum {string} */
                     logicalOperator: "AND" | "OR";
                     conditions: {
                         field: string;
@@ -1771,6 +1850,29 @@ export interface components {
                         value?: string | number | boolean | (string | number)[];
                         /** @enum {string} */
                         type?: "string" | "number" | "date" | "bool";
+                    }[];
+                } | {
+                    actionType?: string;
+                    /** @enum {string} */
+                    mode: "engagement";
+                    sourceNodeId: string;
+                    window: {
+                        duration: number;
+                        /** @enum {string} */
+                        unit: "ms" | "seconds" | "minutes" | "hours" | "days" | "weeks";
+                    };
+                    branches: {
+                        id: string;
+                        label?: string;
+                        condition: {
+                            /** @enum {string} */
+                            kind: "engaged" | "not_engaged" | "clicked_link";
+                            /** @enum {string} */
+                            events?: "opened" | "clicked" | "opened_or_clicked";
+                            url?: string;
+                            /** @enum {string} */
+                            position?: "any" | "first" | "last";
+                        };
                     }[];
                 };
             } | {
@@ -1807,8 +1909,7 @@ export interface components {
             connections?: {
                 from: string;
                 to: string;
-                /** @enum {string} */
-                branch?: "left" | "right";
+                branch?: string;
             }[];
             emailIds: string[];
             createdBy?: string;
@@ -1848,8 +1949,7 @@ export interface components {
             /** @enum {string} */
             status: "running" | "success" | "error" | "skipped";
             orderIndex: number;
-            /** @enum {string} */
-            branch?: "left" | "right";
+            branch?: string;
             durationMs?: number;
             /** Format: date-time */
             startedAt: string;
@@ -2363,7 +2463,7 @@ export interface components {
                 emailId: string;
                 emailVersionId?: string;
                 /** @enum {string} */
-                status: "scheduled" | "queued" | "sending" | "paused" | "sent" | "failed" | "canceled";
+                status: "scheduled" | "queued" | "sending" | "paused" | "sent" | "partially_sent" | "failed" | "canceled";
                 subject?: string;
                 previewText?: string;
                 fromAddress?: string;
@@ -2499,7 +2599,9 @@ export interface components {
                 policyVersion: string;
             };
             domainId: string;
+            /** @description A saved audience id, or "all" to target EVERY contact in the brand. */
             audienceId?: string;
+            /** @description Inline recipient addresses (max 50). Mutually exclusive with `audienceId`. */
             to?: string | string[];
             /** Format: date-time */
             scheduledAt?: string;
@@ -2602,7 +2704,7 @@ export interface components {
                 emailId: string;
                 title: string;
                 /** @enum {string} */
-                status: "scheduled" | "queued" | "sending" | "paused" | "sent" | "failed" | "canceled";
+                status: "scheduled" | "queued" | "sending" | "paused" | "sent" | "partially_sent" | "failed" | "canceled";
                 audienceName?: string;
                 /** Format: date-time */
                 sentAt?: string;
@@ -2680,6 +2782,8 @@ export interface components {
                 nodeId?: string;
                 triggerEventId?: string;
                 provider?: string;
+                machineGenerated?: boolean;
+                clickBotReason?: string;
                 /** @enum {string} */
                 mode?: "live" | "test";
                 summary?: string;
@@ -2763,6 +2867,8 @@ export interface components {
                 type: "filter";
                 config: {
                     actionType?: string;
+                    /** @enum {string} */
+                    mode?: "payload";
                     /** @enum {string} */
                     logicalOperator: "AND" | "OR";
                     conditions: ({
@@ -2875,6 +2981,30 @@ export interface components {
                          */
                         operator: "is_true" | "is_false";
                     })[];
+                } | {
+                    actionType?: string;
+                    /** @enum {string} */
+                    mode: "engagement";
+                    /** @description Id of the upstream sendEmail node this filter watches for opens/clicks. */
+                    sourceNodeId: string;
+                    window: {
+                        duration: number;
+                        /** @enum {string} */
+                        unit: "ms" | "seconds" | "minutes" | "hours" | "days" | "weeks";
+                    };
+                    branches: {
+                        id: string;
+                        label?: string;
+                        condition: {
+                            /** @enum {string} */
+                            kind: "engaged" | "not_engaged" | "clicked_link";
+                            /** @enum {string} */
+                            events?: "opened" | "clicked" | "opened_or_clicked";
+                            url?: string;
+                            /** @enum {string} */
+                            position?: "any" | "first" | "last";
+                        };
+                    }[];
                 };
             } | {
                 id: string;
@@ -3014,8 +3144,7 @@ export interface components {
             connections?: {
                 from: string;
                 to: string;
-                /** @enum {string} */
-                branch?: "left" | "right";
+                branch?: string;
             }[];
             dryRun?: boolean;
         };
@@ -3090,6 +3219,8 @@ export interface components {
                     config: {
                         actionType?: string;
                         /** @enum {string} */
+                        mode?: "payload";
+                        /** @enum {string} */
                         logicalOperator: "AND" | "OR";
                         conditions: {
                             field: string;
@@ -3097,6 +3228,29 @@ export interface components {
                             value?: string | number | boolean | (string | number)[];
                             /** @enum {string} */
                             type?: "string" | "number" | "date" | "bool";
+                        }[];
+                    } | {
+                        actionType?: string;
+                        /** @enum {string} */
+                        mode: "engagement";
+                        sourceNodeId: string;
+                        window: {
+                            duration: number;
+                            /** @enum {string} */
+                            unit: "ms" | "seconds" | "minutes" | "hours" | "days" | "weeks";
+                        };
+                        branches: {
+                            id: string;
+                            label?: string;
+                            condition: {
+                                /** @enum {string} */
+                                kind: "engaged" | "not_engaged" | "clicked_link";
+                                /** @enum {string} */
+                                events?: "opened" | "clicked" | "opened_or_clicked";
+                                url?: string;
+                                /** @enum {string} */
+                                position?: "any" | "first" | "last";
+                            };
                         }[];
                     };
                 } | {
@@ -3133,8 +3287,7 @@ export interface components {
                 connections?: {
                     from: string;
                     to: string;
-                    /** @enum {string} */
-                    branch?: "left" | "right";
+                    branch?: string;
                 }[];
                 emailIds: string[];
                 createdBy?: string;
@@ -3216,6 +3369,8 @@ export interface components {
                 type: "filter";
                 config: {
                     actionType?: string;
+                    /** @enum {string} */
+                    mode?: "payload";
                     /** @enum {string} */
                     logicalOperator: "AND" | "OR";
                     conditions: ({
@@ -3328,6 +3483,30 @@ export interface components {
                          */
                         operator: "is_true" | "is_false";
                     })[];
+                } | {
+                    actionType?: string;
+                    /** @enum {string} */
+                    mode: "engagement";
+                    /** @description Id of the upstream sendEmail node this filter watches for opens/clicks. */
+                    sourceNodeId: string;
+                    window: {
+                        duration: number;
+                        /** @enum {string} */
+                        unit: "ms" | "seconds" | "minutes" | "hours" | "days" | "weeks";
+                    };
+                    branches: {
+                        id: string;
+                        label?: string;
+                        condition: {
+                            /** @enum {string} */
+                            kind: "engaged" | "not_engaged" | "clicked_link";
+                            /** @enum {string} */
+                            events?: "opened" | "clicked" | "opened_or_clicked";
+                            url?: string;
+                            /** @enum {string} */
+                            position?: "any" | "first" | "last";
+                        };
+                    }[];
                 };
             } | {
                 id: string;
@@ -3466,8 +3645,7 @@ export interface components {
             connections?: {
                 from: string;
                 to: string;
-                /** @enum {string} */
-                branch?: "left" | "right";
+                branch?: string;
             }[];
             triggerEventId?: string;
             dryRun?: boolean;
@@ -3629,8 +3807,7 @@ export interface components {
                     /** @enum {string} */
                     status: "running" | "success" | "error" | "skipped";
                     orderIndex: number;
-                    /** @enum {string} */
-                    branch?: "left" | "right";
+                    branch?: string;
                     durationMs?: number;
                     /** Format: date-time */
                     startedAt: string;
@@ -4404,6 +4581,9 @@ export interface components {
                 /** @enum {string} */
                 status: "extracting" | "completed" | "failed" | "deleting";
                 ready: boolean;
+                progress?: number;
+                phase?: string;
+                error?: string;
                 /** Format: date-time */
                 createdAt?: string;
                 /** Format: date-time */
@@ -4461,6 +4641,70 @@ export interface components {
                 limit: number;
                 cursor: string | null;
                 hasMore: boolean;
+            };
+        };
+        BrandsListResponse: {
+            data: {
+                brandId: string;
+                domain: string;
+                /** @enum {string} */
+                status: "extracting" | "completed" | "failed" | "deleting";
+                ready: boolean;
+                progress?: number;
+                phase?: string;
+                error?: string;
+                /** Format: date-time */
+                createdAt?: string;
+                /** Format: date-time */
+                updatedAt?: string;
+            }[];
+            pagination: {
+                limit: number;
+                cursor: string | null;
+                hasMore: boolean;
+            };
+        };
+        BrandsCreateResponse: {
+            brand: {
+                brandId: string;
+                domain: string;
+                /** @enum {string} */
+                status: "extracting" | "completed" | "failed" | "deleting";
+                ready: boolean;
+                progress?: number;
+                phase?: string;
+                error?: string;
+                /** Format: date-time */
+                createdAt?: string;
+                /** Format: date-time */
+                updatedAt?: string;
+            };
+            extraction: {
+                chatId: string;
+                statusUrl: string;
+            };
+        };
+        BrandsCreateRequest: {
+            url: string;
+            instructions?: string;
+            includePaths?: string[];
+            excludePaths?: string[];
+            excludeSubdomains?: string[];
+        };
+        BrandGetByIdResponse: {
+            brand: {
+                brandId: string;
+                domain: string;
+                /** @enum {string} */
+                status: "extracting" | "completed" | "failed" | "deleting";
+                ready: boolean;
+                progress?: number;
+                phase?: string;
+                error?: string;
+                /** Format: date-time */
+                createdAt?: string;
+                /** Format: date-time */
+                updatedAt?: string;
             };
         };
         ContentImageResponse: {
@@ -4644,7 +4888,13 @@ export interface operations {
                 limit?: number | string;
                 cursor?: string;
             };
-            header?: never;
+            header?: {
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -4848,6 +5098,11 @@ export interface operations {
                  * @example api-request-2026-04-08-001
                  */
                 "Idempotency-Key"?: string;
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
             };
             path?: never;
             cookie?: never;
@@ -5156,6 +5411,11 @@ export interface operations {
                  * @example api-request-2026-04-08-001
                  */
                 "Idempotency-Key"?: string;
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
             };
             path?: never;
             cookie?: never;
@@ -5420,6 +5680,11 @@ export interface operations {
                  * @example api-request-2026-04-08-001
                  */
                 "Idempotency-Key"?: string;
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
             };
             path?: never;
             cookie?: never;
@@ -5661,7 +5926,13 @@ export interface operations {
     deleteEmail: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
+            };
             path: {
                 /** @description Design id returned by `POST /v1/emails` and listed by `GET /v1/emails`. */
                 emailId: string;
@@ -5796,7 +6067,13 @@ export interface operations {
     editEmail: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
+            };
             path: {
                 /** @description Design id returned by `POST /v1/emails` and listed by `GET /v1/emails`. */
                 emailId: string;
@@ -6067,6 +6344,11 @@ export interface operations {
                  * @example api-request-2026-04-08-001
                  */
                 "Idempotency-Key"?: string;
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
             };
             path: {
                 /** @description Design id returned by `POST /v1/emails` and listed by `GET /v1/emails`. */
@@ -6295,6 +6577,11 @@ export interface operations {
                  * @example api-request-2026-04-08-001
                  */
                 "Idempotency-Key"?: string;
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
             };
             path: {
                 /** @description Design id returned by `POST /v1/emails` and listed by `GET /v1/emails`. */
@@ -6515,6 +6802,11 @@ export interface operations {
                  * @example api-request-2026-04-08-001
                  */
                 "Idempotency-Key"?: string;
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
             };
             path: {
                 /** @description Design id returned by `POST /v1/emails` and listed by `GET /v1/emails`. */
@@ -6780,7 +7072,13 @@ export interface operations {
     auditEmailAccessibility: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
+            };
             path: {
                 /** @description Design id returned by `POST /v1/emails` and listed by `GET /v1/emails`. */
                 emailId: string;
@@ -7029,6 +7327,11 @@ export interface operations {
                  * @example api-request-2026-04-08-001
                  */
                 "Idempotency-Key"?: string;
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
             };
             path: {
                 /** @description Design id returned by `POST /v1/emails` and listed by `GET /v1/emails`. */
@@ -7309,7 +7612,13 @@ export interface operations {
                 /** @description The test id returned by the create endpoint; omit to list the design's recent tests. */
                 testId?: string;
             };
-            header?: never;
+            header?: {
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
+            };
             path: {
                 /** @description Design id returned by `POST /v1/emails` and listed by `GET /v1/emails`. */
                 emailId: string;
@@ -7523,6 +7832,11 @@ export interface operations {
                  * @example api-request-2026-04-08-001
                  */
                 "Idempotency-Key"?: string;
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
             };
             path: {
                 /** @description Design id returned by `POST /v1/emails` and listed by `GET /v1/emails`. */
@@ -7770,7 +8084,7 @@ export interface operations {
                 emailId?: string;
                 /** @description Detail-only expansion: `events` inlines a bounded first page of the send’s analytics events. Rejected without `sendId`. */
                 include?: "events";
-                status?: "scheduled" | "queued" | "sending" | "paused" | "sent" | "failed" | "canceled";
+                status?: "scheduled" | "queued" | "sending" | "paused" | "sent" | "partially_sent" | "failed" | "canceled";
                 from?: string;
                 to?: string;
                 /**
@@ -7781,7 +8095,13 @@ export interface operations {
                 /** @description Opaque pagination cursor echoed from the previous page’s `pagination.cursor`. Omit for the first page. */
                 cursor?: string;
             };
-            header?: never;
+            header?: {
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -7993,6 +8313,11 @@ export interface operations {
                  * @example api-request-2026-04-08-001
                  */
                 "Idempotency-Key"?: string;
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
             };
             path?: never;
             cookie?: never;
@@ -8238,6 +8563,11 @@ export interface operations {
                  * @example api-request-2026-04-08-001
                  */
                 "Idempotency-Key"?: string;
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
             };
             path: {
                 /** @description Send id returned by `POST /v1/sends`. */
@@ -8425,6 +8755,11 @@ export interface operations {
                  * @example api-request-2026-04-08-001
                  */
                 "Idempotency-Key"?: string;
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
             };
             path: {
                 /** @description Send id returned by `POST /v1/sends`. */
@@ -8612,6 +8947,11 @@ export interface operations {
                  * @example api-request-2026-04-08-001
                  */
                 "Idempotency-Key"?: string;
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
             };
             path: {
                 /** @description Send id returned by `POST /v1/sends`. */
@@ -8807,8 +9147,16 @@ export interface operations {
                 triggerEventId?: string;
                 /** @description Sending domain (`fromEmail` match). Has no rollup dimension, so requests carrying it are answered from raw events — check `truncated` on wide windows. */
                 domain?: string;
+                /** @description CSV of recipient rules (max 10) matching who RECEIVED the email — the SAME grammar and the same parameter name as `GET /v1/analytics/events`, so one filter string moves between the two and the totals here describe exactly the rows that feed lists. A full address matches exactly, `@domain` matches the domain, any other text matches as a substring; prefix `!` to exclude (e.g. `@clay.com,!ceo@clay.com`). Includes OR together; excludes always apply. Like `domain` this has no rollup dimension (stored rows aggregate ACROSS recipients), so requests carrying it are answered from raw events — check `truncated` on wide windows. */
+                recipient?: string;
             };
-            header?: never;
+            header?: {
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -9013,7 +9361,13 @@ export interface operations {
                 /** @description Opaque pagination cursor echoed from the previous page’s `pagination.cursor`. Omit for the first page. */
                 cursor?: string;
             };
-            header?: never;
+            header?: {
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -9195,7 +9549,13 @@ export interface operations {
                 automationId?: string;
                 limit?: number;
             };
-            header?: never;
+            header?: {
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -9387,6 +9747,8 @@ export interface operations {
                 from?: string;
                 to?: string;
                 recipientEmail?: string;
+                /** @description CSV of recipient rules (max 10) matching who RECEIVED the email: a full address matches exactly, `@domain` matches the domain, any other text matches as a substring; prefix `!` to exclude (e.g. `@clay.com,!ceo@clay.com`). Includes OR together; excludes always apply. Narrows the feed to email events. */
+                recipient?: string;
                 eventType?: string;
                 automationId?: string;
                 sendId?: string;
@@ -9405,7 +9767,13 @@ export interface operations {
                 limit?: number;
                 cursor?: string;
             };
-            header?: never;
+            header?: {
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -9591,7 +9959,13 @@ export interface operations {
                 /** @description Opaque pagination cursor echoed from the previous page’s `pagination.cursor`. Omit for the first page. */
                 cursor?: string;
             };
-            header?: never;
+            header?: {
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -9792,6 +10166,11 @@ export interface operations {
                  * @example api-request-2026-04-08-001
                  */
                 "Idempotency-Key"?: string;
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
             };
             path?: never;
             cookie?: never;
@@ -10033,7 +10412,13 @@ export interface operations {
     deleteAutomation: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
+            };
             path: {
                 /** @description Automation id returned by `POST /v1/automations` and listed by `GET /v1/automations`. */
                 automationId: string;
@@ -10168,7 +10553,13 @@ export interface operations {
     updateAutomation: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
+            };
             path: {
                 /** @description Automation id returned by `POST /v1/automations` and listed by `GET /v1/automations`. */
                 automationId: string;
@@ -10445,6 +10836,11 @@ export interface operations {
                  * @example api-request-2026-04-08-001
                  */
                 "Idempotency-Key"?: string;
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
             };
             path: {
                 /** @description Automation id returned by `POST /v1/automations` and listed by `GET /v1/automations`. */
@@ -10670,6 +11066,11 @@ export interface operations {
                  * @example api-request-2026-04-08-001
                  */
                 "Idempotency-Key"?: string;
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
             };
             path: {
                 /** @description Automation id returned by `POST /v1/automations` and listed by `GET /v1/automations`. */
@@ -10896,7 +11297,13 @@ export interface operations {
                 /** @description Max rows to return (1–200, default 50). */
                 limit?: number;
             };
-            header?: never;
+            header?: {
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -11041,7 +11448,13 @@ export interface operations {
     controlAudienceRun: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
+            };
             path: {
                 /** @description The audience run id (from `POST /v1/automations/{automationId}/run` or `GET /v1/automations/audience-runs`). */
                 audienceRunId: string;
@@ -11245,7 +11658,13 @@ export interface operations {
                 limit?: number;
                 cursor?: string;
             };
-            header?: never;
+            header?: {
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -11449,7 +11868,13 @@ export interface operations {
                 /** @description Opaque pagination cursor echoed from the previous page’s `pagination.cursor`. Omit for the first page. */
                 cursor?: string;
             };
-            header?: never;
+            header?: {
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -11661,6 +12086,11 @@ export interface operations {
                  * @example api-request-2026-04-08-001
                  */
                 "Idempotency-Key"?: string;
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
             };
             path?: never;
             cookie?: never;
@@ -11882,7 +12312,13 @@ export interface operations {
     deleteTrigger: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
+            };
             path: {
                 /** @description Trigger id returned by `POST /v1/automations/triggers`. Custom triggers use `tri_…` ids; integration triggers use composite ids (e.g. `clerk:org_…:brand_…:user.created`, URL-encode the colons). */
                 triggerEventId: string;
@@ -12051,7 +12487,13 @@ export interface operations {
     updateTrigger: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
+            };
             path: {
                 /** @description Trigger id returned by `POST /v1/automations/triggers`. Custom triggers use `tri_…` ids; integration triggers use composite ids (e.g. `clerk:org_…:brand_…:user.created`, URL-encode the colons). */
                 triggerEventId: string;
@@ -12289,6 +12731,11 @@ export interface operations {
                  * @example api-request-2026-04-08-001
                  */
                 "Idempotency-Key"?: string;
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
             };
             path: {
                 /** @description Trigger id returned by `POST /v1/automations/triggers`. Custom triggers use `tri_…` ids; integration triggers use composite ids (e.g. `clerk:org_…:brand_…:user.created`, URL-encode the colons). */
@@ -12533,7 +12980,13 @@ export interface operations {
                 /** @description Opaque pagination cursor echoed from the previous page’s `pagination.cursor`. Omit for the first page. */
                 cursor?: string;
             };
-            header?: never;
+            header?: {
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -12738,6 +13191,11 @@ export interface operations {
                  * @example api-request-2026-04-08-001
                  */
                 "Idempotency-Key"?: string;
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
             };
             path?: never;
             cookie?: never;
@@ -13020,7 +13478,13 @@ export interface operations {
     deleteContact: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
+            };
             path: {
                 /** @description The contact’s email address (URL-encoded). Email is the contact primary key. */
                 email: string;
@@ -13155,7 +13619,13 @@ export interface operations {
     updateContact: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
+            };
             path: {
                 /** @description The contact’s email address (URL-encoded). Email is the contact primary key. */
                 email: string;
@@ -13390,7 +13860,13 @@ export interface operations {
     searchContacts: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -13543,7 +14019,13 @@ export interface operations {
     validateContacts: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -13787,7 +14269,13 @@ export interface operations {
     importContactsCsv: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -14034,6 +14522,11 @@ export interface operations {
                  * @example api-request-2026-04-08-001
                  */
                 "Idempotency-Key"?: string;
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
             };
             path?: never;
             cookie?: never;
@@ -14237,7 +14730,13 @@ export interface operations {
                 /** @description Opaque pagination cursor echoed from the previous page’s `pagination.cursor`. Omit for the first page. */
                 cursor?: string;
             };
-            header?: never;
+            header?: {
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -14438,6 +14937,11 @@ export interface operations {
                  * @example api-request-2026-04-08-001
                  */
                 "Idempotency-Key"?: string;
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
             };
             path?: never;
             cookie?: never;
@@ -14654,7 +15158,13 @@ export interface operations {
     deleteContactField: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
+            };
             path: {
                 /** @description The custom field name (URL-encoded when needed). */
                 fieldName: string;
@@ -14824,7 +15334,13 @@ export interface operations {
                 /** @description Opaque pagination cursor echoed from the previous page’s `pagination.cursor`. Omit for the first page. */
                 cursor?: string;
             };
-            header?: never;
+            header?: {
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -15030,6 +15546,11 @@ export interface operations {
                  * @example api-request-2026-04-08-001
                  */
                 "Idempotency-Key"?: string;
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
             };
             path?: never;
             cookie?: never;
@@ -15239,7 +15760,13 @@ export interface operations {
     deleteAudience: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
+            };
             path: {
                 /** @description Audience id (opaque Convex document id) returned by `POST /v1/audiences` and listed by `GET /v1/audiences`. */
                 audienceId: string;
@@ -15374,7 +15901,13 @@ export interface operations {
     updateAudience: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
+            };
             path: {
                 /** @description Audience id (opaque Convex document id) returned by `POST /v1/audiences` and listed by `GET /v1/audiences`. */
                 audienceId: string;
@@ -15589,7 +16122,13 @@ export interface operations {
                 /** @description Opaque pagination cursor echoed from the previous page’s `pagination.cursor`. Omit for the first page. */
                 cursor?: string;
             };
-            header?: never;
+            header?: {
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -15799,6 +16338,11 @@ export interface operations {
                  * @example api-request-2026-04-08-001
                  */
                 "Idempotency-Key"?: string;
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
             };
             path?: never;
             cookie?: never;
@@ -16002,7 +16546,13 @@ export interface operations {
     deleteDomain: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
+            };
             path: {
                 /** @description Domain id (opaque Convex document id) returned by `POST /v1/domains` and listed by `GET /v1/domains`. */
                 domainId: string;
@@ -16137,7 +16687,13 @@ export interface operations {
     updateDomain: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
+            };
             path: {
                 /** @description Domain id (opaque Convex document id) returned by `POST /v1/domains` and listed by `GET /v1/domains`. */
                 domainId: string;
@@ -16351,6 +16907,11 @@ export interface operations {
                  * @example api-request-2026-04-08-001
                  */
                 "Idempotency-Key"?: string;
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
             };
             path: {
                 /** @description Domain id (opaque Convex document id) returned by `POST /v1/domains` and listed by `GET /v1/domains`. */
@@ -16549,7 +17110,13 @@ export interface operations {
     getDomainHealth: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
+            };
             path: {
                 /** @description Domain id (opaque Convex document id) returned by `POST /v1/domains` and listed by `GET /v1/domains`. */
                 domainId: string;
@@ -16789,7 +17356,13 @@ export interface operations {
                 limit?: number | string;
                 cursor?: string;
             };
-            header?: never;
+            header?: {
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -16960,7 +17533,13 @@ export interface operations {
             query?: {
                 include?: string;
             };
-            header?: never;
+            header?: {
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -17102,7 +17681,13 @@ export interface operations {
     updateBrand: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -17275,7 +17860,13 @@ export interface operations {
                 limit?: number | string;
                 cursor?: string;
             };
-            header?: never;
+            header?: {
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -17467,6 +18058,581 @@ export interface operations {
             };
         };
     };
+    listBrands: {
+        parameters: {
+            query?: {
+                limit?: number | string;
+                cursor?: string;
+                status?: "extracting" | "completed" | "failed" | "deleting";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The brands this credential can reach. */
+            200: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "data": [
+                     *         {
+                     *           "brandId": "kx7b3s7fapqz8mjm12ekz1kxdx87yceg",
+                     *           "domain": "vercel.com",
+                     *           "status": "completed",
+                     *           "ready": true,
+                     *           "createdAt": "2026-04-08T12:00:00.000Z",
+                     *           "updatedAt": "2026-04-08T12:05:00.000Z"
+                     *         },
+                     *         {
+                     *           "brandId": "kx9d1p2qbrxy4nkm55ftz3lmvn21abcd",
+                     *           "domain": "acme.com",
+                     *           "status": "extracting",
+                     *           "ready": false,
+                     *           "progress": 0,
+                     *           "phase": "analyzing",
+                     *           "createdAt": "2026-04-08T12:00:00.000Z",
+                     *           "updatedAt": "2026-04-08T12:00:00.000Z"
+                     *         }
+                     *       ],
+                     *       "pagination": {
+                     *         "limit": 100,
+                     *         "cursor": null,
+                     *         "hasMore": false
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["BrandsListResponse"];
+                };
+            };
+            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
+            400: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INVALID_REQUEST",
+                     *         "type": "invalid_request",
+                     *         "message": "Request validation failed.",
+                     *         "suggestion": "Fix the field reported in `param` and retry.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "status"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The API key was missing, invalid, or revoked. */
+            401: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INVALID_API_KEY",
+                     *         "type": "authentication_error",
+                     *         "message": "The provided API key is invalid.",
+                     *         "suggestion": "Check the API key format and retry with a valid active key.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The caller does not have the required `emails` permission. */
+            403: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INSUFFICIENT_PERMISSIONS",
+                     *         "type": "authorization_error",
+                     *         "message": "The caller does not have the required permission.",
+                     *         "suggestion": "Use an API key or session with the required permission.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
+                     *         "param": "emails"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The request hit the rolling rate limit window. */
+            429: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    /** @description Seconds to wait before retrying the request. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "RATE_LIMITED",
+                     *         "type": "rate_limit",
+                     *         "message": "Too many requests.",
+                     *         "suggestion": "Wait for the retry window before sending another request.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
+                     *         "retryAfter": 42
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected internal error. */
+            500: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INTERNAL_ERROR",
+                     *         "type": "internal_error",
+                     *         "message": "An unexpected error occurred.",
+                     *         "suggestion": "Retry the request. If it keeps failing, contact support.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    createBrand: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description Optional idempotency key for safe retries. Reusing the same key with the same request body returns the original response for 24 hours.
+                 * @example api-request-2026-04-08-001
+                 */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "url": "acme.com",
+                 *       "instructions": "Use the product pages for tone. Primary brand color is the deep navy in the header."
+                 *     }
+                 */
+                "application/json": components["schemas"]["BrandsCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description The brand was created and extraction started. Poll `extraction.statusUrl`. */
+            201: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "brand": {
+                     *         "brandId": "kx9d1p2qbrxy4nkm55ftz3lmvn21abcd",
+                     *         "domain": "acme.com",
+                     *         "status": "extracting",
+                     *         "ready": false,
+                     *         "progress": 0,
+                     *         "phase": "analyzing",
+                     *         "createdAt": "2026-04-08T12:00:00.000Z",
+                     *         "updatedAt": "2026-04-08T12:00:00.000Z"
+                     *       },
+                     *       "extraction": {
+                     *         "chatId": "6f1c2b9e-6c2a-4a2e-9f5f-2b7d9a3e4c11",
+                     *         "statusUrl": "/v1/brands/kx9d1p2qbrxy4nkm55ftz3lmvn21abcd"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["BrandsCreateResponse"];
+                };
+            };
+            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
+            400: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INVALID_REQUEST",
+                     *         "type": "invalid_request",
+                     *         "message": "Request validation failed.",
+                     *         "suggestion": "Fix the field reported in `param` and retry.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "url"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The API key was missing, invalid, or revoked. */
+            401: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INVALID_API_KEY",
+                     *         "type": "authentication_error",
+                     *         "message": "The provided API key is invalid.",
+                     *         "suggestion": "Check the API key format and retry with a valid active key.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The organization is at its plan brand limit, or has no credits. */
+            402: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "BRAND_LIMIT_REACHED",
+                     *         "type": "payment_required",
+                     *         "message": "Brand limit reached on the Free plan (3 brand workspaces). Upgrade your plan to add more brand workspaces.",
+                     *         "suggestion": "Delete an unused brand, or upgrade the plan to add more brands.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The caller does not have the required `brands` permission. */
+            403: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INSUFFICIENT_PERMISSIONS",
+                     *         "type": "authorization_error",
+                     *         "message": "The caller does not have the required permission.",
+                     *         "suggestion": "Use an API key or session with the required permission.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
+                     *         "param": "brands"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The organization already has an active brand for that domain. */
+            409: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "BRAND_DOMAIN_CONFLICT",
+                     *         "type": "conflict",
+                     *         "message": "A brand for acme.com already exists in this organization.",
+                     *         "suggestion": "This organization already has a brand for that domain — find it with GET /v1/brands.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "url"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The request hit the rolling rate limit window. */
+            429: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    /** @description Seconds to wait before retrying the request. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "RATE_LIMITED",
+                     *         "type": "rate_limit",
+                     *         "message": "Too many requests.",
+                     *         "suggestion": "Wait for the retry window before sending another request.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
+                     *         "retryAfter": 42
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected internal error. */
+            500: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INTERNAL_ERROR",
+                     *         "type": "internal_error",
+                     *         "message": "An unexpected error occurred.",
+                     *         "suggestion": "Retry the request. If it keeps failing, contact support.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    getBrandById: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Brand id (opaque Convex document id) returned by `POST /v1/brands` and listed by `GET /v1/brands`. */
+                brandId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The brand. */
+            200: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "brand": {
+                     *         "brandId": "kx9d1p2qbrxy4nkm55ftz3lmvn21abcd",
+                     *         "domain": "acme.com",
+                     *         "status": "extracting",
+                     *         "ready": false,
+                     *         "progress": 0,
+                     *         "phase": "analyzing",
+                     *         "createdAt": "2026-04-08T12:00:00.000Z",
+                     *         "updatedAt": "2026-04-08T12:00:00.000Z"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["BrandGetByIdResponse"];
+                };
+            };
+            /** @description The API key was missing, invalid, or revoked. */
+            401: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INVALID_API_KEY",
+                     *         "type": "authentication_error",
+                     *         "message": "The provided API key is invalid.",
+                     *         "suggestion": "Check the API key format and retry with a valid active key.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The caller does not have the required `emails` permission. */
+            403: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INSUFFICIENT_PERMISSIONS",
+                     *         "type": "authorization_error",
+                     *         "message": "The caller does not have the required permission.",
+                     *         "suggestion": "Use an API key or session with the required permission.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
+                     *         "param": "emails"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description No such brand in this organization — or one this credential cannot reach. Unknown, cross-organization and mid-deletion brands are deliberately indistinguishable. */
+            404: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "BRAND_NOT_FOUND",
+                     *         "type": "not_found",
+                     *         "message": "The brand 'kx9d1p2qbrxy4nkm55ftz3lmvn21abcd' was not found in this organization.",
+                     *         "suggestion": "List the brands this credential can reach with GET /v1/brands.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The request hit the rolling rate limit window. */
+            429: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    /** @description Seconds to wait before retrying the request. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "RATE_LIMITED",
+                     *         "type": "rate_limit",
+                     *         "message": "Too many requests.",
+                     *         "suggestion": "Wait for the retry window before sending another request.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
+                     *         "retryAfter": 42
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected internal error. */
+            500: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INTERNAL_ERROR",
+                     *         "type": "internal_error",
+                     *         "message": "An unexpected error occurred.",
+                     *         "suggestion": "Retry the request. If it keeps failing, contact support.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
     generateContentImage: {
         parameters: {
             query?: never;
@@ -17476,6 +18642,11 @@ export interface operations {
                  * @example api-request-2026-04-08-001
                  */
                 "Idempotency-Key"?: string;
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
             };
             path?: never;
             cookie?: never;
@@ -17735,6 +18906,11 @@ export interface operations {
                  * @example api-request-2026-04-08-001
                  */
                 "Idempotency-Key"?: string;
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
             };
             path?: never;
             cookie?: never;
@@ -17994,6 +19170,11 @@ export interface operations {
                  * @example api-request-2026-04-08-001
                  */
                 "Idempotency-Key"?: string;
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
             };
             path?: never;
             cookie?: never;
@@ -18253,6 +19434,11 @@ export interface operations {
                  * @example api-request-2026-04-08-001
                  */
                 "Idempotency-Key"?: string;
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
             };
             path?: never;
             cookie?: never;
@@ -18512,6 +19698,11 @@ export interface operations {
                  * @example api-request-2026-04-08-001
                  */
                 "Idempotency-Key"?: string;
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
             };
             path?: never;
             cookie?: never;
@@ -18773,7 +19964,13 @@ export interface operations {
     getUsage: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -18971,7 +20168,13 @@ export interface operations {
     getChatContext: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
+            };
             path: {
                 /** @description The Brew chat id (from the chat URL / the app). */
                 chatId: string;
@@ -18998,7 +20201,7 @@ export interface operations {
                      * @example {
                      *       "chatId": "Hk2mZ8t9QbY3sW1vR0pLd",
                      *       "title": "Spring launch campaign",
-                     *       "modelId": "claude-opus-4-1",
+                     *       "modelId": "anthropic/claude-opus-5",
                      *       "updatedAt": "2026-06-30T12:34:56.789Z",
                      *       "messageCount": 18,
                      *       "artifacts": [
