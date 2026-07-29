@@ -394,7 +394,7 @@ export interface paths {
         };
         /**
          * Automation performance
-         * @description Windowed per-automation performance + brand `totals` + the resolved `range`. Defaults to the last 30 days. Reflects LIVE runs only (test runs never contribute). Narrow with the `automationId` filter; bound the window with `from` / `to`. Requires the `automations` scope.
+         * @description Windowed per-automation performance + scoped `totals` + the resolved `range`. Defaults to the last 30 days. Reflects LIVE runs only (test runs never contribute). Totals include every matching automation independently from the displayed row `limit`. Narrow with the `automationId` filter; bound the window with `from` / `to`. Check `truncated`: when true, scan budgets clipped the requested window and the metrics are partial. Requires the `automations` scope.
          */
         get: operations["getAutomationAnalytics"];
         put?: never;
@@ -1425,6 +1425,8 @@ export interface components {
                 occurredAt: string;
                 recipientEmail?: string;
                 url?: string;
+                machineGenerated?: boolean;
+                clickBotReason?: string;
             }[];
         };
         SendEvent: {
@@ -1434,6 +1436,8 @@ export interface components {
             occurredAt: string;
             recipientEmail?: string;
             url?: string;
+            machineGenerated?: boolean;
+            clickBotReason?: string;
         };
         AutomationNode: {
             id: string;
@@ -2540,6 +2544,8 @@ export interface components {
                     occurredAt: string;
                     recipientEmail?: string;
                     url?: string;
+                    machineGenerated?: boolean;
+                    clickBotReason?: string;
                 }[];
             }[];
             pagination?: {
@@ -2764,6 +2770,7 @@ export interface components {
                 /** Format: date-time */
                 to: string;
             };
+            truncated: boolean;
         };
         EventsAnalyticsResponse: {
             data: {
@@ -4832,8 +4839,9 @@ export interface components {
         };
         ContentAddImageRequest: {
             /** Format: uri */
-            imageUrl?: string;
-            imageUrls?: string[];
+            imageUrl: string;
+        } | {
+            imageUrls: string[];
         };
         UsageGetResponse: {
             plan: {

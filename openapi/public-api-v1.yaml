@@ -449,6 +449,10 @@ components:
                 type: string
               url:
                 type: string
+              machineGenerated:
+                type: boolean
+              clickBotReason:
+                type: string
             required:
               - eventType
               - occurredAt
@@ -486,6 +490,10 @@ components:
         recipientEmail:
           type: string
         url:
+          type: string
+        machineGenerated:
+          type: boolean
+        clickBotReason:
           type: string
       required:
         - eventType
@@ -3668,6 +3676,10 @@ components:
                       type: string
                     url:
                       type: string
+                    machineGenerated:
+                      type: boolean
+                    clickBotReason:
+                      type: string
                   required:
                     - eventType
                     - occurredAt
@@ -4375,10 +4387,13 @@ components:
             - from
             - to
           additionalProperties: false
+        truncated:
+          type: boolean
       required:
         - data
         - totals
         - range
+        - truncated
       additionalProperties: false
     EventsAnalyticsResponse:
       type: object
@@ -10307,19 +10322,27 @@ components:
         - aspectRatio
       additionalProperties: false
     ContentAddImageRequest:
-      type: object
-      properties:
-        imageUrl:
-          type: string
-          format: uri
-        imageUrls:
-          type: array
-          items:
-            type: string
-            format: uri
-          minItems: 1
-          maxItems: 100
-      additionalProperties: false
+      oneOf:
+        - type: object
+          properties:
+            imageUrl:
+              type: string
+              format: uri
+          required:
+            - imageUrl
+          additionalProperties: false
+        - type: object
+          properties:
+            imageUrls:
+              type: array
+              items:
+                type: string
+                format: uri
+              minItems: 1
+              maxItems: 100
+          required:
+            - imageUrls
+          additionalProperties: false
     UsageGetResponse:
       type: object
       properties:
@@ -16151,7 +16174,7 @@ paths:
       tags:
         - Analytics
       summary: Automation performance
-      description: Windowed per-automation performance + brand `totals` + the resolved `range`. Defaults to the last 30 days. Reflects LIVE runs only (test runs never contribute). Narrow with the `automationId` filter; bound the window with `from` / `to`. Requires the `automations` scope.
+      description: "Windowed per-automation performance + scoped `totals` + the resolved `range`. Defaults to the last 30 days. Reflects LIVE runs only (test runs never contribute). Totals include every matching automation independently from the displayed row `limit`. Narrow with the `automationId` filter; bound the window with `from` / `to`. Check `truncated`: when true, scan budgets clipped the requested window and the metrics are partial. Requires the `automations` scope."
       parameters:
         - name: from
           in: query
