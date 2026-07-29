@@ -45,6 +45,8 @@ security:
 tags:
   - name: Emails
     description: "Email designs and sending. Generate a design with the Brew email agent, edit, version, restore — then send it: `POST /v1/sends` delivers a design to a target (a saved audience, an inline list, or a single address) via a verified domain, and `POST /v1/sends/test` fires a one-off test. Sending is not campaign-specific. Send reads (list, status, per-send event feeds) live under Analytics (`/v1/analytics/sends`)."
+  - name: Brands
+    description: "Brand lifecycle for ORGANIZATION-scoped credentials: list the brands a credential can reach, read one, and create a new one (extraction runs asynchronously — poll `GET /v1/brands/{brandId}` until `status: completed`). These endpoints act on the organization, so they take no `X-Brand-Id`."
   - name: Analytics
     description: "Read-only cross-resource analytics: lifetime per-campaign KPIs, windowed automation performance, the unified event feed, send reads (`/v1/analytics/sends`), and the fired-trigger audit log (`/v1/analytics/trigger-instances`)."
   - name: Automations
@@ -10734,7 +10736,7 @@ paths:
           example: kx7b3s7fapqz8mjm12ekz1kxdx87yceg
       requestBody:
         required: true
-        description: Generation prompt plus optional source URLs / reference design. The brand is resolved from the API key and must not be passed.
+        description: Generation prompt plus optional source URLs / reference design. The brand comes from the credential (or the `X-Brand-Id` header on an organization-scoped one) and must not be passed in the body.
         content:
           application/json:
             schema:
@@ -10829,7 +10831,7 @@ paths:
                 html: <!DOCTYPE html><html><body>Welcome to Brew.</body></html>
                 previewImage: https://storage.example.com/emails/eml_2SmZOWV3ZQ7W5x6g3m4p.png
         "400":
-          description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
+          description: "The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field."
           headers:
             x-request-id:
               schema:
@@ -11165,7 +11167,7 @@ paths:
                 $ref: "#/components/schemas/EmailGenerateGeneratedResponse"
               example: *a2
         "400":
-          description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
+          description: "The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field."
           headers:
             x-request-id:
               schema:
@@ -11834,7 +11836,7 @@ paths:
                   summary: Text response
                   value: *a3
         "400":
-          description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
+          description: "The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field."
           headers:
             x-request-id:
               schema:
@@ -12364,7 +12366,7 @@ paths:
                 $ref: "#/components/schemas/EmailGenerateGeneratedResponse"
               example: *a2
         "400":
-          description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
+          description: "The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field."
           headers:
             x-request-id:
               schema:
@@ -12651,7 +12653,7 @@ paths:
                 $ref: "#/components/schemas/EmailGenerateResponse"
               example: *a2
         "400":
-          description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
+          description: "The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field."
           headers:
             x-request-id:
               schema:
@@ -14462,7 +14464,7 @@ paths:
                   cursor: null
                   hasMore: false
         "400":
-          description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
+          description: "The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field."
           headers:
             x-request-id:
               schema:
@@ -15792,7 +15794,7 @@ paths:
                   to: 2026-04-08T12:34:56.789Z
                 truncated: false
         "400":
-          description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
+          description: "The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field."
           headers:
             x-request-id:
               schema:
@@ -16003,7 +16005,7 @@ paths:
                   cursor: null
                   hasMore: false
         "400":
-          description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
+          description: "The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field."
           headers:
             x-request-id:
               schema:
@@ -16250,7 +16252,7 @@ paths:
                   from: 2026-03-09T12:34:56.789Z
                   to: 2026-04-08T12:34:56.789Z
         "400":
-          description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
+          description: "The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field."
           headers:
             x-request-id:
               schema:
@@ -16563,7 +16565,7 @@ paths:
                   from: 2026-04-01T12:34:56.789Z
                   to: 2026-04-08T12:34:56.789Z
         "400":
-          description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
+          description: "The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field."
           headers:
             x-request-id:
               schema:
@@ -17119,7 +17121,7 @@ paths:
                   cursor: null
                   hasMore: false
         "400":
-          description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
+          description: "The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field."
           headers:
             x-request-id:
               schema:
@@ -17836,7 +17838,7 @@ paths:
                 status: test_started
                 receivedAt: 2026-04-08T12:34:56.789Z
         "400":
-          description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
+          description: "The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field."
           headers:
             x-request-id:
               schema:
@@ -18869,7 +18871,7 @@ paths:
                   cursor: null
                   hasMore: false
         "400":
-          description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
+          description: "The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field."
           headers:
             x-request-id:
               schema:
@@ -19344,7 +19346,7 @@ paths:
                   cursor: null
                   hasMore: false
         "400":
-          description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
+          description: "The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field."
           headers:
             x-request-id:
               schema:
@@ -20341,7 +20343,7 @@ paths:
                   cursor: null
                   hasMore: false
         "400":
-          description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
+          description: "The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field."
           headers:
             x-request-id:
               schema:
@@ -20666,7 +20668,7 @@ paths:
                     message: not-an-email is not a valid email address.
                 warnings: []
         "400":
-          description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
+          description: "The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field."
           headers:
             x-request-id:
               schema:
@@ -20934,7 +20936,7 @@ paths:
                   - firstName
                   - plan
         "400":
-          description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
+          description: "The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field."
           headers:
             x-request-id:
               schema:
@@ -21394,7 +21396,7 @@ paths:
                   value:
                     count: 1284
         "400":
-          description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
+          description: "The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field."
           headers:
             x-request-id:
               schema:
@@ -21612,7 +21614,7 @@ paths:
                     status: risky
                     reason: role_address
         "400":
-          description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
+          description: "The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field."
           headers:
             x-request-id:
               schema:
@@ -22027,7 +22029,7 @@ paths:
                     message: Email 'dupe@example.com' appears 2 times in batch.
                 warnings: []
         "400":
-          description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
+          description: "The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field."
           headers:
             x-request-id:
               schema:
@@ -22241,7 +22243,7 @@ paths:
                 notFound:
                   - gone@example.com
         "400":
-          description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
+          description: "The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field."
           headers:
             x-request-id:
               schema:
@@ -22500,7 +22502,7 @@ paths:
                   cursor: null
                   hasMore: false
         "400":
-          description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
+          description: "The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field."
           headers:
             x-request-id:
               schema:
@@ -22706,7 +22708,7 @@ paths:
                 isSortable: true
                 isSearchable: false
         "400":
-          description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
+          description: "The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field."
           headers:
             x-request-id:
               schema:
@@ -23176,7 +23178,7 @@ paths:
                   cursor: null
                   hasMore: false
         "400":
-          description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
+          description: "The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field."
           headers:
             x-request-id:
               schema:
@@ -23402,7 +23404,7 @@ paths:
                 $ref: "#/components/schemas/Audience"
               example: *a16
         "400":
-          description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
+          description: "The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field."
           headers:
             x-request-id:
               schema:
@@ -24056,7 +24058,7 @@ paths:
                   cursor: null
                   hasMore: false
         "400":
-          description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
+          description: "The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field."
           headers:
             x-request-id:
               schema:
@@ -24276,7 +24278,7 @@ paths:
                 $ref: "#/components/schemas/Domain"
               example: *a18
         "400":
-          description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
+          description: "The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field."
           headers:
             x-request-id:
               schema:
@@ -25352,15 +25354,6 @@ paths:
           required: false
           name: cursor
           in: query
-        - name: X-Brand-Id
-          in: header
-          required: false
-          description: The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
-          schema:
-            type: string
-            minLength: 1
-            maxLength: 64
-          example: kx7b3s7fapqz8mjm12ekz1kxdx87yceg
       responses:
         "200":
           description: A page of templates matching the filters.
@@ -25411,7 +25404,7 @@ paths:
                   cursor: null
                   hasMore: false
         "400":
-          description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
+          description: "The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field."
           headers:
             x-request-id:
               schema:
@@ -25619,7 +25612,7 @@ paths:
                   brandName: Vercel
                   tagline: Develop. Preview. Ship.
         "400":
-          description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
+          description: "The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field."
           headers:
             x-request-id:
               schema:
@@ -25803,7 +25796,7 @@ paths:
                   brandName: Vercel
                   tagline: Complete user management for modern apps.
         "400":
-          description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
+          description: "The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field."
           headers:
             x-request-id:
               schema:
@@ -26308,7 +26301,7 @@ paths:
                   cursor: null
                   hasMore: false
         "400":
-          description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
+          description: "The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field."
           headers:
             x-request-id:
               schema:
@@ -26515,7 +26508,7 @@ paths:
                   chatId: 6f1c2b9e-6c2a-4a2e-9f5f-2b7d9a3e4c11
                   statusUrl: /v1/brands/kx9d1p2qbrxy4nkm55ftz3lmvn21abcd
         "400":
-          description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
+          description: "The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field."
           headers:
             x-request-id:
               schema:
@@ -26957,7 +26950,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ContentImageResponse"
         "400":
-          description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
+          description: "The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field."
           headers:
             x-request-id:
               schema:
@@ -27252,7 +27245,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ContentGifResponse"
         "400":
-          description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
+          description: "The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field."
           headers:
             x-request-id:
               schema:
@@ -27538,7 +27531,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ContentTransformResponse"
         "400":
-          description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
+          description: "The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field."
           headers:
             x-request-id:
               schema:
@@ -27824,7 +27817,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ContentPngResponse"
         "400":
-          description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
+          description: "The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field."
           headers:
             x-request-id:
               schema:
@@ -28115,7 +28108,7 @@ paths:
                 height: 675
                 aspectRatio: wide
         "400":
-          description: The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key.
+          description: "The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field."
           headers:
             x-request-id:
               schema:
@@ -28511,16 +28504,6 @@ paths:
                   message: An unexpected error occurred.
                   suggestion: Retry the request. If it keeps failing, contact support.
                   docs: https://docs.brew.new/api-reference/api/errors
-      parameters:
-        - name: X-Brand-Id
-          in: header
-          required: false
-          description: The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
-          schema:
-            type: string
-            minLength: 1
-            maxLength: 64
-          example: kx7b3s7fapqz8mjm12ekz1kxdx87yceg
   /v1/health:
     get:
       operationId: getHealth

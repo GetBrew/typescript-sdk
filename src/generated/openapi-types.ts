@@ -5107,7 +5107,7 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        /** @description Generation prompt plus optional source URLs / reference design. The brand is resolved from the API key and must not be passed. */
+        /** @description Generation prompt plus optional source URLs / reference design. The brand comes from the credential (or the `X-Brand-Id` header on an organization-scoped one) and must not be passed in the body. */
         requestBody: {
             content: {
                 "application/json": components["schemas"]["EmailGenerateRequest"];
@@ -5161,7 +5161,7 @@ export interface operations {
                     "application/json": components["schemas"]["EmailGenerateGeneratedResponse"];
                 };
             };
-            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
+            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field. */
             400: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -5451,7 +5451,7 @@ export interface operations {
                     "application/json": components["schemas"]["EmailGenerateGeneratedResponse"];
                 };
             };
-            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
+            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field. */
             400: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -6104,7 +6104,7 @@ export interface operations {
                     "application/json": components["schemas"]["EmailGenerateResponse"];
                 };
             };
-            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
+            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field. */
             400: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -6388,7 +6388,7 @@ export interface operations {
                     "application/json": components["schemas"]["EmailGenerateGeneratedResponse"];
                 };
             };
-            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
+            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field. */
             400: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -6625,7 +6625,7 @@ export interface operations {
                     "application/json": components["schemas"]["EmailGenerateResponse"];
                 };
             };
-            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
+            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field. */
             400: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -8158,7 +8158,7 @@ export interface operations {
                     "application/json": components["schemas"]["SendsListResponse"];
                 };
             };
-            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
+            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field. */
             400: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -9227,7 +9227,7 @@ export interface operations {
                     "application/json": components["schemas"]["AnalyticsOverviewResponse"];
                 };
             };
-            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
+            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field. */
             400: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -9418,7 +9418,7 @@ export interface operations {
                     "application/json": components["schemas"]["CampaignAnalyticsResponse"];
                 };
             };
-            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
+            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field. */
             400: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -9618,7 +9618,7 @@ export interface operations {
                     "application/json": components["schemas"]["AutomationAnalyticsResponse"];
                 };
             };
-            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
+            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field. */
             400: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -9821,7 +9821,7 @@ export interface operations {
                     "application/json": components["schemas"]["EventsAnalyticsResponse"];
                 };
             };
-            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
+            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field. */
             400: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -10011,7 +10011,7 @@ export interface operations {
                     "application/json": components["schemas"]["AutomationsListResponse"];
                 };
             };
-            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
+            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field. */
             400: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -10889,7 +10889,7 @@ export interface operations {
                     "application/json": components["schemas"]["AutomationRunStartedResponse"];
                 };
             };
-            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
+            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field. */
             400: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -11709,7 +11709,7 @@ export interface operations {
                     "application/json": components["schemas"]["AutomationRunsListResponse"];
                 };
             };
-            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
+            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field. */
             400: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -11931,7 +11931,7 @@ export interface operations {
                     "application/json": components["schemas"]["TriggersListResponse"];
                 };
             };
-            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
+            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field. */
             400: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -13036,7 +13036,7 @@ export interface operations {
                     "application/json": components["schemas"]["EventsListResponse"];
                 };
             };
-            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
+            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field. */
             400: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -13307,7 +13307,7 @@ export interface operations {
                     "application/json": components["schemas"]["ContactsPostBatchResponse"];
                 };
             };
-            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
+            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field. */
             400: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -13688,7 +13688,7 @@ export interface operations {
                     "application/json": components["schemas"]["ContactsPatchResponse"];
                 };
             };
-            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
+            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field. */
             400: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -13893,7 +13893,7 @@ export interface operations {
                     "application/json": components["schemas"]["ContactsSearchSuccessResponse"];
                 };
             };
-            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
+            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field. */
             400: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -14091,7 +14091,7 @@ export interface operations {
                     "application/json": components["schemas"]["ContactsValidateResponse"];
                 };
             };
-            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
+            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field. */
             400: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -14390,7 +14390,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
+            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field. */
             400: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -14570,7 +14570,7 @@ export interface operations {
                     "application/json": components["schemas"]["ContactsBatchDeleteResponse"];
                 };
             };
-            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
+            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field. */
             400: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -14805,7 +14805,7 @@ export interface operations {
                     "application/json": components["schemas"]["FieldsGetResponse"];
                 };
             };
-            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
+            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field. */
             400: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -14986,7 +14986,7 @@ export interface operations {
                     "application/json": components["schemas"]["ContactFieldDefinition"];
                 };
             };
-            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
+            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field. */
             400: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -15391,7 +15391,7 @@ export interface operations {
                     "application/json": components["schemas"]["AudiencesListResponse"];
                 };
             };
-            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
+            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field. */
             400: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -15612,7 +15612,7 @@ export interface operations {
                     "application/json": components["schemas"]["Audience"];
                 };
             };
-            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
+            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field. */
             400: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -16183,7 +16183,7 @@ export interface operations {
                     "application/json": components["schemas"]["DomainsListResponse"];
                 };
             };
-            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
+            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field. */
             400: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -16398,7 +16398,7 @@ export interface operations {
                     "application/json": components["schemas"]["Domain"];
                 };
             };
-            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
+            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field. */
             400: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -17356,13 +17356,7 @@ export interface operations {
                 limit?: number | string;
                 cursor?: string;
             };
-            header?: {
-                /**
-                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
-                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
-                 */
-                "X-Brand-Id"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -17405,7 +17399,7 @@ export interface operations {
                     "application/json": components["schemas"]["TemplatesListResponse"];
                 };
             };
-            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
+            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field. */
             400: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -17578,7 +17572,7 @@ export interface operations {
                     "application/json": components["schemas"]["BrandGetResponse"];
                 };
             };
-            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
+            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field. */
             400: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -17728,7 +17722,7 @@ export interface operations {
                     "application/json": components["schemas"]["BrandGetResponse"];
                 };
             };
-            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
+            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field. */
             400: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -18117,7 +18111,7 @@ export interface operations {
                     "application/json": components["schemas"]["BrandsListResponse"];
                 };
             };
-            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
+            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field. */
             400: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -18300,7 +18294,7 @@ export interface operations {
                     "application/json": components["schemas"]["BrandsCreateResponse"];
                 };
             };
-            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
+            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field. */
             400: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -18675,7 +18669,7 @@ export interface operations {
                     "application/json": components["schemas"]["ContentImageResponse"];
                 };
             };
-            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
+            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field. */
             400: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -18939,7 +18933,7 @@ export interface operations {
                     "application/json": components["schemas"]["ContentGifResponse"];
                 };
             };
-            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
+            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field. */
             400: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -19203,7 +19197,7 @@ export interface operations {
                     "application/json": components["schemas"]["ContentTransformResponse"];
                 };
             };
-            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
+            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field. */
             400: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -19467,7 +19461,7 @@ export interface operations {
                     "application/json": components["schemas"]["ContentPngResponse"];
                 };
             };
-            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
+            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field. */
             400: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -19739,7 +19733,7 @@ export interface operations {
                     "application/json": components["schemas"]["ContentAddImageResponse"];
                 };
             };
-            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`, which is always resolved from the API key. */
+            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field. */
             400: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -19964,13 +19958,7 @@ export interface operations {
     getUsage: {
         parameters: {
             query?: never;
-            header?: {
-                /**
-                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
-                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
-                 */
-                "X-Brand-Id"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
