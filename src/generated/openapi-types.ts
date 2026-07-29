@@ -4832,7 +4832,8 @@ export interface components {
         };
         ContentAddImageRequest: {
             /** Format: uri */
-            imageUrl: string;
+            imageUrl?: string;
+            imageUrls?: string[];
         };
         UsageGetResponse: {
             plan: {

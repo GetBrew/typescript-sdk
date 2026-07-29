@@ -10312,8 +10312,13 @@ components:
         imageUrl:
           type: string
           format: uri
-      required:
-        - imageUrl
+        imageUrls:
+          type: array
+          items:
+            type: string
+            format: uri
+          minItems: 1
+          maxItems: 100
       additionalProperties: false
     UsageGetResponse:
       type: object
