@@ -71,10 +71,10 @@ import type { BrewClientConfig, ResolvedBrewClientConfig } from './types'
  * resource modules land — the only place that has to change is here plus
  * the wire-up in `createBrewClient`.
  *
- * A client acts on ONE brand at a time. A brand-scoped key resolves its own;
- * an ORGANIZATION-scoped key names one per request — set `brandId` in the
- * config, or use `withBrand()` to pin one. `brands` manages the brands
- * themselves and is organization-level, so it needs no brand.
+ * A client can be pinned to ONE brand at a time. A brand-scoped key resolves
+ * its own; an ORGANIZATION-scoped key names one for brand-scoped resources —
+ * set `brandId` in the config, or use `withBrand()` to pin one. Organization-
+ * level resources (`brands`, `templates`, and `usage`) never send that pin.
  */
 export type BrewClient = {
   /**
@@ -84,9 +84,9 @@ export type BrewClient = {
    */
   readonly withBrand: (brandId: string) => BrewClient
   /**
-   * Brand LIFECYCLE (`/v1/brands`) — list, create, and poll brands. The only
-   * ORGANIZATION-level resource: it takes no brand. Distinct from `brand`
-   * (singular), which reads the design context of the current brand.
+   * Brand LIFECYCLE (`/v1/brands`) — list, create, and poll brands. This
+   * organization-level resource takes no brand selector. It is distinct from
+   * `brand` (singular), which reads the active brand's design context.
    */
   readonly brands: BrandsResource
   /**
@@ -183,6 +183,14 @@ function buildClient(
   tuning: HttpTuning
 ): BrewClient {
   const httpClient = createHttpClient(config, tuning)
+  // Scope-neutral resources never accept X-Brand-Id. Reuse the base transport
+  // when unpinned; otherwise construct one from the same immutable config with
+  // the pin removed so `withBrand()` cannot leak its header into organization
+  // discovery, templates, billing, or public service metadata.
+  const organizationHttpClient =
+    config.brandId === undefined
+      ? httpClient
+      : createHttpClient({ ...config, brandId: undefined }, tuning)
   return {
     withBrand: (brandId: string): BrewClient => {
       if (typeof brandId !== 'string' || brandId.trim() === '') {
@@ -190,7 +198,7 @@ function buildClient(
       }
       return buildClient({ ...config, brandId }, tuning)
     },
-    brands: createBrandsResource(httpClient),
+    brands: createBrandsResource(organizationHttpClient),
     analytics: createAnalyticsResource(httpClient),
     audiences: createAudiencesResource(httpClient),
     automations: createAutomationsResource(httpClient),
@@ -201,10 +209,10 @@ function buildClient(
     domains: createDomainsResource(httpClient),
     emails: createEmailsResource(httpClient),
     fields: createFieldsResource(httpClient),
-    health: createHealthResource(httpClient),
-    help: createHelpResource(httpClient),
+    health: createHealthResource(organizationHttpClient),
+    help: createHelpResource(organizationHttpClient),
     sends: createSendsResource(httpClient),
-    templates: createTemplatesResource(httpClient),
-    usage: createUsageResource(httpClient),
+    templates: createTemplatesResource(organizationHttpClient),
+    usage: createUsageResource(organizationHttpClient),
   }
 }

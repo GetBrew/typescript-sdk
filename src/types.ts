@@ -18,12 +18,14 @@ export type BrewFetch = typeof globalThis.fetch
 export type BrewClientConfig = {
   readonly apiKey: string
   /**
-   * The brand every request acts on, sent as `X-Brand-Id`.
+   * The brand that brand-scoped resources act on, sent as `X-Brand-Id`.
    *
    * Only meaningful for an ORGANIZATION-scoped key: a brand-scoped key
    * resolves its own brand and rejects a different one with
    * `BRAND_SCOPE_MISMATCH`. An org-scoped key that sends no brand gets
    * `BRAND_ID_REQUIRED` — there is deliberately no default brand.
+   * Organization-level resources such as `brands`, `templates`, and `usage`
+   * omit the header even when the client is pinned.
    *
    * Prefer `client.withBrand(id)` when you work across several brands; it
    * returns a pinned client rather than mutating this one.

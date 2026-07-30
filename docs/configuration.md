@@ -37,12 +37,15 @@ letting the request go out and come back as a confusing 401.
 
 ### `brandId` (optional)
 
-The brand every request acts on, sent as `X-Brand-Id`.
+The brand that brand-scoped resources act on, sent as `X-Brand-Id`.
 
 Only meaningful for an **organization-scoped** key. A brand-scoped key resolves
 its own brand and rejects a different one with `403 BRAND_SCOPE_MISMATCH`; an
 organization-scoped key that names none gets `400 BRAND_ID_REQUIRED`, because
 there is deliberately no default brand.
+
+Organization-level resources such as `brands`, `templates`, and `usage` never
+send `X-Brand-Id`, even from a pinned client.
 
 Validated at the boundary like `apiKey`: an empty or whitespace-only string
 throws a `TypeError` rather than silently omitting the header and failing

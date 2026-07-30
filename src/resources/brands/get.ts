@@ -10,7 +10,7 @@ export type GetBrandStatusInput = {
 }
 
 /**
- * `GET /v1/brands/{brandId}` (scope: `emails`) — one brand's LIFECYCLE state.
+ * `GET /v1/brands/{brandId}` — one brand's permission-agnostic lifecycle state.
  *
  * The poll for `brands.create(...)`: reports `status`, `progress` and `phase`
  * while extraction runs, `error` if it failed, and `ready: true` once the brand
@@ -37,8 +37,7 @@ export function createGetBrand(client: HttpClient) {
   ): Promise<GetBrandStatusResponse | BrewRawResponse<GetBrandStatusResponse>> {
     const response = await client.request<GetBrandStatusResponse>({
       method: 'GET',
-      path: '/v1/brands/{brandId}',
-      pathParams: { brandId: input.brandId },
+      path: `/v1/brands/${encodeURIComponent(input.brandId)}`,
       ...(options ? { options } : {}),
     })
     return unwrapResponse(response, options)

@@ -1,7 +1,10 @@
 # `brew.brand`
 
-The brand bound to your API key, plus its extraction readiness. Singleton —
-one key maps to one brand, so there is no list or id lookup.
+The active brand's design context and extraction readiness. This is a
+singleton resource for the current request: a brand-scoped key uses its bound
+brand, while an organization-scoped key uses the brand pinned with
+`withBrand(id)` or `brandId`. Use [`brew.brands`](./brands.md) to discover and
+manage brands.
 
 | Method                    | HTTP                   | Scope    |
 | ------------------------- | ---------------------- | -------- |
@@ -28,9 +31,9 @@ type Brand = {
 
 ## `get`
 
-Fetch the bound brand. Check `ready` before generating or sending — those
-paths 422 (`BRAND_NOT_READY`) until extraction finishes. A deleted brand
-returns `404 BRAND_NOT_FOUND`.
+Fetch the active brand. Check `ready` before generating or sending — those
+paths return `422 BRAND_NOT_READY` until extraction finishes. A deleted,
+unknown, or cross-organization brand returns `404 BRAND_NOT_FOUND`.
 
 ```ts
 const { brand } = await brew.brand.get()

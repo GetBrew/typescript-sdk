@@ -32,6 +32,7 @@ export type { AnalyticsResource } from './resources/analytics/resource'
 export type { AudiencesResource } from './resources/audiences/resource'
 export type { AutomationsResource } from './resources/automations/resource'
 export type { BrandResource } from './resources/brand/resource'
+export type { BrandsResource } from './resources/brands/resource'
 export type { ChatsResource } from './resources/chats/resource'
 export type { ContactsResource } from './resources/contacts/resource'
 export type { ContentResource } from './resources/content/resource'
@@ -58,6 +59,20 @@ export type * from './resources/usage/types'
 // ---------- Health + Help: domain types ----------
 export type { HealthResponse, GetHealthResponse } from './resources/health/get'
 export type { HelpResponse, GetHelpResponse } from './resources/help/get'
+
+// ---------- Brand lifecycle: organization discovery + creation ----------
+export type {
+  CreateBrandInput,
+  CreateBrandResponse,
+} from './resources/brands/create'
+export type {
+  ListBrandsInput,
+  ListBrandsResponse,
+} from './resources/brands/list'
+export type {
+  GetBrandStatusInput,
+  GetBrandStatusResponse,
+} from './resources/brands/get'
 
 // ---------- Automations › triggers: domain types ----------
 export type {

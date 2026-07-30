@@ -12,7 +12,7 @@ export type ListBrandsInput = PaginationInput & {
 }
 
 /**
- * `GET /v1/brands` (scope: `emails`) — the brands this key can reach.
+ * `GET /v1/brands` — permission-agnostic discovery for authenticated keys.
  *
  * ORGANIZATION-LEVEL: it resolves no brand, so it takes no `X-Brand-Id`. This
  * is how an organization-scoped key discovers the ids it passes to

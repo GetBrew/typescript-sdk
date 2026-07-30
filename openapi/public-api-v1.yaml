@@ -26371,28 +26371,6 @@ paths:
                   message: The provided API key is invalid.
                   suggestion: Check the API key format and retry with a valid active key.
                   docs: https://docs.brew.new/api-reference/api/authentication
-        "403":
-          description: The caller does not have the required `emails` permission.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INSUFFICIENT_PERMISSIONS
-                  type: authorization_error
-                  message: The caller does not have the required permission.
-                  suggestion: Use an API key or session with the required permission.
-                  docs: https://docs.brew.new/api-reference/api/authentication
-                  param: emails
         "429":
           description: The request hit the rolling rate limit window.
           headers:
@@ -26600,7 +26578,7 @@ paths:
                   suggestion: Delete an unused brand, or upgrade the plan to add more brands.
                   docs: https://docs.brew.new/api-reference/api/errors
         "403":
-          description: The caller does not have the required `brands` permission.
+          description: A brand-scoped credential cannot create brands, or the key lacks the `brands` scope.
           headers:
             x-request-id:
               schema:
@@ -26613,14 +26591,26 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INSUFFICIENT_PERMISSIONS
-                  type: authorization_error
-                  message: The caller does not have the required permission.
-                  suggestion: Use an API key or session with the required permission.
-                  docs: https://docs.brew.new/api-reference/api/authentication
-                  param: brands
+              examples:
+                organizationScopeRequired:
+                  summary: The credential is bound to one brand
+                  value:
+                    error:
+                      code: ORG_SCOPE_REQUIRED
+                      type: authorization_error
+                      message: Creating a brand acts on the organization, not a single brand, so it requires an organization-scoped credential.
+                      suggestion: Create an organization-scoped API key in Settings → API, or connect MCP at the organization level.
+                      docs: https://docs.brew.new/api-reference/api/authentication
+                insufficientPermissions:
+                  summary: The credential lacks the brands permission
+                  value:
+                    error:
+                      code: INSUFFICIENT_PERMISSIONS
+                      type: authorization_error
+                      message: The caller does not have the required permission.
+                      suggestion: Use an organization-scoped API key with the brands permission.
+                      docs: https://docs.brew.new/api-reference/api/authentication
+                      param: brands
         "409":
           description: The organization already has an active brand for that domain.
           headers:
@@ -26802,28 +26792,6 @@ paths:
                   message: The provided API key is invalid.
                   suggestion: Check the API key format and retry with a valid active key.
                   docs: https://docs.brew.new/api-reference/api/authentication
-        "403":
-          description: The caller does not have the required `emails` permission.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INSUFFICIENT_PERMISSIONS
-                  type: authorization_error
-                  message: The caller does not have the required permission.
-                  suggestion: Use an API key or session with the required permission.
-                  docs: https://docs.brew.new/api-reference/api/authentication
-                  param: emails
         "404":
           description: No such brand in this organization — or one this credential cannot reach. Unknown, cross-organization and mid-deletion brands are deliberately indistinguishable.
           headers:
