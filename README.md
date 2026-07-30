@@ -71,6 +71,7 @@ etc.).
 | Automations resource        | [`docs/automations.md`](./docs/automations.md)                         |
 | Audiences resource          | [`docs/audiences.md`](./docs/audiences.md)                             |
 | Brand resource              | [`docs/brand.md`](./docs/brand.md)                                     |
+| Brands (lifecycle)          | [`docs/brands.md`](./docs/brands.md)                                   |
 | Client configuration        | [`docs/configuration.md`](./docs/configuration.md)                     |
 | Contacts resource           | [`docs/contacts.md`](./docs/contacts.md)                               |
 | Domains resource            | [`docs/domains.md`](./docs/domains.md)                                 |
@@ -83,9 +84,22 @@ etc.).
 | Development + OpenAPI sync  | [`docs/development.md`](./docs/development.md)                         |
 | **Releasing a new version** | [`RELEASING.md`](./RELEASING.md)                                       |
 
-> Note: there is no brand _management_ resource. `brew.brand.get()` is
-> read-only — it returns the single brand bound to your API key (selected
-> when the key is created in the dashboard) plus its extraction readiness.
+> Note: `brew.brand.*` (singular) reads the brand the CURRENT request acts on
+> — its design system, identity, and extraction readiness. `brew.brands.*`
+> (plural) is the organization-level lifecycle: list, create, and poll brands.
+>
+> An API key is scoped either to ONE BRAND or to the whole ORGANIZATION. A
+> brand-scoped key resolves its brand automatically. An organization-scoped key
+> must name one per request — pass `brandId` in the client config, or pin one
+> with `client.withBrand(id)`. There is no default brand: omitting it returns
+> `400 BRAND_ID_REQUIRED`.
+>
+> ```ts
+> const brew = createBrewClient({ apiKey: process.env.BREW_API_KEY! })
+> const { data: brands } = await brew.brands.list()
+> const acme = brew.withBrand(brands[0].brandId)
+> await acme.emails.list()
+> ```
 
 ## Development
 

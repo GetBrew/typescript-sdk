@@ -28,9 +28,10 @@ function serializeInclude(
 }
 
 /**
- * `GET /v1/brand` — the brand bound to the API key, plus its extraction
- * readiness. Singleton (no list / no id): one API key maps to exactly
- * one brand. Requires the `emails` scope.
+ * `GET /v1/brand` — the brand selected for this request, plus its extraction
+ * readiness. Singleton (no list / no id): a brand-scoped key uses its bound
+ * brand, while an organization-scoped key uses the client's `brandId` pin.
+ * Requires the `emails` scope.
  *
  * Returns `{ brand }`. Pass `include` (e.g. `['identity', 'logos']`) to
  * embed any of `identity` / `emailDesign` / `imageStyle` / `logos` in the

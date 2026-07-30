@@ -44,9 +44,9 @@ export type ResolveConfigInput = {
  * this, never the raw user config, so defaults are always honored and
  * callers never have to remember which fields are optional.
  *
- * Validates `apiKey` at the boundary: empty or whitespace-only keys throw
- * a `TypeError` immediately rather than failing later with a confusing
- * 401 from the server.
+ * Validates `apiKey` and `brandId` at the boundary: empty or whitespace-only
+ * values throw a `TypeError` immediately rather than failing later with a
+ * confusing 401/400 from the server.
  */
 export function resolveConfig(
   input: ResolveConfigInput
@@ -62,8 +62,21 @@ export function resolveConfig(
     )
   }
 
+  // Reject an empty brandId at the boundary rather than letting it reach the
+  // server as an omitted header — an org-scoped key would then fail with
+  // BRAND_ID_REQUIRED, which reads like a server problem, not a config typo.
+  if (
+    userConfig.brandId !== undefined &&
+    (typeof userConfig.brandId !== 'string' || userConfig.brandId.trim() === '')
+  ) {
+    throw new TypeError(
+      'resolveConfig: `brandId` must be a non-empty string when provided'
+    )
+  }
+
   return {
     apiKey: userConfig.apiKey,
+    brandId: userConfig.brandId,
     baseUrl: userConfig.baseUrl ?? DEFAULT_BASE_URL,
     fetch: userConfig.fetch ?? defaultFetch,
     timeoutMs: userConfig.timeoutMs ?? DEFAULT_TIMEOUT_MS,

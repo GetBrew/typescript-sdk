@@ -1,5 +1,7 @@
 export type BuildHeadersInput = {
   readonly apiKey: string
+  /** Pins the brand for this request (`X-Brand-Id`). */
+  readonly brandId?: string
   readonly userAgent: string
   readonly idempotencyKey?: string
   readonly hasBody?: boolean
@@ -18,6 +20,9 @@ export type BuildHeadersInput = {
  *     request is attributable.
  *   - `Content-Type: application/json` is only set when the request has a
  *     body; setting it on a GET would be misleading.
+ *   - `X-Brand-Id` is only set when the client pinned a brand. Required by
+ *     organization-scoped keys; ignored (or rejected, if it names a different
+ *     brand) by brand-scoped ones.
  *   - `Idempotency-Key` is only set when one was resolved upstream
  *     (auto-generated for POST, explicitly passed, or omitted for other
  *     methods — that decision lives in `core/idempotency.ts`).
@@ -40,6 +45,11 @@ export function buildHeaders(input: BuildHeadersInput): Headers {
 
   if (input.idempotencyKey !== undefined) {
     headers.set('idempotency-key', input.idempotencyKey)
+  }
+
+  // Set BEFORE `extras` so a caller can still override it per-request.
+  if (input.brandId !== undefined) {
+    headers.set('x-brand-id', input.brandId)
   }
 
   if (input.extras) {
