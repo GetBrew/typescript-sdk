@@ -14,12 +14,15 @@ import {
   createGetInboxPlacementResults,
 } from './inbox-placement'
 import { createListEmails } from './list'
+import { createListEmailGroups } from './list-groups'
 import { createRestoreEmail } from './restore'
 import { createSendEmail } from './send'
 
 export type EmailsResource = {
   /** `GET /v1/emails` — the single email read. List designs (omit `emailId`), or fetch one (`emailId` → single-row page); `include: 'html' | 'versions'` opt-in expansions are detail-only (scope: `emails`). */
   readonly list: ReturnType<typeof createListEmails>
+  /** `GET /v1/email-groups` — list saved groups in display order plus virtual Ungrouped (scope: `emails`). */
+  readonly listGroups: ReturnType<typeof createListEmailGroups>
   /** `POST /v1/emails` — generate an email from a prompt (scope: `emails`). */
   readonly generate: ReturnType<typeof createGenerateEmail>
   /** `POST /v1/emails/import` — import existing `html`/`jsx` as a new editable design (scope: `emails`). */
@@ -55,6 +58,7 @@ export type EmailsResource = {
 export function createEmailsResource(client: HttpClient): EmailsResource {
   return {
     list: createListEmails(client),
+    listGroups: createListEmailGroups(client),
     generate: createGenerateEmail(client),
     import: createImportEmail(client),
     importFigma: createImportFigmaDesign(client),

@@ -287,6 +287,11 @@ export type {
   ListEmailsResponse,
   EmailsIncludeToken,
 } from './resources/emails/list'
+export type {
+  EmailGroup,
+  ListEmailGroupsInput,
+  ListEmailGroupsResponse,
+} from './resources/emails/list-groups'
 export type { EmailVersion, EmailDetail } from './resources/emails/types'
 export type {
   EmailImportInput,

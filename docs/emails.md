@@ -14,6 +14,7 @@ Detail mode = pass the id key → a single-row page `{ data: [row] }`, no
 
 | Method                              | HTTP                                        | Scope    |
 | ----------------------------------- | ------------------------------------------- | -------- |
+| [`listGroups`](#listgroups)         | `GET /v1/email-groups`                      | `emails` |
 | [`list`](#list)                     | `GET /v1/emails`                            | `emails` |
 | [`generate`](#generate)             | `POST /v1/emails`                           | `emails` |
 | [`import`](#import)                 | `POST /v1/emails/import`                    | `emails` |
@@ -28,6 +29,11 @@ type EmailSummary = {
   readonly emailId: string
   readonly emailVersionId?: string
   readonly title: string
+  readonly status: EmailStatus
+  readonly createdAt: string
+  readonly updatedAt: string
+  readonly groupId: string
+  readonly groupName: string
 }
 
 type EmailStatus = 'streaming' | 'complete' | 'error'
@@ -37,11 +43,25 @@ type GeneratedEmailArtifact = {
   readonly emailVersionId: string
   readonly html: string
   readonly previewImage?: string // rendered screenshot URL
+  readonly groupId: string // resolved saved group, or 'ungrouped'
 }
 
 type GeneratedEmailTextResponse = {
   readonly response: string
 }
+```
+
+---
+
+## `listGroups`
+
+List saved email groups in display order. The final row is always the virtual
+`{ groupId: 'ungrouped', groupName: 'Ungrouped' }`, including when no saved
+groups exist.
+
+```ts
+const page = await brew.emails.listGroups({ limit: 100 })
+const lifecycle = page.data.find((group) => group.groupName === 'Lifecycle')
 ```
 
 ---
@@ -62,6 +82,9 @@ type ListEmailsInput = {
     | ReadonlyArray<'html' | 'versions'>
     | string // comma-separated, e.g. 'html,versions' — detail-only
   readonly status?: EmailStatus
+  readonly groupId?: string // one exact id; 'ungrouped' selects no saved group
+  readonly sort?: 'updatedAt' | 'createdAt' | 'title'
+  readonly order?: 'asc' | 'desc'
   readonly createdAtFrom?: string
   readonly createdAtTo?: string
   readonly updatedAtFrom?: string
@@ -87,6 +110,9 @@ List mode:
 ```ts
 const { data } = await brew.emails.list({
   status: 'complete',
+  groupId: 'grp_lifecycle',
+  sort: 'title',
+  order: 'asc',
 })
 
 for (const email of data) {
@@ -120,6 +146,7 @@ type GenerateEmailInput = {
   readonly prompt: string
   readonly contentUrls?: ReadonlyArray<string>
   readonly referenceEmailId?: string
+  readonly groupId?: string // omit or use 'ungrouped' for Ungrouped
 }
 
 type GenerateEmailResponse =
@@ -160,6 +187,7 @@ const result = await brew.emails.generate(
 const result = await brew.emails.generate({
   prompt: 'Create a welcome email for new subscribers',
   referenceEmailId: 'seed-vercel-newsletter',
+  groupId: 'grp_lifecycle',
 })
 
 if ('emailId' in result) {
