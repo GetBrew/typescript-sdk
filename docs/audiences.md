@@ -8,12 +8,14 @@ Reads are flat — one read per resource, identity in the query
 Detail mode = pass the id key → a single-row page `{ data: [row] }`, no
 `pagination`.
 
-| Method              | HTTP                                |
-| ------------------- | ----------------------------------- |
-| [`list`](#list)     | `GET /v1/audiences`                 |
-| [`create`](#create) | `POST /v1/audiences`                |
-| [`update`](#update) | `PATCH /v1/audiences/{audienceId}`  |
-| [`delete`](#delete) | `DELETE /v1/audiences/{audienceId}` |
+| Method                      | HTTP                                        |
+| --------------------------- | ------------------------------------------- |
+| [`list`](#list)             | `GET /v1/audiences`                         |
+| [`create`](#create)         | `POST /v1/audiences`                        |
+| [`fromEvents`](#fromevents) | `POST /v1/audiences/from-events`            |
+| [`duplicate`](#duplicate)   | `POST /v1/audiences/{audienceId}/duplicate` |
+| [`update`](#update)         | `PATCH /v1/audiences/{audienceId}`          |
+| [`delete`](#delete)         | `DELETE /v1/audiences/{audienceId}`         |
 
 ## Shared types
 
@@ -109,6 +111,26 @@ updated `Audience` row.
 
 ```ts
 const updated = await brew.audiences.update({ audienceId, name: 'EU Founders' })
+```
+
+## `fromEvents`
+
+Creates a frozen audience snapshot from a bounded analytics-event cohort. The
+response includes the asynchronous materialization build state.
+
+```ts
+const audience = await brew.audiences.fromEvents({
+  name: 'Recent openers',
+  cohort: { eventTypes: ['opened'], from: '2026-08-01T00:00:00.000Z' },
+})
+```
+
+## `duplicate`
+
+Copies a saved segment into an independent audience.
+
+```ts
+const copy = await brew.audiences.duplicate({ audienceId })
 ```
 
 ## `delete`

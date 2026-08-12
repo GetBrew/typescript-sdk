@@ -208,6 +208,14 @@ export type {
 
 // ---------- Audiences: domain types ----------
 export type { Audience } from './resources/audiences/types'
+export type {
+  AudienceFromEventsInput,
+  AudienceFromEventsResponse,
+} from './resources/audiences/from-events'
+export type {
+  DuplicateAudienceInput,
+  DuplicateAudienceResponse,
+} from './resources/audiences/duplicate'
 export type { Domain } from './resources/domains/types'
 export type {
   EmailStatus,

@@ -38,6 +38,8 @@ describe('createBrewClient — end-to-end', () => {
     const brew = makeIntegrationClient()
 
     expect(typeof brew.audiences.list).toBe('function')
+    expect(typeof brew.audiences.fromEvents).toBe('function')
+    expect(typeof brew.audiences.duplicate).toBe('function')
     // Reads are flat: `search` is the single contacts read (list/get-by-email folded in).
     expect(typeof brew.contacts.search).toBe('function')
     expect(typeof brew.contacts.searchAll).toBe('function')
