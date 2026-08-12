@@ -4,7 +4,8 @@ import type { BrewRawResponse, RequestOptions } from '../../types'
 
 export type GenerateEmailInput = components['schemas']['EmailGenerateRequest']
 export type GenerateEmailResponse =
-  components['schemas']['EmailGenerateResponse']
+  | components['schemas']['EmailCreateGeneratedResponse']
+  | components['schemas']['EmailGenerateTextResponse']
 
 /**
  * Default per-request timeout for `POST /v1/emails`.
@@ -29,7 +30,8 @@ export const GENERATE_EMAIL_DEFAULT_TIMEOUT_MS = 240_000
  * `400 INVALID_REQUEST`.
  *
  * The response is a union.
- * - Normal case. a generated email artifact with `emailId` and `emailHtml`.
+ * - Normal case: a generated email artifact with `emailId`, `html`, and the
+ *   resolved `groupId`.
  * - Fallback case. a plain `{ response }` object when no email artifact was
  *   produced by the upstream agent flow.
  *

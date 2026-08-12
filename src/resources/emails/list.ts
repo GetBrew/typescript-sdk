@@ -7,8 +7,9 @@ import type { BrewRawResponse, RequestOptions } from '../../types'
  * resource. Reads are FLAT: identity lives in the query.
  *
  * - Omit `emailId` to LIST the latest version of each design (newest
- *   first), filtered by `status` and the `createdAt*` / `updatedAt*`
- *   windows and paged with `limit` / `cursor`.
+ *   first), filtered by `groupId`, `status`, and the `createdAt*` /
+ *   `updatedAt*` windows, sorted with `sort` / `order`, and paged with
+ *   `limit` / `cursor`.
  * - Pass `emailId` to fetch ONE design — the response is a single-row
  *   page `{ data: [row] }` (no `pagination`).
  * - `include` is a detail-only opt-in expansion (requires `emailId`):
@@ -52,14 +53,15 @@ function serializeInclude(
  * flat: the identity lives in the query.
  *
  * - List mode (no `emailId`): the latest version of each design, newest
- *   first. Filter with `status` and the `createdAt*` / `updatedAt*`
- *   windows; page with `limit` / `cursor`.
+ *   first. Filter with `groupId`, `status`, and the `createdAt*` /
+ *   `updatedAt*` windows; sort with `sort` / `order`; page with
+ *   `limit` / `cursor`.
  * - Detail mode (`emailId` set): a single-row page `{ data: [row] }`
  *   with no `pagination`. Opt into `include: 'html'` for the rendered
  *   HTML and/or `include: 'versions'` for the version history — both are
  *   detail-only (an `include` without `emailId` is `400 INVALID_REQUEST`).
  *
- * Unknown / cross-brand ids return an empty page in detail mode.
+ * Unknown / cross-brand ids return `404 EMAIL_NOT_FOUND` in detail mode.
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<ListEmailsResponse>` instead of the unwrapped

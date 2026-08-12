@@ -3,7 +3,8 @@ import type { components, operations } from '../../generated/openapi-types'
 /**
  * One row of the `data[]` array returned by `brew.emails.list(...)`
  * (`GET /v1/emails`). In list mode the row is lean (identity + render
- * `status` + `previewImage`); in detail mode (`?emailId=`) it can also
+ * `status` + `previewImage` + group/timestamps); in detail mode
+ * (`?emailId=`) it can also
  * carry `html` (`?include=html`) and the inline `versions[]`
  * (`?include=versions`).
  */
@@ -25,7 +26,8 @@ export type EmailStatus =
       : never
     : never
 export type GeneratedEmailArtifact = Extract<
-  components['schemas']['EmailGenerateResponse'],
+  | components['schemas']['EmailCreateGeneratedResponse']
+  | components['schemas']['EmailGenerateResponse'],
   { emailId: string }
 >
 export type GeneratedEmailTextResponse = Extract<

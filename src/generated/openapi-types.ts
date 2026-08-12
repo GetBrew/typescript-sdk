@@ -4,6 +4,26 @@
  */
 
 export interface paths {
+    "/v1/email-groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List email groups
+         * @description Lists the brand's saved email groups in their stored order, followed by the virtual `{ groupId: "ungrouped", groupName: "Ungrouped" }` group. The virtual group is returned even when there are no saved groups. Page with `limit` and `cursor`.
+         */
+        get: operations["listEmailGroups"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/emails": {
         parameters: {
             query?: never;
@@ -13,7 +33,7 @@ export interface paths {
         };
         /**
          * Get emails
-         * @description Unified email-design read. Omit `emailId` to LIST the brand’s designs (newest first) under `{ data, pagination }` — each row carries `emailId`, the latest `emailVersionId`, `title`, `status`, `previewImage` (when captured), and `updatedAt`. Filter with `?status=` and the `createdAtFrom/To` + `updatedAtFrom/To` ISO-8601 windows; paginate with `limit` + `cursor`. Pass `?emailId=` to fetch ONE design — returns `{ data: [row] }` (no `pagination`), `404 EMAIL_NOT_FOUND` on an unknown / cross-brand id. Add detail-only `?include=html` (rendered HTML) and/or `?include=versions` (lean `{ version, emailVersionId }` history) — both rejected without `emailId`.
+         * @description Unified email-design read. Omit `emailId` to LIST the brand’s designs under `{ data, pagination }` — each row carries `emailId`, the latest `emailVersionId`, `title`, `status`, `previewImage` (when captured), `createdAt`, `updatedAt`, `groupId`, and `groupName`. Filter with one `?groupId=` (`ungrouped` selects designs with no saved group), `?status=`, and the `createdAtFrom/To` + `updatedAtFrom/To` ISO-8601 windows. Sort with `sort=updatedAt|createdAt|title` and `order=asc|desc`; defaults are `updatedAt desc`. Paginate with `limit` + `cursor`. An unknown group returns an empty page. Pass `?emailId=` to fetch ONE design — returns `{ data: [row] }` (no `pagination`), `404 EMAIL_NOT_FOUND` on an unknown / cross-brand id. Add detail-only `?include=html` (rendered HTML) and/or `?include=versions` (lean `{ version, emailVersionId }` history) — detail reads reject the list-only group/sort/order fields.
          */
         get: operations["listEmails"];
         put?: never;
@@ -21,7 +41,9 @@ export interface paths {
          * Generate an email design
          * @description Generates a new design through the Brew email agent. Emails are pure DESIGNS in the decoupled model — no send state, no type. Sending happens later — `POST /v1/sends` delivers the design to a target (a saved audience, an inline list, or a single address) via a verified domain (or fires a one-off test with `test: true`), or a `sendEmail` node in an automation graph references the returned `emailId` + `emailVersionId`.
          *
-         *     Returns `201` with `{ emailId, emailVersionId, html, previewImage? }` when a design was persisted, or `200` with `{ response }` when the agent answered in prose without writing a design. Supports `Idempotency-Key` for safe retries.
+         *     Pass an optional `groupId` from `GET /v1/email-groups` to place the new design in that group. Omit it or pass `ungrouped` for Ungrouped. The group is validated before metered generation begins.
+         *
+         *     Returns `201` with `{ emailId, emailVersionId, html, previewImage?, groupId }` when a design was persisted, or `200` with `{ response }` when the agent answered in prose without writing a design. Supports `Idempotency-Key` for safe retries.
          */
         post: operations["generateEmail"];
         delete?: never;
@@ -1347,14 +1369,23 @@ export interface components {
             /** Format: uri */
             previewImage?: string;
             /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
             updatedAt: string;
-            /** @description The design's inbox preview line, read directly from the latest version's JSX <Preview> (its single source of truth) — what a send delivers when no explicit `previewText` override is passed to POST /v1/sends. Detail-only; absent when the design has no <Preview>. */
+            /** @description One exact email group id, or "ungrouped" for emails outside a named group. */
+            groupId: string;
+            groupName: string;
             previewText?: string;
             html?: string;
             versions?: {
                 version: number | "latest";
                 emailVersionId: string;
             }[];
+        };
+        EmailGroup: {
+            /** @description One exact email group id, or "ungrouped" for emails outside a named group. */
+            groupId: string;
+            groupName: string;
         };
         Send: {
             sendId: string;
@@ -2276,26 +2307,13 @@ export interface components {
             previewImage: string;
             updatedAt: string;
         };
-        EmailsListResponse: {
+        EmailGroupsListResponse: {
             data: {
-                emailId: string;
-                emailVersionId?: string;
-                title: string;
-                /** @enum {string} */
-                status: "streaming" | "complete" | "error";
-                /** Format: uri */
-                previewImage?: string;
-                /** Format: date-time */
-                updatedAt: string;
-                /** @description The design's inbox preview line, read directly from the latest version's JSX <Preview> (its single source of truth) — what a send delivers when no explicit `previewText` override is passed to POST /v1/sends. Detail-only; absent when the design has no <Preview>. */
-                previewText?: string;
-                html?: string;
-                versions?: {
-                    version: number | "latest";
-                    emailVersionId: string;
-                }[];
+                /** @description One exact email group id, or "ungrouped" for emails outside a named group. */
+                groupId: string;
+                groupName: string;
             }[];
-            pagination?: {
+            pagination: {
                 limit: number;
                 cursor: string | null;
                 hasMore: boolean;
@@ -2317,15 +2335,46 @@ export interface components {
                 };
             };
         };
+        EmailsListResponse: {
+            data: {
+                emailId: string;
+                emailVersionId?: string;
+                title: string;
+                /** @enum {string} */
+                status: "streaming" | "complete" | "error";
+                /** Format: uri */
+                previewImage?: string;
+                /** Format: date-time */
+                createdAt: string;
+                /** Format: date-time */
+                updatedAt: string;
+                /** @description One exact email group id, or "ungrouped" for emails outside a named group. */
+                groupId: string;
+                groupName: string;
+                previewText?: string;
+                html?: string;
+                versions?: {
+                    version: number | "latest";
+                    emailVersionId: string;
+                }[];
+            }[];
+            pagination?: {
+                limit: number;
+                cursor: string | null;
+                hasMore: boolean;
+            };
+        };
         EmailGenerateTextResponse: {
             response: string;
         };
-        EmailGenerateGeneratedResponse: {
+        EmailCreateGeneratedResponse: {
             emailId: string;
             emailVersionId: string;
             html: string;
             /** Format: uri */
             previewImage?: string;
+            /** @description One exact email group id, or "ungrouped" for emails outside a named group. */
+            groupId: string;
         };
         EmailGenerateRequest: {
             /** @description What the email is about — campaign goal, key content, offer, tone. The more specific (product names, dates, discount, audience), the better the design. */
@@ -2334,6 +2383,8 @@ export interface components {
             contentUrls?: string[];
             /** @description An existing design (`emailId` from `list_email_designs`) to use as the style/layout reference for the new email. */
             referenceEmailId?: string;
+            /** @description Create the generated email in this exact group. Omit or pass "ungrouped" to leave it outside named groups. */
+            groupId?: string;
             /**
              * @description Marketing email category that steers the design treatment (exemplars, hero recipe, personalization) — mirrors what the in-app agent infers per request. One of: welcome, newsletter, promotional, product-launch, product-update, cart-abandonment, event-invitation, event-reminder, feedback-request, re-engagement, referral, business, internal, general. Omit for a general treatment. Transactional emails (receipts, password resets, order confirmations) are sent via automations with a trigger, not this endpoint.
              * @enum {string}
@@ -2415,6 +2466,13 @@ export interface components {
         EmailsDeleteResponse: {
             emailId: string;
             deleted: boolean;
+        };
+        EmailGenerateGeneratedResponse: {
+            emailId: string;
+            emailVersionId: string;
+            html: string;
+            /** Format: uri */
+            previewImage?: string;
         };
         EmailCloneRequest: {
             /** @description Exact source version to clone (from `list_email_designs` with `include: ["versions"]`). Omit to clone the current latest version. */
@@ -5309,15 +5367,203 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    listEmailGroups: {
+        parameters: {
+            query?: {
+                limit?: number | string;
+                cursor?: string;
+            };
+            header?: {
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description An ordered page of email groups. */
+            200: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "data": [
+                     *         {
+                     *           "groupId": "grp_lifecycle",
+                     *           "groupName": "Lifecycle"
+                     *         },
+                     *         {
+                     *           "groupId": "ungrouped",
+                     *           "groupName": "Ungrouped"
+                     *         }
+                     *       ],
+                     *       "pagination": {
+                     *         "limit": 100,
+                     *         "cursor": null,
+                     *         "hasMore": false
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["EmailGroupsListResponse"];
+                };
+            };
+            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field. */
+            400: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INVALID_REQUEST",
+                     *         "type": "invalid_request",
+                     *         "message": "Request validation failed.",
+                     *         "suggestion": "Fix the field reported in `param` and retry.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "cursor"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The API key was missing, invalid, or revoked. */
+            401: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INVALID_API_KEY",
+                     *         "type": "authentication_error",
+                     *         "message": "The provided API key is invalid.",
+                     *         "suggestion": "Check the API key format and retry with a valid active key.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The caller does not have the required `emails` permission. */
+            403: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INSUFFICIENT_PERMISSIONS",
+                     *         "type": "authorization_error",
+                     *         "message": "The caller does not have the required permission.",
+                     *         "suggestion": "Use an API key or session with the required permission.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
+                     *         "param": "emails"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The request hit the rolling rate limit window. */
+            429: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    /** @description Seconds to wait before retrying the request. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "RATE_LIMITED",
+                     *         "type": "rate_limit",
+                     *         "message": "Too many requests.",
+                     *         "suggestion": "Wait for the retry window before sending another request.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
+                     *         "retryAfter": 42
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected internal error. */
+            500: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INTERNAL_ERROR",
+                     *         "type": "internal_error",
+                     *         "message": "An unexpected error occurred.",
+                     *         "suggestion": "Retry the request. If it keeps failing, contact support.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
     listEmails: {
         parameters: {
             query?: {
                 emailId?: string;
                 include?: string;
+                /** @description Only designs in this generation status. */
                 status?: "streaming" | "complete" | "error";
+                /** @description One exact email group id, or "ungrouped" for emails outside a named group. */
+                groupId?: string;
+                /** @description Catalog field to sort by. Defaults to updatedAt. */
+                sort?: "updatedAt" | "createdAt" | "title";
+                /** @description Sort direction. Defaults to desc. */
+                order?: "asc" | "desc";
+                /** @description Include designs created at or after this ISO-8601 timestamp. */
                 createdAtFrom?: string;
+                /** @description Include designs created at or before this ISO-8601 timestamp. */
                 createdAtTo?: string;
+                /** @description Include designs updated at or after this ISO-8601 timestamp. */
                 updatedAtFrom?: string;
+                /** @description Include designs updated at or before this ISO-8601 timestamp. */
                 updatedAtTo?: string;
                 limit?: number | string;
                 cursor?: string;
@@ -5357,14 +5603,20 @@ export interface operations {
                      *           "title": "Welcome Email",
                      *           "status": "complete",
                      *           "previewImage": "https://cdn.brew.new/p/eml_welcome.png",
-                     *           "updatedAt": "2026-04-08T12:34:56.789Z"
+                     *           "createdAt": "2026-04-01T10:00:00.000Z",
+                     *           "updatedAt": "2026-04-08T12:34:56.789Z",
+                     *           "groupId": "grp_lifecycle",
+                     *           "groupName": "Lifecycle"
                      *         },
                      *         {
                      *           "emailId": "eml_digest",
                      *           "emailVersionId": "emv_digest_v1",
                      *           "title": "May product digest",
                      *           "status": "complete",
-                     *           "updatedAt": "2026-04-07T09:00:00.000Z"
+                     *           "createdAt": "2026-04-07T08:00:00.000Z",
+                     *           "updatedAt": "2026-04-07T09:00:00.000Z",
+                     *           "groupId": "ungrouped",
+                     *           "groupName": "Ungrouped"
                      *         }
                      *       ],
                      *       "pagination": {
@@ -5377,7 +5629,7 @@ export interface operations {
                     "application/json": components["schemas"]["EmailsListResponse"];
                 };
             };
-            /** @description Invalid query (unknown param, bad enum, `*From` later than its `*To`, or `include` without `emailId`). */
+            /** @description Invalid query (unknown param, bad enum, incompatible cursor, `*From` later than its `*To`, detail-only `include` without `emailId`, or list-only group/sort/order with `emailId`). */
             400: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -5589,10 +5841,11 @@ export interface operations {
                      *       "emailId": "eml_2SmZOWV3ZQ7W5x6g3m4p",
                      *       "emailVersionId": "emv_2SmZOWV3ZQ7W5x6g3m4p_v1",
                      *       "html": "<!DOCTYPE html><html><body>Welcome to Brew.</body></html>",
-                     *       "previewImage": "https://storage.example.com/emails/eml_2SmZOWV3ZQ7W5x6g3m4p.png"
+                     *       "previewImage": "https://storage.example.com/emails/eml_2SmZOWV3ZQ7W5x6g3m4p.png",
+                     *       "groupId": "ungrouped"
                      *     }
                      */
-                    "application/json": components["schemas"]["EmailGenerateGeneratedResponse"];
+                    "application/json": components["schemas"]["EmailCreateGeneratedResponse"];
                 };
             };
             /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field. */
@@ -5690,7 +5943,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The brand bound to the API key is missing or not accessible. */
+            /** @description The brand is missing/inaccessible, or the requested email group does not exist in that brand. */
             404: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -5698,17 +5951,6 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "BRAND_NOT_FOUND",
-                     *         "type": "not_found",
-                     *         "message": "The requested brand was not found.",
-                     *         "suggestion": "Verify in the dashboard that the brand bound to this API key still exists.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
-                     *       }
-                     *     }
-                     */
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
@@ -6794,7 +7036,8 @@ export interface operations {
                      *       "emailId": "eml_2SmZOWV3ZQ7W5x6g3m4p",
                      *       "emailVersionId": "emv_2SmZOWV3ZQ7W5x6g3m4p_v1",
                      *       "html": "<!DOCTYPE html><html><body>Welcome to Brew.</body></html>",
-                     *       "previewImage": "https://storage.example.com/emails/eml_2SmZOWV3ZQ7W5x6g3m4p.png"
+                     *       "previewImage": "https://storage.example.com/emails/eml_2SmZOWV3ZQ7W5x6g3m4p.png",
+                     *       "groupId": "ungrouped"
                      *     }
                      */
                     "application/json": components["schemas"]["EmailGenerateGeneratedResponse"];
@@ -7031,7 +7274,8 @@ export interface operations {
                      *       "emailId": "eml_2SmZOWV3ZQ7W5x6g3m4p",
                      *       "emailVersionId": "emv_2SmZOWV3ZQ7W5x6g3m4p_v1",
                      *       "html": "<!DOCTYPE html><html><body>Welcome to Brew.</body></html>",
-                     *       "previewImage": "https://storage.example.com/emails/eml_2SmZOWV3ZQ7W5x6g3m4p.png"
+                     *       "previewImage": "https://storage.example.com/emails/eml_2SmZOWV3ZQ7W5x6g3m4p.png",
+                     *       "groupId": "ungrouped"
                      *     }
                      */
                     "application/json": components["schemas"]["EmailGenerateResponse"];

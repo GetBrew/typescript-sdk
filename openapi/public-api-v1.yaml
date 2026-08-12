@@ -103,12 +103,22 @@ components:
         previewImage:
           type: string
           format: uri
+        createdAt:
+          type: string
+          format: date-time
         updatedAt:
           type: string
           format: date-time
+        groupId:
+          type: string
+          minLength: 1
+          maxLength: 64
+          description: One exact email group id, or "ungrouped" for emails outside a named group.
+        groupName:
+          type: string
+          minLength: 1
         previewText:
           type: string
-          description: The design's inbox preview line, read directly from the latest version's JSX <Preview> (its single source of truth) — what a send delivers when no explicit `previewText` override is passed to POST /v1/sends. Detail-only; absent when the design has no <Preview>.
         html:
           type: string
         versions:
@@ -134,7 +144,25 @@ components:
         - emailId
         - title
         - status
+        - createdAt
         - updatedAt
+        - groupId
+        - groupName
+      additionalProperties: false
+    EmailGroup:
+      type: object
+      properties:
+        groupId:
+          type: string
+          minLength: 1
+          maxLength: 64
+          description: One exact email group id, or "ungrouped" for emails outside a named group.
+        groupName:
+          type: string
+          minLength: 1
+      required:
+        - groupId
+        - groupName
       additionalProperties: false
     Send:
       type: object
@@ -2776,7 +2804,7 @@ components:
         - previewImage
         - updatedAt
       additionalProperties: false
-    EmailsListResponse:
+    EmailGroupsListResponse:
       type: object
       properties:
         data:
@@ -2784,56 +2812,17 @@ components:
           items:
             type: object
             properties:
-              emailId:
+              groupId:
                 type: string
                 minLength: 1
-              emailVersionId:
+                maxLength: 64
+                description: One exact email group id, or "ungrouped" for emails outside a named group.
+              groupName:
                 type: string
                 minLength: 1
-              title:
-                type: string
-                minLength: 1
-              status:
-                type: string
-                enum:
-                  - streaming
-                  - complete
-                  - error
-              previewImage:
-                type: string
-                format: uri
-              updatedAt:
-                type: string
-                format: date-time
-              previewText:
-                type: string
-                description: The design's inbox preview line, read directly from the latest version's JSX <Preview> (its single source of truth) — what a send delivers when no explicit `previewText` override is passed to POST /v1/sends. Detail-only; absent when the design has no <Preview>.
-              html:
-                type: string
-              versions:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    version:
-                      anyOf:
-                        - type: integer
-                          minimum: 0
-                        - type: string
-                          enum:
-                            - latest
-                    emailVersionId:
-                      type: string
-                      minLength: 1
-                  required:
-                    - version
-                    - emailVersionId
-                  additionalProperties: false
             required:
-              - emailId
-              - title
-              - status
-              - updatedAt
+              - groupId
+              - groupName
             additionalProperties: false
         pagination:
           type: object
@@ -2855,6 +2844,7 @@ components:
           additionalProperties: false
       required:
         - data
+        - pagination
       additionalProperties: false
     ApiErrorEnvelope:
       type: object
@@ -2904,6 +2894,99 @@ components:
             - docs
       required:
         - error
+    EmailsListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              emailId:
+                type: string
+                minLength: 1
+              emailVersionId:
+                type: string
+                minLength: 1
+              title:
+                type: string
+                minLength: 1
+              status:
+                type: string
+                enum:
+                  - streaming
+                  - complete
+                  - error
+              previewImage:
+                type: string
+                format: uri
+              createdAt:
+                type: string
+                format: date-time
+              updatedAt:
+                type: string
+                format: date-time
+              groupId:
+                type: string
+                minLength: 1
+                maxLength: 64
+                description: One exact email group id, or "ungrouped" for emails outside a named group.
+              groupName:
+                type: string
+                minLength: 1
+              previewText:
+                type: string
+              html:
+                type: string
+              versions:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    version:
+                      anyOf:
+                        - type: integer
+                          minimum: 0
+                        - type: string
+                          enum:
+                            - latest
+                    emailVersionId:
+                      type: string
+                      minLength: 1
+                  required:
+                    - version
+                    - emailVersionId
+                  additionalProperties: false
+            required:
+              - emailId
+              - title
+              - status
+              - createdAt
+              - updatedAt
+              - groupId
+              - groupName
+            additionalProperties: false
+        pagination:
+          type: object
+          properties:
+            limit:
+              type: integer
+              minimum: 1
+              maximum: 100
+            cursor:
+              type:
+                - string
+                - "null"
+            hasMore:
+              type: boolean
+          required:
+            - limit
+            - cursor
+            - hasMore
+          additionalProperties: false
+      required:
+        - data
+      additionalProperties: false
     EmailGenerateTextResponse:
       type: object
       properties:
@@ -2913,7 +2996,7 @@ components:
       required:
         - response
       additionalProperties: false
-    EmailGenerateGeneratedResponse:
+    EmailCreateGeneratedResponse:
       type: object
       properties:
         emailId:
@@ -2927,10 +3010,16 @@ components:
         previewImage:
           type: string
           format: uri
+        groupId:
+          type: string
+          minLength: 1
+          maxLength: 64
+          description: One exact email group id, or "ungrouped" for emails outside a named group.
       required:
         - emailId
         - emailVersionId
         - html
+        - groupId
       additionalProperties: false
     EmailGenerateRequest:
       type: object
@@ -2949,6 +3038,11 @@ components:
         referenceEmailId:
           type: string
           description: An existing design (`emailId` from `list_email_designs`) to use as the style/layout reference for the new email.
+        groupId:
+          type: string
+          minLength: 1
+          maxLength: 64
+          description: Create the generated email in this exact group. Omit or pass "ungrouped" to leave it outside named groups.
         category:
           type: string
           enum:
@@ -3190,6 +3284,25 @@ components:
       required:
         - emailId
         - deleted
+      additionalProperties: false
+    EmailGenerateGeneratedResponse:
+      type: object
+      properties:
+        emailId:
+          type: string
+          minLength: 1
+        emailVersionId:
+          type: string
+          minLength: 1
+        html:
+          type: string
+        previewImage:
+          type: string
+          format: uri
+      required:
+        - emailId
+        - emailVersionId
+        - html
       additionalProperties: false
     EmailCloneRequest:
       type: object
@@ -11665,13 +11778,226 @@ components:
       additionalProperties: {}
   parameters: {}
 paths:
+  /v1/email-groups:
+    get:
+      operationId: listEmailGroups
+      tags:
+        - Emails
+      summary: List email groups
+      description: "Lists the brand's saved email groups in their stored order, followed by the virtual `{ groupId: \"ungrouped\", groupName: \"Ungrouped\" }` group. The virtual group is returned even when there are no saved groups. Page with `limit` and `cursor`."
+      parameters:
+        - schema:
+            anyOf:
+              - type: number
+              - type: string
+          required: false
+          name: limit
+          in: query
+        - schema:
+            type: string
+            minLength: 1
+            maxLength: 512
+          required: false
+          name: cursor
+          in: query
+        - name: X-Brand-Id
+          in: header
+          required: false
+          description: The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 64
+          example: kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+      responses:
+        "200":
+          description: An ordered page of email groups.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmailGroupsListResponse"
+              example:
+                data:
+                  - groupId: grp_lifecycle
+                    groupName: Lifecycle
+                  - groupId: ungrouped
+                    groupName: Ungrouped
+                pagination:
+                  limit: 100
+                  cursor: null
+                  hasMore: false
+        "400":
+          description: "The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field."
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: INVALID_REQUEST
+                  type: invalid_request
+                  message: Request validation failed.
+                  suggestion: Fix the field reported in `param` and retry.
+                  docs: https://docs.brew.new/api-reference/api/errors
+                  param: cursor
+        "401":
+          description: The API key was missing, invalid, or revoked.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: INVALID_API_KEY
+                  type: authentication_error
+                  message: The provided API key is invalid.
+                  suggestion: Check the API key format and retry with a valid active key.
+                  docs: https://docs.brew.new/api-reference/api/authentication
+        "403":
+          description: The caller does not have the required `emails` permission.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: INSUFFICIENT_PERMISSIONS
+                  type: authorization_error
+                  message: The caller does not have the required permission.
+                  suggestion: Use an API key or session with the required permission.
+                  docs: https://docs.brew.new/api-reference/api/authentication
+                  param: emails
+        "429":
+          description: The request hit the rolling rate limit window.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+            Retry-After:
+              schema:
+                type: integer
+                description: Seconds to wait before retrying the request.
+                example: 42
+              required: true
+              description: Seconds to wait before retrying the request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: RATE_LIMITED
+                  type: rate_limit
+                  message: Too many requests.
+                  suggestion: Wait for the retry window before sending another request.
+                  docs: https://docs.brew.new/api-reference/api/rate-limits
+                  retryAfter: 42
+        "500":
+          description: Unexpected internal error.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: INTERNAL_ERROR
+                  type: internal_error
+                  message: An unexpected error occurred.
+                  suggestion: Retry the request. If it keeps failing, contact support.
+                  docs: https://docs.brew.new/api-reference/api/errors
   /v1/emails:
     get:
       operationId: listEmails
       tags:
         - Emails
       summary: Get emails
-      description: "Unified email-design read. Omit `emailId` to LIST the brand’s designs (newest first) under `{ data, pagination }` — each row carries `emailId`, the latest `emailVersionId`, `title`, `status`, `previewImage` (when captured), and `updatedAt`. Filter with `?status=` and the `createdAtFrom/To` + `updatedAtFrom/To` ISO-8601 windows; paginate with `limit` + `cursor`. Pass `?emailId=` to fetch ONE design — returns `{ data: [row] }` (no `pagination`), `404 EMAIL_NOT_FOUND` on an unknown / cross-brand id. Add detail-only `?include=html` (rendered HTML) and/or `?include=versions` (lean `{ version, emailVersionId }` history) — both rejected without `emailId`."
+      description: "Unified email-design read. Omit `emailId` to LIST the brand’s designs under `{ data, pagination }` — each row carries `emailId`, the latest `emailVersionId`, `title`, `status`, `previewImage` (when captured), `createdAt`, `updatedAt`, `groupId`, and `groupName`. Filter with one `?groupId=` (`ungrouped` selects designs with no saved group), `?status=`, and the `createdAtFrom/To` + `updatedAtFrom/To` ISO-8601 windows. Sort with `sort=updatedAt|createdAt|title` and `order=asc|desc`; defaults are `updatedAt desc`. Paginate with `limit` + `cursor`. An unknown group returns an empty page. Pass `?emailId=` to fetch ONE design — returns `{ data: [row] }` (no `pagination`), `404 EMAIL_NOT_FOUND` on an unknown / cross-brand id. Add detail-only `?include=html` (rendered HTML) and/or `?include=versions` (lean `{ version, emailVersionId }` history) — detail reads reject the list-only group/sort/order fields."
       parameters:
         - schema:
             type: string
@@ -11691,31 +12017,71 @@ paths:
               - streaming
               - complete
               - error
+            description: Only designs in this generation status.
           required: false
+          description: Only designs in this generation status.
           name: status
           in: query
         - schema:
             type: string
-            format: date-time
+            minLength: 1
+            maxLength: 64
+            description: One exact email group id, or "ungrouped" for emails outside a named group.
           required: false
+          description: One exact email group id, or "ungrouped" for emails outside a named group.
+          name: groupId
+          in: query
+        - schema:
+            type: string
+            enum:
+              - updatedAt
+              - createdAt
+              - title
+            description: Catalog field to sort by. Defaults to updatedAt.
+          required: false
+          description: Catalog field to sort by. Defaults to updatedAt.
+          name: sort
+          in: query
+        - schema:
+            type: string
+            enum:
+              - asc
+              - desc
+            description: Sort direction. Defaults to desc.
+          required: false
+          description: Sort direction. Defaults to desc.
+          name: order
+          in: query
+        - schema:
+            type: string
+            format: date-time
+            description: Include designs created at or after this ISO-8601 timestamp.
+          required: false
+          description: Include designs created at or after this ISO-8601 timestamp.
           name: createdAtFrom
           in: query
         - schema:
             type: string
             format: date-time
+            description: Include designs created at or before this ISO-8601 timestamp.
           required: false
+          description: Include designs created at or before this ISO-8601 timestamp.
           name: createdAtTo
           in: query
         - schema:
             type: string
             format: date-time
+            description: Include designs updated at or after this ISO-8601 timestamp.
           required: false
+          description: Include designs updated at or after this ISO-8601 timestamp.
           name: updatedAtFrom
           in: query
         - schema:
             type: string
             format: date-time
+            description: Include designs updated at or before this ISO-8601 timestamp.
           required: false
+          description: Include designs updated at or before this ISO-8601 timestamp.
           name: updatedAtTo
           in: query
         - schema:
@@ -11784,18 +12150,24 @@ paths:
                     title: Welcome Email
                     status: complete
                     previewImage: https://cdn.brew.new/p/eml_welcome.png
+                    createdAt: 2026-04-01T10:00:00.000Z
                     updatedAt: 2026-04-08T12:34:56.789Z
+                    groupId: grp_lifecycle
+                    groupName: Lifecycle
                   - emailId: eml_digest
                     emailVersionId: emv_digest_v1
                     title: May product digest
                     status: complete
+                    createdAt: 2026-04-07T08:00:00.000Z
                     updatedAt: 2026-04-07T09:00:00.000Z
+                    groupId: ungrouped
+                    groupName: Ungrouped
                 pagination:
                   limit: 100
                   cursor: null
                   hasMore: false
         "400":
-          description: Invalid query (unknown param, bad enum, `*From` later than its `*To`, or `include` without `emailId`).
+          description: Invalid query (unknown param, bad enum, incompatible cursor, `*From` later than its `*To`, detail-only `include` without `emailId`, or list-only group/sort/order with `emailId`).
           headers:
             x-request-id:
               schema:
@@ -11960,7 +12332,9 @@ paths:
       description: |-
         Generates a new design through the Brew email agent. Emails are pure DESIGNS in the decoupled model — no send state, no type. Sending happens later — `POST /v1/sends` delivers the design to a target (a saved audience, an inline list, or a single address) via a verified domain (or fires a one-off test with `test: true`), or a `sendEmail` node in an automation graph references the returned `emailId` + `emailVersionId`.
 
-        Returns `201` with `{ emailId, emailVersionId, html, previewImage? }` when a design was persisted, or `200` with `{ response }` when the agent answered in prose without writing a design. Supports `Idempotency-Key` for safe retries.
+        Pass an optional `groupId` from `GET /v1/email-groups` to place the new design in that group. Omit it or pass `ungrouped` for Ungrouped. The group is validated before metered generation begins.
+
+        Returns `201` with `{ emailId, emailVersionId, html, previewImage?, groupId }` when a design was persisted, or `200` with `{ response }` when the agent answered in prose without writing a design. Supports `Idempotency-Key` for safe retries.
       parameters:
         - &a1
           name: Idempotency-Key
@@ -11999,6 +12373,7 @@ paths:
                   prompt: Summarize this month’s product updates into a newsletter.
                   contentUrls:
                     - https://example.com/blog/product-launch
+                  groupId: grp_newsletters
       responses:
         "200":
           description: The agent answered in prose without writing a design (`{ response }`).
@@ -12071,12 +12446,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/EmailGenerateGeneratedResponse"
+                $ref: "#/components/schemas/EmailCreateGeneratedResponse"
               example: &a2
                 emailId: eml_2SmZOWV3ZQ7W5x6g3m4p
                 emailVersionId: emv_2SmZOWV3ZQ7W5x6g3m4p_v1
                 html: <!DOCTYPE html><html><body>Welcome to Brew.</body></html>
                 previewImage: https://storage.example.com/emails/eml_2SmZOWV3ZQ7W5x6g3m4p.png
+                groupId: ungrouped
         "400":
           description: "The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field."
           headers:
@@ -12168,7 +12544,7 @@ paths:
                   docs: https://docs.brew.new/api-reference/api/authentication
                   param: emails
         "404":
-          description: The brand bound to the API key is missing or not accessible.
+          description: The brand is missing/inaccessible, or the requested email group does not exist in that brand.
           headers:
             x-request-id:
               schema:
@@ -12181,13 +12557,26 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: BRAND_NOT_FOUND
-                  type: not_found
-                  message: The requested brand was not found.
-                  suggestion: Verify in the dashboard that the brand bound to this API key still exists.
-                  docs: https://docs.brew.new/api-reference/api/errors
+              examples:
+                brandNotFound:
+                  summary: Brand is unavailable
+                  value:
+                    error:
+                      code: BRAND_NOT_FOUND
+                      type: not_found
+                      message: The requested brand was not found.
+                      suggestion: Verify in the dashboard that the brand bound to this API key still exists.
+                      docs: https://docs.brew.new/api-reference/api/errors
+                groupNotFound:
+                  summary: Email group is unavailable
+                  value:
+                    error:
+                      code: EMAIL_GROUP_NOT_FOUND
+                      type: not_found
+                      message: No email group exists with id 'grp_missing'.
+                      suggestion: List email groups with GET /v1/email-groups to find a valid groupId.
+                      docs: https://docs.brew.new/api-reference/api/errors
+                      param: groupId
         "409":
           description: The same `Idempotency-Key` was reused with a different request body.
           headers:

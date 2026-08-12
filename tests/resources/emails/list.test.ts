@@ -64,6 +64,26 @@ describe('emails.list', () => {
     expect(url.searchParams.get('updatedAtTo')).toBe('2026-04-14T00:00:00.000Z')
   })
 
+  it('serializes group and sort filters as query params', async () => {
+    let capturedRequest: Request | undefined
+    server.use(
+      http.get('https://brew.new/api/v1/emails', ({ request }) => {
+        capturedRequest = request
+        return HttpResponse.json({ data: [], pagination: PAGINATION })
+      })
+    )
+
+    const { client } = makeTestHttpClient()
+    const list = createListEmails(client)
+
+    await list({ groupId: 'grp_lifecycle', sort: 'title', order: 'asc' })
+
+    const url = new URL(capturedRequest!.url)
+    expect(url.searchParams.get('groupId')).toBe('grp_lifecycle')
+    expect(url.searchParams.get('sort')).toBe('title')
+    expect(url.searchParams.get('order')).toBe('asc')
+  })
+
   it('detail mode: emailId + include html returns the single-row page with html inlined', async () => {
     let capturedRequest: Request | undefined
     server.use(

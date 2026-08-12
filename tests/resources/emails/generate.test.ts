@@ -32,6 +32,7 @@ describe('emails.generate', () => {
       prompt: 'Create a welcome email',
       contentUrls: ['https://vercel.com/blog'],
       referenceEmailId: 'seed-vercel-newsletter',
+      groupId: 'grp_lifecycle',
     })
 
     expect(capturedRequest?.method).toBe('POST')
@@ -39,6 +40,7 @@ describe('emails.generate', () => {
       prompt: 'Create a welcome email',
       contentUrls: ['https://vercel.com/blog'],
       referenceEmailId: 'seed-vercel-newsletter',
+      groupId: 'grp_lifecycle',
     })
     expect(capturedRequest?.headers.get('idempotency-key')).toBeTruthy()
     expect('emailId' in result).toBe(true)
