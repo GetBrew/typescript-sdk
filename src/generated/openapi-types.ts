@@ -41,11 +41,11 @@ export interface paths {
         put?: never;
         /**
          * Import an email
-         * @description Converts existing markup into a NEW, fully EDITABLE Brew email design on the brand canvas. Brew rebuilds the markup into a clean, fully editable design, and EVERY external image is fetched, optimized, and RE-HOSTED on the Brew CDN (no hot-linking third-party assets).
+         * @description Converts existing markup into a NEW, fully EDITABLE Brew email design on the brand canvas. Brew preserves source structure and attempts to rehost every discoverable safe public resource. If rehosting fails, a validated public URL may be retained with a warning; private, malformed, and blocked references are stripped.
          *
          *     `content` is the raw markup as a STRING; `format` describes what you supply: `html` (an HTML email document or fragment), `mjml` (MJML markup), or `jsx` (React-Email JSX) — all converted into a clean, editable design. Pass `baseUrl` to resolve relative image paths. Optional `title`.
          *
-         *     USAGE-metered: the agent’s actual token in/out is billed (no fixed price, no `X-Credit-Cost` header). The call gates on a non-empty credit balance. Returns `201` with the SAME shape as `POST /v1/emails`: `{ emailId, emailVersionId, html, previewImage? }`.
+         *     FREE — no model and no credits. Conversion is a deterministic compiler, so there is no token spend to meter and no credit gate. Normal request limits still apply: 5,000,000 UTF-8 bytes, 256 remote resources, 8 concurrent fetches, 10 MB per resource, and 50 MB aggregate downloads. Returns `201` with `{ emailId, emailVersionId, html, previewImage?, assetReport }`.
          */
         post: operations["importEmail"];
         delete?: never;
@@ -271,7 +271,7 @@ export interface paths {
          * Send an email
          * @description Sends an email design. Polymorphic on the `test` flag:
          *
-         *     - **`test: true`** → a synchronous one-off TEST delivery of the design’s current (or pinned) body to a single address. Forces the Brew default sender (no verified domain needed), targets one `to` address, and never creates a `Send` row. Returns **`200`** `{ status: "sent", recipient }`.
+         *     - **`test: true`** → a synchronous one-off TEST delivery of the design’s current (or pinned) body to a single address, with a `[TEST]` subject prefix. Sends from the Brew default sender unless a verified org-owned `domainId` is supplied (`fromEmail`/`senderName` customize it; an unverified/foreign domain is rejected, never downgraded). Optional `variables` supply example values for `{{ var | fallback }}` merge tags — a value wins over the declared fallback. Targets one `to` address and never creates a `Send` row. Returns **`200`** `{ status: "sent", recipient }`.
          *     - **default / `test: false`** → a campaign send combining the design (`emailId`, optionally pinned to `emailVersionId`), a verified `domainId`, and a target — a saved `audienceId` OR inline `to` (a single email or an array, max 50) — into one delivery event. The same design can be sent unlimited times; every call mints a new send. Returns **`202`** `{ sendId, runId }` — poll via `GET /v1/analytics/sends?sendId=`.
          *
          *     Campaign target — provide EXACTLY ONE of `audienceId` or `to`. Inline recipients face the same unsubscribe/suppression gate and per-recipient quota as audience sends. For per-recipient event-driven delivery, publish an automation and fire its trigger (`POST /v1/automations/triggers/{triggerEventId}/fire`).
@@ -354,7 +354,7 @@ export interface paths {
         };
         /**
          * Brand overview (totals, rates, timeseries)
-         * @description Windowed brand overview — the EXACT read behind the app's /analytics metric cards + chart (same unique-recipient and machine-click rules), so API/MCP numbers can never disagree with the page. Defaults to the last 7 days. Optional filters, all of which COMPOSE freely: `source` (csv of send sources), `automationId`, `emailId`, `audienceId` (csv, ≤20), `triggerEventId` (csv, ≤10 — integration trigger-events, resolved to their wired automations), `domain` (sending domain), and `recipient` (csv of recipient rules — same grammar and name as `GET /v1/analytics/events`). A single filter is answered from pre-aggregated rollup rows; any combination (and anything with `domain` or `recipient`, neither of which has a rollup dimension) is answered by aggregating raw events instead — exact, but capped, so watch `truncated` on wide windows. Returns `{ totals, rates, buckets, granularity, timeZone, range, truncated }` — `truncated: true` means the window exceeded the scan budget; narrow the range. Requires the `emails` scope.
+         * @description Windowed brand overview — the EXACT read behind the app's /analytics metric cards + chart (same per-recipient dedup and machine-click/open exclusion rules), so API/MCP numbers can never disagree with the page. Defaults to the last 7 days. Optional filters, all of which COMPOSE freely: `source` (csv of send sources), `automationId`, `emailId`, `audienceId` (csv, ≤20), `triggerEventId` (csv, ≤10 — integration trigger-events, resolved to their wired automations), `domain` (sending domain), and `recipient` (csv of recipient rules — same grammar and name as `GET /v1/analytics/events`). A single filter is answered from pre-aggregated rollup rows; any combination (and anything with `domain` or `recipient`, neither of which has a rollup dimension) is answered by aggregating raw events instead — exact, but capped, so watch `truncated` on wide windows. Returns `{ totals, rates, buckets, granularity, timeZone, range, truncated }` — `truncated: true` means the window exceeded the scan budget; narrow the range. Requires the `emails` scope.
          */
         get: operations["getAnalyticsOverview"];
         put?: never;
@@ -414,7 +414,7 @@ export interface paths {
         };
         /**
          * Unified events feed
-         * @description Read-only window over the brand’s analytics events across domains (email, automation, trigger, inbound). Defaults to the last 7 days. Equality filters: `recipientEmail`, `eventType`, `automationId`, `sendId` (join back to `/v1/analytics/sends?sendId=`). Recipient rules — `recipient` (csv, ≤10): a full address matches exactly, `@domain` matches everyone on that domain, any other text matches as a substring, and a `!` prefix excludes (`recipient=@clay.com,!ceo@clay.com` = clay recipients except the CEO); includes OR together, excludes always apply. Send-object facets — `source` (csv of send sources), `audienceId` (csv, ≤20), `emailId` (design), `domain` (sending domain), `triggerEventId` (csv, ≤10 — integration trigger-events resolved to their wired automations): when ANY facet or recipient rule is present the feed narrows to EMAIL events only and each row is enriched with `sendSource` + `sendContext` (plus `triggerProvider`/`triggerTitle` on integration/custom-triggered rows). Machine/bot-classified `clicked` rows are EXCLUDED by default (matching `/v1/analytics/overview`); pass `includeMachineClicks=true` to include the raw rows (audit/debug only). Cursor pagination — pass `pagination.cursor` back as `?cursor=`; loop `while (cursor !== null)`. Requires the `emails` scope.
+         * @description Read-only window over the brand’s analytics events across domains (email, automation, trigger, inbound). Defaults to the last 7 days. Equality filters: `recipientEmail`, `eventType`, `automationId`, `sendId` (join back to `/v1/analytics/sends?sendId=`). Recipient rules — `recipient` (csv, ≤10): a full address matches exactly, `@domain` matches everyone on that domain, any other text matches as a substring, and a `!` prefix excludes (`recipient=@clay.com,!ceo@clay.com` = clay recipients except the CEO); includes OR together, excludes always apply. Send-object facets — `source` (csv of send sources), `audienceId` (csv, ≤20), `emailId` (design), `domain` (sending domain), `triggerEventId` (csv, ≤10 — integration trigger-events resolved to their wired automations): when ANY facet or recipient rule is present the feed narrows to EMAIL events only and each row is enriched with `sendSource` + `sendContext` (plus `triggerProvider`/`triggerTitle` on integration/custom-triggered rows). Machine/bot-classified `clicked` AND `opened` rows (scanner detonation, Apple-proxy prefetch) are EXCLUDED by default (matching `/v1/analytics/overview`); pass `includeMachineClicks=true` / `includeMachineOpens=true` to include the raw rows (audit/debug only). Cursor pagination — pass `pagination.cursor` back as `?cursor=`; loop `while (cursor !== null)`. Requires the `emails` scope.
          */
         get: operations["getEventsAnalytics"];
         put?: never;
@@ -448,7 +448,7 @@ export interface paths {
          *
          *     Chain `POST /v1/emails { prompt }` first to mint the design each `sendEmail` node references — every `sendEmail` node MUST carry `emailId`, `emailVersionId`, `domainId`, `subject`, `previewText`.
          *
-         *     **Dry-run** — add `dryRun: true` to validate without persisting; returns `200` with `{ valid, blockers[], warnings[], blockingIssues[], nodeCounts }`. `blockingIssues[]` lists per-node references to a trigger-payload variable the bound trigger cannot provide (`{ nodeId, nodeLabel, surface, variable, reason, fatal }`) — e.g. after swapping the trigger or removing a payload field. `fatal: true` (filter/split conditions and triple-brace `{{{ }}}` body tokens) fails publish; `fatal: false` (subject/previewText/fromName/replyTo and double-brace body tags) renders empty at send time and is advisory only. `valid` is false when any `fatal` blocking issue is present.
+         *     **Dry-run** — add `dryRun: true` to validate without persisting; returns `200` with an `AutomationDryRunReport`: `{ valid, blockers[], warnings[], nodeCounts }`. `blockers[]` (severity `error`) fail publish; `warnings[]` are advisory. The create dry-run never includes `blockingIssues[]` (trigger-payload compatibility) — only the PATCH dry-run computes that; see `PATCH /v1/automations/{automationId}`.
          */
         post: operations["createAutomation"];
         delete?: never;
@@ -483,7 +483,9 @@ export interface paths {
          *
          *     Graph updates use the same strict typed filter/split condition contract as create: explicit `type`, canonical snake_case `operator`, no `value` for unary operators, and type-correct values everywhere else.
          *
-         *     The two modes cannot be combined: publishing promotes the stored graph, so update first, then PATCH `{ "published": true }`. Returns the bare automation row.
+         *     **Dry-run** — with `dryRun: true` the `200` body is an `AutomationDryRunReport` instead of the row: `{ valid, blockers[], warnings[], blockingIssues[], nodeCounts }`. `blockingIssues[]` lists per-node references to a trigger-payload variable the effective trigger cannot provide — e.g. after swapping the trigger or removing a payload field. `fatal: true` (filter/split conditions and triple-brace `{{{ }}}` body tokens) fails publish; `fatal: false` (subject/previewText/fromName/replyTo and double-brace body tags) renders empty at send time and is advisory only; `hasFallback: true` means the token’s inline `{{ name | fallback }}` fallback renders instead of an empty string. `valid` is false when any blocker or any `fatal` blocking issue is present.
+         *
+         *     The two modes cannot be combined: publishing promotes the stored graph, so update first, then PATCH `{ "published": true }`. Returns the bare automation row (or the dry-run report when `dryRun: true`).
          */
         patch: operations["updateAutomation"];
         trace?: never;
@@ -873,9 +875,29 @@ export interface paths {
         put?: never;
         /**
          * Create an audience
-         * @description Creates a saved audience from a name + filter set (`{ filters: [{ field, operator, value? }], logicalOperator: "and" | "or" }`). Returns `201` with the bare audience row.
+         * @description Creates a saved audience from a name + filter set (`{ filters: [{ field, operator, value? }], logicalOperator: "and" | "or" }`). Returns `201` with the bare audience row. An `email in [...]` clause listing more than 100 addresses is converted automatically: a fresh date custom field is stamped on the listed EXISTING contacts and the stored filter becomes `customFields.<field> is_not_empty` (a snapshot — addresses with no contact record are skipped), reported back as `emailListMaterializations`; 10,000 addresses max per clause.
          */
         post: operations["createAudience"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/audiences/from-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create an audience from analytics events
+         * @description Creates a frozen audience snapshot from the same membership filters as `/events`: 1–10 canonical event types, an absolute window up to 90 days, optional send/email ids, multi-select automation/audience ids, recipient include/exclude rules, and the machine-click policy. Every call generates a unique date field; each matching existing contact stores its latest matching-event timestamp. Returns `201` immediately with `materializationStatus: pending` plus build progress. The audience is unavailable for campaign, smart-send, and automation delivery until the status becomes `ready`. Failed/partial/stale builds remain non-sendable and partial values are cleaned. Poll `GET /v1/audiences?audienceId=…&include=build`.
+         */
+        post: operations["createAudienceFromEvents"];
         delete?: never;
         options?: never;
         head?: never;
@@ -901,9 +923,29 @@ export interface paths {
         head?: never;
         /**
          * Update an audience
-         * @description Updates `name` and/or `filters` (at least one required). Returns the bare updated row.
+         * @description Updates `name` and/or `filters` (at least one required). Pass the latest row’s `updatedAt` as `expectedUpdatedAt` to reject stale read-modify-write edits. Returns the bare updated row. Replacement filters follow the same email-list rule as create: an `email in [...]` clause over 100 addresses is converted into a stamped custom-field snapshot (a fresh field per update), reported as `emailListMaterializations`.
          */
         patch: operations["updateAudience"];
+        trace?: never;
+    };
+    "/v1/audiences/{audienceId}/duplicate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Duplicate an audience
+         * @description Creates a deterministic copy of the saved audience’s live filters with a server-generated “(copy)” name. Contacts are not copied; both audiences resolve against the same contact records.
+         */
+        post: operations["duplicateAudience"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/v1/domains": {
@@ -1314,28 +1356,6 @@ export interface components {
                 emailVersionId: string;
             }[];
         };
-        EmailDetail: {
-            emailId: string;
-            emailVersionId?: string;
-            title: string;
-            /** @enum {string} */
-            status: "streaming" | "complete" | "error";
-            /** @description The design's inbox preview line, read directly from the latest version's JSX <Preview> — what a send delivers when no explicit `previewText` override is passed to POST /v1/sends. */
-            previewText?: string;
-            html?: string;
-            /** Format: uri */
-            previewImage?: string;
-            /** Format: date-time */
-            updatedAt: string;
-        };
-        EmailVersionRow: {
-            emailVersionId: string;
-            version: number | "latest";
-            /** @enum {string} */
-            status: "streaming" | "complete" | "error";
-            /** Format: date-time */
-            updatedAt: string;
-        };
         Send: {
             sendId: string;
             /** @enum {string} */
@@ -1349,6 +1369,8 @@ export interface components {
             emailVersionId?: string;
             /** @enum {string} */
             status: "scheduled" | "queued" | "sending" | "paused" | "sent" | "partially_sent" | "failed" | "canceled";
+            /** @enum {string} */
+            approvalState?: "pending" | "approved" | "rejected";
             subject?: string;
             previewText?: string;
             fromAddress?: string;
@@ -1928,6 +1950,57 @@ export interface components {
                 automationVersionId: string;
             }[];
         };
+        AutomationDryRunReport: {
+            /** @description Whether the graph would publish cleanly. false when any `blockers[]` entry — or, on PATCH, any `fatal` blocking issue — is present. */
+            valid: boolean;
+            /** @description Publish blockers (`severity: "error"`). Publishing fails while any remain. */
+            blockers: {
+                /** @description Id of the offending node. Absent on graph-level findings. */
+                nodeId?: string;
+                /** @description Label of the offending node. Absent on graph-level findings. */
+                nodeLabel?: string;
+                /** @enum {string} */
+                severity: "error" | "warning";
+                /** @description Human-readable description of the finding. */
+                message: string;
+            }[];
+            /** @description Advisory findings (`severity: "warning"`). Publishing succeeds despite them. */
+            warnings: {
+                /** @description Id of the offending node. Absent on graph-level findings. */
+                nodeId?: string;
+                /** @description Label of the offending node. Absent on graph-level findings. */
+                nodeLabel?: string;
+                /** @enum {string} */
+                severity: "error" | "warning";
+                /** @description Human-readable description of the finding. */
+                message: string;
+            }[];
+            /** @description Trigger-payload compatibility findings. Always present (possibly empty) on PATCH dry-run responses — only the update path checks trigger compatibility; never present on POST (create) dry-run responses. */
+            blockingIssues?: {
+                nodeId: string;
+                nodeLabel: string;
+                /**
+                 * @description Where on the node the orphaned reference lives.
+                 * @enum {string}
+                 */
+                surface: "subject" | "previewText" | "fromName" | "replyTo" | "emailBody" | "filterCondition" | "splitCondition";
+                /** @description The bare variable / field name that cannot be resolved. */
+                variable: string;
+                /** @description Short user-facing reason. */
+                reason: string;
+                /** @description true — filter/split conditions and triple-brace `{{{ }}}` body tokens: the run genuinely breaks, and publish fails. false — subject/previewText/fromName/replyTo and double-brace body tags: the value renders empty at send time; advisory only. */
+                fatal: boolean;
+                /** @description The token carries an inline `{{ name | fallback }}` fallback, so it renders the fallback rather than empty. Never blocks publish. */
+                hasFallback: boolean;
+            }[];
+            /** @description Per-kind node counts of the validated graph. */
+            nodeCounts: {
+                sendEmail: number;
+                wait: number;
+                filter: number;
+                split: number;
+            };
+        };
         AutomationRunRow: {
             automationRunId: string;
             automationId: string;
@@ -2040,6 +2113,7 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
             importId?: string | null;
+            csvFileName?: string | null;
             /** @default {} */
             customFields?: {
                 [key: string]: unknown;
@@ -2081,10 +2155,88 @@ export interface components {
                 logicalOperator: "and" | "or";
             };
             count: number;
+            /** @enum {string} */
+            materializationStatus?: "pending" | "running" | "ready" | "failed";
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
+            build?: {
+                jobId: string;
+                /** @enum {string} */
+                status: "pending" | "running" | "completed" | "partial" | "failed";
+                cohort: {
+                    eventTypes: ("sent" | "delivered" | "delivery_delayed" | "opened" | "clicked" | "bounced" | "complained" | "failed" | "skipped" | "unsubscribed")[];
+                    /** Format: date-time */
+                    from: string;
+                    /**
+                     * Format: date-time
+                     * @description Defaults to now.
+                     */
+                    to: string;
+                    sendId?: string;
+                    emailId?: string;
+                    automationIds?: string[];
+                    /** @description Scope to events from sends that targeted these audiences. */
+                    audienceIds?: string[];
+                    /** @description Recipient rule tokens using the Events-page grammar. */
+                    recipient?: string[];
+                    includeMachineClicks?: boolean;
+                };
+                field: {
+                    key: string;
+                    label: string;
+                    /** @enum {string} */
+                    type: "date";
+                };
+                counts: {
+                    eventsScanned: number;
+                    stampedContacts?: number;
+                };
+                error?: string;
+                /** Format: date-time */
+                enqueuedAt: string;
+                /** Format: date-time */
+                completedAt?: string;
+            };
+        };
+        AudienceBuild: {
+            jobId: string;
+            /** @enum {string} */
+            status: "pending" | "running" | "completed" | "partial" | "failed";
+            cohort: {
+                eventTypes: ("sent" | "delivered" | "delivery_delayed" | "opened" | "clicked" | "bounced" | "complained" | "failed" | "skipped" | "unsubscribed")[];
+                /** Format: date-time */
+                from: string;
+                /**
+                 * Format: date-time
+                 * @description Defaults to now.
+                 */
+                to: string;
+                sendId?: string;
+                emailId?: string;
+                automationIds?: string[];
+                /** @description Scope to events from sends that targeted these audiences. */
+                audienceIds?: string[];
+                /** @description Recipient rule tokens using the Events-page grammar. */
+                recipient?: string[];
+                includeMachineClicks?: boolean;
+            };
+            field: {
+                key: string;
+                label: string;
+                /** @enum {string} */
+                type: "date";
+            };
+            counts: {
+                eventsScanned: number;
+                stampedContacts?: number;
+            };
+            error?: string;
+            /** Format: date-time */
+            enqueuedAt: string;
+            /** Format: date-time */
+            completedAt?: string;
         };
         Domain: {
             domainId: string;
@@ -2187,6 +2339,26 @@ export interface components {
              * @enum {string}
              */
             category?: "welcome" | "newsletter" | "promotional" | "product-launch" | "product-update" | "cart-abandonment" | "event-invitation" | "event-reminder" | "feedback-request" | "re-engagement" | "referral" | "business" | "internal" | "general";
+        };
+        EmailImportResponse: {
+            emailId: string;
+            emailVersionId: string;
+            html: string;
+            /** Format: uri */
+            previewImage?: string;
+            assetReport: {
+                discovered: number;
+                rehosted: number;
+                retained: number;
+                stripped: number;
+                warnings: {
+                    /** @enum {string} */
+                    code: "fetch_failed_retained" | "non_image_resource_retained" | "social_icon_substituted" | "unsafe_url_stripped" | "unsupported_resource_retained" | "upload_failed_retained";
+                    /** @enum {string} */
+                    location: "background" | "css-url" | "data-src" | "data-srcset" | "preload" | "src" | "srcset" | "stylesheet" | "vml-src";
+                    host?: string;
+                }[];
+            };
         };
         EmailImportRequest: {
             /** @enum {string} */
@@ -2412,7 +2584,7 @@ export interface components {
             subject?: string;
             /** @description Preview/preheader text for the seed send — overrides the design's JSX <Preview> for this test. A VARIANT dimension, like `subject`: run several tests varying only the preheader to compare placement. */
             previewText?: string;
-            /** @description Pin a specific design version to test (from `list_email_designs` with `include: ["versions"]`); omit for the latest. A VARIANT dimension — test two versions of one design against each other. */
+            /** @description Pin a specific design version already available in the current surface; omit for the latest. A VARIANT dimension — test two versions of one design against each other. */
             emailVersionId?: string;
             /** @description Restrict seed mailbox providers (e.g. ["gmail.com","outlook.com","yahoo.com"]); omit for a broad default spread. */
             providers?: string[];
@@ -2468,6 +2640,8 @@ export interface components {
                 emailVersionId?: string;
                 /** @enum {string} */
                 status: "scheduled" | "queued" | "sending" | "paused" | "sent" | "partially_sent" | "failed" | "canceled";
+                /** @enum {string} */
+                approvalState?: "pending" | "approved" | "rejected";
                 subject?: string;
                 previewText?: string;
                 fromAddress?: string;
@@ -2567,6 +2741,12 @@ export interface components {
             runId: string;
             /** Format: date-time */
             scheduledAt?: string;
+        } | {
+            /** @enum {string} */
+            status: "pending_approval";
+            sendId: string;
+            /** Format: date-time */
+            scheduledAt?: string;
         };
         SendEmailRequest: {
             /** @enum {boolean} */
@@ -2580,6 +2760,14 @@ export interface components {
             to: string;
             /** Format: email */
             replyTo?: string;
+            /** @description OPTIONAL verified sending domain for this test. Omit for the Brew default sender (hello@email.brew.new). Must be a verified domain owned by this org/brand — an unverified or foreign domain is rejected (404/422), never silently downgraded to the Brew default. */
+            domainId?: string;
+            senderName?: string;
+            fromEmail?: string;
+            /** @description Example values for {{ var | fallback }} merge tags in the subject, previewText, and body. A supplied value wins over contact fields and the declared fallback; undefined variables render their fallback (or empty). Max 25 entries; keys must match the merge-tag grammar (letter/_/$ start, then word chars/dots/$, max 64 chars); values max 256 chars. */
+            variables?: {
+                [key: string]: string;
+            };
         } | {
             /** @enum {boolean} */
             test?: false;
@@ -2649,9 +2837,7 @@ export interface components {
                 sent: number;
                 delivered: number;
                 opened: number;
-                openedTotal: number;
                 clicked: number;
-                clickedTotal: number;
                 bounced: number;
                 complained: number;
                 unsubscribed: number;
@@ -2668,12 +2854,12 @@ export interface components {
                 deliveryDelayed: number;
             };
             rates: {
-                deliveryRate: number;
-                openRate: number;
-                clickRate: number;
-                bounceRate: number;
-                complaintRate: number;
-                unsubscribeRate: number;
+                deliveryRate: number | null;
+                openRate: number | null;
+                clickRate: number | null;
+                bounceRate: number | null;
+                complaintRate: number | null;
+                unsubscribeRate: number | null;
             };
             buckets: {
                 /** Format: date-time */
@@ -2746,10 +2932,13 @@ export interface components {
                 opened: number;
                 clicked: number;
                 bounced: number;
-                successRate: number;
-                openRate: number;
-                clickRate: number;
-                clickThroughRate: number;
+                complained: number;
+                unsubscribed: number;
+                successRate: number | null;
+                openRate: number | null;
+                clickRate: number | null;
+                clickThroughRate: number | null;
+                unsubscribeRate: number | null;
                 /** Format: date-time */
                 lastRunAt?: string;
                 lastRunStatus?: string;
@@ -2763,6 +2952,8 @@ export interface components {
                 opened: number;
                 clicked: number;
                 bounced: number;
+                complained: number;
+                unsubscribed: number;
             };
             range: {
                 /** Format: date-time */
@@ -2791,6 +2982,8 @@ export interface components {
                 provider?: string;
                 machineGenerated?: boolean;
                 clickBotReason?: string;
+                openBotReason?: string;
+                openFetchSource?: string;
                 /** @enum {string} */
                 mode?: "live" | "test";
                 summary?: string;
@@ -3676,7 +3869,15 @@ export interface components {
             };
             /** Format: date-time */
             receivedAt: string;
-            warnings?: string[];
+            warnings?: ({
+                code: string;
+                field: string;
+                message: string;
+                expectedType?: string;
+                actualType?: string;
+            } & {
+                [key: string]: unknown;
+            })[];
         };
         AutomationTestRequest: {
             payload?: {
@@ -3702,6 +3903,11 @@ export interface components {
             status: "queued" | "scheduled";
             totalRecipients: number;
             workflowRunId?: string;
+            /**
+             * @description Present when org-level send approval holds the run for admin review: no workflow starts until an admin approves; rejection cancels the run with zero deliveries.
+             * @enum {string}
+             */
+            approvalState?: "pending";
             receivedAt: string;
         };
         AutomationRunRequest: {
@@ -3733,6 +3939,8 @@ export interface components {
                 audienceName?: string;
                 /** @enum {string} */
                 status: "queued" | "scheduled" | "running" | "paused" | "sent" | "failed" | "canceled";
+                /** @enum {string} */
+                approvalState?: "pending" | "approved" | "rejected";
                 scheduledAt?: string;
                 totalRecipients?: number;
                 sentCount?: number;
@@ -3930,18 +4138,28 @@ export interface components {
                 resolvedPayload?: {
                     [key: string]: unknown;
                 };
-                warnings?: unknown[];
+                warnings?: ({
+                    code: string;
+                    field: string;
+                    message: string;
+                    expectedType?: string;
+                    actualType?: string;
+                } & {
+                    [key: string]: unknown;
+                })[];
                 idempotencyKey?: string;
                 /** @description Unique identifier for the persisted inbound row. Useful for support and replay. Set whenever an Idempotency-Key was provided. */
                 triggerInstanceId?: string;
                 publishedTransactionalEmails?: ({
                     emailId: string;
+                    title?: string;
                 } & {
                     [key: string]: unknown;
                 })[];
                 publishedAutomations?: ({
                     automationId: string;
-                    title?: string;
+                    name?: string;
+                    primaryFromAddress?: string;
                 } & {
                     [key: string]: unknown;
                 })[];
@@ -4048,6 +4266,7 @@ export interface components {
                 /** Format: date-time */
                 updatedAt: string;
                 importId?: string | null;
+                csvFileName?: string | null;
                 /** @default {} */
                 customFields?: {
                     [key: string]: unknown;
@@ -4130,6 +4349,7 @@ export interface components {
                 /** Format: date-time */
                 updatedAt: string;
                 importId?: string | null;
+                csvFileName?: string | null;
                 /** @default {} */
                 customFields?: {
                     [key: string]: unknown;
@@ -4182,6 +4402,7 @@ export interface components {
                 /** Format: date-time */
                 updatedAt: string;
                 importId?: string | null;
+                csvFileName?: string | null;
                 /** @default {} */
                 customFields?: {
                     [key: string]: unknown;
@@ -4340,10 +4561,50 @@ export interface components {
                     logicalOperator: "and" | "or";
                 };
                 count: number;
+                /** @enum {string} */
+                materializationStatus?: "pending" | "running" | "ready" | "failed";
                 /** Format: date-time */
                 createdAt: string;
                 /** Format: date-time */
                 updatedAt: string;
+                build?: {
+                    jobId: string;
+                    /** @enum {string} */
+                    status: "pending" | "running" | "completed" | "partial" | "failed";
+                    cohort: {
+                        eventTypes: ("sent" | "delivered" | "delivery_delayed" | "opened" | "clicked" | "bounced" | "complained" | "failed" | "skipped" | "unsubscribed")[];
+                        /** Format: date-time */
+                        from: string;
+                        /**
+                         * Format: date-time
+                         * @description Defaults to now.
+                         */
+                        to: string;
+                        sendId?: string;
+                        emailId?: string;
+                        automationIds?: string[];
+                        /** @description Scope to events from sends that targeted these audiences. */
+                        audienceIds?: string[];
+                        /** @description Recipient rule tokens using the Events-page grammar. */
+                        recipient?: string[];
+                        includeMachineClicks?: boolean;
+                    };
+                    field: {
+                        key: string;
+                        label: string;
+                        /** @enum {string} */
+                        type: "date";
+                    };
+                    counts: {
+                        eventsScanned: number;
+                        stampedContacts?: number;
+                    };
+                    error?: string;
+                    /** Format: date-time */
+                    enqueuedAt: string;
+                    /** Format: date-time */
+                    completedAt?: string;
+                };
             }[];
             pagination?: {
                 limit: number;
@@ -4351,8 +4612,79 @@ export interface components {
                 hasMore: boolean;
             };
         };
+        AudienceWriteResponse: {
+            audienceId: string;
+            audienceName: string;
+            filters: {
+                filters: {
+                    field: string;
+                    /** @enum {string} */
+                    operator: "equals" | "not_equals" | "contains" | "not_contains" | "contains_any" | "not_contains_any" | "starts_with" | "ends_with" | "gt" | "gte" | "lt" | "lte" | "between" | "is_true" | "is_false" | "in" | "not_in" | "is_empty" | "not_exists" | "is_not_empty" | "exists" | "is_set" | "before" | "after" | "on_date";
+                    value?: unknown;
+                    /** @description The field's value type — set `number`, `date`, or `boolean` for typed comparisons (dates are stored as epoch-ms, so a string `equals` on a date never matches). Omit for plain string fields. */
+                    type?: string;
+                }[];
+                /** @enum {string} */
+                logicalOperator: "and" | "or";
+            };
+            count: number;
+            /** @enum {string} */
+            materializationStatus?: "pending" | "running" | "ready" | "failed";
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            build?: {
+                jobId: string;
+                /** @enum {string} */
+                status: "pending" | "running" | "completed" | "partial" | "failed";
+                cohort: {
+                    eventTypes: ("sent" | "delivered" | "delivery_delayed" | "opened" | "clicked" | "bounced" | "complained" | "failed" | "skipped" | "unsubscribed")[];
+                    /** Format: date-time */
+                    from: string;
+                    /**
+                     * Format: date-time
+                     * @description Defaults to now.
+                     */
+                    to: string;
+                    sendId?: string;
+                    emailId?: string;
+                    automationIds?: string[];
+                    /** @description Scope to events from sends that targeted these audiences. */
+                    audienceIds?: string[];
+                    /** @description Recipient rule tokens using the Events-page grammar. */
+                    recipient?: string[];
+                    includeMachineClicks?: boolean;
+                };
+                field: {
+                    key: string;
+                    label: string;
+                    /** @enum {string} */
+                    type: "date";
+                };
+                counts: {
+                    eventsScanned: number;
+                    stampedContacts?: number;
+                };
+                error?: string;
+                /** Format: date-time */
+                enqueuedAt: string;
+                /** Format: date-time */
+                completedAt?: string;
+            };
+            /** @description Present when an `email in [...]` clause with more than 100 addresses was auto-converted into a stamped custom-field snapshot. */
+            emailListMaterializations?: {
+                /** @description Custom-field key the address list was stamped onto. */
+                fieldName: string;
+                /** @description Distinct addresses supplied after normalization. */
+                providedEmails: number;
+                /** @description Addresses that matched an EXISTING contact and were stamped — a gap vs `providedEmails` means those addresses have no contact record (import them first). */
+                matchedContacts: number;
+            }[];
+        };
         AudiencesPostRequest: {
             name: string;
+            /** @description Filter clauses combined by `logicalOperator`. For specific addresses use `{ field: "email", operator: "in", value: ["a@x.com", ...] }` — a list over 100 addresses is auto-converted into a stamped custom-field snapshot of the listed EXISTING contacts (addresses without a contact record are skipped; 10,000 max). */
             filters: {
                 filters: {
                     field: string;
@@ -4366,8 +4698,91 @@ export interface components {
                 logicalOperator: "and" | "or";
             };
         };
+        AudiencesFromEventsResponse: {
+            audienceId: string;
+            audienceName: string;
+            filters: {
+                filters: {
+                    field: string;
+                    /** @enum {string} */
+                    operator: "equals" | "not_equals" | "contains" | "not_contains" | "contains_any" | "not_contains_any" | "starts_with" | "ends_with" | "gt" | "gte" | "lt" | "lte" | "between" | "is_true" | "is_false" | "in" | "not_in" | "is_empty" | "not_exists" | "is_not_empty" | "exists" | "is_set" | "before" | "after" | "on_date";
+                    value?: unknown;
+                    /** @description The field's value type — set `number`, `date`, or `boolean` for typed comparisons (dates are stored as epoch-ms, so a string `equals` on a date never matches). Omit for plain string fields. */
+                    type?: string;
+                }[];
+                /** @enum {string} */
+                logicalOperator: "and" | "or";
+            };
+            count: number;
+            /** @enum {string} */
+            materializationStatus: "pending" | "running" | "ready" | "failed";
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            build: {
+                jobId: string;
+                /** @enum {string} */
+                status: "pending" | "running" | "completed" | "partial" | "failed";
+                cohort: {
+                    eventTypes: ("sent" | "delivered" | "delivery_delayed" | "opened" | "clicked" | "bounced" | "complained" | "failed" | "skipped" | "unsubscribed")[];
+                    /** Format: date-time */
+                    from: string;
+                    /**
+                     * Format: date-time
+                     * @description Defaults to now.
+                     */
+                    to: string;
+                    sendId?: string;
+                    emailId?: string;
+                    automationIds?: string[];
+                    /** @description Scope to events from sends that targeted these audiences. */
+                    audienceIds?: string[];
+                    /** @description Recipient rule tokens using the Events-page grammar. */
+                    recipient?: string[];
+                    includeMachineClicks?: boolean;
+                };
+                field: {
+                    key: string;
+                    label: string;
+                    /** @enum {string} */
+                    type: "date";
+                };
+                counts: {
+                    eventsScanned: number;
+                    stampedContacts?: number;
+                };
+                error?: string;
+                /** Format: date-time */
+                enqueuedAt: string;
+                /** Format: date-time */
+                completedAt?: string;
+            };
+        };
+        AudiencesFromEventsRequest: {
+            cohort: {
+                eventTypes: ("sent" | "delivered" | "delivery_delayed" | "opened" | "clicked" | "bounced" | "complained" | "failed" | "skipped" | "unsubscribed")[];
+                /** Format: date-time */
+                from: string;
+                /**
+                 * Format: date-time
+                 * @description Defaults to now.
+                 */
+                to?: string;
+                sendId?: string;
+                emailId?: string;
+                automationIds?: string[];
+                /** @description Scope to events from sends that targeted these audiences. */
+                audienceIds?: string[];
+                /** @description Recipient rule tokens using the Events-page grammar. */
+                recipient?: string[];
+                includeMachineClicks?: boolean;
+            };
+            name?: string;
+        };
         AudiencesPatchRequest: {
             name?: string;
+            /** @description Filter clauses combined by `logicalOperator`. For specific addresses use `{ field: "email", operator: "in", value: ["a@x.com", ...] }` — a list over 100 addresses is auto-converted into a stamped custom-field snapshot of the listed EXISTING contacts (addresses without a contact record are skipped; 10,000 max). */
             filters?: {
                 filters: {
                     field: string;
@@ -4380,6 +4795,11 @@ export interface components {
                 /** @enum {string} */
                 logicalOperator: "and" | "or";
             };
+            /**
+             * Format: date-time
+             * @description Optional optimistic-concurrency precondition from the latest audience read. The update returns 409 if the row changed meanwhile.
+             */
+            expectedUpdatedAt?: string;
         };
         AudiencesDeleteResponse: {
             audienceId: string;
@@ -4445,6 +4865,8 @@ export interface components {
             sendable: boolean;
             /** @enum {string} */
             verdict: "healthy" | "at_risk" | "critical";
+            /** @enum {string} */
+            readiness: "ready" | "ready_with_warnings" | "not_ready" | "checking" | "unknown";
             score: {
                 value: number;
                 /** @enum {string} */
@@ -4517,17 +4939,18 @@ export interface components {
                 sampled: true;
                 sampleSendCount: number;
                 sentCount: number;
+                deliveredCount: number;
                 bouncedCount: number;
                 complainedCount: number;
-                bounceRate: number;
-                complaintRate: number;
+                bounceRate: number | null;
+                complaintRate: number | null;
             } | null;
             orgReputation: {
                 /** @enum {string} */
                 scope: "org";
                 totalSent: number;
-                bounceRate: number;
-                complaintRate: number;
+                bounceRate: number | null;
+                complaintRate: number | null;
             } | null;
             recentPlacementTests: {
                 testId: string;
@@ -4546,12 +4969,14 @@ export interface components {
                     dmarc?: string;
                 } | null;
                 spamFilterFlagged: boolean;
+                source?: string;
+                variant?: string;
                 /** Format: date-time */
                 createdAt: string;
             }[];
             signals: {
                 /** @enum {string} */
-                id: "domain_not_verified" | "dns_record_failed" | "dmarc_missing" | "sending_disabled" | "tracking_links_broken" | "high_bounce_rate" | "high_complaint_rate" | "placement_spam_heavy" | "content_spam_filter_flagged" | "auth_failing_in_tests" | "warmup_paused";
+                id: "domain_not_verified" | "dns_record_failed" | "dmarc_missing" | "sending_disabled" | "tracking_links_broken" | "high_bounce_rate" | "high_complaint_rate" | "placement_spam_heavy" | "content_spam_filter_flagged" | "auth_failing_in_tests" | "placement_baseline_spam" | "content_image_weight_penalty" | "content_promotional_penalty" | "content_promotions_tab_shift" | "warmup_paused";
                 /** @enum {string} */
                 severity: "critical" | "warning" | "info";
                 summary: string;
@@ -5215,7 +5640,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit/import, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
+            /** @description The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
             402: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -5435,7 +5860,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description The design was imported + persisted. Usage-metered: the agent’s actual token usage is charged. `emailVersionId` pins the exact version for sends + automation nodes. */
+            /** @description The design was imported + persisted. Free — no model runs. `emailVersionId` pins the exact version for sends + automation nodes. */
             201: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -5454,10 +5879,17 @@ export interface operations {
                      *       "emailId": "eml_2SmZOWV3ZQ7W5x6g3m4p",
                      *       "emailVersionId": "emv_2SmZOWV3ZQ7W5x6g3m4p_v1",
                      *       "html": "<!DOCTYPE html><html><body>Welcome to Brew.</body></html>",
-                     *       "previewImage": "https://storage.example.com/emails/eml_2SmZOWV3ZQ7W5x6g3m4p.png"
+                     *       "previewImage": "https://storage.example.com/emails/eml_2SmZOWV3ZQ7W5x6g3m4p.png",
+                     *       "assetReport": {
+                     *         "discovered": 1,
+                     *         "rehosted": 1,
+                     *         "retained": 0,
+                     *         "stripped": 0,
+                     *         "warnings": []
+                     *       }
                      *     }
                      */
-                    "application/json": components["schemas"]["EmailGenerateGeneratedResponse"];
+                    "application/json": components["schemas"]["EmailImportResponse"];
                 };
             };
             /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field. */
@@ -5505,33 +5937,6 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit/import, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
-            402: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "INSUFFICIENT_CREDITS",
-                     *         "type": "payment_required",
-                     *         "message": "This operation required more credits than the 0 remaining on the 'free' plan. See the per-operation cost in GET /v1/help.",
-                     *         "suggestion": "Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/usage.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/credits",
-                     *         "details": {
-                     *           "cost": 2,
-                     *           "remaining": 0,
-                     *           "planKey": "free"
-                     *         }
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
             /** @description The caller does not have the required `emails` permission. */
             403: {
                 headers: {
@@ -5571,6 +5976,29 @@ export interface operations {
                      *         "message": "The same idempotency key was reused with a different request payload.",
                      *         "suggestion": "Reuse the original payload or send a new idempotency key.",
                      *         "docs": "https://docs.brew.new/api-reference/api/idempotency"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The source or one of its resource budgets exceeds the deterministic import limits. */
+            413: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "PAYLOAD_TOO_LARGE",
+                     *         "type": "invalid_request",
+                     *         "message": "content must not exceed 5000000 UTF-8 bytes",
+                     *         "suggestion": "Reduce the payload size and retry.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "content"
                      *       }
                      *     }
                      */
@@ -5647,31 +6075,6 @@ export interface operations {
                      *         "message": "An unexpected error occurred.",
                      *         "suggestion": "Retry the request. If it keeps failing, contact support.",
                      *         "docs": "https://docs.brew.new/api-reference/api/errors"
-                     *       }
-                     *     }
-                     */
-                    "application/json": components["schemas"]["ApiErrorEnvelope"];
-                };
-            };
-            /** @description The credit balance could not be verified (a transient billing dependency outage). The gate fails closed rather than do paid work it cannot meter. Retryable — `Retry-After` indicates when. */
-            503: {
-                headers: {
-                    /** @description Unique request identifier. Share this with support when debugging a request. */
-                    "x-request-id": string;
-                    /** @description Seconds to wait before retrying the request. */
-                    "Retry-After": number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    /**
-                     * @example {
-                     *       "error": {
-                     *         "code": "SERVICE_UNAVAILABLE",
-                     *         "type": "service_unavailable",
-                     *         "message": "Your credit balance could not be verified because a billing dependency is temporarily unavailable.",
-                     *         "suggestion": "Retry the request after a short delay.",
-                     *         "docs": "https://docs.brew.new/api-reference/api/credits",
-                     *         "retryAfter": 2
                      *       }
                      *     }
                      */
@@ -6158,7 +6561,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit/import, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
+            /** @description The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
             402: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -7153,7 +7556,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit/import, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
+            /** @description The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
             402: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -7422,7 +7825,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit/import, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
+            /** @description The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
             402: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -7910,7 +8313,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit/import, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
+            /** @description The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
             402: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -9191,9 +9594,7 @@ export interface operations {
                      *         "sent": 5000,
                      *         "delivered": 4920,
                      *         "opened": 2110,
-                     *         "openedTotal": 3480,
                      *         "clicked": 540,
-                     *         "clickedTotal": 812,
                      *         "bounced": 80,
                      *         "complained": 3,
                      *         "unsubscribed": 12,
@@ -9773,6 +10174,8 @@ export interface operations {
                 triggerEventId?: string;
                 /** @description Machine/bot-classified `clicked` rows are excluded by default. Pass `true` to include the raw rows (they carry `machineGenerated: true` + a `clickBotReason`; audit/debug only). */
                 includeMachineClicks?: boolean;
+                /** @description Machine/bot-classified `opened` rows (security-scanner pixel detonation, Apple-proxy prefetch) and still-classifying opens are excluded by default. Pass `true` to include the raw rows (they carry `machineGenerated` + an `openBotReason` and `openFetchSource`; audit/debug only). */
+                includeMachineOpens?: boolean;
                 limit?: number;
                 cursor?: string;
             };
@@ -10190,14 +10593,40 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Dry-run result (no writes). `valid` indicates whether the graph would publish cleanly. */
+            /** @description Dry-run result (returned only for `dryRun: true`; no writes). `valid` indicates whether the graph would publish cleanly. The create dry-run never includes `blockingIssues` — that field is PATCH-only. */
             200: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
                     "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    /**
+                     * @example {
+                     *       "valid": false,
+                     *       "blockers": [
+                     *         {
+                     *           "severity": "error",
+                     *           "message": "Add at least one Send Email action"
+                     *         }
+                     *       ],
+                     *       "warnings": [],
+                     *       "nodeCounts": {
+                     *         "sendEmail": 0,
+                     *         "wait": 0,
+                     *         "filter": 0,
+                     *         "split": 0
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["AutomationDryRunReport"];
+                };
             };
             /** @description Created. The bare automation row (draft, full graph). */
             201: {
@@ -10581,7 +11010,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Updated / published / unpublished. The bare automation row (or the dry-run result when `dryRun: true`). */
+            /** @description Updated / published / unpublished — the bare automation row. For `dryRun: true` update requests, an `AutomationDryRunReport` instead (no writes). */
             200: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -10595,53 +11024,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    /**
-                     * @example {
-                     *       "automationId": "auto_abc",
-                     *       "automationVersionId": "av_v1",
-                     *       "triggerEventId": "tri_signup",
-                     *       "name": "Welcome flow",
-                     *       "version": "latest",
-                     *       "published": false,
-                     *       "nodes": [
-                     *         {
-                     *           "id": "trg",
-                     *           "label": "On signup",
-                     *           "type": "trigger",
-                     *           "config": {
-                     *             "actionType": "trigger"
-                     *           }
-                     *         },
-                     *         {
-                     *           "id": "send_welcome",
-                     *           "label": "Welcome",
-                     *           "type": "sendEmail",
-                     *           "config": {
-                     *             "actionType": "sendEmail",
-                     *             "emailId": "eml_welcome",
-                     *             "emailVersionId": "emv_welcome_v1",
-                     *             "domainId": "kx7bkh53hasmfeh5kd7sqgykt187g8ww",
-                     *             "subject": "Welcome to Brew, {{firstName | there}}!",
-                     *             "previewText": "Thanks for signing up — get started in 2 minutes.",
-                     *             "fromName": "Brew",
-                     *             "replyTo": "support@example.com"
-                     *           }
-                     *         }
-                     *       ],
-                     *       "connections": [
-                     *         {
-                     *           "from": "trg",
-                     *           "to": "send_welcome"
-                     *         }
-                     *       ],
-                     *       "emailIds": [
-                     *         "eml_welcome"
-                     *       ],
-                     *       "createdAt": "2026-04-08T12:00:00.000Z",
-                     *       "updatedAt": "2026-04-08T12:00:00.000Z"
-                     *     }
-                     */
-                    "application/json": components["schemas"]["AutomationRow"];
+                    "application/json": components["schemas"]["AutomationRow"] | components["schemas"]["AutomationDryRunReport"];
                 };
             };
             /** @description Strict-body violation, no actionable field supplied, `published` combined with update fields, or `AUTOMATION_GRAPH_INVALID` (see `details.issues`). */
@@ -11125,7 +11508,7 @@ export interface operations {
                     "application/json": components["schemas"]["AutomationRunDryRunResponse"];
                 };
             };
-            /** @description Run launched (or scheduled). */
+            /** @description Run launched (or scheduled). When org-level send approval is enabled the body additionally carries `approvalState: "pending"`. */
             202: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -14145,7 +14528,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit/import, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
+            /** @description The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
             402: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -15333,8 +15716,8 @@ export interface operations {
             query?: {
                 /** @description Fetch a single audience by id (detail mode → `{ data: [row] }`). Omit to list. */
                 audienceId?: string;
-                /** @description Detail-only expansion: `count` recomputes the live member total. Rejected without `audienceId`. */
-                include?: "count";
+                /** @description Detail-only expansions (comma-separated): `count` recomputes the live member total; `build` attaches the latest event-cohort build status for audiences created via `POST /v1/audiences/from-events`. Rejected without `audienceId`. */
+                include?: string;
                 /**
                  * @description Page size (1–100). Defaults to 100.
                  * @example 50
@@ -15618,7 +16001,7 @@ export interface operations {
                      *       "updatedAt": "2026-04-08T12:34:56.789Z"
                      *     }
                      */
-                    "application/json": components["schemas"]["Audience"];
+                    "application/json": components["schemas"]["AudienceWriteResponse"];
                 };
             };
             /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field. */
@@ -15683,6 +16066,243 @@ export interface operations {
                      *         "suggestion": "Use an API key or session with the required permission.",
                      *         "docs": "https://docs.brew.new/api-reference/api/authentication",
                      *         "param": "audiences"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The same `Idempotency-Key` was reused with a different request body. */
+            409: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "IDEMPOTENCY_CONFLICT",
+                     *         "type": "conflict",
+                     *         "message": "The same idempotency key was reused with a different request payload.",
+                     *         "suggestion": "Reuse the original payload or send a new idempotency key.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/idempotency"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The request hit the rolling rate limit window. */
+            429: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    /** @description Seconds to wait before retrying the request. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "RATE_LIMITED",
+                     *         "type": "rate_limit",
+                     *         "message": "Too many requests.",
+                     *         "suggestion": "Wait for the retry window before sending another request.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
+                     *         "retryAfter": 42
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected internal error. */
+            500: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INTERNAL_ERROR",
+                     *         "type": "internal_error",
+                     *         "message": "An unexpected error occurred.",
+                     *         "suggestion": "Retry the request. If it keeps failing, contact support.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    createAudienceFromEvents: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description Optional idempotency key for safe retries. Reusing the same key with the same request body returns the original response for 24 hours.
+                 * @example api-request-2026-04-08-001
+                 */
+                "Idempotency-Key"?: string;
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "cohort": {
+                 *         "eventTypes": [
+                 *           "opened"
+                 *         ],
+                 *         "from": "2026-07-04T00:00:00.000Z",
+                 *         "to": "2026-08-03T00:00:00.000Z"
+                 *       }
+                 *     }
+                 */
+                "application/json": components["schemas"]["AudiencesFromEventsRequest"];
+            };
+        };
+        responses: {
+            /** @description Created. The audience exists immediately; `build` tracks the background stamping run. */
+            201: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "audienceId": "jn7a8w4q8m9k2p1x7c3b5v6n9h7s2d4f",
+                     *       "audienceName": "Openers · Jul 4 – Aug 3, 2026",
+                     *       "filters": {
+                     *         "filters": [
+                     *           {
+                     *             "field": "customFields.openedJul4Aug3",
+                     *             "operator": "is_not_empty",
+                     *             "type": "date"
+                     *           }
+                     *         ],
+                     *         "logicalOperator": "and"
+                     *       },
+                     *       "count": 0,
+                     *       "createdAt": "2026-04-08T12:34:56.789Z",
+                     *       "updatedAt": "2026-04-08T12:34:56.789Z",
+                     *       "materializationStatus": "pending",
+                     *       "build": {
+                     *         "jobId": "kh7c2m4q8n9w2p1x7c3b5v6n9h7s2d4f",
+                     *         "status": "pending",
+                     *         "cohort": {
+                     *           "eventTypes": [
+                     *             "opened"
+                     *           ],
+                     *           "from": "2026-07-04T00:00:00.000Z",
+                     *           "to": "2026-08-03T00:00:00.000Z"
+                     *         },
+                     *         "field": {
+                     *           "key": "openedJul4Aug3",
+                     *           "label": "Opened Jul 4 – Aug 3",
+                     *           "type": "date"
+                     *         },
+                     *         "counts": {
+                     *           "eventsScanned": 0
+                     *         },
+                     *         "enqueuedAt": "2026-08-03T12:00:00.000Z"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["AudiencesFromEventsResponse"];
+                };
+            };
+            /** @description The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field. */
+            400: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INVALID_REQUEST",
+                     *         "type": "invalid_request",
+                     *         "message": "Request validation failed.",
+                     *         "suggestion": "Fix the field reported in `param` and retry.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "cohort"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The API key was missing, invalid, or revoked. */
+            401: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INVALID_API_KEY",
+                     *         "type": "authentication_error",
+                     *         "message": "The provided API key is invalid.",
+                     *         "suggestion": "Check the API key format and retry with a valid active key.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The caller does not have the required `contacts` permission. */
+            403: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INSUFFICIENT_PERMISSIONS",
+                     *         "type": "authorization_error",
+                     *         "message": "The caller does not have the required permission.",
+                     *         "suggestion": "Use an API key or session with the required permission.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
+                     *         "param": "contacts"
                      *       }
                      *     }
                      */
@@ -15967,7 +16587,7 @@ export interface operations {
                      *       "updatedAt": "2026-04-08T12:34:56.789Z"
                      *     }
                      */
-                    "application/json": components["schemas"]["Audience"];
+                    "application/json": components["schemas"]["AudienceWriteResponse"];
                 };
             };
             /** @description Strict-body violation or no editable field supplied (at least one of `name` / `filters` is required). */
@@ -16055,6 +16675,232 @@ export interface operations {
                      *         "suggestion": "List audiences with GET /v1/audiences.",
                      *         "docs": "https://docs.brew.new/api-reference/api/errors",
                      *         "param": "audienceId"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The `expectedUpdatedAt` precondition is stale; reload the audience before retrying. */
+            409: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "AUDIENCE_EDIT_CONFLICT",
+                     *         "type": "conflict",
+                     *         "message": "This audience changed while it was being edited.",
+                     *         "suggestion": "Reload the latest audience filters and retry.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The request hit the rolling rate limit window. */
+            429: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    /** @description Seconds to wait before retrying the request. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "RATE_LIMITED",
+                     *         "type": "rate_limit",
+                     *         "message": "Too many requests.",
+                     *         "suggestion": "Wait for the retry window before sending another request.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/rate-limits",
+                     *         "retryAfter": 42
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Unexpected internal error. */
+            500: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INTERNAL_ERROR",
+                     *         "type": "internal_error",
+                     *         "message": "An unexpected error occurred.",
+                     *         "suggestion": "Retry the request. If it keeps failing, contact support.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    duplicateAudience: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description Optional idempotency key for safe retries. Reusing the same key with the same request body returns the original response for 24 hours.
+                 * @example api-request-2026-04-08-001
+                 */
+                "Idempotency-Key"?: string;
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
+            };
+            path: {
+                /** @description Audience id (opaque Convex document id) returned by `POST /v1/audiences` and listed by `GET /v1/audiences`. */
+                audienceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Copied. */
+            201: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds for when the rolling window fully resets. */
+                    "X-RateLimit-Reset": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "audienceId": "mh8b9x5r9n1k3p2y8c4d6w7q1j9t3f5g",
+                     *       "audienceName": "Nordic Founders (copy)",
+                     *       "filters": {
+                     *         "filters": [
+                     *           {
+                     *             "field": "country",
+                     *             "operator": "equals",
+                     *             "value": "NO"
+                     *           }
+                     *         ],
+                     *         "logicalOperator": "and"
+                     *       },
+                     *       "count": 1284,
+                     *       "createdAt": "2026-04-08T12:34:56.789Z",
+                     *       "updatedAt": "2026-04-08T12:34:56.789Z"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["Audience"];
+                };
+            };
+            /** @description The API key was missing, invalid, or revoked. */
+            401: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INVALID_API_KEY",
+                     *         "type": "authentication_error",
+                     *         "message": "The provided API key is invalid.",
+                     *         "suggestion": "Check the API key format and retry with a valid active key.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The caller does not have the required `audiences` permission. */
+            403: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "INSUFFICIENT_PERMISSIONS",
+                     *         "type": "authorization_error",
+                     *         "message": "The caller does not have the required permission.",
+                     *         "suggestion": "Use an API key or session with the required permission.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/authentication",
+                     *         "param": "audiences"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description Audience not found in the API-key brand. Cross-brand ids intentionally surface as 404 (never 403) so the API does not leak cross-brand existence. */
+            404: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "AUDIENCE_NOT_FOUND",
+                     *         "type": "not_found",
+                     *         "message": "The requested audience 'aud_xxx' was not found.",
+                     *         "suggestion": "List audiences with GET /v1/audiences.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/errors",
+                     *         "param": "audienceId"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description The same `Idempotency-Key` was reused with a different request body. */
+            409: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "error": {
+                     *         "code": "IDEMPOTENCY_CONFLICT",
+                     *         "type": "conflict",
+                     *         "message": "The same idempotency key was reused with a different request payload.",
+                     *         "suggestion": "Reuse the original payload or send a new idempotency key.",
+                     *         "docs": "https://docs.brew.new/api-reference/api/idempotency"
                      *       }
                      *     }
                      */
@@ -17931,7 +18777,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit/import, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
+            /** @description The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
             402: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -18664,7 +19510,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit/import, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
+            /** @description The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
             402: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -18928,7 +19774,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit/import, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
+            /** @description The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
             402: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -19192,7 +20038,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit/import, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
+            /** @description The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
             402: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -19456,7 +20302,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit/import, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
+            /** @description The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
             402: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -19728,7 +20574,7 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit/import, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
+            /** @description The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary. */
             402: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */

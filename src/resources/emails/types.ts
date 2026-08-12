@@ -16,7 +16,7 @@ export type EmailSummary =
  * the shape of a single detail-mode row from
  * `brew.emails.list({ emailId, include: 'html' })`.
  */
-export type EmailDetail = components['schemas']['EmailDetail']
+export type EmailDetail = EmailSummary & { readonly html: string }
 
 export type EmailStatus =
   operations['listEmails']['parameters']['query'] extends infer Query

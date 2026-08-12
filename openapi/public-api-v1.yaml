@@ -44,7 +44,7 @@ security:
   - apiKeyAuth: []
 tags:
   - name: Emails
-    description: "Email designs and sending. Generate a design with the Brew email agent, edit, version, restore — then send it: `POST /v1/sends` delivers a design to a target (a saved audience, an inline list, or a single address) via a verified domain, and `POST /v1/sends/test` fires a one-off test. Sending is not campaign-specific. Send reads (list, status, per-send event feeds) live under Analytics (`/v1/analytics/sends`)."
+    description: "Email designs and sending. Generate a design with the Brew email agent, edit, version, restore — then send it: `POST /v1/sends` delivers a design to a target (a saved audience, an inline list, or a single address) via a verified domain, and `POST /v1/sends` with `test: true` fires a one-off test. Sending is not campaign-specific. Send reads (list, status, per-send event feeds) live under Analytics (`/v1/analytics/sends`)."
   - name: Brands
     description: "Brand lifecycle for ORGANIZATION-scoped credentials: list the brands a credential can reach, read one, and create a new one (extraction runs asynchronously — poll `GET /v1/brands/{brandId}` until `status: completed`). These endpoints act on the organization, so they take no `X-Brand-Id`."
   - name: Analytics
@@ -136,69 +136,6 @@ components:
         - status
         - updatedAt
       additionalProperties: false
-    EmailDetail:
-      type: object
-      properties:
-        emailId:
-          type: string
-          minLength: 1
-        emailVersionId:
-          type: string
-          minLength: 1
-        title:
-          type: string
-          minLength: 1
-        status:
-          type: string
-          enum:
-            - streaming
-            - complete
-            - error
-        previewText:
-          type: string
-          description: The design's inbox preview line, read directly from the latest version's JSX <Preview> — what a send delivers when no explicit `previewText` override is passed to POST /v1/sends.
-        html:
-          type: string
-        previewImage:
-          type: string
-          format: uri
-        updatedAt:
-          type: string
-          format: date-time
-      required:
-        - emailId
-        - title
-        - status
-        - updatedAt
-      additionalProperties: false
-    EmailVersionRow:
-      type: object
-      properties:
-        emailVersionId:
-          type: string
-          minLength: 1
-        version:
-          anyOf:
-            - type: integer
-              minimum: 0
-            - type: string
-              enum:
-                - latest
-        status:
-          type: string
-          enum:
-            - streaming
-            - complete
-            - error
-        updatedAt:
-          type: string
-          format: date-time
-      required:
-        - emailVersionId
-        - version
-        - status
-        - updatedAt
-      additionalProperties: false
     Send:
       type: object
       properties:
@@ -233,6 +170,12 @@ components:
             - partially_sent
             - failed
             - canceled
+        approvalState:
+          type: string
+          enum:
+            - pending
+            - approved
+            - rejected
         subject:
           type: string
         previewText:
@@ -1876,6 +1819,130 @@ components:
         - published
         - emailIds
       additionalProperties: false
+    AutomationDryRunReport:
+      type: object
+      properties:
+        valid:
+          type: boolean
+          description: Whether the graph would publish cleanly. false when any `blockers[]` entry — or, on PATCH, any `fatal` blocking issue — is present.
+        blockers:
+          type: array
+          items:
+            type: object
+            properties:
+              nodeId:
+                type: string
+                description: Id of the offending node. Absent on graph-level findings.
+              nodeLabel:
+                type: string
+                description: Label of the offending node. Absent on graph-level findings.
+              severity:
+                type: string
+                enum:
+                  - error
+                  - warning
+              message:
+                type: string
+                description: Human-readable description of the finding.
+            required:
+              - severity
+              - message
+            additionalProperties: false
+          description: 'Publish blockers (`severity: "error"`). Publishing fails while any remain.'
+        warnings:
+          type: array
+          items:
+            type: object
+            properties:
+              nodeId:
+                type: string
+                description: Id of the offending node. Absent on graph-level findings.
+              nodeLabel:
+                type: string
+                description: Label of the offending node. Absent on graph-level findings.
+              severity:
+                type: string
+                enum:
+                  - error
+                  - warning
+              message:
+                type: string
+                description: Human-readable description of the finding.
+            required:
+              - severity
+              - message
+            additionalProperties: false
+          description: 'Advisory findings (`severity: "warning"`). Publishing succeeds despite them.'
+        blockingIssues:
+          type: array
+          items:
+            type: object
+            properties:
+              nodeId:
+                type: string
+              nodeLabel:
+                type: string
+              surface:
+                type: string
+                enum:
+                  - subject
+                  - previewText
+                  - fromName
+                  - replyTo
+                  - emailBody
+                  - filterCondition
+                  - splitCondition
+                description: Where on the node the orphaned reference lives.
+              variable:
+                type: string
+                description: The bare variable / field name that cannot be resolved.
+              reason:
+                type: string
+                description: Short user-facing reason.
+              fatal:
+                type: boolean
+                description: "true — filter/split conditions and triple-brace `{{{ }}}` body tokens: the run genuinely breaks, and publish fails. false — subject/previewText/fromName/replyTo and double-brace body tags: the value renders empty at send time; advisory only."
+              hasFallback:
+                type: boolean
+                description: The token carries an inline `{{ name | fallback }}` fallback, so it renders the fallback rather than empty. Never blocks publish.
+            required:
+              - nodeId
+              - nodeLabel
+              - surface
+              - variable
+              - reason
+              - fatal
+              - hasFallback
+            additionalProperties: false
+          description: Trigger-payload compatibility findings. Always present (possibly empty) on PATCH dry-run responses — only the update path checks trigger compatibility; never present on POST (create) dry-run responses.
+        nodeCounts:
+          type: object
+          properties:
+            sendEmail:
+              type: integer
+              minimum: 0
+            wait:
+              type: integer
+              minimum: 0
+            filter:
+              type: integer
+              minimum: 0
+            split:
+              type: integer
+              minimum: 0
+          required:
+            - sendEmail
+            - wait
+            - filter
+            - split
+          additionalProperties: false
+          description: Per-kind node counts of the validated graph.
+      required:
+        - valid
+        - blockers
+        - warnings
+        - nodeCounts
+      additionalProperties: false
     AutomationRunRow:
       type: object
       properties:
@@ -2178,6 +2245,10 @@ components:
           type:
             - string
             - "null"
+        csvFileName:
+          type:
+            - string
+            - "null"
         customFields:
           type: object
           additionalProperties: {}
@@ -2319,12 +2390,145 @@ components:
         count:
           type: integer
           minimum: 0
+        materializationStatus:
+          type: string
+          enum:
+            - pending
+            - running
+            - ready
+            - failed
         createdAt:
           type: string
           format: date-time
         updatedAt:
           type: string
           format: date-time
+        build:
+          type: object
+          properties:
+            jobId:
+              type: string
+              minLength: 1
+              maxLength: 64
+            status:
+              type: string
+              enum:
+                - pending
+                - running
+                - completed
+                - partial
+                - failed
+            cohort:
+              type: object
+              properties:
+                eventTypes:
+                  type: array
+                  items:
+                    type: string
+                    enum:
+                      - sent
+                      - delivered
+                      - delivery_delayed
+                      - opened
+                      - clicked
+                      - bounced
+                      - complained
+                      - failed
+                      - skipped
+                      - unsubscribed
+                  minItems: 1
+                  maxItems: 10
+                from:
+                  type: string
+                  format: date-time
+                to:
+                  type: string
+                  format: date-time
+                  description: Defaults to now.
+                sendId:
+                  type: string
+                  minLength: 1
+                  maxLength: 64
+                emailId:
+                  type: string
+                  minLength: 1
+                  maxLength: 64
+                automationIds:
+                  type: array
+                  items:
+                    type: string
+                    minLength: 1
+                    maxLength: 64
+                  maxItems: 20
+                audienceIds:
+                  type: array
+                  items:
+                    type: string
+                    minLength: 1
+                    maxLength: 64
+                  maxItems: 20
+                  description: Scope to events from sends that targeted these audiences.
+                recipient:
+                  type: array
+                  items:
+                    type: string
+                    minLength: 1
+                    maxLength: 320
+                  maxItems: 10
+                  description: Recipient rule tokens using the Events-page grammar.
+                includeMachineClicks:
+                  type: boolean
+              required:
+                - eventTypes
+                - from
+                - to
+              additionalProperties: false
+            field:
+              type: object
+              properties:
+                key:
+                  type: string
+                  minLength: 1
+                label:
+                  type: string
+                  minLength: 1
+                type:
+                  type: string
+                  enum:
+                    - date
+              required:
+                - key
+                - label
+                - type
+              additionalProperties: false
+            counts:
+              type: object
+              properties:
+                eventsScanned:
+                  type: integer
+                  minimum: 0
+                stampedContacts:
+                  type: integer
+                  minimum: 0
+              required:
+                - eventsScanned
+              additionalProperties: false
+            error:
+              type: string
+            enqueuedAt:
+              type: string
+              format: date-time
+            completedAt:
+              type: string
+              format: date-time
+          required:
+            - jobId
+            - status
+            - cohort
+            - field
+            - counts
+            - enqueuedAt
+          additionalProperties: false
       required:
         - audienceId
         - audienceName
@@ -2332,6 +2536,132 @@ components:
         - count
         - createdAt
         - updatedAt
+      additionalProperties: false
+    AudienceBuild:
+      type: object
+      properties:
+        jobId:
+          type: string
+          minLength: 1
+          maxLength: 64
+        status:
+          type: string
+          enum:
+            - pending
+            - running
+            - completed
+            - partial
+            - failed
+        cohort:
+          type: object
+          properties:
+            eventTypes:
+              type: array
+              items:
+                type: string
+                enum:
+                  - sent
+                  - delivered
+                  - delivery_delayed
+                  - opened
+                  - clicked
+                  - bounced
+                  - complained
+                  - failed
+                  - skipped
+                  - unsubscribed
+              minItems: 1
+              maxItems: 10
+            from:
+              type: string
+              format: date-time
+            to:
+              type: string
+              format: date-time
+              description: Defaults to now.
+            sendId:
+              type: string
+              minLength: 1
+              maxLength: 64
+            emailId:
+              type: string
+              minLength: 1
+              maxLength: 64
+            automationIds:
+              type: array
+              items:
+                type: string
+                minLength: 1
+                maxLength: 64
+              maxItems: 20
+            audienceIds:
+              type: array
+              items:
+                type: string
+                minLength: 1
+                maxLength: 64
+              maxItems: 20
+              description: Scope to events from sends that targeted these audiences.
+            recipient:
+              type: array
+              items:
+                type: string
+                minLength: 1
+                maxLength: 320
+              maxItems: 10
+              description: Recipient rule tokens using the Events-page grammar.
+            includeMachineClicks:
+              type: boolean
+          required:
+            - eventTypes
+            - from
+            - to
+          additionalProperties: false
+        field:
+          type: object
+          properties:
+            key:
+              type: string
+              minLength: 1
+            label:
+              type: string
+              minLength: 1
+            type:
+              type: string
+              enum:
+                - date
+          required:
+            - key
+            - label
+            - type
+          additionalProperties: false
+        counts:
+          type: object
+          properties:
+            eventsScanned:
+              type: integer
+              minimum: 0
+            stampedContacts:
+              type: integer
+              minimum: 0
+          required:
+            - eventsScanned
+          additionalProperties: false
+        error:
+          type: string
+        enqueuedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+      required:
+        - jobId
+        - status
+        - cohort
+        - field
+        - counts
+        - enqueuedAt
       additionalProperties: false
     Domain:
       type: object
@@ -2640,6 +2970,80 @@ components:
       required:
         - prompt
       additionalProperties: false
+    EmailImportResponse:
+      type: object
+      properties:
+        emailId:
+          type: string
+          minLength: 1
+        emailVersionId:
+          type: string
+          minLength: 1
+        html:
+          type: string
+        previewImage:
+          type: string
+          format: uri
+        assetReport:
+          type: object
+          properties:
+            discovered:
+              type: integer
+              minimum: 0
+            rehosted:
+              type: integer
+              minimum: 0
+            retained:
+              type: integer
+              minimum: 0
+            stripped:
+              type: integer
+              minimum: 0
+            warnings:
+              type: array
+              items:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    enum:
+                      - fetch_failed_retained
+                      - non_image_resource_retained
+                      - social_icon_substituted
+                      - unsafe_url_stripped
+                      - unsupported_resource_retained
+                      - upload_failed_retained
+                  location:
+                    type: string
+                    enum:
+                      - background
+                      - css-url
+                      - data-src
+                      - data-srcset
+                      - preload
+                      - src
+                      - srcset
+                      - stylesheet
+                      - vml-src
+                  host:
+                    type: string
+                required:
+                  - code
+                  - location
+                additionalProperties: false
+          required:
+            - discovered
+            - rehosted
+            - retained
+            - stripped
+            - warnings
+          additionalProperties: false
+      required:
+        - emailId
+        - emailVersionId
+        - html
+        - assetReport
+      additionalProperties: false
     EmailImportRequest:
       type: object
       properties:
@@ -2652,7 +3056,6 @@ components:
         content:
           type: string
           minLength: 1
-          maxLength: 5000000
         title:
           type: string
           minLength: 1
@@ -3295,7 +3698,7 @@ components:
         emailVersionId:
           type: string
           minLength: 1
-          description: 'Pin a specific design version to test (from `list_email_designs` with `include: ["versions"]`); omit for the latest. A VARIANT dimension — test two versions of one design against each other.'
+          description: Pin a specific design version already available in the current surface; omit for the latest. A VARIANT dimension — test two versions of one design against each other.
         providers:
           type: array
           items:
@@ -3460,6 +3863,12 @@ components:
                   - partially_sent
                   - failed
                   - canceled
+              approvalState:
+                type: string
+                enum:
+                  - pending
+                  - approved
+                  - rejected
               subject:
                 type: string
               previewText:
@@ -3728,27 +4137,44 @@ components:
         - recipient
       additionalProperties: false
     SendsPostResponse:
-      type: object
-      properties:
-        status:
-          type: string
-          enum:
-            - queued
-            - scheduled
-        sendId:
-          type: string
-          minLength: 1
-        runId:
-          type: string
-          minLength: 1
-        scheduledAt:
-          type: string
-          format: date-time
-      required:
-        - status
-        - sendId
-        - runId
-      additionalProperties: false
+      anyOf:
+        - type: object
+          properties:
+            status:
+              type: string
+              enum:
+                - queued
+                - scheduled
+            sendId:
+              type: string
+              minLength: 1
+            runId:
+              type: string
+              minLength: 1
+            scheduledAt:
+              type: string
+              format: date-time
+          required:
+            - status
+            - sendId
+            - runId
+          additionalProperties: false
+        - type: object
+          properties:
+            status:
+              type: string
+              enum:
+                - pending_approval
+            sendId:
+              type: string
+              minLength: 1
+            scheduledAt:
+              type: string
+              format: date-time
+          required:
+            - status
+            - sendId
+          additionalProperties: false
     SendEmailRequest:
       anyOf:
         - type: object
@@ -3776,6 +4202,24 @@ components:
             replyTo:
               type: string
               format: email
+            domainId:
+              type: string
+              minLength: 1
+              description: OPTIONAL verified sending domain for this test. Omit for the Brew default sender (hello@email.brew.new). Must be a verified domain owned by this org/brand — an unverified or foreign domain is rejected (404/422), never silently downgraded to the Brew default.
+            senderName:
+              type: string
+              minLength: 1
+              maxLength: 128
+            fromEmail:
+              type: string
+              minLength: 1
+              maxLength: 64
+            variables:
+              type: object
+              additionalProperties:
+                type: string
+                maxLength: 256
+              description: Example values for {{ var | fallback }} merge tags in the subject, previewText, and body. A supplied value wins over contact fields and the declared fallback; undefined variables render their fallback (or empty). Max 25 entries; keys must match the merge-tag grammar (letter/_/$ start, then word chars/dots/$, max 64 chars); values max 256 chars.
           required:
             - test
             - emailId
@@ -3977,13 +4421,7 @@ components:
             opened:
               type: integer
               minimum: 0
-            openedTotal:
-              type: integer
-              minimum: 0
             clicked:
-              type: integer
-              minimum: 0
-            clickedTotal:
               type: integer
               minimum: 0
             bounced:
@@ -4024,9 +4462,7 @@ components:
             - sent
             - delivered
             - opened
-            - openedTotal
             - clicked
-            - clickedTotal
             - bounced
             - complained
             - unsubscribed
@@ -4038,29 +4474,29 @@ components:
           type: object
           properties:
             deliveryRate:
-              type: number
-              minimum: 0
-              maximum: 1
+              type:
+                - number
+                - "null"
             openRate:
-              type: number
-              minimum: 0
-              maximum: 1
+              type:
+                - number
+                - "null"
             clickRate:
-              type: number
-              minimum: 0
-              maximum: 1
+              type:
+                - number
+                - "null"
             bounceRate:
-              type: number
-              minimum: 0
-              maximum: 1
+              type:
+                - number
+                - "null"
             complaintRate:
-              type: number
-              minimum: 0
-              maximum: 1
+              type:
+                - number
+                - "null"
             unsubscribeRate:
-              type: number
-              minimum: 0
-              maximum: 1
+              type:
+                - number
+                - "null"
           required:
             - deliveryRate
             - openRate
@@ -4299,22 +4735,32 @@ components:
               bounced:
                 type: integer
                 minimum: 0
+              complained:
+                type: integer
+                minimum: 0
+              unsubscribed:
+                type: integer
+                minimum: 0
               successRate:
-                type: number
-                minimum: 0
-                maximum: 1
+                type:
+                  - number
+                  - "null"
               openRate:
-                type: number
-                minimum: 0
-                maximum: 1
+                type:
+                  - number
+                  - "null"
               clickRate:
-                type: number
-                minimum: 0
-                maximum: 1
+                type:
+                  - number
+                  - "null"
               clickThroughRate:
-                type: number
-                minimum: 0
-                maximum: 1
+                type:
+                  - number
+                  - "null"
+              unsubscribeRate:
+                type:
+                  - number
+                  - "null"
               lastRunAt:
                 type: string
                 format: date-time
@@ -4332,10 +4778,13 @@ components:
               - opened
               - clicked
               - bounced
+              - complained
+              - unsubscribed
               - successRate
               - openRate
               - clickRate
               - clickThroughRate
+              - unsubscribeRate
             additionalProperties: false
         totals:
           type: object
@@ -4364,6 +4813,12 @@ components:
             bounced:
               type: integer
               minimum: 0
+            complained:
+              type: integer
+              minimum: 0
+            unsubscribed:
+              type: integer
+              minimum: 0
           required:
             - runs
             - completed
@@ -4373,6 +4828,8 @@ components:
             - opened
             - clicked
             - bounced
+            - complained
+            - unsubscribed
           additionalProperties: false
         range:
           type: object
@@ -4440,6 +4897,10 @@ components:
               machineGenerated:
                 type: boolean
               clickBotReason:
+                type: string
+              openBotReason:
+                type: string
+              openFetchSource:
                 type: string
               mode:
                 type: string
@@ -6941,7 +7402,23 @@ components:
         warnings:
           type: array
           items:
-            type: string
+            type: object
+            properties:
+              code:
+                type: string
+              field:
+                type: string
+              message:
+                type: string
+              expectedType:
+                type: string
+              actualType:
+                type: string
+            required:
+              - code
+              - field
+              - message
+            additionalProperties: {}
       required:
         - automationRunIds
         - status
@@ -6998,6 +7475,11 @@ components:
           type: number
         workflowRunId:
           type: string
+        approvalState:
+          type: string
+          enum:
+            - pending
+          description: "Present when org-level send approval holds the run for admin review: no workflow starts until an admin approves; rejection cancels the run with zero deliveries."
         receivedAt:
           type: string
       required:
@@ -7094,6 +7576,12 @@ components:
                   - sent
                   - failed
                   - canceled
+              approvalState:
+                type: string
+                enum:
+                  - pending
+                  - approved
+                  - rejected
               scheduledAt:
                 type: string
               totalRecipients:
@@ -7648,7 +8136,24 @@ components:
               additionalProperties: {}
             warnings:
               type: array
-              items: {}
+              items:
+                type: object
+                properties:
+                  code:
+                    type: string
+                  field:
+                    type: string
+                  message:
+                    type: string
+                  expectedType:
+                    type: string
+                  actualType:
+                    type: string
+                required:
+                  - code
+                  - field
+                  - message
+                additionalProperties: {}
             idempotencyKey:
               type: string
             triggerInstanceId:
@@ -7661,6 +8166,8 @@ components:
                 properties:
                   emailId:
                     type: string
+                  title:
+                    type: string
                 required:
                   - emailId
                 additionalProperties: {}
@@ -7671,7 +8178,9 @@ components:
                 properties:
                   automationId:
                     type: string
-                  title:
+                  name:
+                    type: string
+                  primaryFromAddress:
                     type: string
                 required:
                   - automationId
@@ -7955,6 +8464,10 @@ components:
               type:
                 - string
                 - "null"
+            csvFileName:
+              type:
+                - string
+                - "null"
             customFields:
               type: object
               additionalProperties: {}
@@ -8149,6 +8662,10 @@ components:
               type:
                 - string
                 - "null"
+            csvFileName:
+              type:
+                - string
+                - "null"
             customFields:
               type: object
               additionalProperties: {}
@@ -8261,6 +8778,10 @@ components:
                 type: string
                 format: date-time
               importId:
+                type:
+                  - string
+                  - "null"
+              csvFileName:
                 type:
                   - string
                   - "null"
@@ -8753,12 +9274,145 @@ components:
               count:
                 type: integer
                 minimum: 0
+              materializationStatus:
+                type: string
+                enum:
+                  - pending
+                  - running
+                  - ready
+                  - failed
               createdAt:
                 type: string
                 format: date-time
               updatedAt:
                 type: string
                 format: date-time
+              build:
+                type: object
+                properties:
+                  jobId:
+                    type: string
+                    minLength: 1
+                    maxLength: 64
+                  status:
+                    type: string
+                    enum:
+                      - pending
+                      - running
+                      - completed
+                      - partial
+                      - failed
+                  cohort:
+                    type: object
+                    properties:
+                      eventTypes:
+                        type: array
+                        items:
+                          type: string
+                          enum:
+                            - sent
+                            - delivered
+                            - delivery_delayed
+                            - opened
+                            - clicked
+                            - bounced
+                            - complained
+                            - failed
+                            - skipped
+                            - unsubscribed
+                        minItems: 1
+                        maxItems: 10
+                      from:
+                        type: string
+                        format: date-time
+                      to:
+                        type: string
+                        format: date-time
+                        description: Defaults to now.
+                      sendId:
+                        type: string
+                        minLength: 1
+                        maxLength: 64
+                      emailId:
+                        type: string
+                        minLength: 1
+                        maxLength: 64
+                      automationIds:
+                        type: array
+                        items:
+                          type: string
+                          minLength: 1
+                          maxLength: 64
+                        maxItems: 20
+                      audienceIds:
+                        type: array
+                        items:
+                          type: string
+                          minLength: 1
+                          maxLength: 64
+                        maxItems: 20
+                        description: Scope to events from sends that targeted these audiences.
+                      recipient:
+                        type: array
+                        items:
+                          type: string
+                          minLength: 1
+                          maxLength: 320
+                        maxItems: 10
+                        description: Recipient rule tokens using the Events-page grammar.
+                      includeMachineClicks:
+                        type: boolean
+                    required:
+                      - eventTypes
+                      - from
+                      - to
+                    additionalProperties: false
+                  field:
+                    type: object
+                    properties:
+                      key:
+                        type: string
+                        minLength: 1
+                      label:
+                        type: string
+                        minLength: 1
+                      type:
+                        type: string
+                        enum:
+                          - date
+                    required:
+                      - key
+                      - label
+                      - type
+                    additionalProperties: false
+                  counts:
+                    type: object
+                    properties:
+                      eventsScanned:
+                        type: integer
+                        minimum: 0
+                      stampedContacts:
+                        type: integer
+                        minimum: 0
+                    required:
+                      - eventsScanned
+                    additionalProperties: false
+                  error:
+                    type: string
+                  enqueuedAt:
+                    type: string
+                    format: date-time
+                  completedAt:
+                    type: string
+                    format: date-time
+                required:
+                  - jobId
+                  - status
+                  - cohort
+                  - field
+                  - counts
+                  - enqueuedAt
+                additionalProperties: false
             required:
               - audienceId
               - audienceName
@@ -8787,6 +9441,243 @@ components:
           additionalProperties: false
       required:
         - data
+      additionalProperties: false
+    AudienceWriteResponse:
+      type: object
+      properties:
+        audienceId:
+          type: string
+          minLength: 1
+          maxLength: 64
+        audienceName:
+          type: string
+          minLength: 1
+          maxLength: 200
+        filters:
+          type: object
+          properties:
+            filters:
+              type: array
+              items:
+                type: object
+                properties:
+                  field:
+                    type: string
+                    minLength: 1
+                  operator:
+                    type: string
+                    enum:
+                      - equals
+                      - not_equals
+                      - contains
+                      - not_contains
+                      - contains_any
+                      - not_contains_any
+                      - starts_with
+                      - ends_with
+                      - gt
+                      - gte
+                      - lt
+                      - lte
+                      - between
+                      - is_true
+                      - is_false
+                      - in
+                      - not_in
+                      - is_empty
+                      - not_exists
+                      - is_not_empty
+                      - exists
+                      - is_set
+                      - before
+                      - after
+                      - on_date
+                  value: {}
+                  type:
+                    type: string
+                    description: The field's value type — set `number`, `date`, or `boolean` for typed comparisons (dates are stored as epoch-ms, so a string `equals` on a date never matches). Omit for plain string fields.
+                required:
+                  - field
+                  - operator
+                additionalProperties: false
+            logicalOperator:
+              type: string
+              enum:
+                - and
+                - or
+          required:
+            - filters
+            - logicalOperator
+          additionalProperties: false
+        count:
+          type: integer
+          minimum: 0
+        materializationStatus:
+          type: string
+          enum:
+            - pending
+            - running
+            - ready
+            - failed
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        build:
+          type: object
+          properties:
+            jobId:
+              type: string
+              minLength: 1
+              maxLength: 64
+            status:
+              type: string
+              enum:
+                - pending
+                - running
+                - completed
+                - partial
+                - failed
+            cohort:
+              type: object
+              properties:
+                eventTypes:
+                  type: array
+                  items:
+                    type: string
+                    enum:
+                      - sent
+                      - delivered
+                      - delivery_delayed
+                      - opened
+                      - clicked
+                      - bounced
+                      - complained
+                      - failed
+                      - skipped
+                      - unsubscribed
+                  minItems: 1
+                  maxItems: 10
+                from:
+                  type: string
+                  format: date-time
+                to:
+                  type: string
+                  format: date-time
+                  description: Defaults to now.
+                sendId:
+                  type: string
+                  minLength: 1
+                  maxLength: 64
+                emailId:
+                  type: string
+                  minLength: 1
+                  maxLength: 64
+                automationIds:
+                  type: array
+                  items:
+                    type: string
+                    minLength: 1
+                    maxLength: 64
+                  maxItems: 20
+                audienceIds:
+                  type: array
+                  items:
+                    type: string
+                    minLength: 1
+                    maxLength: 64
+                  maxItems: 20
+                  description: Scope to events from sends that targeted these audiences.
+                recipient:
+                  type: array
+                  items:
+                    type: string
+                    minLength: 1
+                    maxLength: 320
+                  maxItems: 10
+                  description: Recipient rule tokens using the Events-page grammar.
+                includeMachineClicks:
+                  type: boolean
+              required:
+                - eventTypes
+                - from
+                - to
+              additionalProperties: false
+            field:
+              type: object
+              properties:
+                key:
+                  type: string
+                  minLength: 1
+                label:
+                  type: string
+                  minLength: 1
+                type:
+                  type: string
+                  enum:
+                    - date
+              required:
+                - key
+                - label
+                - type
+              additionalProperties: false
+            counts:
+              type: object
+              properties:
+                eventsScanned:
+                  type: integer
+                  minimum: 0
+                stampedContacts:
+                  type: integer
+                  minimum: 0
+              required:
+                - eventsScanned
+              additionalProperties: false
+            error:
+              type: string
+            enqueuedAt:
+              type: string
+              format: date-time
+            completedAt:
+              type: string
+              format: date-time
+          required:
+            - jobId
+            - status
+            - cohort
+            - field
+            - counts
+            - enqueuedAt
+          additionalProperties: false
+        emailListMaterializations:
+          type: array
+          items:
+            type: object
+            properties:
+              fieldName:
+                type: string
+                description: Custom-field key the address list was stamped onto.
+              providedEmails:
+                type: integer
+                description: Distinct addresses supplied after normalization.
+              matchedContacts:
+                type: integer
+                description: Addresses that matched an EXISTING contact and were stamped — a gap vs `providedEmails` means those addresses have no contact record (import them first).
+            required:
+              - fieldName
+              - providedEmails
+              - matchedContacts
+            additionalProperties: false
+          description: Present when an `email in [...]` clause with more than 100 addresses was auto-converted into a stamped custom-field snapshot.
+      required:
+        - audienceId
+        - audienceName
+        - filters
+        - count
+        - createdAt
+        - updatedAt
       additionalProperties: false
     AudiencesPostRequest:
       type: object
@@ -8852,9 +9743,303 @@ components:
             - filters
             - logicalOperator
           additionalProperties: false
+          description: 'Filter clauses combined by `logicalOperator`. For specific addresses use `{ field: "email", operator: "in", value: ["a@x.com", ...] }` — a list over 100 addresses is auto-converted into a stamped custom-field snapshot of the listed EXISTING contacts (addresses without a contact record are skipped; 10,000 max).'
       required:
         - name
         - filters
+      additionalProperties: false
+    AudiencesFromEventsResponse:
+      type: object
+      properties:
+        audienceId:
+          type: string
+          minLength: 1
+          maxLength: 64
+        audienceName:
+          type: string
+          minLength: 1
+          maxLength: 200
+        filters:
+          type: object
+          properties:
+            filters:
+              type: array
+              items:
+                type: object
+                properties:
+                  field:
+                    type: string
+                    minLength: 1
+                  operator:
+                    type: string
+                    enum:
+                      - equals
+                      - not_equals
+                      - contains
+                      - not_contains
+                      - contains_any
+                      - not_contains_any
+                      - starts_with
+                      - ends_with
+                      - gt
+                      - gte
+                      - lt
+                      - lte
+                      - between
+                      - is_true
+                      - is_false
+                      - in
+                      - not_in
+                      - is_empty
+                      - not_exists
+                      - is_not_empty
+                      - exists
+                      - is_set
+                      - before
+                      - after
+                      - on_date
+                  value: {}
+                  type:
+                    type: string
+                    description: The field's value type — set `number`, `date`, or `boolean` for typed comparisons (dates are stored as epoch-ms, so a string `equals` on a date never matches). Omit for plain string fields.
+                required:
+                  - field
+                  - operator
+                additionalProperties: false
+            logicalOperator:
+              type: string
+              enum:
+                - and
+                - or
+          required:
+            - filters
+            - logicalOperator
+          additionalProperties: false
+        count:
+          type: integer
+          minimum: 0
+        materializationStatus:
+          type: string
+          enum:
+            - pending
+            - running
+            - ready
+            - failed
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        build:
+          type: object
+          properties:
+            jobId:
+              type: string
+              minLength: 1
+              maxLength: 64
+            status:
+              type: string
+              enum:
+                - pending
+                - running
+                - completed
+                - partial
+                - failed
+            cohort:
+              type: object
+              properties:
+                eventTypes:
+                  type: array
+                  items:
+                    type: string
+                    enum:
+                      - sent
+                      - delivered
+                      - delivery_delayed
+                      - opened
+                      - clicked
+                      - bounced
+                      - complained
+                      - failed
+                      - skipped
+                      - unsubscribed
+                  minItems: 1
+                  maxItems: 10
+                from:
+                  type: string
+                  format: date-time
+                to:
+                  type: string
+                  format: date-time
+                  description: Defaults to now.
+                sendId:
+                  type: string
+                  minLength: 1
+                  maxLength: 64
+                emailId:
+                  type: string
+                  minLength: 1
+                  maxLength: 64
+                automationIds:
+                  type: array
+                  items:
+                    type: string
+                    minLength: 1
+                    maxLength: 64
+                  maxItems: 20
+                audienceIds:
+                  type: array
+                  items:
+                    type: string
+                    minLength: 1
+                    maxLength: 64
+                  maxItems: 20
+                  description: Scope to events from sends that targeted these audiences.
+                recipient:
+                  type: array
+                  items:
+                    type: string
+                    minLength: 1
+                    maxLength: 320
+                  maxItems: 10
+                  description: Recipient rule tokens using the Events-page grammar.
+                includeMachineClicks:
+                  type: boolean
+              required:
+                - eventTypes
+                - from
+                - to
+              additionalProperties: false
+            field:
+              type: object
+              properties:
+                key:
+                  type: string
+                  minLength: 1
+                label:
+                  type: string
+                  minLength: 1
+                type:
+                  type: string
+                  enum:
+                    - date
+              required:
+                - key
+                - label
+                - type
+              additionalProperties: false
+            counts:
+              type: object
+              properties:
+                eventsScanned:
+                  type: integer
+                  minimum: 0
+                stampedContacts:
+                  type: integer
+                  minimum: 0
+              required:
+                - eventsScanned
+              additionalProperties: false
+            error:
+              type: string
+            enqueuedAt:
+              type: string
+              format: date-time
+            completedAt:
+              type: string
+              format: date-time
+          required:
+            - jobId
+            - status
+            - cohort
+            - field
+            - counts
+            - enqueuedAt
+          additionalProperties: false
+      required:
+        - audienceId
+        - audienceName
+        - filters
+        - count
+        - materializationStatus
+        - createdAt
+        - updatedAt
+        - build
+      additionalProperties: false
+    AudiencesFromEventsRequest:
+      type: object
+      properties:
+        cohort:
+          type: object
+          properties:
+            eventTypes:
+              type: array
+              items:
+                type: string
+                enum:
+                  - sent
+                  - delivered
+                  - delivery_delayed
+                  - opened
+                  - clicked
+                  - bounced
+                  - complained
+                  - failed
+                  - skipped
+                  - unsubscribed
+              minItems: 1
+              maxItems: 10
+            from:
+              type: string
+              format: date-time
+            to:
+              type: string
+              format: date-time
+              description: Defaults to now.
+            sendId:
+              type: string
+              minLength: 1
+              maxLength: 64
+            emailId:
+              type: string
+              minLength: 1
+              maxLength: 64
+            automationIds:
+              type: array
+              items:
+                type: string
+                minLength: 1
+                maxLength: 64
+              maxItems: 20
+            audienceIds:
+              type: array
+              items:
+                type: string
+                minLength: 1
+                maxLength: 64
+              maxItems: 20
+              description: Scope to events from sends that targeted these audiences.
+            recipient:
+              type: array
+              items:
+                type: string
+                minLength: 1
+                maxLength: 320
+              maxItems: 10
+              description: Recipient rule tokens using the Events-page grammar.
+            includeMachineClicks:
+              type: boolean
+          required:
+            - eventTypes
+            - from
+          additionalProperties: false
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+      required:
+        - cohort
       additionalProperties: false
     AudiencesPatchRequest:
       type: object
@@ -8920,6 +10105,11 @@ components:
             - filters
             - logicalOperator
           additionalProperties: false
+          description: 'Filter clauses combined by `logicalOperator`. For specific addresses use `{ field: "email", operator: "in", value: ["a@x.com", ...] }` — a list over 100 addresses is auto-converted into a stamped custom-field snapshot of the listed EXISTING contacts (addresses without a contact record are skipped; 10,000 max).'
+        expectedUpdatedAt:
+          type: string
+          format: date-time
+          description: Optional optimistic-concurrency precondition from the latest audience read. The update returns 409 if the row changed meanwhile.
       additionalProperties: false
     AudiencesDeleteResponse:
       type: object
@@ -9115,6 +10305,14 @@ components:
             - healthy
             - at_risk
             - critical
+        readiness:
+          type: string
+          enum:
+            - ready
+            - ready_with_warnings
+            - not_ready
+            - checking
+            - unknown
         score:
           type: object
           properties:
@@ -9358,6 +10556,9 @@ components:
             sentCount:
               type: integer
               minimum: 0
+            deliveredCount:
+              type: integer
+              minimum: 0
             bouncedCount:
               type: integer
               minimum: 0
@@ -9365,13 +10566,18 @@ components:
               type: integer
               minimum: 0
             bounceRate:
-              type: number
+              type:
+                - number
+                - "null"
             complaintRate:
-              type: number
+              type:
+                - number
+                - "null"
           required:
             - sampled
             - sampleSendCount
             - sentCount
+            - deliveredCount
             - bouncedCount
             - complainedCount
             - bounceRate
@@ -9390,9 +10596,13 @@ components:
               type: integer
               minimum: 0
             bounceRate:
-              type: number
+              type:
+                - number
+                - "null"
             complaintRate:
-              type: number
+              type:
+                - number
+                - "null"
           required:
             - scope
             - totalSent
@@ -9450,6 +10660,10 @@ components:
                 additionalProperties: false
               spamFilterFlagged:
                 type: boolean
+              source:
+                type: string
+              variant:
+                type: string
               createdAt:
                 type: string
                 format: date-time
@@ -9480,6 +10694,10 @@ components:
                   - placement_spam_heavy
                   - content_spam_filter_flagged
                   - auth_failing_in_tests
+                  - placement_baseline_spam
+                  - content_image_weight_penalty
+                  - content_promotional_penalty
+                  - content_promotions_tab_shift
                   - warmup_paused
               severity:
                 type: string
@@ -9516,6 +10734,7 @@ components:
         - status
         - sendable
         - verdict
+        - readiness
         - score
         - authentication
         - tracking
@@ -10902,7 +12121,7 @@ paths:
                   suggestion: Check the API key format and retry with a valid active key.
                   docs: https://docs.brew.new/api-reference/api/authentication
         "402":
-          description: "The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit/import, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary."
+          description: "The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary."
           headers:
             x-request-id:
               schema:
@@ -11118,11 +12337,11 @@ paths:
         - Emails
       summary: Import an email
       description: |-
-        Converts existing markup into a NEW, fully EDITABLE Brew email design on the brand canvas. Brew rebuilds the markup into a clean, fully editable design, and EVERY external image is fetched, optimized, and RE-HOSTED on the Brew CDN (no hot-linking third-party assets).
+        Converts existing markup into a NEW, fully EDITABLE Brew email design on the brand canvas. Brew preserves source structure and attempts to rehost every discoverable safe public resource. If rehosting fails, a validated public URL may be retained with a warning; private, malformed, and blocked references are stripped.
 
         `content` is the raw markup as a STRING; `format` describes what you supply: `html` (an HTML email document or fragment), `mjml` (MJML markup), or `jsx` (React-Email JSX) — all converted into a clean, editable design. Pass `baseUrl` to resolve relative image paths. Optional `title`.
 
-        USAGE-metered: the agent’s actual token in/out is billed (no fixed price, no `X-Credit-Cost` header). The call gates on a non-empty credit balance. Returns `201` with the SAME shape as `POST /v1/emails`: `{ emailId, emailVersionId, html, previewImage? }`.
+        FREE — no model and no credits. Conversion is a deterministic compiler, so there is no token spend to meter and no credit gate. Normal request limits still apply: 5,000,000 UTF-8 bytes, 256 remote resources, 8 concurrent fetches, 10 MB per resource, and 50 MB aggregate downloads. Returns `201` with `{ emailId, emailVersionId, html, previewImage?, assetReport }`.
       parameters:
         - *a1
         - name: X-Brand-Id
@@ -11159,7 +12378,7 @@ paths:
                   content: <Html><Body><Container><Heading>Welcome</Heading><Text>Thanks for joining.</Text></Container></Body></Html>
       responses:
         "201":
-          description: "The design was imported + persisted. Usage-metered: the agent’s actual token usage is charged. `emailVersionId` pins the exact version for sends + automation nodes."
+          description: The design was imported + persisted. Free — no model runs. `emailVersionId` pins the exact version for sends + automation nodes.
           headers:
             x-request-id:
               schema:
@@ -11192,8 +12411,18 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/EmailGenerateGeneratedResponse"
-              example: *a2
+                $ref: "#/components/schemas/EmailImportResponse"
+              example:
+                emailId: eml_2SmZOWV3ZQ7W5x6g3m4p
+                emailVersionId: emv_2SmZOWV3ZQ7W5x6g3m4p_v1
+                html: <!DOCTYPE html><html><body>Welcome to Brew.</body></html>
+                previewImage: https://storage.example.com/emails/eml_2SmZOWV3ZQ7W5x6g3m4p.png
+                assetReport:
+                  discovered: 1
+                  rehosted: 1
+                  retained: 0
+                  stripped: 0
+                  warnings: []
         "400":
           description: "The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field."
           headers:
@@ -11237,31 +12466,6 @@ paths:
                   message: The provided API key is invalid.
                   suggestion: Check the API key format and retry with a valid active key.
                   docs: https://docs.brew.new/api-reference/api/authentication
-        "402":
-          description: "The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit/import, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary."
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: INSUFFICIENT_CREDITS
-                  type: payment_required
-                  message: This operation required more credits than the 0 remaining on the 'free' plan. See the per-operation cost in GET /v1/help.
-                  suggestion: Upgrade your plan or wait for the next billing period to reset. Check your balance up front with GET /v1/usage.
-                  docs: https://docs.brew.new/api-reference/api/credits
-                  details:
-                    cost: 2
-                    remaining: 0
-                    planKey: free
         "403":
           description: The caller does not have the required `emails` permission.
           headers:
@@ -11305,6 +12509,28 @@ paths:
                   message: The same idempotency key was reused with a different request payload.
                   suggestion: Reuse the original payload or send a new idempotency key.
                   docs: https://docs.brew.new/api-reference/api/idempotency
+        "413":
+          description: The source or one of its resource budgets exceeds the deterministic import limits.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: PAYLOAD_TOO_LARGE
+                  type: invalid_request
+                  message: content must not exceed 5000000 UTF-8 bytes
+                  suggestion: Reduce the payload size and retry.
+                  docs: https://docs.brew.new/api-reference/api/errors
+                  param: content
         "422":
           description: The markup could not be converted into a valid email (e.g. it failed to render, or produced no usable design).
           headers:
@@ -11398,35 +12624,6 @@ paths:
                   message: An unexpected error occurred.
                   suggestion: Retry the request. If it keeps failing, contact support.
                   docs: https://docs.brew.new/api-reference/api/errors
-        "503":
-          description: The credit balance could not be verified (a transient billing dependency outage). The gate fails closed rather than do paid work it cannot meter. Retryable — `Retry-After` indicates when.
-          headers:
-            x-request-id:
-              schema:
-                type: string
-                description: Unique request identifier. Share this with support when debugging a request.
-                example: req_8cac13fd94e6420cacdd75a1aa403a28
-              required: true
-              description: Unique request identifier. Share this with support when debugging a request.
-            Retry-After:
-              schema:
-                type: integer
-                description: Seconds to wait before retrying the request.
-                example: 42
-              required: true
-              description: Seconds to wait before retrying the request.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiErrorEnvelope"
-              example:
-                error:
-                  code: SERVICE_UNAVAILABLE
-                  type: service_unavailable
-                  message: Your credit balance could not be verified because a billing dependency is temporarily unavailable.
-                  suggestion: Retry the request after a short delay.
-                  docs: https://docs.brew.new/api-reference/api/credits
-                  retryAfter: 2
   /v1/emails/figma:
     post:
       operationId: importFigmaDesign
@@ -11907,7 +13104,7 @@ paths:
                   suggestion: Check the API key format and retry with a valid active key.
                   docs: https://docs.brew.new/api-reference/api/authentication
         "402":
-          description: "The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit/import, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary."
+          description: "The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary."
           headers:
             x-request-id:
               schema:
@@ -13269,7 +14466,7 @@ paths:
                   suggestion: Check the API key format and retry with a valid active key.
                   docs: https://docs.brew.new/api-reference/api/authentication
         "402":
-          description: "The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit/import, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary."
+          description: "The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary."
           headers:
             x-request-id:
               schema:
@@ -13585,7 +14782,7 @@ paths:
                   suggestion: Check the API key format and retry with a valid active key.
                   docs: https://docs.brew.new/api-reference/api/authentication
         "402":
-          description: "The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit/import, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary."
+          description: "The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary."
           headers:
             x-request-id:
               schema:
@@ -13906,7 +15103,7 @@ paths:
                   suggestion: Check the API key format and retry with a valid active key.
                   docs: https://docs.brew.new/api-reference/api/authentication
         "402":
-          description: "The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit/import, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary."
+          description: "The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary."
           headers:
             x-request-id:
               schema:
@@ -14658,7 +15855,7 @@ paths:
       description: |-
         Sends an email design. Polymorphic on the `test` flag:
 
-        - **`test: true`** → a synchronous one-off TEST delivery of the design’s current (or pinned) body to a single address. Forces the Brew default sender (no verified domain needed), targets one `to` address, and never creates a `Send` row. Returns **`200`** `{ status: "sent", recipient }`.
+        - **`test: true`** → a synchronous one-off TEST delivery of the design’s current (or pinned) body to a single address, with a `[TEST]` subject prefix. Sends from the Brew default sender unless a verified org-owned `domainId` is supplied (`fromEmail`/`senderName` customize it; an unverified/foreign domain is rejected, never downgraded). Optional `variables` supply example values for `{{ var | fallback }}` merge tags — a value wins over the declared fallback. Targets one `to` address and never creates a `Send` row. Returns **`200`** `{ status: "sent", recipient }`.
         - **default / `test: false`** → a campaign send combining the design (`emailId`, optionally pinned to `emailVersionId`), a verified `domainId`, and a target — a saved `audienceId` OR inline `to` (a single email or an array, max 50) — into one delivery event. The same design can be sent unlimited times; every call mints a new send. Returns **`202`** `{ sendId, runId }` — poll via `GET /v1/analytics/sends?sendId=`.
 
         Campaign target — provide EXACTLY ONE of `audienceId` or `to`. Inline recipients face the same unsubscribe/suppression gate and per-recipient quota as audience sends. For per-recipient event-driven delivery, publish an automation and fire its trigger (`POST /v1/automations/triggers/{triggerEventId}/fire`).
@@ -14689,6 +15886,17 @@ paths:
                   emailId: eml_welcome
                   subject: Welcome to Brew
                   to: qa@acme.com
+              testVerifiedDomain:
+                summary: Test from your verified domain with example merge-tag values
+                value:
+                  test: true
+                  emailId: eml_welcome
+                  subject: Welcome {{ firstName | there }}
+                  to: qa@acme.com
+                  domainId: kx7bkh53hasmfeh5kd7sqgykt187g8ww
+                  senderName: Vanessa
+                  variables:
+                    firstName: Sarah
               now:
                 summary: Send the latest version to an audience now
                 value:
@@ -15667,7 +16875,7 @@ paths:
       tags:
         - Analytics
       summary: Brand overview (totals, rates, timeseries)
-      description: "Windowed brand overview — the EXACT read behind the app's /analytics metric cards + chart (same unique-recipient and machine-click rules), so API/MCP numbers can never disagree with the page. Defaults to the last 7 days. Optional filters, all of which COMPOSE freely: `source` (csv of send sources), `automationId`, `emailId`, `audienceId` (csv, ≤20), `triggerEventId` (csv, ≤10 — integration trigger-events, resolved to their wired automations), `domain` (sending domain), and `recipient` (csv of recipient rules — same grammar and name as `GET /v1/analytics/events`). A single filter is answered from pre-aggregated rollup rows; any combination (and anything with `domain` or `recipient`, neither of which has a rollup dimension) is answered by aggregating raw events instead — exact, but capped, so watch `truncated` on wide windows. Returns `{ totals, rates, buckets, granularity, timeZone, range, truncated }` — `truncated: true` means the window exceeded the scan budget; narrow the range. Requires the `emails` scope."
+      description: "Windowed brand overview — the EXACT read behind the app's /analytics metric cards + chart (same per-recipient dedup and machine-click/open exclusion rules), so API/MCP numbers can never disagree with the page. Defaults to the last 7 days. Optional filters, all of which COMPOSE freely: `source` (csv of send sources), `automationId`, `emailId`, `audienceId` (csv, ≤20), `triggerEventId` (csv, ≤10 — integration trigger-events, resolved to their wired automations), `domain` (sending domain), and `recipient` (csv of recipient rules — same grammar and name as `GET /v1/analytics/events`). A single filter is answered from pre-aggregated rollup rows; any combination (and anything with `domain` or `recipient`, neither of which has a rollup dimension) is answered by aggregating raw events instead — exact, but capped, so watch `truncated` on wide windows. Returns `{ totals, rates, buckets, granularity, timeZone, range, truncated }` — `truncated: true` means the window exceeded the scan budget; narrow the range. Requires the `emails` scope."
       parameters:
         - name: from
           in: query
@@ -15787,9 +16995,7 @@ paths:
                   sent: 5000
                   delivered: 4920
                   opened: 2110
-                  openedTotal: 3480
                   clicked: 540
-                  clickedTotal: 812
                   bounced: 80
                   complained: 3
                   unsubscribed: 12
@@ -16421,7 +17627,7 @@ paths:
       tags:
         - Analytics
       summary: Unified events feed
-      description: "Read-only window over the brand’s analytics events across domains (email, automation, trigger, inbound). Defaults to the last 7 days. Equality filters: `recipientEmail`, `eventType`, `automationId`, `sendId` (join back to `/v1/analytics/sends?sendId=`). Recipient rules — `recipient` (csv, ≤10): a full address matches exactly, `@domain` matches everyone on that domain, any other text matches as a substring, and a `!` prefix excludes (`recipient=@clay.com,!ceo@clay.com` = clay recipients except the CEO); includes OR together, excludes always apply. Send-object facets — `source` (csv of send sources), `audienceId` (csv, ≤20), `emailId` (design), `domain` (sending domain), `triggerEventId` (csv, ≤10 — integration trigger-events resolved to their wired automations): when ANY facet or recipient rule is present the feed narrows to EMAIL events only and each row is enriched with `sendSource` + `sendContext` (plus `triggerProvider`/`triggerTitle` on integration/custom-triggered rows). Machine/bot-classified `clicked` rows are EXCLUDED by default (matching `/v1/analytics/overview`); pass `includeMachineClicks=true` to include the raw rows (audit/debug only). Cursor pagination — pass `pagination.cursor` back as `?cursor=`; loop `while (cursor !== null)`. Requires the `emails` scope."
+      description: "Read-only window over the brand’s analytics events across domains (email, automation, trigger, inbound). Defaults to the last 7 days. Equality filters: `recipientEmail`, `eventType`, `automationId`, `sendId` (join back to `/v1/analytics/sends?sendId=`). Recipient rules — `recipient` (csv, ≤10): a full address matches exactly, `@domain` matches everyone on that domain, any other text matches as a substring, and a `!` prefix excludes (`recipient=@clay.com,!ceo@clay.com` = clay recipients except the CEO); includes OR together, excludes always apply. Send-object facets — `source` (csv of send sources), `audienceId` (csv, ≤20), `emailId` (design), `domain` (sending domain), `triggerEventId` (csv, ≤10 — integration trigger-events resolved to their wired automations): when ANY facet or recipient rule is present the feed narrows to EMAIL events only and each row is enriched with `sendSource` + `sendContext` (plus `triggerProvider`/`triggerTitle` on integration/custom-triggered rows). Machine/bot-classified `clicked` AND `opened` rows (scanner detonation, Apple-proxy prefetch) are EXCLUDED by default (matching `/v1/analytics/overview`); pass `includeMachineClicks=true` / `includeMachineOpens=true` to include the raw rows (audit/debug only). Cursor pagination — pass `pagination.cursor` back as `?cursor=`; loop `while (cursor !== null)`. Requires the `emails` scope."
       parameters:
         - name: from
           in: query
@@ -16514,6 +17720,12 @@ paths:
           in: query
           required: false
           description: "Machine/bot-classified `clicked` rows are excluded by default. Pass `true` to include the raw rows (they carry `machineGenerated: true` + a `clickBotReason`; audit/debug only)."
+          schema:
+            type: boolean
+        - name: includeMachineOpens
+          in: query
+          required: false
+          description: Machine/bot-classified `opened` rows (security-scanner pixel detonation, Apple-proxy prefetch) and still-classifying opens are excluded by default. Pass `true` to include the raw rows (they carry `machineGenerated` + an `openBotReason` and `openFetchSource`; audit/debug only).
           schema:
             type: boolean
         - name: limit
@@ -16743,7 +17955,7 @@ paths:
 
         Chain `POST /v1/emails { prompt }` first to mint the design each `sendEmail` node references — every `sendEmail` node MUST carry `emailId`, `emailVersionId`, `domainId`, `subject`, `previewText`.
 
-        **Dry-run** — add `dryRun: true` to validate without persisting; returns `200` with `{ valid, blockers[], warnings[], blockingIssues[], nodeCounts }`. `blockingIssues[]` lists per-node references to a trigger-payload variable the bound trigger cannot provide (`{ nodeId, nodeLabel, surface, variable, reason, fatal }`) — e.g. after swapping the trigger or removing a payload field. `fatal: true` (filter/split conditions and triple-brace `{{{ }}}` body tokens) fails publish; `fatal: false` (subject/previewText/fromName/replyTo and double-brace body tags) renders empty at send time and is advisory only. `valid` is false when any `fatal` blocking issue is present.
+        **Dry-run** — add `dryRun: true` to validate without persisting; returns `200` with an `AutomationDryRunReport`: `{ valid, blockers[], warnings[], nodeCounts }`. `blockers[]` (severity `error`) fail publish; `warnings[]` are advisory. The create dry-run never includes `blockingIssues[]` (trigger-payload compatibility) — only the PATCH dry-run computes that; see `PATCH /v1/automations/{automationId}`.
       parameters:
         - *a1
         - name: X-Brand-Id
@@ -16802,7 +18014,7 @@ paths:
                   dryRun: true
       responses:
         "200":
-          description: Dry-run result (no writes). `valid` indicates whether the graph would publish cleanly.
+          description: "Dry-run result (returned only for `dryRun: true`; no writes). `valid` indicates whether the graph would publish cleanly. The create dry-run never includes `blockingIssues` — that field is PATCH-only."
           headers:
             x-request-id:
               schema:
@@ -16811,6 +18023,42 @@ paths:
                 example: req_8cac13fd94e6420cacdd75a1aa403a28
               required: true
               description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AutomationDryRunReport"
+              example:
+                valid: false
+                blockers:
+                  - severity: error
+                    message: Add at least one Send Email action
+                warnings: []
+                nodeCounts:
+                  sendEmail: 0
+                  wait: 0
+                  filter: 0
+                  split: 0
         "201":
           description: Created. The bare automation row (draft, full graph).
           headers:
@@ -17320,7 +18568,9 @@ paths:
 
         Graph updates use the same strict typed filter/split condition contract as create: explicit `type`, canonical snake_case `operator`, no `value` for unary operators, and type-correct values everywhere else.
 
-        The two modes cannot be combined: publishing promotes the stored graph, so update first, then PATCH `{ "published": true }`. Returns the bare automation row.
+        **Dry-run** — with `dryRun: true` the `200` body is an `AutomationDryRunReport` instead of the row: `{ valid, blockers[], warnings[], blockingIssues[], nodeCounts }`. `blockingIssues[]` lists per-node references to a trigger-payload variable the effective trigger cannot provide — e.g. after swapping the trigger or removing a payload field. `fatal: true` (filter/split conditions and triple-brace `{{{ }}}` body tokens) fails publish; `fatal: false` (subject/previewText/fromName/replyTo and double-brace body tags) renders empty at send time and is advisory only; `hasFallback: true` means the token’s inline `{{ name | fallback }}` fallback renders instead of an empty string. `valid` is false when any blocker or any `fatal` blocking issue is present.
+
+        The two modes cannot be combined: publishing promotes the stored graph, so update first, then PATCH `{ "published": true }`. Returns the bare automation row (or the dry-run report when `dryRun: true`).
       parameters:
         - schema:
             type: string
@@ -17361,6 +18611,16 @@ paths:
                   connections:
                     - from: trg
                       to: send_welcome
+              dryRun:
+                summary: Validate a graph update without persisting
+                value:
+                  nodes:
+                    - *a8
+                    - *a9
+                  connections:
+                    - from: trg
+                      to: send_welcome
+                  dryRun: true
               publish:
                 summary: Publish (promote live)
                 value:
@@ -17376,7 +18636,7 @@ paths:
                   published: false
       responses:
         "200":
-          description: "Updated / published / unpublished. The bare automation row (or the dry-run result when `dryRun: true`)."
+          description: "Updated / published / unpublished — the bare automation row. For `dryRun: true` update requests, an `AutomationDryRunReport` instead (no writes)."
           headers:
             x-request-id:
               schema:
@@ -17409,8 +18669,32 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AutomationRow"
-              example: *a10
+                anyOf:
+                  - $ref: "#/components/schemas/AutomationRow"
+                  - $ref: "#/components/schemas/AutomationDryRunReport"
+              examples:
+                updated:
+                  summary: Updated / published — the automation row
+                  value: *a10
+                dryRun:
+                  summary: "Dry-run validation report (`dryRun: true`)"
+                  value:
+                    valid: false
+                    blockers: []
+                    warnings: []
+                    blockingIssues:
+                      - nodeId: filter_a1b2
+                        nodeLabel: Paid plan
+                        surface: filterCondition
+                        variable: plan
+                        reason: Condition on "plan", which the trigger doesn't provide
+                        fatal: true
+                        hasFallback: false
+                    nodeCounts:
+                      sendEmail: 1
+                      wait: 0
+                      filter: 1
+                      split: 0
         "400":
           description: Strict-body violation, no actionable field supplied, `published` combined with update fields, or `AUTOMATION_GRAPH_INVALID` (see `details.issues`).
           headers:
@@ -18117,7 +19401,7 @@ paths:
                 recipientCount: 12400
                 sendNodeCount: 2
         "202":
-          description: Run launched (or scheduled).
+          description: 'Run launched (or scheduled). When org-level send approval is enabled the body additionally carries `approvalState: "pending"`.'
           headers:
             x-request-id:
               schema:
@@ -21685,7 +22969,7 @@ paths:
                   suggestion: Check the API key format and retry with a valid active key.
                   docs: https://docs.brew.new/api-reference/api/authentication
         "402":
-          description: "The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit/import, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary."
+          description: "The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary."
           headers:
             x-request-id:
               schema:
@@ -23135,11 +24419,10 @@ paths:
         - name: include
           in: query
           required: false
-          description: "Detail-only expansion: `count` recomputes the live member total. Rejected without `audienceId`."
+          description: "Detail-only expansions (comma-separated): `count` recomputes the live member total; `build` attaches the latest event-cohort build status for audiences created via `POST /v1/audiences/from-events`. Rejected without `audienceId`."
           schema:
             type: string
-            enum:
-              - count
+            example: count,build
         - *a6
         - *a7
         - name: X-Brand-Id
@@ -23192,7 +24475,7 @@ paths:
                   - &a16
                     audienceId: jn7a8w4q8m9k2p1x7c3b5v6n9h7s2d4f
                     audienceName: Nordic Founders
-                    filters:
+                    filters: &a18
                       filters:
                         - field: country
                           operator: equals
@@ -23368,7 +24651,7 @@ paths:
       tags:
         - Audiences
       summary: Create an audience
-      description: 'Creates a saved audience from a name + filter set (`{ filters: [{ field, operator, value? }], logicalOperator: "and" | "or" }`). Returns `201` with the bare audience row.'
+      description: 'Creates a saved audience from a name + filter set (`{ filters: [{ field, operator, value? }], logicalOperator: "and" | "or" }`). Returns `201` with the bare audience row. An `email in [...]` clause listing more than 100 addresses is converted automatically: a fresh date custom field is stamped on the listed EXISTING contacts and the stored filter becomes `customFields.<field> is_not_empty` (a snapshot — addresses with no contact record are skipped), reported back as `emailListMaterializations`; 10,000 addresses max per clause.'
       parameters:
         - *a1
         - name: X-Brand-Id
@@ -23429,7 +24712,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Audience"
+                $ref: "#/components/schemas/AudienceWriteResponse"
               example: *a16
         "400":
           description: "The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field."
@@ -23588,13 +24871,264 @@ paths:
                   message: An unexpected error occurred.
                   suggestion: Retry the request. If it keeps failing, contact support.
                   docs: https://docs.brew.new/api-reference/api/errors
+  /v1/audiences/from-events:
+    post:
+      operationId: createAudienceFromEvents
+      tags:
+        - Audiences
+      summary: Create an audience from analytics events
+      description: "Creates a frozen audience snapshot from the same membership filters as `/events`: 1–10 canonical event types, an absolute window up to 90 days, optional send/email ids, multi-select automation/audience ids, recipient include/exclude rules, and the machine-click policy. Every call generates a unique date field; each matching existing contact stores its latest matching-event timestamp. Returns `201` immediately with `materializationStatus: pending` plus build progress. The audience is unavailable for campaign, smart-send, and automation delivery until the status becomes `ready`. Failed/partial/stale builds remain non-sendable and partial values are cleaned. Poll `GET /v1/audiences?audienceId=…&include=build`."
+      parameters:
+        - *a1
+        - name: X-Brand-Id
+          in: header
+          required: false
+          description: The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 64
+          example: kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AudiencesFromEventsRequest"
+            example:
+              cohort:
+                eventTypes:
+                  - opened
+                from: 2026-07-04T00:00:00.000Z
+                to: 2026-08-03T00:00:00.000Z
+      responses:
+        "201":
+          description: Created. The audience exists immediately; `build` tracks the background stamping run.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AudiencesFromEventsResponse"
+              example:
+                audienceId: jn7a8w4q8m9k2p1x7c3b5v6n9h7s2d4f
+                audienceName: Openers · Jul 4 – Aug 3, 2026
+                filters:
+                  filters:
+                    - field: customFields.openedJul4Aug3
+                      operator: is_not_empty
+                      type: date
+                  logicalOperator: and
+                count: 0
+                createdAt: 2026-04-08T12:34:56.789Z
+                updatedAt: 2026-04-08T12:34:56.789Z
+                materializationStatus: pending
+                build:
+                  jobId: kh7c2m4q8n9w2p1x7c3b5v6n9h7s2d4f
+                  status: pending
+                  cohort:
+                    eventTypes:
+                      - opened
+                    from: 2026-07-04T00:00:00.000Z
+                    to: 2026-08-03T00:00:00.000Z
+                  field:
+                    key: openedJul4Aug3
+                    label: Opened Jul 4 – Aug 3
+                    type: date
+                  counts:
+                    eventsScanned: 0
+                  enqueuedAt: 2026-08-03T12:00:00.000Z
+        "400":
+          description: "The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field."
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: INVALID_REQUEST
+                  type: invalid_request
+                  message: Request validation failed.
+                  suggestion: Fix the field reported in `param` and retry.
+                  docs: https://docs.brew.new/api-reference/api/errors
+                  param: cohort
+        "401":
+          description: The API key was missing, invalid, or revoked.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: INVALID_API_KEY
+                  type: authentication_error
+                  message: The provided API key is invalid.
+                  suggestion: Check the API key format and retry with a valid active key.
+                  docs: https://docs.brew.new/api-reference/api/authentication
+        "403":
+          description: The caller does not have the required `contacts` permission.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: INSUFFICIENT_PERMISSIONS
+                  type: authorization_error
+                  message: The caller does not have the required permission.
+                  suggestion: Use an API key or session with the required permission.
+                  docs: https://docs.brew.new/api-reference/api/authentication
+                  param: contacts
+        "409":
+          description: The same `Idempotency-Key` was reused with a different request body.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: IDEMPOTENCY_CONFLICT
+                  type: conflict
+                  message: The same idempotency key was reused with a different request payload.
+                  suggestion: Reuse the original payload or send a new idempotency key.
+                  docs: https://docs.brew.new/api-reference/api/idempotency
+        "429":
+          description: The request hit the rolling rate limit window.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+            Retry-After:
+              schema:
+                type: integer
+                description: Seconds to wait before retrying the request.
+                example: 42
+              required: true
+              description: Seconds to wait before retrying the request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: RATE_LIMITED
+                  type: rate_limit
+                  message: Too many requests.
+                  suggestion: Wait for the retry window before sending another request.
+                  docs: https://docs.brew.new/api-reference/api/rate-limits
+                  retryAfter: 42
+        "500":
+          description: Unexpected internal error.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: INTERNAL_ERROR
+                  type: internal_error
+                  message: An unexpected error occurred.
+                  suggestion: Retry the request. If it keeps failing, contact support.
+                  docs: https://docs.brew.new/api-reference/api/errors
   /v1/audiences/{audienceId}:
     patch:
       operationId: updateAudience
       tags:
         - Audiences
       summary: Update an audience
-      description: Updates `name` and/or `filters` (at least one required). Returns the bare updated row.
+      description: "Updates `name` and/or `filters` (at least one required). Pass the latest row’s `updatedAt` as `expectedUpdatedAt` to reject stale read-modify-write edits. Returns the bare updated row. Replacement filters follow the same email-list rule as create: an `email in [...]` clause over 100 addresses is converted into a stamped custom-field snapshot (a fresh field per update), reported as `emailListMaterializations`."
       parameters:
         - schema:
             type: string
@@ -23658,7 +25192,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Audience"
+                $ref: "#/components/schemas/AudienceWriteResponse"
               example: *a16
         "400":
           description: Strict-body violation or no editable field supplied (at least one of `name` / `filters` is required).
@@ -23740,6 +25274,27 @@ paths:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
               example: *a17
+        "409":
+          description: The `expectedUpdatedAt` precondition is stale; reload the audience before retrying.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: AUDIENCE_EDIT_CONFLICT
+                  type: conflict
+                  message: This audience changed while it was being edited.
+                  suggestion: Reload the latest audience filters and retry.
+                  docs: https://docs.brew.new/api-reference/api/errors
         "429":
           description: The request hit the rolling rate limit window.
           headers:
@@ -23990,6 +25545,227 @@ paths:
                   message: An unexpected error occurred.
                   suggestion: Retry the request. If it keeps failing, contact support.
                   docs: https://docs.brew.new/api-reference/api/errors
+  /v1/audiences/{audienceId}/duplicate:
+    post:
+      operationId: duplicateAudience
+      tags:
+        - Audiences
+      summary: Duplicate an audience
+      description: Creates a deterministic copy of the saved audience’s live filters with a server-generated “(copy)” name. Contacts are not copied; both audiences resolve against the same contact records.
+      parameters:
+        - *a1
+        - schema:
+            type: string
+            minLength: 1
+            maxLength: 64
+            description: Audience id (opaque Convex document id) returned by `POST /v1/audiences` and listed by `GET /v1/audiences`.
+            example: jn7a8w4q8m9k2p1x7c3b5v6n9h7s2d4f
+          required: true
+          description: Audience id (opaque Convex document id) returned by `POST /v1/audiences` and listed by `GET /v1/audiences`.
+          name: audienceId
+          in: path
+        - name: X-Brand-Id
+          in: header
+          required: false
+          description: The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 64
+          example: kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+      responses:
+        "201":
+          description: Copied.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Audience"
+              example:
+                audienceId: mh8b9x5r9n1k3p2y8c4d6w7q1j9t3f5g
+                audienceName: Nordic Founders (copy)
+                filters: *a18
+                count: 1284
+                createdAt: 2026-04-08T12:34:56.789Z
+                updatedAt: 2026-04-08T12:34:56.789Z
+        "401":
+          description: The API key was missing, invalid, or revoked.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: INVALID_API_KEY
+                  type: authentication_error
+                  message: The provided API key is invalid.
+                  suggestion: Check the API key format and retry with a valid active key.
+                  docs: https://docs.brew.new/api-reference/api/authentication
+        "403":
+          description: The caller does not have the required `audiences` permission.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: INSUFFICIENT_PERMISSIONS
+                  type: authorization_error
+                  message: The caller does not have the required permission.
+                  suggestion: Use an API key or session with the required permission.
+                  docs: https://docs.brew.new/api-reference/api/authentication
+                  param: audiences
+        "404":
+          description: Audience not found in the API-key brand. Cross-brand ids intentionally surface as 404 (never 403) so the API does not leak cross-brand existence.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example: *a17
+        "409":
+          description: The same `Idempotency-Key` was reused with a different request body.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: IDEMPOTENCY_CONFLICT
+                  type: conflict
+                  message: The same idempotency key was reused with a different request payload.
+                  suggestion: Reuse the original payload or send a new idempotency key.
+                  docs: https://docs.brew.new/api-reference/api/idempotency
+        "429":
+          description: The request hit the rolling rate limit window.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+                description: Requests allowed in the current rolling rate limit window.
+                example: 100
+              required: true
+              description: Requests allowed in the current rolling rate limit window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+                description: Requests remaining in the current rolling rate limit window.
+                example: 99
+              required: true
+              description: Requests remaining in the current rolling rate limit window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+                description: Unix timestamp in seconds for when the rolling window fully resets.
+                example: 1712592360
+              required: true
+              description: Unix timestamp in seconds for when the rolling window fully resets.
+            Retry-After:
+              schema:
+                type: integer
+                description: Seconds to wait before retrying the request.
+                example: 42
+              required: true
+              description: Seconds to wait before retrying the request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: RATE_LIMITED
+                  type: rate_limit
+                  message: Too many requests.
+                  suggestion: Wait for the retry window before sending another request.
+                  docs: https://docs.brew.new/api-reference/api/rate-limits
+                  retryAfter: 42
+        "500":
+          description: Unexpected internal error.
+          headers:
+            x-request-id:
+              schema:
+                type: string
+                description: Unique request identifier. Share this with support when debugging a request.
+                example: req_8cac13fd94e6420cacdd75a1aa403a28
+              required: true
+              description: Unique request identifier. Share this with support when debugging a request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiErrorEnvelope"
+              example:
+                error:
+                  code: INTERNAL_ERROR
+                  type: internal_error
+                  message: An unexpected error occurred.
+                  suggestion: Retry the request. If it keeps failing, contact support.
+                  docs: https://docs.brew.new/api-reference/api/errors
   /v1/domains:
     get:
       operationId: listDomains
@@ -24064,7 +25840,7 @@ paths:
                 $ref: "#/components/schemas/DomainsListResponse"
               example:
                 data:
-                  - &a18
+                  - &a19
                     domainId: kx7bkh53hasmfeh5kd7sqgykt187g8ww
                     domainUrl: https://send.example.com
                     name: send.example.com
@@ -24072,7 +25848,7 @@ paths:
                     status: pending
                     sendingEnabled: true
                     sendable: false
-                    records: &a20
+                    records: &a21
                       - record: DKIM
                         name: resend._domainkey
                         type: TXT
@@ -24164,7 +25940,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
-              example: &a19
+              example: &a20
                 error:
                   code: DOMAIN_NOT_FOUND
                   type: not_found
@@ -24304,7 +26080,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Domain"
-              example: *a18
+              example: *a19
         "400":
           description: "The request body or query string was invalid (unknown key, wrong type, or missing required field). Strict schemas reject unknown keys — including `brandId`: a brand is named with the `X-Brand-Id` HEADER (organization-scoped credentials) or resolved from the credential itself (brand-scoped ones), never as a body or query field."
           headers:
@@ -24534,7 +26310,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Domain"
-              example: *a18
+              example: *a19
         "400":
           description: Strict-body violation or no editable field supplied (at least one of `defaultSenderName` / `defaultFromEmail` / `defaultReplyToEmail`).
           headers:
@@ -24614,7 +26390,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
-              example: *a19
+              example: *a20
         "429":
           description: The request hit the rolling rate limit window.
           headers:
@@ -24937,7 +26713,7 @@ paths:
                 status: verified
                 sendingEnabled: true
                 sendable: true
-                records: *a20
+                records: *a21
                 createdAt: 2026-04-08T12:34:56.789Z
                 updatedAt: 2026-04-08T12:34:56.789Z
                 verifiedAt: 2026-04-08T13:00:00.000Z
@@ -24998,7 +26774,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
-              example: *a19
+              example: *a20
         "409":
           description: The same `Idempotency-Key` was reused with a different request body.
           headers:
@@ -25270,7 +27046,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
-              example: *a19
+              example: *a20
         "429":
           description: The request hit the rolling rate limit window.
           headers:
@@ -26089,7 +27865,7 @@ paths:
                   suggestion: Check the API key format and retry with a valid active key.
                   docs: https://docs.brew.new/api-reference/api/authentication
         "402":
-          description: "The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit/import, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary."
+          description: "The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary."
           headers:
             x-request-id:
               schema:
@@ -26988,7 +28764,7 @@ paths:
                   suggestion: Check the API key format and retry with a valid active key.
                   docs: https://docs.brew.new/api-reference/api/authentication
         "402":
-          description: "The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit/import, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary."
+          description: "The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary."
           headers:
             x-request-id:
               schema:
@@ -27069,7 +28845,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
-              example: &a21
+              example: &a22
                 error:
                   code: CONTENT_OPERATION_FAILED
                   type: invalid_request
@@ -27283,7 +29059,7 @@ paths:
                   suggestion: Check the API key format and retry with a valid active key.
                   docs: https://docs.brew.new/api-reference/api/authentication
         "402":
-          description: "The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit/import, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary."
+          description: "The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary."
           headers:
             x-request-id:
               schema:
@@ -27364,7 +29140,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
-              example: *a21
+              example: *a22
         "429":
           description: The request hit the rolling rate limit window.
           headers:
@@ -27569,7 +29345,7 @@ paths:
                   suggestion: Check the API key format and retry with a valid active key.
                   docs: https://docs.brew.new/api-reference/api/authentication
         "402":
-          description: "The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit/import, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary."
+          description: "The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary."
           headers:
             x-request-id:
               schema:
@@ -27650,7 +29426,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
-              example: *a21
+              example: *a22
         "429":
           description: The request hit the rolling rate limit window.
           headers:
@@ -27855,7 +29631,7 @@ paths:
                   suggestion: Check the API key format and retry with a valid active key.
                   docs: https://docs.brew.new/api-reference/api/authentication
         "402":
-          description: "The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit/import, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary."
+          description: "The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary."
           headers:
             x-request-id:
               schema:
@@ -27936,7 +29712,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
-              example: *a21
+              example: *a22
         "429":
           description: The request hit the rolling rate limit window.
           headers:
@@ -28146,7 +29922,7 @@ paths:
                   suggestion: Check the API key format and retry with a valid active key.
                   docs: https://docs.brew.new/api-reference/api/authentication
         "402":
-          description: "The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit/import, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary."
+          description: "The org's remaining credit balance is below what this operation requires. Credit cost is published PER-OPERATION (see `GET /v1/help`): content/media operations charge a flat cost, while AI generation (email generate/edit, image generation) is usage-metered — charged by actual model usage rather than a flat price. `details.cost` carries the amount the runtime required for THIS call. Check your balance up front via `GET /v1/usage`. No `Retry-After` — credits reset at the billing-period boundary."
           headers:
             x-request-id:
               schema:
@@ -28227,7 +30003,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
-              example: *a21
+              example: *a22
         "429":
           description: The request hit the rolling rate limit window.
           headers:
