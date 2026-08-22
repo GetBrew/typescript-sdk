@@ -10,7 +10,7 @@ export type { TransactionalEmail }
  * email object (scope: `sends`).
  *
  * Returns the locked configuration (design pin, domain, envelope,
- * `strictTemplating`) plus, on Liquid-enabled workspaces, the template's
+ * `templating.engine`) plus, on Liquid-enabled workspaces, the template's
  * data contract:
  * - `variableTree` — every variable path the pinned template references
  *   (`trigger.*` from your payload, `customer.*` from the contact), with
