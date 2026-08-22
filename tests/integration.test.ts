@@ -1,7 +1,7 @@
-import { http, HttpResponse } from 'msw'
+import { HttpResponse, http } from 'msw'
 import { describe, expect, it } from 'vitest'
 
-import { BrewApiError, createBrewClient, type BrewClient } from '../src/index'
+import { BrewApiError, type BrewClient, createBrewClient } from '../src/index'
 
 import { server } from './msw/server'
 
@@ -67,6 +67,17 @@ describe('createBrewClient — end-to-end', () => {
     expect(typeof brew.templates.list).toBe('function')
     // `GET /v1/usage` — plan, credit balance, email-send quota.
     expect(typeof brew.usage.get).toBe('function')
+    // Named email folders (`emailGroups.*`).
+    expect(typeof brew.emailGroups.list).toBe('function')
+    expect(typeof brew.emailGroups.create).toBe('function')
+    expect(typeof brew.emailGroups.update).toBe('function')
+    expect(typeof brew.emailGroups.delete).toBe('function')
+    // `GET /v1/integrations` — the product integration catalog.
+    expect(typeof brew.integrations.list).toBe('function')
+    // Organization-level API key lifecycle.
+    expect(typeof brew.apiKeys.list).toBe('function')
+    expect(typeof brew.apiKeys.create).toBe('function')
+    expect(typeof brew.apiKeys.revoke).toBe('function')
 
     // Nested surfaces: send reads + trigger CRUD/runs are flat reads.
     expect(typeof brew.analytics.sends.list).toBe('function')
@@ -75,15 +86,17 @@ describe('createBrewClient — end-to-end', () => {
     expect(typeof brew.automations.runs.list).toBe('function')
     expect(typeof brew.analytics.triggerInstances.list).toBe('function')
 
-    // Removed: no top-level me/integrations resources. The send action
+    // Removed: no top-level me/account resources. The send action
     // lives on `emails.send` and send reads on `analytics.sends`; the
     // top-level `sends` namespace now carries only the lifecycle action
     // `sends.cancel` (no `sends.send` / `sends.list`). The separate
     // per-detail reads (`get`, `sendTest`, `versions`, `duplicate`)
-    // collapsed into the single flat read on each resource.
+    // collapsed into the single flat read on each resource. `integrations`
+    // was dropped in the v8 surface migration and reintroduced by a later
+    // OpenAPI resync as a real read (`GET /v1/integrations`) — asserted
+    // positively above instead of negatively here.
     expect('me' in brew).toBe(false)
     expect('account' in brew).toBe(false)
-    expect('integrations' in brew).toBe(false)
     expect('send' in brew.sends).toBe(false)
     expect('list' in brew.sends).toBe(false)
     expect('sendTest' in brew.emails).toBe(false)
@@ -116,8 +129,8 @@ describe('createBrewClient — end-to-end', () => {
           }
         )
       }),
-      http.post('https://brew.new/api/v1/contacts/search', () => {
-        return HttpResponse.json({
+      http.post('https://brew.new/api/v1/contacts/search', () =>
+        HttpResponse.json({
           data: [
             {
               email: 'jane@example.com',
@@ -131,7 +144,7 @@ describe('createBrewClient — end-to-end', () => {
           ],
           pagination: { limit: 50, cursor: null, hasMore: false },
         })
-      })
+      )
     )
 
     const brew = makeIntegrationClient()
@@ -157,8 +170,8 @@ describe('createBrewClient — end-to-end', () => {
 
   it('throws BrewApiError on 4xx with requestId and code preserved', async () => {
     server.use(
-      http.post('https://brew.new/api/v1/contacts/search', () => {
-        return HttpResponse.json(
+      http.post('https://brew.new/api/v1/contacts/search', () =>
+        HttpResponse.json(
           {
             error: {
               code: 'INVALID_REQUEST',
@@ -174,7 +187,7 @@ describe('createBrewClient — end-to-end', () => {
             headers: { 'x-request-id': 'req_missing_1' },
           }
         )
-      })
+      )
     )
 
     const brew = makeIntegrationClient()
@@ -195,15 +208,15 @@ describe('createBrewClient — end-to-end', () => {
 
   it('lists fields end-to-end via brew.fields.list()', async () => {
     server.use(
-      http.get('https://brew.new/api/v1/fields', () => {
-        return HttpResponse.json({
+      http.get('https://brew.new/api/v1/fields', () =>
+        HttpResponse.json({
           data: [
             { fieldName: 'plan', fieldType: 'string', isCore: false },
             { fieldName: 'signupDate', fieldType: 'date', isCore: false },
           ],
           pagination: { limit: 100, cursor: null, hasMore: false },
         })
-      })
+      )
     )
 
     const brew = makeIntegrationClient()

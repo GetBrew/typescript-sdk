@@ -1,41 +1,49 @@
 import { resolveConfig } from './core/config'
 import { createHttpClient, type HttpTuning } from './core/http'
 import {
-  createAnalyticsResource,
   type AnalyticsResource,
+  createAnalyticsResource,
 } from './resources/analytics/resource'
 import {
-  createAudiencesResource,
+  type ApiKeysResource,
+  createApiKeysResource,
+} from './resources/api-keys/resource'
+import {
   type AudiencesResource,
+  createAudiencesResource,
 } from './resources/audiences/resource'
 import {
-  createAutomationsResource,
   type AutomationsResource,
+  createAutomationsResource,
 } from './resources/automations/resource'
 import {
-  createBrandResource,
   type BrandResource,
+  createBrandResource,
 } from './resources/brand/resource'
 import {
-  createBrandsResource,
   type BrandsResource,
+  createBrandsResource,
 } from './resources/brands/resource'
 import {
-  createChatsResource,
   type ChatsResource,
+  createChatsResource,
 } from './resources/chats/resource'
 import {
-  createContactsResource,
   type ContactsResource,
+  createContactsResource,
 } from './resources/contacts/resource'
 import {
-  createContentResource,
   type ContentResource,
+  createContentResource,
 } from './resources/content/resource'
 import {
   createDomainsResource,
   type DomainsResource,
 } from './resources/domains/resource'
+import {
+  createEmailGroupsResource,
+  type EmailGroupsResource,
+} from './resources/email-groups/resource'
 import {
   createEmailsResource,
   type EmailsResource,
@@ -53,6 +61,10 @@ import {
   type HelpResource,
 } from './resources/help/resource'
 import {
+  createIntegrationsResource,
+  type IntegrationsResource,
+} from './resources/integrations/resource'
+import {
   createSendsResource,
   type SendsResource,
 } from './resources/sends/resource'
@@ -60,6 +72,10 @@ import {
   createTemplatesResource,
   type TemplatesResource,
 } from './resources/templates/resource'
+import {
+  createTransactionalResource,
+  type TransactionalResource,
+} from './resources/transactional/resource'
 import {
   createUsageResource,
   type UsageResource,
@@ -74,7 +90,8 @@ import type { BrewClientConfig, ResolvedBrewClientConfig } from './types'
  * A client can be pinned to ONE brand at a time. A brand-scoped key resolves
  * its own; an ORGANIZATION-scoped key names one for brand-scoped resources —
  * set `brandId` in the config, or use `withBrand()` to pin one. Organization-
- * level resources (`brands`, `templates`, and `usage`) never send that pin.
+ * level resources (`brands`, `templates`, `usage`, and `apiKeys`) never send
+ * that pin.
  */
 export type BrewClient = {
   /**
@@ -95,6 +112,13 @@ export type BrewClient = {
    * instances (`analytics.triggerInstances.*`).
    */
   readonly analytics: AnalyticsResource
+  /**
+   * Organization-level API key lifecycle. `apiKeys.list()` (`GET
+   * /v1/api-keys`), `apiKeys.create(...)` (`POST /v1/api-keys` — the
+   * plaintext `key` is returned once), and `apiKeys.revoke({ keyId })`
+   * (`DELETE /v1/api-keys/{keyId}`). Never sends `X-Brand-Id`.
+   */
+  readonly apiKeys: ApiKeysResource
   readonly audiences: AudiencesResource
   /**
    * Automation graphs plus the nested `automations.triggers.*` (trigger
@@ -115,6 +139,12 @@ export type BrewClient = {
   readonly content: ContentResource
   readonly domains: DomainsResource
   /**
+   * Named folders for organizing email designs (`emailGroups.list`,
+   * `.create`, `.update`, `.delete`). Every design belongs to exactly
+   * one group, defaulting to the `ungrouped` sentinel.
+   */
+  readonly emailGroups: EmailGroupsResource
+  /**
    * Email designs plus the single polymorphic send action `emails.send`
    * (`POST /v1/sends`): a campaign send by default, or a one-off TEST
    * delivery via `test: true`. A send delivers a saved design to a
@@ -126,6 +156,8 @@ export type BrewClient = {
   readonly health: HealthResource
   /** `GET /v1/help` — the no-auth machine-readable API catalog. */
   readonly help: HelpResource
+  /** `GET /v1/integrations` — the product integration catalog for the brand in scope, with a `connected` flag per provider. */
+  readonly integrations: IntegrationsResource
   /**
    * Send lifecycle actions. `sends.cancel(sendId)`
    * (`POST /v1/sends/{sendId}/cancel`) cancels a scheduled or queued
@@ -134,6 +166,13 @@ export type BrewClient = {
    */
   readonly sends: SendsResource
   readonly templates: TemplatesResource
+  /**
+   * Reusable transactional email objects (`txn_…`).
+   * `transactional.get(transactionId)` reads the locked config plus the
+   * template's Liquid data contract (`variableTree`, `examplePayload`);
+   * fire with `emails.send({ transactionId, to, payload })`.
+   */
+  readonly transactional: TransactionalResource
   /** `GET /v1/usage` — plan, credit balance, and email-send quota. */
   readonly usage: UsageResource
 }
@@ -200,6 +239,7 @@ function buildClient(
     },
     brands: createBrandsResource(organizationHttpClient),
     analytics: createAnalyticsResource(httpClient),
+    apiKeys: createApiKeysResource(organizationHttpClient),
     audiences: createAudiencesResource(httpClient),
     automations: createAutomationsResource(httpClient),
     brand: createBrandResource(httpClient),
@@ -207,12 +247,15 @@ function buildClient(
     contacts: createContactsResource(httpClient),
     content: createContentResource(httpClient),
     domains: createDomainsResource(httpClient),
+    emailGroups: createEmailGroupsResource(httpClient),
     emails: createEmailsResource(httpClient),
     fields: createFieldsResource(httpClient),
     health: createHealthResource(organizationHttpClient),
     help: createHelpResource(organizationHttpClient),
+    integrations: createIntegrationsResource(httpClient),
     sends: createSendsResource(httpClient),
     templates: createTemplatesResource(organizationHttpClient),
+    transactional: createTransactionalResource(httpClient),
     usage: createUsageResource(organizationHttpClient),
   }
 }
