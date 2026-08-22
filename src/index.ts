@@ -168,6 +168,10 @@ export type {
   PatchTriggerInput,
   PatchTriggerResponse,
 } from './resources/automations/triggers/patch'
+export type {
+  TriggerReadyInput,
+  TriggerReadyResponse,
+} from './resources/automations/triggers/ready'
 // ---------- Nested resource shapes ----------
 export type { TriggersResource } from './resources/automations/triggers/resource'
 // ---------- Automations › triggers: domain types ----------

@@ -5,6 +5,7 @@ import { createDeleteTrigger } from './delete'
 import { createFireTrigger } from './fire'
 import { createListTriggers } from './list'
 import { createPatchTrigger } from './patch'
+import { createTriggerReady } from './ready'
 
 export type TriggersResource = {
   /** `GET /v1/automations/triggers` — the single triggers read. List all (omit `triggerEventId`), or fetch one (`triggerEventId` → single-row page) (scope: `automations`). */
@@ -13,6 +14,8 @@ export type TriggersResource = {
   readonly create: ReturnType<typeof createCreateTrigger>
   /** `POST /v1/automations/triggers/{triggerEventId}/fire` — fire a trigger; starts one run per published automation attached to it (scope: `automations`). */
   readonly fire: ReturnType<typeof createFireTrigger>
+  /** `GET /v1/automations/triggers/{triggerEventId}/fire` — preflight WITHOUT firing: credential verdict + payload contract + what a fire would start (scope: `automations`). */
+  readonly ready: ReturnType<typeof createTriggerReady>
   /**
    * `PATCH /v1/automations/triggers/{triggerEventId}` — update trigger
    * metadata (title, description, payloadSchema). Trigger rows have no
@@ -30,6 +33,7 @@ export function createTriggersResource(client: HttpClient): TriggersResource {
     list: createListTriggers(client),
     create: createCreateTrigger(client),
     fire: createFireTrigger(client),
+    ready: createTriggerReady(client),
     patch: createPatchTrigger(client),
     delete: createDeleteTrigger(client),
   }
