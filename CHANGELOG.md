@@ -2,6 +2,45 @@
 
 ## Unreleased
 
+### Added — typed nested payloads for transactional and test sends
+
+The spec resync brings the recursive payload contract into the generated
+types. `payload` on `emails.send` is now `TransactionalPayload`
+(exported, along with `TransactionalPayloadValue`): scalars, null, and
+arbitrarily nested arrays/objects, instead of a flat record. Scalar keys
+resolve `{{ tag | fallback }}` merge tags; the full tree renders through
+Liquid as `trigger.*` on Liquid-enabled workspaces, and a nested payload
+sent to a workspace without Liquid is rejected with `400
+INVALID_REQUEST` — on live fires and `test: true` sends alike.
+
+Type generation moved from the raw `openapi-typescript` CLI to
+`scripts/generate-types.mjs`, which emits the recursive union as a
+standalone type alias (the inline interface-member form trips TS2502).
+Same flags otherwise; `bun run generate:types` is unchanged.
+
+### Added — `brew.transactional.get`
+
+`GET /v1/transactional/{transactionId}` returns the object's locked
+config plus its data contract: `variableTree` (every `trigger.*` /
+`customer.*` path the pinned template references) and `examplePayload`,
+a payload you can fire verbatim:
+
+```ts
+const txn = await brew.transactional.get('txn_8fK2mQ4pLx')
+await brew.emails.send({
+  transactionId: txn.transactionId,
+  to: 'customer@acme.com',
+  payload: txn.examplePayload,
+})
+```
+
+### Added — `brew.emailGroups`, `brew.integrations`, `brew.apiKeys`
+
+Surface parity with the current spec: email-group CRUD
+(`list`/`create`/`update`/`delete`), the connected-integrations list,
+and API key management (`list`/`create`/`revoke` — `create` returns the
+plaintext secret exactly once; listing only ever shows `keyPreview`).
+
 ### Added — `brew.emails.previewClients`
 
 `POST /v1/emails/{emailId}/client-previews` renders a design's latest

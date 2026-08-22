@@ -4,12 +4,21 @@ import type { BrewRawResponse, RequestOptions } from '../../types'
 
 /**
  * Body for `POST /v1/sends` — the single, polymorphic send endpoint.
- * It is a union discriminated by `test`:
+ * It is a union discriminated by `test` / `transactionId`:
  *
  * - `{ test: true, emailId, subject, to, ... }` — a one-off TEST
  *   delivery to a single address. No verified domain or audience
  *   required; never creates a send row. Resolves synchronously (HTTP
- *   200) with `{ status: 'sent', recipient }`.
+ *   200) with `{ status: 'sent', recipient }`. Takes `variables`
+ *   (merge-tag example values) and `payload` — the same template data
+ *   a live transactional fire takes, with live-fire semantics.
+ * - `{ transactionId, to, payload?, strict? }` — fire a reusable
+ *   transactional object. Domain and design are locked on the object;
+ *   `payload` is nested JSON exposed to Liquid templates as
+ *   `trigger.*` (scalar keys also resolve `{{ tag | fallback }}` merge
+ *   tags). Nested values on a workspace without Liquid are rejected
+ *   with `400 INVALID_REQUEST`. Discover the expected shape via
+ *   `transactional.get(transactionId)` → `examplePayload`.
  * - `{ emailId, subject, domainId, audienceId | to, ... }` — a real
  *   campaign send. Provide a recipient target (`audienceId` or inline
  *   `to`) and the verified `domainId` to send from. Accepted for
