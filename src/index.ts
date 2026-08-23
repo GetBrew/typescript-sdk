@@ -363,6 +363,26 @@ export type { TemplatesResource } from './resources/templates/resource'
 // ACTION lives on `emails` (`emails.send` — campaign | test), so its
 // request + response shapes are exported from the `emails` block below.
 export type { Template } from './resources/templates/types'
+export type {
+  ContractFormat,
+  GetTriggerContractInput,
+  PayloadContractField,
+  PayloadContractGetResponse,
+  PayloadContractPutRequest,
+  PayloadContractValidateResponse,
+  PutTriggerContractInput,
+  ValidateTriggerPayloadInput,
+} from './resources/automations/triggers/contract'
+export type {
+  InferPayloadContractInput,
+  PayloadContractInferResponse,
+} from './resources/payload-contracts/infer'
+export type { PayloadContractsResource } from './resources/payload-contracts/resource'
+export type {
+  GetTransactionalContractInput,
+  PutTransactionalContractInput,
+  ValidateTransactionalPayloadInput,
+} from './resources/transactional/contract'
 export type { TransactionalResource } from './resources/transactional/resource'
 export type * from './resources/transactional/types'
 export type { UsageResource } from './resources/usage/resource'

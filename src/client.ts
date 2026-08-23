@@ -65,6 +65,10 @@ import {
   type IntegrationsResource,
 } from './resources/integrations/resource'
 import {
+  createPayloadContractsResource,
+  type PayloadContractsResource,
+} from './resources/payload-contracts/resource'
+import {
   createSendsResource,
   type SendsResource,
 } from './resources/sends/resource'
@@ -173,6 +177,13 @@ export type BrewClient = {
    * fire with `emails.send({ transactionId, to, payload })`.
    */
   readonly transactional: TransactionalResource
+  /**
+   * Cross-plane payload-contract helpers.
+   * `payloadContracts.infer(example)` drafts an unsaved contract from a
+   * real example payload; declare it with
+   * `automations.triggers.putContract` / `transactional.putContract`.
+   */
+  readonly payloadContracts: PayloadContractsResource
   /** `GET /v1/usage` — plan, credit balance, and email-send quota. */
   readonly usage: UsageResource
 }
@@ -256,6 +267,7 @@ function buildClient(
     sends: createSendsResource(httpClient),
     templates: createTemplatesResource(organizationHttpClient),
     transactional: createTransactionalResource(httpClient),
+    payloadContracts: createPayloadContractsResource(httpClient),
     usage: createUsageResource(organizationHttpClient),
   }
 }
