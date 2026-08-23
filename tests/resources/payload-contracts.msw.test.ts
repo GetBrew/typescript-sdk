@@ -2,6 +2,7 @@ import { HttpResponse, http } from 'msw'
 import { describe, expect, it } from 'vitest'
 
 import { createTriggersResource } from '../../src/resources/automations/triggers/resource'
+import { createSendEmail } from '../../src/resources/emails/send'
 import { createPayloadContractsResource } from '../../src/resources/payload-contracts/resource'
 import { createTransactionalResource } from '../../src/resources/transactional/resource'
 import { makeTestHttpClient } from '../helpers/http-client'
@@ -133,6 +134,52 @@ describe('payload contract methods', () => {
     const body = await transactional.getContract({ transactionId: 'txn_1' })
     expect(body.subjectKind).toBe('transactional')
     expect(body.source).toBe('derived_from_template')
+  })
+
+  it('putContract carries the enforcement opt-in (C-wave wire)', async () => {
+    let sent: unknown
+    server.use(
+      http.put(
+        'https://brew.new/api/v1/automations/triggers/tri_signup/contract',
+        async ({ request }) => {
+          sent = await request.json()
+          return HttpResponse.json({
+            ...STORED_CONTRACT,
+            enforced: true,
+            enforcement: 'strict',
+          })
+        }
+      )
+    )
+    const { client } = makeTestHttpClient()
+    const triggers = createTriggersResource(client)
+    const body = await triggers.putContract({
+      triggerEventId: 'tri_signup',
+      fields: [{ key: 'email', type: 'string', required: true }],
+      enforced: true,
+      enforcement: 'strict',
+    })
+    expect(sent).toMatchObject({ enforced: true, enforcement: 'strict' })
+    expect(body.enforced).toBe(true)
+  })
+
+  it('emails.send accepts the expectedContractHash pin (C-wave wire)', async () => {
+    let sent: unknown
+    server.use(
+      http.post('https://brew.new/api/v1/sends', async ({ request }) => {
+        sent = await request.json()
+        return HttpResponse.json({ status: 'queued', sendId: 'snd_1' })
+      })
+    )
+    const { client } = makeTestHttpClient()
+    const send = createSendEmail(client)
+    await send({
+      transactionId: 'txn_1',
+      to: 'jane@example.com',
+      payload: { total: 9.5 },
+      expectedContractHash: 'a'.repeat(64),
+    })
+    expect(sent).toMatchObject({ expectedContractHash: 'a'.repeat(64) })
   })
 
   it('payloadContracts.infer posts the example and returns the draft', async () => {
