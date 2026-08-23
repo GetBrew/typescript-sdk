@@ -43,8 +43,18 @@ type WithTypedPayload<T, TPayload> = T extends { payload?: unknown }
   ? Omit<T, 'payload'> & { payload?: TPayload }
   : T
 
+/**
+ * Un-pinned calls keep the exact wire value type (JSON-serializable only)
+ * — the generic default must not loosen what the pre-generic input
+ * rejected (functions, undefined values silently dropped by
+ * JSON.stringify).
+ */
+type DefaultSendPayload = {
+  [key: string]: components['schemas']['TransactionalPayloadValue']
+}
+
 export type SendEmailInput<
-  TPayload extends Record<string, unknown> = Record<string, unknown>,
+  TPayload extends Record<string, unknown> = DefaultSendPayload,
 > = WithTypedPayload<components['schemas']['SendEmailRequest'], TPayload>
 
 /** 200 result of a TEST send (`test: true`). */
@@ -89,13 +99,13 @@ export type SendEmailStatus = SendEmailResponse['status']
  */
 export function createSendEmail(client: HttpClient) {
   function sendEmail<
-    TPayload extends Record<string, unknown> = Record<string, unknown>,
+    TPayload extends Record<string, unknown> = DefaultSendPayload,
   >(
     input: SendEmailInput<TPayload>,
     options: RequestOptions & { readonly raw: true }
   ): Promise<BrewRawResponse<SendEmailResponse>>
   function sendEmail<
-    TPayload extends Record<string, unknown> = Record<string, unknown>,
+    TPayload extends Record<string, unknown> = DefaultSendPayload,
   >(
     input: SendEmailInput<TPayload>,
     options?: RequestOptions
