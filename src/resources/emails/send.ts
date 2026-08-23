@@ -24,7 +24,38 @@ import type { BrewRawResponse, RequestOptions } from '../../types'
  *   `to`) and the verified `domainId` to send from. Accepted for
  *   queueing / scheduling (HTTP 202) with `{ status, sendId, runId }`.
  */
-export type SendEmailInput = components['schemas']['SendEmailRequest']
+/**
+ * Distributes over the request union: variants that carry a `payload`
+ * (test sends, transactional fires) get the typed payload; the rest are
+ * untouched. Pin a transactional contract type (hand-written or from
+ * `brew-cli types`):
+ *
+ * ```ts
+ * import type { TxnReceiptPayload } from './brew-contracts'
+ * await brew.emails.send<TxnReceiptPayload>({
+ *   transactionId: 'txn_receipt',
+ *   to: 'a@b.co',
+ *   payload: { total: 42 }, // type-checked against the contract
+ * })
+ * ```
+ */
+type WithTypedPayload<T, TPayload> = T extends { payload?: unknown }
+  ? Omit<T, 'payload'> & { payload?: TPayload }
+  : T
+
+/**
+ * Un-pinned calls keep the exact wire value type (JSON-serializable only)
+ * — the generic default must not loosen what the pre-generic input
+ * rejected (functions, undefined values silently dropped by
+ * JSON.stringify).
+ */
+type DefaultSendPayload = {
+  [key: string]: components['schemas']['TransactionalPayloadValue']
+}
+
+export type SendEmailInput<
+  TPayload extends Record<string, unknown> = DefaultSendPayload,
+> = WithTypedPayload<components['schemas']['SendEmailRequest'], TPayload>
 
 /** 200 result of a TEST send (`test: true`). */
 export type SendEmailTestResponse =
@@ -67,12 +98,16 @@ export type SendEmailStatus = SendEmailResponse['status']
  * payload.
  */
 export function createSendEmail(client: HttpClient) {
-  function sendEmail(
-    input: SendEmailInput,
+  function sendEmail<
+    TPayload extends Record<string, unknown> = DefaultSendPayload,
+  >(
+    input: SendEmailInput<TPayload>,
     options: RequestOptions & { readonly raw: true }
   ): Promise<BrewRawResponse<SendEmailResponse>>
-  function sendEmail(
-    input: SendEmailInput,
+  function sendEmail<
+    TPayload extends Record<string, unknown> = DefaultSendPayload,
+  >(
+    input: SendEmailInput<TPayload>,
     options?: RequestOptions
   ): Promise<SendEmailResponse>
   async function sendEmail(
