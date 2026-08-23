@@ -19,7 +19,7 @@ export type TransactionalResource = {
   /** `PUT /v1/transactional/{transactionId}/contract` — declare/replace the stored contract (scope: `sends`). */
   readonly putContract: ReturnType<typeof createPutTransactionalContract>
   /** `POST /v1/transactional/{transactionId}/contract/validate` — dry-run a send payload; never sends (scope: `sends`). */
-  readonly validateContract: ReturnType<
+  readonly validatePayload: ReturnType<
     typeof createValidateTransactionalPayload
   >
 }
@@ -31,6 +31,6 @@ export function createTransactionalResource(
     get: createGetTransactionalEmail(client),
     getContract: createGetTransactionalContract(client),
     putContract: createPutTransactionalContract(client),
-    validateContract: createValidateTransactionalPayload(client),
+    validatePayload: createValidateTransactionalPayload(client),
   }
 }

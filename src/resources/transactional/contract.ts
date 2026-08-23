@@ -32,7 +32,7 @@ export type ValidateTransactionalPayloadInput = {
   transactionId: string
   payload: Record<string, unknown>
   /** Preview a different mode than the stored one. */
-  enforcement?: 'strict' | 'prune' | 'passthrough'
+  enforcement?: 'prune' | 'strict'
 }
 
 /**
@@ -106,15 +106,15 @@ export function createPutTransactionalContract(client: HttpClient) {
  * Nothing sends; an invalid payload resolves with `valid: false`.
  */
 export function createValidateTransactionalPayload(client: HttpClient) {
-  function validateContract(
+  function validatePayload(
     input: ValidateTransactionalPayloadInput,
     options: RequestOptions & { readonly raw: true }
   ): Promise<BrewRawResponse<PayloadContractValidateResponse>>
-  function validateContract(
+  function validatePayload(
     input: ValidateTransactionalPayloadInput,
     options?: RequestOptions
   ): Promise<PayloadContractValidateResponse>
-  async function validateContract(
+  async function validatePayload(
     input: ValidateTransactionalPayloadInput,
     options?: RequestOptions
   ): Promise<
@@ -130,5 +130,5 @@ export function createValidateTransactionalPayload(client: HttpClient) {
     })
     return unwrapResponse(response, options)
   }
-  return validateContract
+  return validatePayload
 }

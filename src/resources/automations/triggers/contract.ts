@@ -5,8 +5,10 @@ import type { BrewRawResponse, RequestOptions } from '../../../types'
 /**
  * Stored payload contracts for the trigger plane (Wave 2). `getContract`
  * returns the stored contract when one is declared and the derived one
- * otherwise (`source` discriminates); `putContract` declares/replaces;
- * `validateContract` dry-runs a payload through the SAME validator the
+ * otherwise (`source` discriminates); `putContract` declares it or changes how it is enforced —
+ * both of its body fields are optional, so arming a contract is a
+ * one-field patch;
+ * `validatePayload` dry-runs a payload through the SAME validator the
  * fire path uses — an invalid payload resolves (not throws) with
  * `valid: false`.
  */
@@ -36,7 +38,7 @@ export type ValidateTriggerPayloadInput = {
   triggerEventId: string
   payload: Record<string, unknown>
   /** Preview a different mode than the stored one. */
-  enforcement?: 'strict' | 'prune' | 'passthrough'
+  enforcement?: 'prune' | 'strict'
 }
 
 /**
@@ -117,15 +119,15 @@ export function createPutTriggerContract(client: HttpClient) {
  * fallback-resolved `resolvedPayload`, and `prunedKeys`.
  */
 export function createValidateTriggerPayload(client: HttpClient) {
-  function validateContract(
+  function validatePayload(
     input: ValidateTriggerPayloadInput,
     options: RequestOptions & { readonly raw: true }
   ): Promise<BrewRawResponse<PayloadContractValidateResponse>>
-  function validateContract(
+  function validatePayload(
     input: ValidateTriggerPayloadInput,
     options?: RequestOptions
   ): Promise<PayloadContractValidateResponse>
-  async function validateContract(
+  async function validatePayload(
     input: ValidateTriggerPayloadInput,
     options?: RequestOptions
   ): Promise<
@@ -141,5 +143,5 @@ export function createValidateTriggerPayload(client: HttpClient) {
     })
     return unwrapResponse(response, options)
   }
-  return validateContract
+  return validatePayload
 }

@@ -15,7 +15,6 @@ const STORED_CONTRACT = {
   typeName: 'UserSignedUpPayload',
   contractHash: 'a'.repeat(64),
   version: 2,
-  mode: 'declared',
   enforcement: 'prune',
   enforced: false,
   fields: [
@@ -73,18 +72,16 @@ describe('payload contract methods', () => {
     const body = await triggers.putContract({
       triggerEventId: 'tri_signup',
       fields: [{ key: 'email', type: 'string', required: true }],
-      mode: 'declared',
     })
     // The path id never leaks into the body.
     expect(sent).toEqual({
       fields: [{ key: 'email', type: 'string', required: true }],
-      mode: 'declared',
     })
     expect(body.version).toBe(2)
     expect(body.contractHash).toBe('a'.repeat(64))
   })
 
-  it('validateContract resolves (not throws) on an invalid payload', async () => {
+  it('validatePayload resolves (not throws) on an invalid payload', async () => {
     server.use(
       http.post(
         'https://brew.new/api/v1/automations/triggers/tri_signup/contract/validate',
@@ -108,7 +105,7 @@ describe('payload contract methods', () => {
     )
     const { client } = makeTestHttpClient()
     const triggers = createTriggersResource(client)
-    const verdict = await triggers.validateContract({
+    const verdict = await triggers.validatePayload({
       triggerEventId: 'tri_signup',
       payload: { coupon: 'X' },
       enforcement: 'strict',
@@ -136,7 +133,7 @@ describe('payload contract methods', () => {
     expect(body.source).toBe('derived_from_template')
   })
 
-  it('putContract carries the enforcement opt-in (C-wave wire)', async () => {
+  it('putContract arms a contract without re-sending the tree', async () => {
     let sent: unknown
     server.use(
       http.put(
@@ -145,7 +142,6 @@ describe('payload contract methods', () => {
           sent = await request.json()
           return HttpResponse.json({
             ...STORED_CONTRACT,
-            enforced: true,
             enforcement: 'strict',
           })
         }
@@ -155,12 +151,11 @@ describe('payload contract methods', () => {
     const triggers = createTriggersResource(client)
     const body = await triggers.putContract({
       triggerEventId: 'tri_signup',
-      fields: [{ key: 'email', type: 'string', required: true }],
-      enforced: true,
       enforcement: 'strict',
     })
-    expect(sent).toMatchObject({ enforced: true, enforcement: 'strict' })
-    expect(body.enforced).toBe(true)
+    // No `fields` — arming a contract is a one-field patch.
+    expect(sent).toEqual({ enforcement: 'strict' })
+    expect(body.enforcement).toBe('strict')
   })
 
   it('emails.send accepts the expectedContractHash pin (C-wave wire)', async () => {

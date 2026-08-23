@@ -36,7 +36,7 @@ export type TriggersResource = {
   /** `PUT /v1/automations/triggers/{triggerEventId}/contract` — declare/replace the stored contract (tree-walked before any write; enforcement stays off) (scope: `automations`). */
   readonly putContract: ReturnType<typeof createPutTriggerContract>
   /** `POST /v1/automations/triggers/{triggerEventId}/contract/validate` — dry-run a payload through the fire path's validator; never fires (scope: `automations`). */
-  readonly validateContract: ReturnType<typeof createValidateTriggerPayload>
+  readonly validatePayload: ReturnType<typeof createValidateTriggerPayload>
 }
 
 export function createTriggersResource(client: HttpClient): TriggersResource {
@@ -49,6 +49,6 @@ export function createTriggersResource(client: HttpClient): TriggersResource {
     delete: createDeleteTrigger(client),
     getContract: createGetTriggerContract(client),
     putContract: createPutTriggerContract(client),
-    validateContract: createValidateTriggerPayload(client),
+    validatePayload: createValidateTriggerPayload(client),
   }
 }
