@@ -53,13 +53,12 @@ describe('typed payload generics', () => {
       payload: { email: 'jane@example.com', seats: 3 },
     })
 
-    const missingRequired: Parameters<
-      typeof triggers.fire<SignupPayload>
-    >[0] = {
-      triggerEventId: 'tri_signup',
-      // @ts-expect-error — `email` is required by the pinned contract.
-      payload: { seats: 3 },
-    }
+    const missingRequired: Parameters<typeof triggers.fire<SignupPayload>>[0] =
+      {
+        triggerEventId: 'tri_signup',
+        // @ts-expect-error — `email` is required by the pinned contract.
+        payload: { seats: 3 },
+      }
     expect(missingRequired).toBeDefined()
   })
 
