@@ -18,6 +18,7 @@ Detail mode = pass the id key → a single-row page `{ data: [row] }`, no
 | [`generate`](#generate)             | `POST /v1/emails`                           | `emails` |
 | [`import`](#import)                 | `POST /v1/emails/import`                    | `emails` |
 | [`edit`](#edit)                     | `PATCH /v1/emails/{emailId}`                | `emails` |
+| [`auditEmail`](#auditemail)         | `POST /v1/emails/audit`                     | `emails` |
 | [`previewClients`](#previewclients) | `POST /v1/emails/{emailId}/client-previews` | `emails` |
 | [`send`](#send)                     | `POST /v1/sends`                            | `sends`  |
 
@@ -293,6 +294,57 @@ await brew.emails.edit(
 | 409    | `EMAIL_IN_PROGRESS`    | The target email is currently being generated. Retry shortly                                                               |
 | 409    | `IDEMPOTENCY_CONFLICT` | Reused `Idempotency-Key` with a different request body                                                                     |
 | 422    | `BRAND_NOT_READY`      | The brand bound to the API key has not finished extraction                                                                 |
+
+---
+
+## `auditEmail`
+
+Lint the exact HTML and inbox copy that you plan to send. The audit checks
+unsubscribe content, links, images, loaded size, accessibility, compatibility,
+markup, subject copy, and preview copy in parallel.
+
+```ts
+type AuditEmailInput = {
+  readonly emailHtml: string
+  readonly subject?: string
+  readonly previewText?: string
+  readonly sendingPurpose?: 'marketing' | 'transactional'
+}
+
+auditEmail(
+  input: AuditEmailInput,
+  options?: RequestOptions
+): Promise<EmailAuditResponse>
+```
+
+Branch on `completion.status`. A complete result has a numeric score and costs
+5 credits. A partial result has `score: null`, costs 0 credits, and does not
+establish readiness.
+
+```ts
+const audit = await brew.emails.auditEmail({
+  emailHtml,
+  subject: 'Your August account update',
+  previewText: 'A quick look at what changed this month.',
+  sendingPurpose: 'marketing',
+})
+
+if (audit.completion.status === 'complete') {
+  console.log(audit.completion.readiness, audit.completion.score)
+} else {
+  console.log('Audit incomplete. Retry before claiming readiness.')
+}
+```
+
+The endpoint can run for up to 50 seconds. The SDK uses
+`AUDIT_EMAIL_DEFAULT_TIMEOUT_MS`, which is 65 seconds, unless the caller sets
+`RequestOptions.timeoutMs` or `RequestOptions.signal`. Pass `{ raw: true }` to
+read `X-Credit-Cost`.
+
+Audit admission is 6 calls per minute per credential or session and 20 calls
+per minute per organization. Brew runs at most 4 audits concurrently per
+organization and 16 globally. A capacity rejection returns `429 RATE_LIMITED`
+with `Retry-After` and does not run or charge the audit.
 
 ---
 
