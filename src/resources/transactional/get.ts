@@ -9,16 +9,16 @@ export type { TransactionalEmail }
  * `GET /v1/transactional/{transactionId}` — read a reusable transactional
  * email object (scope: `sends`).
  *
- * Returns the locked configuration (design pin, domain, envelope,
- * `templating.engine`) plus, on Liquid-enabled workspaces, the template's
- * data contract:
+ * Returns the locked configuration (design pin, domain, envelope) plus the
+ * template's data contract:
  * - `variableTree` — every variable path the pinned template references
  *   (`trigger.*` from your payload, `customer.*` from the contact), with
  *   array/object shape and declared fallbacks.
  * - `examplePayload` — a payload that satisfies the template, nested
  *   arrays/objects included. Fire it verbatim with
  *   `emails.send({ transactionId, to, payload: examplePayload })`.
- * - `templating` — the workspace's engine (`legacy` | `liquid`).
+ * - `templating` — whether the pinned template parses, with positioned
+ *   errors when it does not.
  *
  * Use this before building a `payload` so the shape comes from the
  * template rather than guesswork; the tree is recomputed from the pinned
