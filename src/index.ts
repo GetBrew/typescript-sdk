@@ -283,6 +283,12 @@ export type {
 export type { EmailGroupsResource } from './resources/email-groups/resource'
 export type * from './resources/email-groups/types'
 export type {
+  AuditEmailInput,
+  EmailAuditRequest,
+  EmailAuditResponse,
+} from './resources/emails/audit'
+export { AUDIT_EMAIL_DEFAULT_TIMEOUT_MS } from './resources/emails/audit'
+export type {
   EmailClientPreviewResponse,
   PreviewEmailClientsInput,
 } from './resources/emails/client-previews'

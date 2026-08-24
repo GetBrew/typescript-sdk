@@ -1,6 +1,6 @@
 import type { HttpClient } from '../../core/http'
 
-import { createAuditEmailAccessibility } from './accessibility-audit'
+import { createAuditEmail } from './audit'
 import { createPreviewEmailClients } from './client-previews'
 import { createCloneEmail } from './clone'
 import { createDeleteEmail } from './delete'
@@ -34,8 +34,8 @@ export type EmailsResource = {
   readonly restore: ReturnType<typeof createRestoreEmail>
   /** `DELETE /v1/emails/{emailId}` — idempotent hard-delete of all versions (scope: `emails`). */
   readonly delete: ReturnType<typeof createDeleteEmail>
-  /** `POST /v1/emails/{emailId}/accessibility-audit` — WCAG 2.1 audit (`score`, `summary`, `issues`); fixed credit cost, billed only on success (scope: `emails`). */
-  readonly auditAccessibility: ReturnType<typeof createAuditEmailAccessibility>
+  /** `POST /v1/emails/audit` — lint raw content for production readiness; complete results cost 5 credits and partial results cost 0 (scope: `emails`). */
+  readonly auditEmail: ReturnType<typeof createAuditEmail>
   /** `POST /v1/emails/{emailId}/client-previews` — render the design in real inboxes/devices (Gmail, Outlook, Apple Mail, iOS — light & dark) → a screenshot per client; fixed 10 credits, billed only when ≥1 renders (scope: `emails`). */
   readonly previewClients: ReturnType<typeof createPreviewEmailClients>
   /** `POST /v1/emails/{emailId}/inbox-placement-tests` — seed-list test of where the design LANDS (inbox vs spam vs missing) across real providers; returns `202` with `status: 'collecting'`, fixed 10 credits (scope: `emails`). */
@@ -62,7 +62,7 @@ export function createEmailsResource(client: HttpClient): EmailsResource {
     edit: createEditEmail(client),
     restore: createRestoreEmail(client),
     delete: createDeleteEmail(client),
-    auditAccessibility: createAuditEmailAccessibility(client),
+    auditEmail: createAuditEmail(client),
     previewClients: createPreviewEmailClients(client),
     createInboxPlacementTest: createCreateInboxPlacementTest(client),
     getInboxPlacementResults: createGetInboxPlacementResults(client),

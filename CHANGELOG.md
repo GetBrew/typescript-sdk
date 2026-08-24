@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### Breaking: unified email audit
+
+`brew.emails.auditEmail({ emailHtml, subject?, previewText?, sendingPurpose? })`
+replaces the saved-design accessibility method. It calls
+`POST /v1/emails/audit` with raw content and returns the versioned
+`EmailAuditResponse` union. Complete results have a numeric score and cost 5
+credits. Partial results have `score: null`, cost 0 credits, and can be retried
+with the same idempotency key. `rulesetVersion` remains forward-compatible as
+a string, and aggregated findings can include `occurrenceCount`. Ruleset
+`2026-08-23.4` adds explicit response bounds for check IDs, findings, sources,
+standards references, selectors, and display URLs. Audit admission is 6 calls
+per minute per credential or session and 20 calls per minute per organization,
+with at most 4 concurrent audits per organization and 16 globally.
+
 ### Added — typed nested payloads for transactional and test sends
 
 The spec resync brings the recursive payload contract into the generated
@@ -287,7 +301,7 @@ brew.contacts.importCsv({ csv, mapping? })       // POST /v1/contacts/import-csv
 brew.contacts.search(input) / searchAll(input)   // POST /v1/contacts/search (filtering moved off list)
 // Emails
 brew.emails.preview({ emailId, device? })        // POST /v1/emails/{id}/preview (credit-metered)
-brew.emails.auditAccessibility({ emailId })      // GET /v1/emails/{id}/accessibility-audit (free)
+brew.emails.auditEmail({ emailHtml })            // POST /v1/emails/audit (5 credits complete, 0 partial)
 // Audiences / triggers / automations
 brew.audiences.getCount({ audienceId })          // GET /v1/audiences/{id}/count
 brew.triggers.fire({ triggerEventId, payload })  // POST /v1/triggers/{id}/fire
