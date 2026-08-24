@@ -11,7 +11,7 @@ replaces the saved-design accessibility method. It calls
 credits. Partial results have `score: null`, cost 0 credits, and can be retried
 with the same idempotency key. `rulesetVersion` remains forward-compatible as
 a string, and aggregated findings can include `occurrenceCount`. Ruleset
-`2026-08-23.4` adds explicit response bounds for check IDs, findings, sources,
+`2026-08-24.1` adds explicit response bounds for check IDs, findings, sources,
 standards references, selectors, and display URLs. Audit admission is 6 calls
 per minute per credential or session and 20 calls per minute per organization,
 with at most 4 concurrent audits per organization and 16 globally.

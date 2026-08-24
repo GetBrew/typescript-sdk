@@ -11,7 +11,7 @@ import { server } from '../../msw/server'
 
 const COMPLETE_AUDIT = {
   schemaVersion: 1,
-  rulesetVersion: '2026-08-23.4',
+  rulesetVersion: '2026-08-24.1',
   auditId: '00000000-0000-4000-8000-000000000001',
   contentHash:
     'sha256:0000000000000000000000000000000000000000000000000000000000000000',
