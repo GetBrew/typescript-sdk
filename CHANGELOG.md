@@ -1,6 +1,13 @@
 # Changelog
 
-## Unreleased
+## 8.1.1
+
+### Fixed — analytics recipient filters reach the API
+
+`brew.analytics.overview({ recipient })` now serializes the recipient filter
+into the request query instead of silently dropping it. This release also
+includes the unified email-audit and API-surface additions prepared for 8.1.0;
+the 8.1.0 package was never published.
 
 ### Breaking: unified email audit
 

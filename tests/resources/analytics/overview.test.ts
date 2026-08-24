@@ -32,12 +32,16 @@ describe('analytics.overview', () => {
       automationId: 'auto_1,auto_2',
       source: 'api,automation_manual',
       domain: 'send.example.com',
+      recipient: 'reader@example.com,!blocked.example',
     })
 
     const url = new URL(captured!.url)
     expect(url.searchParams.get('automationId')).toBe('auto_1,auto_2')
     expect(url.searchParams.get('source')).toBe('api,automation_manual')
     expect(url.searchParams.get('domain')).toBe('send.example.com')
+    expect(url.searchParams.get('recipient')).toBe(
+      'reader@example.com,!blocked.example'
+    )
     expect(result.truncated).toBe(false)
   })
 })
