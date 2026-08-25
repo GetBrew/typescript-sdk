@@ -77,10 +77,6 @@ import {
   type TemplatesResource,
 } from './resources/templates/resource'
 import {
-  createTransactionalResource,
-  type TransactionalResource,
-} from './resources/transactional/resource'
-import {
   createUsageResource,
   type UsageResource,
 } from './resources/usage/resource'
@@ -171,17 +167,10 @@ export type BrewClient = {
   readonly sends: SendsResource
   readonly templates: TemplatesResource
   /**
-   * Reusable transactional email objects (`txn_…`).
-   * `transactional.get(transactionId)` reads the locked config plus the
-   * template's Liquid data contract (`variableTree`, `examplePayload`);
-   * fire with `emails.send({ transactionId, to, payload })`.
-   */
-  readonly transactional: TransactionalResource
-  /**
-   * Cross-plane payload-contract helpers.
+   * Payload-contract helpers.
    * `payloadContracts.infer(example)` drafts an unsaved contract from a
    * real example payload; declare it with
-   * `automations.triggers.putContract` / `transactional.putContract`.
+   * `automations.triggers.putContract`.
    */
   readonly payloadContracts: PayloadContractsResource
   /** `GET /v1/usage` — plan, credit balance, and email-send quota. */
@@ -266,7 +255,6 @@ function buildClient(
     integrations: createIntegrationsResource(httpClient),
     sends: createSendsResource(httpClient),
     templates: createTemplatesResource(organizationHttpClient),
-    transactional: createTransactionalResource(httpClient),
     payloadContracts: createPayloadContractsResource(httpClient),
     usage: createUsageResource(organizationHttpClient),
   }

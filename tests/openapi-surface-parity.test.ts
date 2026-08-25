@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { extname, join } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
@@ -15,7 +15,9 @@ function normalizePath(path: string): string {
 function collectTypeScriptFiles(directory: string): Array<string> {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const path = join(directory, entry.name)
-    if (entry.isDirectory()) return collectTypeScriptFiles(path)
+    if (entry.isDirectory()) {
+      return collectTypeScriptFiles(path)
+    }
     return extname(entry.name) === '.ts' ? [path] : []
   })
 }
@@ -68,5 +70,38 @@ describe('OpenAPI to SDK surface parity', () => {
 
     expect(openApiOperations.size).toBeGreaterThan(0)
     expect(missing).toEqual([])
+  })
+
+  it('has no SDK request for a route the spec no longer documents', () => {
+    // The inverse direction: a resource left behind after the platform
+    // deletes its routes (e.g. the retired transactional-email object)
+    // ships methods that can only 404. Any intentionally out-of-spec
+    // path must be listed here with a reason.
+    //
+    // Payload-contract routes: shipped ahead of the platform — the
+    // routes land with sub-agent-orchestrator PRs #1093/#1096/#1098
+    // (Payload Contracts Wave 2). Remove these entries once the spec
+    // refresh after those merges documents them.
+    const KNOWN_UNSPECED: ReadonlySet<string> = new Set([
+      'GET /v1/automations/triggers/{}/contract',
+      'PUT /v1/automations/triggers/{}/contract',
+      'POST /v1/automations/triggers/{}/contract/validate',
+      'POST /v1/payload-contracts/infer',
+    ])
+    const openApiOperations = readOpenApiOperations()
+    const phantom = [...readSdkOperations()].filter(
+      (operation) =>
+        !(openApiOperations.has(operation) || KNOWN_UNSPECED.has(operation))
+    )
+
+    expect(phantom).toEqual([])
+
+    // Staleness guard: the moment the spec documents a listed route, its
+    // entry must be deleted so the allowlist can never mask a real
+    // phantom.
+    const stale = [...KNOWN_UNSPECED].filter((operation) =>
+      openApiOperations.has(operation)
+    )
+    expect(stale).toEqual([])
   })
 })

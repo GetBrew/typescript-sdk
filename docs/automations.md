@@ -15,6 +15,52 @@ scope.
 | `runs.list`                       | `GET /v1/automations/runs`                                   |
 | `audienceRuns.list`               | `GET /v1/automations/audience-runs`                          |
 | `audienceRuns.control`            | `POST /v1/automations/audience-runs/{audienceRunId}/control` |
+| `triggers.list` / `create` / `patch` / `delete` | `/v1/automations/triggers[/{triggerEventId}]`  |
+| [`triggers.fire`](#transactional-email--firing-triggers) | `POST /v1/automations/triggers/{triggerEventId}/fire` |
+| `triggers.ready`                  | `GET /v1/automations/triggers/{triggerEventId}/fire`         |
+| `triggers.getContract` / `putContract` / `validatePayload` | `/v1/automations/triggers/{triggerEventId}/contract[…]` |
+
+## Transactional email — firing triggers
+
+There is no separate transactional email object. A transactional email
+(receipt, password reset, order confirmation, …) is an automation with a
+trigger whose `sendEmail` node sends from a domain with
+`sendingPurpose: 'transactional'` — that domain choice removes the
+unsubscribe requirement and delivers to unsubscribed contacts. Set one up
+once (trigger + automation + transactional-purpose `domainId`, then
+publish), and fire it per event:
+
+```ts
+type OrderCompletedPayload = {
+  email: string
+  orderId: string
+  total: number
+  items?: Array<{ sku: string; qty: number }>
+}
+
+const result = await brew.automations.triggers.fire<OrderCompletedPayload>(
+  {
+    triggerEventId: 'tri_8fK2mQ4pLx',
+    payload: {
+      email: 'customer@acme.com',
+      orderId: 'ord_1042',
+      total: 42.5,
+      items: [{ sku: 'HOP-01', qty: 2 }],
+    },
+  },
+  { idempotencyKey: 'ord_1042' }
+)
+
+console.log(result.details?.automationRunIds) // one run per published automation
+```
+
+Payloads support arbitrarily nested JSON; the email reads them as
+`{{ trigger.* }}` variables. Retries with the same `idempotencyKey`
+replay the original run ids instead of firing duplicates. Firing a
+trigger with zero published automations returns `422
+NO_PUBLISHED_AUTOMATION`. Use `triggers.ready` for a no-op pre-flight
+and `triggers.getContract` / `validatePayload` for the typed payload
+contract.
 
 ## Manual-audience runs
 

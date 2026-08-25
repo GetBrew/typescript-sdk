@@ -1,14 +1,13 @@
 import { type HttpClient, unwrapResponse } from '../../core/http'
-import type { components } from '../../generated/openapi-types'
 import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { PayloadContractInferResponseWire } from './wire-types'
 
 export type InferPayloadContractInput = {
   /** A real example payload — the JSON your system sends. */
   example: Record<string, unknown>
 }
 
-export type PayloadContractInferResponse =
-  components['schemas']['PayloadContractInferResponse']
+export type PayloadContractInferResponse = PayloadContractInferResponseWire
 
 /**
  * `POST /v1/payload-contracts/infer` (scope: `automations`) — draft a
@@ -16,7 +15,7 @@ export type PayloadContractInferResponse =
  * automatically, full ISO timestamps become `date`, object/array shapes
  * are walked recursively; un-inferable spots (nulls, empty arrays) are
  * listed in `issues`. Nothing is saved — review the draft, then
- * `putContract` it on a trigger or transactional email.
+ * `putContract` it on a trigger (`automations.triggers.putContract`).
  *
  * Pass `{ raw: true }` in `options` for the full
  * `BrewRawResponse<PayloadContractInferResponse>`.

@@ -2,6 +2,43 @@
 
 ## Unreleased
 
+### Breaking: the transactional email object is removed
+
+The platform deleted the standalone transactional email object — every
+`/v1/transactional*` route is gone, and with it:
+
+- `brew.transactional` (the whole resource: `get`, `getContract`,
+  `putContract`, `validatePayload`) is removed.
+- The `{ transactionId, to, payload }` arm of `brew.emails.send` is
+  removed — `POST /v1/sends` is now a `test: true` / campaign union
+  only, and `txn_` ids no longer exist.
+- The exported `TransactionalPayload` / `TransactionalPayloadValue`
+  types are replaced by the spec's `SendPayloadValue` (same recursive
+  shape, new name).
+- Fire/ready envelopes no longer carry the always-empty
+  `details.publishedTransactionalEmails` / `counts.transactionalEmails`
+  stubs (`counts` is `{ automations }`), and automation `sendEmail`
+  node configs no longer accept a `messageClass` key — sending one is a
+  `400` with a migration hint. The delivery class always derives from
+  the sending domain's `sendingPurpose`.
+
+Transactional email is a trigger-fired automation on a
+transactional-purpose domain: create a trigger + an automation whose
+`sendEmail` node uses a domain with `sendingPurpose: 'transactional'`
+(no unsubscribe link; delivers to unsubscribed contacts), publish it,
+then fire it — with full typed-payload support:
+
+```ts
+await brew.automations.triggers.fire<OrderCompletedPayload>({
+  triggerEventId: 'tri_8fK2mQ4pLx',
+  payload: { orderId: 'ord_1', total: 42.5 },
+})
+```
+
+Typed payload contracts live on triggers:
+`automations.triggers.getContract` / `putContract` / `validatePayload`
+and `payloadContracts.infer`.
+
 ### Breaking: unified email audit
 
 `brew.emails.auditEmail({ emailHtml, subject?, previewText?, sendingPurpose? })`
@@ -16,11 +53,11 @@ standards references, selectors, and display URLs. Audit admission is 6 calls
 per minute per credential or session and 20 calls per minute per organization,
 with at most 4 concurrent audits per organization and 16 globally.
 
-### Added — typed nested payloads for transactional and test sends
+### Added — typed nested payloads for test sends and trigger fires
 
-The spec resync brings the recursive payload contract into the generated
-types. `payload` on `emails.send` is now `TransactionalPayload`
-(exported, along with `TransactionalPayloadValue`): scalars, null, and
+The spec resync brings the recursive payload value into the generated
+types. `payload` on `emails.send` (and `automations.triggers.fire`) is
+typed by the exported `SendPayloadValue`: scalars, null, and
 arbitrarily nested arrays/objects, instead of a flat record. Scalar keys
 resolve `{{ tag | fallback }}` merge tags; the full tree renders through
 Liquid as `trigger.*` on Liquid-enabled workspaces, and a nested payload
@@ -31,22 +68,6 @@ Type generation moved from the raw `openapi-typescript` CLI to
 `scripts/generate-types.mjs`, which emits the recursive union as a
 standalone type alias (the inline interface-member form trips TS2502).
 Same flags otherwise; `bun run generate:types` is unchanged.
-
-### Added — `brew.transactional.get`
-
-`GET /v1/transactional/{transactionId}` returns the object's locked
-config plus its data contract: `variableTree` (every `trigger.*` /
-`customer.*` path the pinned template references) and `examplePayload`,
-a payload you can fire verbatim:
-
-```ts
-const txn = await brew.transactional.get('txn_8fK2mQ4pLx')
-await brew.emails.send({
-  transactionId: txn.transactionId,
-  to: 'customer@acme.com',
-  payload: txn.examplePayload,
-})
-```
 
 ### Added — `brew.emailGroups`, `brew.integrations`, `brew.apiKeys`
 
