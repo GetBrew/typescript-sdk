@@ -4,21 +4,21 @@ Create and manage deterministic automation graphs, run test or manual-audience
 executions, and inspect their lifecycle. All methods require the `automations`
 scope.
 
-| Method                            | HTTP                                                         |
-| --------------------------------- | ------------------------------------------------------------ |
-| `create`                          | `POST /v1/automations`                                       |
-| `list`                            | `GET /v1/automations`                                        |
-| `patch` / `publish` / `unpublish` | `PATCH /v1/automations/{automationId}`                       |
-| `delete`                          | `DELETE /v1/automations/{automationId}`                      |
-| `test`                            | `POST /v1/automations/{automationId}/test`                   |
-| [`run`](#manual-audience-runs)    | `POST /v1/automations/{automationId}/run`                    |
-| `runs.list`                       | `GET /v1/automations/runs`                                   |
-| `audienceRuns.list`               | `GET /v1/automations/audience-runs`                          |
-| `audienceRuns.control`            | `POST /v1/automations/audience-runs/{audienceRunId}/control` |
-| `triggers.list` / `create` / `patch` / `delete` | `/v1/automations/triggers[/{triggerEventId}]`  |
-| [`triggers.fire`](#transactional-email--firing-triggers) | `POST /v1/automations/triggers/{triggerEventId}/fire` |
-| `triggers.ready`                  | `GET /v1/automations/triggers/{triggerEventId}/fire`         |
-| `triggers.getContract` / `putContract` / `validatePayload` | `/v1/automations/triggers/{triggerEventId}/contract[…]` |
+| Method                                                     | HTTP                                                         |
+| ---------------------------------------------------------- | ------------------------------------------------------------ |
+| `create`                                                   | `POST /v1/automations`                                       |
+| `list`                                                     | `GET /v1/automations`                                        |
+| `patch` / `publish` / `unpublish`                          | `PATCH /v1/automations/{automationId}`                       |
+| `delete`                                                   | `DELETE /v1/automations/{automationId}`                      |
+| `test`                                                     | `POST /v1/automations/{automationId}/test`                   |
+| [`run`](#manual-audience-runs)                             | `POST /v1/automations/{automationId}/run`                    |
+| `runs.list`                                                | `GET /v1/automations/runs`                                   |
+| `audienceRuns.list`                                        | `GET /v1/automations/audience-runs`                          |
+| `audienceRuns.control`                                     | `POST /v1/automations/audience-runs/{audienceRunId}/control` |
+| `triggers.list` / `create` / `patch` / `delete`            | `/v1/automations/triggers[/{triggerEventId}]`                |
+| [`triggers.fire`](#transactional-email--firing-triggers)   | `POST /v1/automations/triggers/{triggerEventId}/fire`        |
+| `triggers.ready`                                           | `GET /v1/automations/triggers/{triggerEventId}/fire`         |
+| `triggers.getContract` / `putContract` / `validatePayload` | `/v1/automations/triggers/{triggerEventId}/contract[…]`      |
 
 ## Transactional email — firing triggers
 

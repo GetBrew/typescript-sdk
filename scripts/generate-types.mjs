@@ -13,8 +13,7 @@ import ts from 'typescript'
  * (`--default-non-nullable false`).
  */
 
-const RECURSIVE_PAYLOAD_SCHEMA =
-  '#/components/schemas/SendPayloadValue'
+const RECURSIVE_PAYLOAD_SCHEMA = '#/components/schemas/SendPayloadValue'
 
 const INJECTED_ALIAS = `/**
  * JSON template data for sends and trigger fires (the \`payload\` field):
