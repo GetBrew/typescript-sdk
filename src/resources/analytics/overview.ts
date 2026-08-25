@@ -43,6 +43,7 @@ export function createAnalyticsOverview(client: HttpClient) {
         audienceId: input.audienceId,
         triggerEventId: input.triggerEventId,
         domain: input.domain,
+        recipient: input.recipient,
       },
       ...(options ? { options } : {}),
     })

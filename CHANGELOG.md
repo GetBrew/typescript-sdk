@@ -1,6 +1,28 @@
 # Changelog
 
-## Unreleased
+## 8.1.1
+
+### Fixed — analytics recipient filters reach the API
+
+`brew.analytics.overview({ recipient })` now serializes the recipient filter
+into the request query instead of silently dropping it. This release also
+includes the unified email-audit and API-surface additions prepared for 8.1.0;
+the 8.1.0 package was never published.
+
+### Breaking: unified email audit
+
+`brew.emails.auditEmail({ emailHtml, subject?, previewText?, sendingPurpose? })`
+replaces the saved-design accessibility method. It calls
+`POST /v1/emails/audit` with raw content and returns the versioned
+`EmailAuditResponse` union. Complete results have a numeric score and cost 5
+credits. Partial results have `score: null`, cost 0 credits, and can be retried
+with the same idempotency key. `rulesetVersion` remains forward-compatible as
+a string, and aggregated findings can include `occurrenceCount`. The current
+`2026-08-24.3` ruleset keeps explicit response bounds for check IDs, findings,
+sources, standards references, selectors, and display URLs. Audit admission is
+6 calls per minute per credential or session and 20 calls per minute per
+organization, with at most 4 concurrent audits per organization and 16
+globally.
 
 ### Breaking: the transactional email object is removed
 
