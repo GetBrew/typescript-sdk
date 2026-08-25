@@ -10,9 +10,9 @@ import type {
 /**
  * Stored payload contracts for the trigger plane (Wave 2). `getContract`
  * returns the stored contract when one is declared and the derived one
- * otherwise (`source` discriminates); `putContract` declares it or changes how it is enforced —
- * both of its body fields are optional, so arming a contract is a
- * one-field patch;
+ * otherwise (`source` discriminates); `putContract` declares it or
+ * changes how it is enforced — all three body fields (`fields`, `name`,
+ * `enforcement`) are optional, so arming a contract is a one-field patch;
  * `validatePayload` dry-runs a payload through the SAME validator the
  * fire path uses — an invalid payload resolves (not throws) with
  * `valid: false`.
