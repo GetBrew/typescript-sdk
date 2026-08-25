@@ -1,6 +1,19 @@
-import { unwrapResponse, type HttpClient } from '../../../core/http'
-import type { components } from '../../../generated/openapi-types'
+import { type HttpClient, unwrapResponse } from '../../../core/http'
+import type {
+  components,
+  SendPayloadValue,
+} from '../../../generated/openapi-types'
 import type { BrewRawResponse, RequestOptions } from '../../../types'
+
+/**
+ * Un-pinned fires keep the exact wire value type (JSON-serializable only)
+ * — mirrors `emails.send`'s default so the generic default cannot loosen
+ * what the wire rejects (functions, undefined values silently dropped by
+ * JSON.stringify).
+ */
+type DefaultFirePayload = {
+  [key: string]: SendPayloadValue
+}
 
 /**
  * Body for `automations.triggers.fire()` plus the `triggerEventId` path
@@ -16,7 +29,7 @@ import type { BrewRawResponse, RequestOptions } from '../../../types'
  * ```
  */
 export type FireTriggerInput<
-  TPayload extends Record<string, unknown> = Record<string, unknown>,
+  TPayload extends Record<string, unknown> = DefaultFirePayload,
 > = {
   triggerEventId: string
 } & Omit<components['schemas']['TriggerFireRequest'], 'payload'> & {
@@ -43,13 +56,13 @@ export type FireTriggerResponse = components['schemas']['TriggerFireResponse']
  */
 export function createFireTrigger(client: HttpClient) {
   function fireTrigger<
-    TPayload extends Record<string, unknown> = Record<string, unknown>,
+    TPayload extends Record<string, unknown> = DefaultFirePayload,
   >(
     input: FireTriggerInput<TPayload>,
     options: RequestOptions & { readonly raw: true }
   ): Promise<BrewRawResponse<FireTriggerResponse>>
   function fireTrigger<
-    TPayload extends Record<string, unknown> = Record<string, unknown>,
+    TPayload extends Record<string, unknown> = DefaultFirePayload,
   >(
     input: FireTriggerInput<TPayload>,
     options?: RequestOptions

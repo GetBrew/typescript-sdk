@@ -1,4 +1,4 @@
-import { http, HttpResponse } from 'msw'
+import { HttpResponse, http } from 'msw'
 import { describe, expect, it } from 'vitest'
 
 import { createTriggersResource } from '../../../../src/resources/automations/triggers/resource'
@@ -25,7 +25,7 @@ describe('automations.triggers.fire', () => {
             details: {
               triggerInstanceId: 'tin_01HZ',
               automationRunIds: ['run_a'],
-              counts: { automations: 1, transactionalEmails: 0 },
+              counts: { automations: 1 },
             },
           })
         }
