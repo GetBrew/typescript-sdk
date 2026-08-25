@@ -1,13 +1,14 @@
 import { type HttpClient, unwrapResponse } from '../../core/http'
+import type { components } from '../../generated/openapi-types'
 import type { BrewRawResponse, RequestOptions } from '../../types'
-import type { PayloadContractInferResponseWire } from './wire-types'
 
 export type InferPayloadContractInput = {
   /** A real example payload — the JSON your system sends. */
   example: Record<string, unknown>
 }
 
-export type PayloadContractInferResponse = PayloadContractInferResponseWire
+export type PayloadContractInferResponse =
+  components['schemas']['PayloadContractInferResponse']
 
 /**
  * `POST /v1/payload-contracts/infer` (scope: `automations`) — draft a

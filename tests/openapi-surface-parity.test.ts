@@ -77,17 +77,7 @@ describe('OpenAPI to SDK surface parity', () => {
     // deletes its routes (e.g. the retired transactional-email object)
     // ships methods that can only 404. Any intentionally out-of-spec
     // path must be listed here with a reason.
-    //
-    // Payload-contract routes: shipped ahead of the platform — the
-    // routes land with sub-agent-orchestrator PRs #1093/#1096/#1098
-    // (Payload Contracts Wave 2). Remove these entries once the spec
-    // refresh after those merges documents them.
-    const KNOWN_UNSPECED: ReadonlySet<string> = new Set([
-      'GET /v1/automations/triggers/{}/contract',
-      'PUT /v1/automations/triggers/{}/contract',
-      'POST /v1/automations/triggers/{}/contract/validate',
-      'POST /v1/payload-contracts/infer',
-    ])
+    const KNOWN_UNSPECED: ReadonlySet<string> = new Set([])
     const openApiOperations = readOpenApiOperations()
     const phantom = [...readSdkOperations()].filter(
       (operation) =>

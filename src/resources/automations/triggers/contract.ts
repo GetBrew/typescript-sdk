@@ -1,11 +1,6 @@
 import { type HttpClient, unwrapResponse } from '../../../core/http'
+import type { components } from '../../../generated/openapi-types'
 import type { BrewRawResponse, RequestOptions } from '../../../types'
-import type {
-  PayloadContractFieldNode,
-  PayloadContractGetResponseWire,
-  PayloadContractPutRequestWire,
-  PayloadContractValidateResponseWire,
-} from '../../payload-contracts/wire-types'
 
 /**
  * Stored payload contracts for the trigger plane (Wave 2). `getContract`
@@ -20,11 +15,14 @@ import type {
 
 export type ContractFormat = 'json' | 'ts' | 'zod' | 'jsonschema' | 'skill'
 
-export type PayloadContractGetResponse = PayloadContractGetResponseWire
-export type PayloadContractField = PayloadContractFieldNode
-export type PayloadContractPutRequest = PayloadContractPutRequestWire
+export type PayloadContractGetResponse =
+  components['schemas']['PayloadContractGetResponse']
+export type PayloadContractField =
+  components['schemas']['PayloadContractFieldNode']
+export type PayloadContractPutRequest =
+  components['schemas']['PayloadContractPutRequest']
 export type PayloadContractValidateResponse =
-  PayloadContractValidateResponseWire
+  components['schemas']['PayloadContractValidateResponse']
 
 export type GetTriggerContractInput = {
   triggerEventId: string
