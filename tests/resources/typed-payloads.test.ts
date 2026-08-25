@@ -62,14 +62,14 @@ describe('typed payload generics', () => {
     expect(missingRequired).toBeDefined()
   })
 
-  it('send<TPayload> types the transactional payload variant', async () => {
+  it('send<TPayload> types the test-send payload variant', async () => {
     let body: unknown
     server.use(
       http.post('https://brew.new/api/v1/sends', async ({ request }) => {
         body = await request.json()
         return HttpResponse.json(
-          { status: 'queued', sendId: 'snd_1', runId: 'run_1' },
-          { status: 202 }
+          { status: 'sent', recipient: 'jane@example.com' },
+          { status: 200 }
         )
       })
     )
@@ -77,18 +77,24 @@ describe('typed payload generics', () => {
     const sendEmail = createSendEmail(client)
 
     await sendEmail<ReceiptPayload>({
-      transactionId: 'txn_receipt',
+      test: true,
+      emailId: 'eml_receipt',
+      subject: 'Your receipt',
       to: 'jane@example.com',
       payload: { total: 42, note: 'thanks' },
     })
     expect(body).toEqual({
-      transactionId: 'txn_receipt',
+      test: true,
+      emailId: 'eml_receipt',
+      subject: 'Your receipt',
       to: 'jane@example.com',
       payload: { total: 42, note: 'thanks' },
     })
 
     const wrongType: Parameters<typeof sendEmail<ReceiptPayload>>[0] = {
-      transactionId: 'txn_receipt',
+      test: true,
+      emailId: 'eml_receipt',
+      subject: 'Your receipt',
       to: 'jane@example.com',
       // @ts-expect-error — `total` must be a number under the pinned contract.
       payload: { total: 'forty-two' },

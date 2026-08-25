@@ -14,6 +14,9 @@ export { BrewApiError } from './core/errors'
 export type { Pagination, PaginationInput } from './core/pagination'
 // ---------- Pagination ----------
 export { autoPaginate } from './core/pagination'
+// Recursive JSON payload value for `emails.send` / `automations.triggers.fire`
+// (replaces the removed `TransactionalPayloadValue`).
+export type { SendPayloadValue } from './generated/openapi-types'
 export type { AutomationAnalyticsInput } from './resources/analytics/automations'
 export type { CampaignAnalyticsInput } from './resources/analytics/campaigns'
 export type {
@@ -149,6 +152,16 @@ export type {
   AutomationRunsListResponse,
 } from './resources/automations/runs/types'
 export type {
+  ContractFormat,
+  GetTriggerContractInput,
+  PayloadContractField,
+  PayloadContractGetResponse,
+  PayloadContractPutRequest,
+  PayloadContractValidateResponse,
+  PutTriggerContractInput,
+  ValidateTriggerPayloadInput,
+} from './resources/automations/triggers/contract'
+export type {
   CreateTriggerInput,
   CreateTriggerResponse,
 } from './resources/automations/triggers/create'
@@ -283,6 +296,12 @@ export type {
 export type { EmailGroupsResource } from './resources/email-groups/resource'
 export type * from './resources/email-groups/types'
 export type {
+  AuditEmailInput,
+  EmailAuditRequest,
+  EmailAuditResponse,
+} from './resources/emails/audit'
+export { AUDIT_EMAIL_DEFAULT_TIMEOUT_MS } from './resources/emails/audit'
+export type {
   EmailClientPreviewResponse,
   PreviewEmailClientsInput,
 } from './resources/emails/client-previews'
@@ -346,6 +365,11 @@ export type { GetHelpResponse, HelpResponse } from './resources/help/get'
 export type { HelpResource } from './resources/help/resource'
 export type { IntegrationsResource } from './resources/integrations/resource'
 export type * from './resources/integrations/types'
+export type {
+  InferPayloadContractInput,
+  PayloadContractInferResponse,
+} from './resources/payload-contracts/infer'
+export type { PayloadContractsResource } from './resources/payload-contracts/resource'
 // `POST /v1/sends/{sendId}/cancel` is the send lifecycle action
 // (`sends.cancel`): cancel a scheduled or queued send before it goes out.
 export type {
@@ -363,8 +387,6 @@ export type { TemplatesResource } from './resources/templates/resource'
 // ACTION lives on `emails` (`emails.send` — campaign | test), so its
 // request + response shapes are exported from the `emails` block below.
 export type { Template } from './resources/templates/types'
-export type { TransactionalResource } from './resources/transactional/resource'
-export type * from './resources/transactional/types'
 export type { UsageResource } from './resources/usage/resource'
 export type * from './resources/usage/types'
 // ---------- Public config + request types ----------
