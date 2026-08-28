@@ -61,7 +61,9 @@ describe('data.run', () => {
         )
       )
     )
-    const result = await client().data.run({ command: 'db set emails:x --patch {}' })
+    const result = await client().data.run({
+      command: 'db set emails:x --patch {}',
+    })
     expect(result.exitCode).toBe(1)
     expect(result.output).toContain('manageEmails')
   })
