@@ -437,7 +437,7 @@ export interface paths {
          *
          *     **Returns** campaign `202 { status: 'queued' | 'scheduled', sendId, scheduledAt?, warnings? }` (poll `getSend`; `warnings[]` carries one `CONSENT_RECORD_MISSING` per inline recipient that is a subscribed contact with no consent record); test `200 { status: 'completed', recipient }`.
          *
-         *     **Errors** `404 EMAIL_NOT_FOUND`, `DOMAIN_NOT_FOUND`, `AUDIENCE_NOT_FOUND` (a resource in another brand also surfaces as `404`); `422 EMAIL_NOT_READY`, `DOMAIN_NOT_READY`, `DOMAIN_PURPOSE_NOT_ALLOWED`, `LIQUID_RENDER_ERROR`; `422 CONSENT_REQUIRED` when an inline marketing recipient has no contact record with marketing consent and no `consent` was supplied (`details.recipients`); `422 RECIPIENT_UNSUBSCRIBED` when an inline recipient is an existing contact who opted out (`details.recipients`, never re-subscribed); `429 SEND_QUOTA_EXCEEDED` when the plan's monthly volume would be exceeded (no `Retry-After`).
+         *     **Errors** `404 EMAIL_NOT_FOUND`, `DOMAIN_NOT_FOUND`, `AUDIENCE_NOT_FOUND` (a resource in another brand also surfaces as `404`); `422 EMAIL_NOT_READY`, `DOMAIN_NOT_READY`, `DOMAIN_PURPOSE_NOT_ALLOWED`, `LIQUID_RENDER_ERROR`; `422 CONSENT_REQUIRED` when an inline marketing recipient has no contact record with marketing consent and no `consent` was supplied (`details.recipients`); `422 RECIPIENT_UNSUBSCRIBED` when an inline recipient is an existing contact who opted out (`details.recipients`, never re-subscribed); `402 SEND_QUOTA_EXCEEDED` when the plan's monthly volume would be exceeded (no `Retry-After`).
          *
          *     **See also** `listSends`, `cancelSend`, `fireTrigger`.
          */
@@ -3219,7 +3219,6 @@ export interface components {
         Flow: {
             slug: string;
             brand: {
-                domain: string;
                 name: string;
                 /** Format: uri */
                 logo?: string;
@@ -6586,7 +6585,6 @@ export interface components {
             data: {
                 slug: string;
                 brand: {
-                    domain: string;
                     name: string;
                     /** Format: uri */
                     logo?: string;
@@ -22529,7 +22527,6 @@ export interface operations {
                      *         {
                      *           "slug": "brew.new",
                      *           "brand": {
-                     *             "domain": "brew.new",
                      *             "name": "Brew",
                      *             "logo": "https://cdn.brew.new/brand/fetched-logo/brew.new/logo.png"
                      *           },
