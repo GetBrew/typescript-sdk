@@ -18,7 +18,6 @@ type Flow = {
     readonly logo?: string
   }
   readonly title: string
-  readonly summary?: string
   readonly type: 'newsletter' | 'signup' // how the sequence starts
   readonly category: string // the dominant step category
   readonly categoryLabel: string
@@ -28,7 +27,8 @@ type Flow = {
   readonly previewImages: ReadonlyArray<string> // up to three step previews
   readonly publishedAt: string
   readonly updatedAt: string
-  // Detail only (`slug` set):
+  // Detail only (`slug` set) — a LIST card never carries these:
+  readonly summary?: string // the flow's own description, when it has one
   readonly anchor?: 'submittedAt' | 'signedUpAt' | 'verifiedAt' | 'firstEmail' // what day 0 means
   readonly steps?: ReadonlyArray<FlowStep>
 }
@@ -43,7 +43,7 @@ type FlowStep = {
   readonly categoryLabel: string
   readonly emailId: string // a template reference (`pt1_…`)
   readonly previewImage?: string
-  readonly html?: string // only with `include: 'html'`
+  readonly html?: string // only with `include: 'html'`, and best-effort per step
 }
 ```
 
@@ -100,3 +100,7 @@ for (const step of flow?.steps ?? []) {
 
 An unknown `slug` throws a `BrewApiError` with `status: 404` and
 `code: 'FLOW_NOT_FOUND'`; `include` without `slug` is `400 INVALID_REQUEST`.
+
+`include: 'html'` is best-effort per step: a step whose template stopped
+being public between the flow read and its body read comes back without
+`html` rather than failing the whole flow, so check the field per step.
