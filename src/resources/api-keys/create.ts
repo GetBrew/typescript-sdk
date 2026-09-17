@@ -6,6 +6,12 @@ import type { CreateApiKeyInput, CreateApiKeyResponse } from './types'
 export type { CreateApiKeyInput, CreateApiKeyResponse }
 
 /**
+ * @deprecated Since the platform restricted `/v1/api-keys*` to an exact
+ * `org:admin` Clerk dashboard session (spec `sessionAuth`), this method
+ * returns `403` for every API-key or OAuth actor the SDK can authenticate
+ * as. Manage keys at https://brew.new/settings/api. Removed in the next
+ * major.
+ *
  * `POST /v1/api-keys` — mint a new API key. No permission scope, but an
  * organization-wide key (an omitted body `brandId`) requires an
  * org-admin dashboard session or an organization-scoped credential.

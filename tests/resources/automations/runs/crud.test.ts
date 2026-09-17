@@ -40,13 +40,13 @@ describe('automations.runs resource — read-only list/get wiring', () => {
     expect(result.data[0]?.automationRunId).toBe('run_a')
   })
 
-  it('does not surface fire / test / replay / cancel methods (runs are read-only)', () => {
+  it('surfaces only list + cancel (no fire / test / replay — those live on triggers and automations)', () => {
     const { client } = makeTestHttpClient()
     const runs = createAutomationRunsResource(client)
+    expect(Object.keys(runs).sort()).toEqual(['cancel', 'list'])
     expect('fire' in runs).toBe(false)
     expect('test' in runs).toBe(false)
     expect('replay' in runs).toBe(false)
-    expect('cancel' in runs).toBe(false)
   })
 
   it('list with automationRunId + include logs returns the single-row page with logs[] inlined', async () => {

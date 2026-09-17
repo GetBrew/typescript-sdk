@@ -24,7 +24,7 @@ export type BrewClientConfig = {
    * resolves its own brand and rejects a different one with
    * `BRAND_SCOPE_MISMATCH`. An org-scoped key that sends no brand gets
    * `BRAND_ID_REQUIRED` — there is deliberately no default brand.
-   * Organization-level resources such as `brands`, `templates`, and `usage`
+   * Organization-level resources such as `brands`, `templates`, `flows`, and `usage`
    * omit the header even when the client is pinned.
    *
    * Prefer `client.withBrand(id)` when you work across several brands; it

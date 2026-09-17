@@ -77,6 +77,10 @@ import {
   type SendsResource,
 } from './resources/sends/resource'
 import {
+  createFlowsResource,
+  type FlowsResource,
+} from './resources/flows/resource'
+import {
   createTemplatesResource,
   type TemplatesResource,
 } from './resources/templates/resource'
@@ -94,7 +98,7 @@ import type { BrewClientConfig, ResolvedBrewClientConfig } from './types'
  * A client can be pinned to ONE brand at a time. A brand-scoped key resolves
  * its own; an ORGANIZATION-scoped key names one for brand-scoped resources —
  * set `brandId` in the config, or use `withBrand()` to pin one. Organization-
- * level resources (`brands`, `templates`, `usage`, and `apiKeys`) never send
+ * level resources (`brands`, `templates`, `flows`, `usage`, and `apiKeys`) never send
  * that pin.
  */
 export type BrewClient = {
@@ -172,6 +176,11 @@ export type BrewClient = {
    */
   readonly sends: SendsResource
   readonly templates: TemplatesResource
+  /**
+   * `GET /v1/flows` — the public flows gallery: real multi-step email
+   * sequences by brand. Organization-wide, like `templates`.
+   */
+  readonly flows: FlowsResource
   /**
    * Payload-contract helpers.
    * `payloadContracts.infer(example)` drafts an unsaved contract from a
@@ -262,6 +271,7 @@ function buildClient(
     integrations: createIntegrationsResource(httpClient),
     sends: createSendsResource(httpClient),
     templates: createTemplatesResource(organizationHttpClient),
+    flows: createFlowsResource(organizationHttpClient),
     payloadContracts: createPayloadContractsResource(httpClient),
     usage: createUsageResource(organizationHttpClient),
   }

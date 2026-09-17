@@ -1,5 +1,47 @@
 # Changelog
 
+## 9.2.0
+
+### Added — `brew.flows.list`
+
+`GET /v1/flows`: the public flows gallery — one brand's real onboarding or
+newsletter sequence, with the day each email landed. Organization-wide like
+`brew.templates`, so the client never sends `X-Brand-Id`. `list()` returns
+cards (filter `brand`, `category`, `type: 'signup' | 'newsletter'`, rank with
+`semantic`, order with `sort: 'newest' | 'emails' | 'span' | 'remixes'`);
+`list({ slug })` returns one flow as a single-row page with `anchor` and
+`steps[]` (`order`, `dayOffset`, `delayDays`, `subject`, `previewText`,
+`category`, `previewImage`, `emailId`), and `include: 'html'` adds each
+step's rendered HTML. A step's `emailId` is a template reference usable as
+`referenceEmailId` on `brew.emails.generate(...)`. New types: `Flow`,
+`FlowStep`, `FlowsListResponse`, `ListFlowsInput`, `ListFlowsResponse`,
+`FlowsIncludeToken`, `FlowsResource`. Unknown slug → `404 FLOW_NOT_FOUND`.
+
+### Added — `brew.automations.runs.cancel`
+
+`PATCH /v1/automations/runs`: cancel ONE run of an event-triggered automation
+(or a test run) by `automationRunId`; the method sets the only action,
+`status: 'canceled'`, and takes an optional `reason`. Returns
+`{ automationRunId, status: 'canceled', previousStatus }`. Irreversible:
+nothing further is sent, delivered emails are not recalled. `409
+RUN_NOT_CANCELLABLE` once the run finished. New types:
+`CancelAutomationRunInput`, `CancelAutomationRunResponse`,
+`AutomationRunCancelResponse`.
+
+### Deprecated — `brew.apiKeys.*`
+
+The resynced spec documents that `/v1/api-keys*` now requires an exact
+`org:admin` Clerk dashboard session (`sessionAuth`) and rejects API-key and
+OAuth actors, so `brew.apiKeys.list()`, `create()`, and `revoke()` — which
+can only authenticate with the configured API key — return `403` on the
+current platform. They are marked `@deprecated` and will be removed in the
+next major; manage keys at https://brew.new/settings/api.
+
+### Spec resync
+
+`openapi/public-api-v1.yaml` and the generated types now carry both
+operations (`listFlows`, `cancelAutomationRun`).
+
 ## 8.1.1
 
 ### Fixed — analytics recipient filters reach the API

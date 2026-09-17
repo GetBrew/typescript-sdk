@@ -42,7 +42,7 @@ export type AutomationsResource = {
   readonly delete: ReturnType<typeof createDeleteAutomation>
   /** `/v1/automations/triggers(/{triggerEventId}(/fire))` — trigger CRUD + fire. */
   readonly triggers: TriggersResource
-  /** `/v1/automations/runs` — read-only run history. */
+  /** `/v1/automations/runs` — run history, plus `cancel` for one in-flight run. */
   readonly runs: AutomationRunsResource
   /** `/v1/automations/audience-runs` — manual-audience lifecycle history and controls. */
   readonly audienceRuns: AudienceRunsResource
