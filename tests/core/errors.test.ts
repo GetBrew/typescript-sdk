@@ -268,13 +268,15 @@ describe('BrewApiError', () => {
       expect(error.type).toBe('internal_error')
     })
 
-    it('falls back when error envelope is missing required fields', () => {
+    it('keeps the code when only the advisory fields are missing', () => {
+      // This used to assert `unknown_error`. Throwing away a usable
+      // `INTERNAL_ERROR` because a cosmetic `suggestion` was absent cost the
+      // caller the one field it branches on, to protect two it only prints.
       const error = BrewApiError.fromResponse({
         status: 500,
         headers: new Headers(),
         body: {
           error: {
-            // missing suggestion + docs (both required per spec)
             code: 'INTERNAL_ERROR',
             type: 'internal_error',
             message: 'boom',
@@ -282,8 +284,20 @@ describe('BrewApiError', () => {
         },
       })
 
-      expect(error.code).toBe('unknown_error')
+      expect(error.code).toBe('INTERNAL_ERROR')
       expect(error.type).toBe('internal_error')
+      expect(error.message).toBe('boom')
+      expect(error.suggestion).toBe('')
+    })
+
+    it('falls back only when the envelope carries no code at all', () => {
+      const error = BrewApiError.fromResponse({
+        status: 500,
+        headers: new Headers(),
+        body: { error: { message: 'boom' } },
+      })
+
+      expect(error.code).toBe('unknown_error')
     })
 
     it('falls back when error envelope has an unknown type enum value', () => {

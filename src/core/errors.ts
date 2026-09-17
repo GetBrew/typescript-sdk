@@ -147,17 +147,24 @@ function parseErrorEnvelope(body: unknown): BrewErrorEnvelope | undefined {
 
   const inner = wrapper.error as Record<string, unknown>
 
-  const hasRequiredFields =
-    typeof inner.code === 'string' &&
-    typeof inner.type === 'string' &&
-    typeof inner.message === 'string' &&
-    typeof inner.suggestion === 'string' &&
-    typeof inner.docs === 'string'
+  // `code` is the only field a caller branches on, so it is the only one
+  // whose absence makes the envelope unusable. The rest used to be required
+  // here, which meant a response missing a cosmetic `suggestion` threw away a
+  // perfectly good `EMAIL_NOT_FOUND` and degraded it to `unknown_error` —
+  // exactly the information the caller needed, discarded over prose.
+  if (typeof inner.code !== 'string' || inner.code.length === 0) {
+    return undefined
+  }
 
-  if (!hasRequiredFields) return undefined
-
-  const innerType = inner.type as string
-  if (!VALID_ERROR_TYPES.has(innerType as BrewErrorType)) return undefined
+  // `type` is still validated when present: an unknown type means this is not
+  // a Brew envelope. Absent, it is inferred by the caller from the status.
+  const innerType = typeof inner.type === 'string' ? inner.type : undefined
+  if (
+    innerType !== undefined &&
+    !VALID_ERROR_TYPES.has(innerType as BrewErrorType)
+  ) {
+    return undefined
+  }
 
   const envelope: {
     code: BrewErrorCode
@@ -173,10 +180,13 @@ function parseErrorEnvelope(body: unknown): BrewErrorEnvelope | undefined {
     // error rather than degrade to `unknown_error`, so the narrowing
     // stops at "it is a string".
     code: inner.code as BrewErrorCode,
-    type: innerType as BrewErrorType,
-    message: inner.message as string,
-    suggestion: inner.suggestion as string,
-    docs: inner.docs as string,
+    type: (innerType ?? 'internal_error') as BrewErrorType,
+    message:
+      typeof inner.message === 'string'
+        ? inner.message
+        : `Request failed with code ${inner.code}`,
+    suggestion: typeof inner.suggestion === 'string' ? inner.suggestion : '',
+    docs: typeof inner.docs === 'string' ? inner.docs : '',
   }
 
   if (typeof inner.param === 'string') {
