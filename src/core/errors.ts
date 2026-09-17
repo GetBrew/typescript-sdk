@@ -1,4 +1,4 @@
-import type { BrewErrorEnvelope, BrewErrorType } from '../types'
+import type { BrewErrorCode, BrewErrorEnvelope, BrewErrorType } from '../types'
 
 /**
  * Input shape for the `BrewApiError` constructor. Mirrors the public
@@ -160,7 +160,7 @@ function parseErrorEnvelope(body: unknown): BrewErrorEnvelope | undefined {
   if (!VALID_ERROR_TYPES.has(innerType as BrewErrorType)) return undefined
 
   const envelope: {
-    code: string
+    code: BrewErrorCode
     type: BrewErrorType
     message: string
     suggestion: string
@@ -168,7 +168,11 @@ function parseErrorEnvelope(body: unknown): BrewErrorEnvelope | undefined {
     param?: string
     retryAfter?: number
   } = {
-    code: inner.code as string,
+    // The wire enum is closed in the spec, but a server that ships a new
+    // code before the SDK regenerates must still surface a readable
+    // error rather than degrade to `unknown_error`, so the narrowing
+    // stops at "it is a string".
+    code: inner.code as BrewErrorCode,
     type: innerType as BrewErrorType,
     message: inner.message as string,
     suggestion: inner.suggestion as string,

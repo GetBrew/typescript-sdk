@@ -38,7 +38,7 @@ describe('emails.list', () => {
     expect(result.data[0]?.title).toBe('Welcome Email')
   })
 
-  it('serializes status and date filters as query params', async () => {
+  it('serializes status, sortBy, and the from/to window as query params', async () => {
     let capturedRequest: Request | undefined
     server.use(
       http.get('https://brew.new/api/v1/emails', ({ request }) => {
@@ -51,68 +51,41 @@ describe('emails.list', () => {
     const list = createListEmails(client)
 
     await list({
-      status: 'complete',
-      createdAtFrom: '2026-04-10T00:00:00.000Z',
-      updatedAtTo: '2026-04-14T00:00:00.000Z',
+      status: 'ready',
+      groupId: 'grp_1',
+      sortBy: 'createdAt',
+      from: '2026-04-10T00:00:00.000Z',
+      to: '2026-04-14T00:00:00.000Z',
     })
 
     const url = new URL(capturedRequest!.url)
-    expect(url.searchParams.get('status')).toBe('complete')
-    expect(url.searchParams.get('createdAtFrom')).toBe(
-      '2026-04-10T00:00:00.000Z'
-    )
-    expect(url.searchParams.get('updatedAtTo')).toBe('2026-04-14T00:00:00.000Z')
+    // One v1 vocabulary: generating | ready | failed.
+    expect(url.searchParams.get('status')).toBe('ready')
+    expect(url.searchParams.get('groupId')).toBe('grp_1')
+    expect(url.searchParams.get('sortBy')).toBe('createdAt')
+    expect(url.searchParams.get('from')).toBe('2026-04-10T00:00:00.000Z')
+    expect(url.searchParams.get('to')).toBe('2026-04-14T00:00:00.000Z')
+    // The old createdAt*/updatedAt* window params collapsed into from/to.
+    expect(url.searchParams.get('createdAtFrom')).toBeNull()
+    expect(url.searchParams.get('updatedAtTo')).toBeNull()
   })
 
-  it('detail mode: emailId + include html returns the single-row page with html inlined', async () => {
+  it('sends no emailId / include filter — the detail read is emails.get', async () => {
     let capturedRequest: Request | undefined
     server.use(
       http.get('https://brew.new/api/v1/emails', ({ request }) => {
         capturedRequest = request
-        // Reads are flat: identity in the query; detail = `{ data: [row] }`.
-        return HttpResponse.json({
-          data: [
-            {
-              emailId: 'email_123',
-              emailVersionId: 'emv_123_v1',
-              title: 'Welcome Email',
-              status: 'complete',
-              html: '<!DOCTYPE html><html><body>Hi</body></html>',
-              updatedAt: '2026-04-08T12:34:56.789Z',
-            },
-          ],
-        })
+        return HttpResponse.json({ data: [], pagination: PAGINATION })
       })
     )
 
     const { client } = makeTestHttpClient()
     const list = createListEmails(client)
 
-    const result = await list({ emailId: 'email_123', include: 'html' })
+    await list({ limit: 10 })
 
     const url = new URL(capturedRequest!.url)
-    expect(url.searchParams.get('emailId')).toBe('email_123')
-    expect(url.searchParams.get('include')).toBe('html')
-    expect(result.data[0]?.html).toContain('<body>')
-    expect(result.pagination).toBeUndefined()
-  })
-
-  it('serializes an include array as a single comma string', async () => {
-    let capturedRequest: Request | undefined
-    server.use(
-      http.get('https://brew.new/api/v1/emails', ({ request }) => {
-        capturedRequest = request
-        return HttpResponse.json({ data: [] })
-      })
-    )
-
-    const { client } = makeTestHttpClient()
-    const list = createListEmails(client)
-
-    await list({ emailId: 'email_123', include: ['html', 'versions'] })
-
-    expect(new URL(capturedRequest!.url).searchParams.get('include')).toBe(
-      'html,versions'
-    )
+    expect(url.searchParams.get('emailId')).toBeNull()
+    expect(url.searchParams.get('include')).toBeNull()
   })
 })

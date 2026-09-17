@@ -18,10 +18,14 @@ export type RestoreEmailResponse = GenerateEmailResponse
 
 /**
  * `POST /v1/emails/{emailId}/restore` (scope: `emails`) — non-destructively
- * clone the numbered `version` into a NEW `latest` row (the current head
- * is demoted to history, nothing is lost) and return the same
- * generated-email shape as an edit. `404 EMAIL_VERSION_NOT_FOUND` when
- * the version doesn't exist.
+ * clone the version named by `emailVersionId` into a NEW `latest` row
+ * (the current head is demoted to history, nothing is lost) and return
+ * the same generated-email shape as an edit.
+ *
+ * The body takes `{ emailVersionId }` in v1, not the ordinal
+ * `{ version }`. Read the ids from
+ * `brew.emails.get(emailId, { include: 'versions' })`.
+ * `404 EMAIL_VERSION_NOT_FOUND` when the version doesn't exist.
  */
 export function createRestoreEmail(client: HttpClient) {
   function restoreEmail(

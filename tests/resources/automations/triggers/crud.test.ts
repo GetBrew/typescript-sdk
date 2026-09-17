@@ -74,27 +74,59 @@ describe('automations.triggers resource — POST/GET/PATCH/DELETE wiring', () =>
     expect(result.data[0]?.triggerEventId).toBe('tri_abc')
   })
 
-  it('list with triggerEventId GETs /v1/automations/triggers?triggerEventId and returns the single-row page', async () => {
+  it('get GETs /v1/automations/triggers/{triggerEventId} and returns the BARE row', async () => {
     let captured: Request | undefined
     server.use(
       http.get(
-        'https://brew.new/api/v1/automations/triggers',
+        'https://brew.new/api/v1/automations/triggers/tri_abc',
         ({ request }) => {
           captured = request.clone()
-          // Detail mode = single-row page `{ data: [row] }`, no pagination.
-          return HttpResponse.json({ data: [TRIGGER_ROW] })
+          return HttpResponse.json(TRIGGER_ROW)
         }
       )
     )
     const { client } = makeTestHttpClient()
     const triggers = createTriggersResource(client)
-    // Reads are flat: identity in the query (`?triggerEventId=`).
-    const result = await triggers.list({ triggerEventId: 'tri_abc' })
+    const trigger = await triggers.get('tri_abc')
     const url = new URL(captured!.url)
-    expect(url.pathname).toBe('/api/v1/automations/triggers')
-    expect(url.searchParams.get('triggerEventId')).toBe('tri_abc')
-    expect(result.data[0]?.triggerEventId).toBe('tri_abc')
-    expect(result.pagination).toBeUndefined()
+    expect(url.pathname).toBe('/api/v1/automations/triggers/tri_abc')
+    expect(trigger.triggerEventId).toBe('tri_abc')
+  })
+
+  it('readiness GETs .../readiness and returns the bare readiness body', async () => {
+    let captured: Request | undefined
+    server.use(
+      http.get(
+        'https://brew.new/api/v1/automations/triggers/tri_abc/readiness',
+        ({ request }) => {
+          captured = request.clone()
+          return HttpResponse.json({
+            triggerEventId: 'tri_abc',
+            ready: false,
+            blockers: [
+              {
+                code: 'NO_PUBLISHED_AUTOMATION',
+                message: 'No published automation is wired to this trigger.',
+              },
+            ],
+            publishedAutomations: [],
+            counts: { automations: 0, skipped: 0 },
+          })
+        }
+      )
+    )
+    const { client } = makeTestHttpClient()
+    const triggers = createTriggersResource(client)
+    const readiness = await triggers.readiness('tri_abc')
+
+    // The preflight is its own route now, not `GET …/fire`.
+    expect(new URL(captured!.url).pathname).toBe(
+      '/api/v1/automations/triggers/tri_abc/readiness'
+    )
+    // Bare body — no `{ success, code, message, details }` fire envelope.
+    expect(readiness.ready).toBe(false)
+    expect(readiness.blockers[0]?.code).toBe('NO_PUBLISHED_AUTOMATION')
+    expect(readiness.counts.automations).toBe(0)
   })
 
   it('does not surface enable / disable methods (triggers are always on; gated by automation.published)', () => {
@@ -102,6 +134,8 @@ describe('automations.triggers resource — POST/GET/PATCH/DELETE wiring', () =>
     const triggers = createTriggersResource(client)
     expect('enable' in triggers).toBe(false)
     expect('disable' in triggers).toBe(false)
+    // `ready` was renamed to `readiness` and retargeted off GET …/fire.
+    expect('ready' in triggers).toBe(false)
   })
 
   it('patch PATCHes /v1/automations/triggers/{triggerEventId} with metadata-only fields (no id in body)', async () => {

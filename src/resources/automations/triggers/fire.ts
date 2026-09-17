@@ -27,6 +27,9 @@ type DefaultFirePayload = {
  *   payload: { email, firstName }, // type-checked against the contract
  * })
  * ```
+ *
+ * The idempotency key is a request option
+ * (`fire(input, { idempotencyKey })`), not a body field.
  */
 export type FireTriggerInput<
   TPayload extends Record<string, unknown> = DefaultFirePayload,
@@ -36,8 +39,13 @@ export type FireTriggerInput<
     payload: TPayload
   }
 
-/** The legacy fire envelope `{ success, status, code, message, receivedAt, details }`. */
-export type FireTriggerResponse = components['schemas']['TriggerFireResponse']
+/**
+ * The 202 fire body — bare in v1: `{ triggerInstanceId, triggerEventId,
+ * status, automationRunIds, publishedAutomations, counts, warnings,
+ * receivedAt }`. The old `{ success, code, message, details }` envelope
+ * is gone.
+ */
+export type FireTriggerResponse = components['schemas']['TriggerFireAccepted']
 
 /**
  * `POST /v1/automations/triggers/{triggerEventId}/fire` (scope:
@@ -45,11 +53,13 @@ export type FireTriggerResponse = components['schemas']['TriggerFireResponse']
  * it against the trigger's `payloadSchema`, upserts the derived contact,
  * and starts one run per published automation attached to the trigger.
  *
- * Returns the legacy fire envelope (NOT the standard `{ error }` shape) —
- * read `details.automationRunIds[]` and follow each run via
- * `brew.automations.runs.list({ automationRunId, include: 'logs' })`. Set
- * an `Idempotency-Key` on retries so a re-delivered webhook doesn't
- * double-fire.
+ * Returns `202` with the bare accepted body: read `automationRunIds[]`
+ * and follow each run via
+ * `brew.automations.runs.get(automationRunId, { include: 'logs' })`, or
+ * read the whole fire back with
+ * `brew.automations.triggerInstances.get(triggerInstanceId)`. Set
+ * `options.idempotencyKey` on retries so a re-delivered webhook doesn't
+ * double-fire — a replay answers `status: 'replayed'`.
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<FireTriggerResponse>` instead of the unwrapped payload.

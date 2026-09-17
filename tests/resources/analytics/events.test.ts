@@ -37,11 +37,9 @@ describe('analytics.events', () => {
     const { client } = makeTestHttpClient()
     const events = createEventsAnalytics(client)
 
-    const result = await events({ recipientEmail: 'jane@example.com' })
+    const result = await events({ recipient: 'jane@example.com' })
 
-    expect(new URL(url!).searchParams.get('recipientEmail')).toBe(
-      'jane@example.com'
-    )
+    expect(new URL(url!).searchParams.get('recipient')).toBe('jane@example.com')
     expect(result.data[0]?.eventType).toBe('opened')
     expect(result.range.from).toBe('2026-04-01T00:00:00.000Z')
   })
@@ -91,7 +89,7 @@ describe('analytics.eventsAll', () => {
     const eventsAll = createEventsAnalyticsAll(client)
 
     const ids: Array<string> = []
-    for await (const row of eventsAll({ recipientEmail: 'jane@example.com' })) {
+    for await (const row of eventsAll({ recipient: 'jane@example.com' })) {
       ids.push(row.id)
     }
 

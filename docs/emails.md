@@ -5,22 +5,28 @@ them, and **send** a design to a target. A send delivers a saved email
 design to a recipient target (a saved audience or an inline address) — it
 is not campaign-specific, so the send action lives here on `emails`. Send
 **reads** (lifecycle, stats, per-recipient events) live on
-`brew.analytics.sends.*`; see [`docs/analytics.md`](./analytics.md#sends).
+`brew.sends.*`; see [`docs/sends.md`](./sends.md).
 
-Reads are flat — one read per resource, identity in the query
-(`?emailId`), `?include` for opt-in expansions; writes are path-based.
-Detail mode = pass the id key → a single-row page `{ data: [row] }`, no
-`pagination`.
+| Method                                          | HTTP                                                    | Scope    |
+| ----------------------------------------------- | ------------------------------------------------------- | -------- |
+| [`list`](#list)                                 | `GET /v1/emails`                                        | `emails` |
+| [`get`](#get)                                   | `GET /v1/emails/{emailId}`                              | `emails` |
+| [`generate`](#generate)                         | `POST /v1/emails`                                       | `emails` |
+| [`import`](#import)                             | `POST /v1/emails/import`                                | `emails` |
+| [`edit`](#edit)                                 | `PATCH /v1/emails/{emailId}`                            | `emails` |
+| [`restore`](#restore)                           | `POST /v1/emails/{emailId}/restore`                     | `emails` |
+| [`export`](#export)                             | `POST /v1/emails/{emailId}/export`                      | `emails` |
+| [`auditEmail`](#auditemail)                     | `POST /v1/emails/audit`                                 | `emails` |
+| [`previewClients`](#previewclients)             | `POST /v1/emails/{emailId}/client-previews`             | `emails` |
+| [`inboxPlacementTests.*`](#inboxplacementtests) | `/v1/emails/{emailId}/inbox-placement-tests[/{testId}]` | `emails` |
+| [`send`](#send)                                 | `POST /v1/sends`                                        | `sends`  |
 
-| Method                              | HTTP                                        | Scope    |
-| ----------------------------------- | ------------------------------------------- | -------- |
-| [`list`](#list)                     | `GET /v1/emails`                            | `emails` |
-| [`generate`](#generate)             | `POST /v1/emails`                           | `emails` |
-| [`import`](#import)                 | `POST /v1/emails/import`                    | `emails` |
-| [`edit`](#edit)                     | `PATCH /v1/emails/{emailId}`                | `emails` |
-| [`auditEmail`](#auditemail)         | `POST /v1/emails/audit`                     | `emails` |
-| [`previewClients`](#previewclients) | `POST /v1/emails/{emailId}/client-previews` | `emails` |
-| [`send`](#send)                     | `POST /v1/sends`                            | `sends`  |
+> **Changed in 10.0.0.** `get(emailId, { include })` is a real route
+> returning the bare row; the `emailId` and `include` query filters on
+> `GET /v1/emails` are gone. The list window params collapsed into
+> `from` / `to` plus `sortBy`. `emails.createInboxPlacementTest` and
+> `emails.getInboxPlacementResults` became
+> `emails.inboxPlacementTests.create` / `.list` / `.get`.
 
 ## Shared types
 
@@ -29,9 +35,23 @@ type EmailSummary = {
   readonly emailId: string
   readonly emailVersionId?: string
   readonly title: string
+  readonly status: EmailStatus
+  readonly previewImage?: string
+  readonly updatedAt: string
+  readonly subjectLine?: string
+  readonly previewText?: string
+  readonly group: { groupId: string; groupName: string } | null
+  // With `get(emailId, { include })`: `html` and/or `versions`.
+  readonly html?: string
+  readonly versions?: ReadonlyArray<{
+    version: number | 'latest'
+    emailVersionId: string
+  }>
 }
 
-type EmailStatus = 'streaming' | 'complete' | 'error'
+// The one v1 vocabulary. The old `streaming` / `complete` / `error`
+// spellings are gone and now 400 as a status FILTER.
+type EmailStatus = 'generating' | 'ready' | 'failed'
 
 type GeneratedEmailArtifact = {
   readonly emailId: string
@@ -49,31 +69,24 @@ type GeneratedEmailTextResponse = {
 
 ## `list`
 
-The single email read. Omit `emailId` → list the latest logical emails
-for the current organization. Pass `emailId` → a single-row page
-`{ data: [row] }` (no `pagination`). `include` is detail-only and
-**requires** `emailId`; it accepts `'html' | 'versions'` as an array or a
-comma-separated string. This one method replaces the old `emails.get`
-and `emails.versions` reads.
+The latest version of each design, under the uniform
+`{ data, pagination }` envelope. Rows are lean — no `html`, no
+`versions`.
 
 ```ts
 type ListEmailsInput = {
-  readonly emailId?: string
-  readonly include?:
-    | ReadonlyArray<'html' | 'versions'>
-    | string // comma-separated, e.g. 'html,versions' — detail-only
-  readonly status?: EmailStatus
-  readonly createdAtFrom?: string
-  readonly createdAtTo?: string
-  readonly updatedAtFrom?: string
-  readonly updatedAtTo?: string
+  readonly status?: EmailStatus // generating | ready | failed
+  readonly groupId?: string
+  readonly sortBy?: 'createdAt' | 'updatedAt' // default updatedAt
+  readonly from?: string // ISO-8601
+  readonly to?: string // ISO-8601
   readonly limit?: number
   readonly cursor?: string
 }
 
 type EmailsListResponse = {
   readonly data: ReadonlyArray<EmailSummary>
-  readonly pagination?: {
+  readonly pagination: {
     readonly limit: number
     readonly cursor: string | null
     readonly hasMore: boolean
@@ -83,11 +96,11 @@ type EmailsListResponse = {
 list(input?: ListEmailsInput): Promise<EmailsListResponse>
 ```
 
-List mode:
-
 ```ts
 const { data } = await brew.emails.list({
-  status: 'complete',
+  status: 'ready',
+  sortBy: 'createdAt',
+  from: '2026-04-01T00:00:00.000Z',
 })
 
 for (const email of data) {
@@ -95,17 +108,34 @@ for (const email of data) {
 }
 ```
 
-Detail mode — pass the `emailId` key and opt into expansions. The result
-is a single-row page, so read `data[0]`:
+The four `createdAtFrom` / `createdAtTo` / `updatedAtFrom` /
+`updatedAtTo` params collapsed into one `from` / `to` pair, with
+`sortBy` choosing which timestamp they apply to. There is no `emailId`
+filter: use [`get`](#get).
+
+---
+
+## `get`
+
+One design, as the bare row. An unknown or cross-brand id is
+`404 EMAIL_NOT_FOUND`.
 
 ```ts
-const { data } = await brew.emails.list({
-  emailId: 'email_123',
-  include: 'html,versions',
+const email = await brew.emails.get('email_123')
+console.log(email.title, email.status)
+
+// Opt into the rendered HTML and the version history:
+const full = await brew.emails.get('email_123', {
+  include: ['html', 'versions'],
 })
-const email = data[0]
-console.log(email.title)
+console.log(full.html?.length)
+for (const version of full.versions ?? []) {
+  console.log(version.version, version.emailVersionId)
+}
 ```
+
+The `emailVersionId` values from `include: 'versions'` are exactly what
+[`restore`](#restore) takes.
 
 ---
 
@@ -435,26 +465,125 @@ still win.
 
 ---
 
+## `restore`
+
+Non-destructively clone a historical version into a NEW `latest` row —
+the current head is demoted to history, nothing is lost.
+
+```ts
+type RestoreEmailInput = {
+  readonly emailId: string
+  readonly emailVersionId: string
+}
+```
+
+The body takes `{ emailVersionId }` in 10.0.0, not the ordinal
+`{ version }`. Read the ids from
+`brew.emails.get(emailId, { include: 'versions' })`.
+
+```ts
+const { versions } = await brew.emails.get('email_123', {
+  include: 'versions',
+})
+const previous = versions?.find((v) => v.version === 1)
+
+await brew.emails.restore({
+  emailId: 'email_123',
+  emailVersionId: previous!.emailVersionId,
+})
+```
+
+`404 EMAIL_VERSION_NOT_FOUND` when the version doesn't exist.
+
+---
+
+## `export`
+
+Export a design to a connected ESP as a template.
+
+```ts
+const result = await brew.emails.export({
+  emailId: 'email_123',
+  provider: 'klaviyo',
+  templateName: 'Launch email',
+  dryRun: true, // was `dry_run`
+})
+// { emailId, provider, providerName, templateName, templateId?, dryRun }
+```
+
+Set `dryRun: true` to validate the design, brand ownership, and the ESP
+connection without creating a template. Exporting to an ESP that is not
+connected for the brand is `400 INTEGRATION_NOT_CONNECTED`; a provider
+rejection or outage is `502 EXPORT_PROVIDER_ERROR`.
+
+---
+
+## `inboxPlacementTests`
+
+Seed-list tests of where a design LANDS — inbox vs spam vs missing —
+across real mailbox providers. Three methods on a nested resource; they
+replaced the flat `emails.createInboxPlacementTest` and
+`emails.getInboxPlacementResults`.
+
+```ts
+// Start a test on a VERIFIED sending domain — 202, fixed 10 credits.
+const test = await brew.emails.inboxPlacementTests.create({
+  emailId: 'email_123',
+  domainId: 'domain_123',
+  subject: 'Placement check',
+})
+
+// Poll ONE test by id — its own route now, FREE.
+const result = await brew.emails.inboxPlacementTests.get(
+  'email_123',
+  test.testId
+)
+if (result.status === 'completed') {
+  console.log(result.results?.overall)
+  console.log(result.diagnosis)
+}
+
+// The design's recent tests as lean rows, FREE.
+const { data } = await brew.emails.inboxPlacementTests.list({
+  emailId: 'email_123',
+})
+```
+
+`status` is the one v1 vocabulary — `queued | running | completed |
+partially_completed | failed`. The old `collecting` value is now a
+separate `phase` field (`sending` | `collecting`) that says what a
+running test is busy with.
+
+An unverified or cross-brand `domainId` is `422 DOMAIN_NOT_READY`.
+
+---
+
 ## Send shared types
 
 ```ts
 type SendAcceptedResponse = {
-  readonly status: 'queued' | 'scheduled'
+  readonly status: 'queued' | 'scheduled' | 'pending_approval'
   readonly sendId: string
-  readonly runId: string
   readonly scheduledAt?: string // ISO-8601
 }
 
 type SendTestResponse = {
-  readonly status: 'sent'
+  readonly status: 'completed'
   readonly recipient: string
 }
 
 type SendResponse = SendAcceptedResponse | SendTestResponse
 ```
 
-The `Send` row, `SendStats`, and `SendStatus` types belong to the
-analytics surface — see [`docs/analytics.md`](./analytics.md#sends).
+`runId` is gone from the 202 — `sendId` is the only handle, and it is
+what every `brew.sends.*` method takes. The test send answers
+`status: 'completed'`, not `'sent'`.
+
+The sender is the nested `from: { email, name? }` object, not the flat
+`fromEmail` + `senderName` pair, and `replyTo` is a top-level string.
+
+The `Send` row, `SendStats`, and `SendStatus` types live on the sends
+surface — see [`docs/sends.md`](./sends.md).
 
 ---
 
@@ -466,17 +595,18 @@ The single polymorphic send. The input is a union discriminated by
 - **Test send** (`test: true`) — a one-off [TEST] delivery to a single
   recipient. Forces the Brew default sender (no verified domain or saved
   audience required) and never creates a send row. Resolves synchronously
-  (HTTP 200) with `{ status: 'sent', recipient }`.
+  (HTTP 200) with `{ status: 'completed', recipient }`.
 - **Campaign send** (omit `test`) — delivers a saved design to a target.
-  Provide EXACTLY ONE recipient target — `audienceId` (a saved audience)
-  or `to` (a single inline address or an array, max 50). Requires a
-  verified sending `domainId`. Returns when the job is accepted (HTTP
-  202), not when delivery completes, with
-  `{ status: 'queued' | 'scheduled', sendId, runId }`.
+  Provide EXACTLY ONE recipient target — `audienceId` (a saved audience,
+  or the string `'all'` to target every contact in the brand) or `to` (a
+  single inline address or an array, max 50). Requires a verified sending
+  `domainId`. Returns when the job is accepted (HTTP 202), not when
+  delivery completes, with `{ status, sendId }`.
 
 Both modes require the `sends` scope. A design can be sent unlimited
-times; every campaign call mints a new send. This one method merges the
-old campaign-send and test-send methods into a single polymorphic call.
+times; every campaign call mints a new send. An exhausted plan quota is
+`402 SEND_QUOTA_EXCEEDED`, the code that absorbed the old
+`INSUFFICIENT_EMAIL_SENDS`.
 
 Campaign send:
 
@@ -485,9 +615,11 @@ const result = await brew.emails.send({
   emailId: 'email_123',
   domainId: 'domain_123',
   subject: 'Welcome to Brew',
-  audienceId: 'aud_123',
+  audienceId: 'aud_123', // or 'all' for every contact in the brand
+  from: { email: 'hello@acme.com', name: 'Acme' },
+  replyTo: 'support@acme.com',
 })
-// { status: 'queued' | 'scheduled', sendId, runId }
+// { status: 'queued' | 'scheduled', sendId }
 ```
 
 Test send — discriminate on `test: true`:
@@ -499,12 +631,15 @@ const result = await brew.emails.send({
   subject: 'Preview: Welcome to Brew',
   to: 'qa@example.com',
 })
-// { status: 'sent', recipient: 'qa@example.com' }
+// { status: 'completed', recipient: 'qa@example.com' }
 ```
 
 Poll a campaign send for lifecycle + stats:
 
 ```ts
-const [send] = (await brew.analytics.sends.list({ emailId: 'email_123' })).data
+const send = await brew.sends.get(result.sendId)
 console.log(send.status, send.stats?.delivered)
+
+// Or every send made from one design:
+const { data } = await brew.sends.list({ emailId: 'email_123' })
 ```

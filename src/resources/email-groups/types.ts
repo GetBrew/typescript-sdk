@@ -8,17 +8,11 @@ import type { components, operations } from '../../generated/openapi-types'
  */
 export type EmailGroup = components['schemas']['EmailGroupSummary']
 
-/**
- * Envelope returned by `GET /v1/email-groups` in list mode — `{ data,
- * pagination }`. Detail mode (`groupId` set) omits `pagination`.
- */
+/** Envelope returned by `GET /v1/email-groups` — `{ data, pagination }`. */
 export type EmailGroupsListResponse =
   components['schemas']['EmailGroupsListResponse']
 
-/**
- * Query params accepted by `brew.emailGroups.list(...)` — `groupId`
- * (detail mode), `limit`, `cursor`.
- */
+/** Query params accepted by `brew.emailGroups.list(...)` — `limit`, `cursor`. */
 export type ListEmailGroupsInput = NonNullable<
   operations['listEmailGroups']['parameters']['query']
 >

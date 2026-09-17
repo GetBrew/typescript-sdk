@@ -36,6 +36,9 @@ export type RevokeApiKeyInput = {
   readonly keyId: string
 }
 
-/** Response from `DELETE /v1/api-keys/{keyId}` — `{ keyId, revoked }`. */
+/**
+ * Response from `DELETE /v1/api-keys/{keyId}` — `{ keyId, deleted,
+ * revokedAt? }`. The flag is `deleted` in v1, not `revoked`.
+ */
 export type RevokeApiKeyResponse =
   components['schemas']['ApiKeysDeleteResponse']

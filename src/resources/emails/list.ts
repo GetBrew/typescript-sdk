@@ -3,63 +3,32 @@ import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
 /**
- * Input to `brew.emails.list(...)` — the single read for the emails
- * resource. Reads are FLAT: identity lives in the query.
+ * Query params accepted by `brew.emails.list(...)`. Sourced from the
+ * generated `listEmails` query so any new knob upstream surfaces as a
+ * compile error in the SDK.
  *
- * - Omit `emailId` to LIST the latest version of each design (newest
- *   first), filtered by `status` and the `createdAt*` / `updatedAt*`
- *   windows and paged with `limit` / `cursor`.
- * - Pass `emailId` to fetch ONE design — the response is a single-row
- *   page `{ data: [row] }` (no `pagination`).
- * - `include` is a detail-only opt-in expansion (requires `emailId`):
- *   `'html'` inlines the rendered HTML of the current version,
- *   `'versions'` inlines the version history. Pass either token, an
- *   array, or a comma string.
- *
- * Sourced from the generated `listEmails` query so any new knob upstream
- * surfaces as a compile error in the SDK.
+ * Filters: `status` (`generating | ready | failed`), `groupId`, the
+ * `from` / `to` ISO-8601 window, and `sortBy` (`createdAt` |
+ * `updatedAt`, default `updatedAt`). Page with `limit` / `cursor`.
  */
-export type EmailsIncludeToken = 'html' | 'versions'
-
-export type ListEmailsInput = Omit<
-  NonNullable<operations['listEmails']['parameters']['query']>,
-  'include'
-> & {
-  /**
-   * Detail-only expansions (requires `emailId`). `'html'` inlines the
-   * rendered HTML of the current version; `'versions'` inlines the
-   * version history. Accepts an array of `'html' | 'versions'` tokens or
-   * a comma string; serialized as the single comma-separated `?include=`
-   * value.
-   */
-  readonly include?: ReadonlyArray<EmailsIncludeToken> | string
-}
+export type ListEmailsInput = NonNullable<
+  operations['listEmails']['parameters']['query']
+>
 
 export type ListEmailsResponse = components['schemas']['EmailsListResponse']
 
-/** Serialize the `include` option into the API's comma-separated form. */
-function serializeInclude(
-  include: ListEmailsInput['include']
-): string | undefined {
-  if (include === undefined) return undefined
-  const joined = typeof include === 'string' ? include : include.join(',')
-  return joined.length > 0 ? joined : undefined
-}
-
 /**
- * `GET /v1/emails` (scope: `emails`) — the single read for email
- * designs, under the uniform `{ data, pagination? }` envelope. Reads are
- * flat: the identity lives in the query.
+ * `GET /v1/emails` (scope: `emails`) — the latest version of each email
+ * design, under the uniform `{ data, pagination }` envelope. Rows are
+ * lean: no `html`, no `versions`.
  *
- * - List mode (no `emailId`): the latest version of each design, newest
- *   first. Filter with `status` and the `createdAt*` / `updatedAt*`
- *   windows; page with `limit` / `cursor`.
- * - Detail mode (`emailId` set): a single-row page `{ data: [row] }`
- *   with no `pagination`. Opt into `include: 'html'` for the rendered
- *   HTML and/or `include: 'versions'` for the version history — both are
- *   detail-only (an `include` without `emailId` is `400 INVALID_REQUEST`).
+ * Filter with `status`, `groupId`, and the `from` / `to` window; choose
+ * the ordering key with `sortBy` (`createdAt` | `updatedAt`); page with
+ * `limit` / `cursor`. The old `createdAt*` / `updatedAt*` window params
+ * collapsed into the single `from` / `to` pair.
  *
- * Unknown / cross-brand ids return an empty page in detail mode.
+ * A single design is `brew.emails.get(emailId, { include: 'html' })` —
+ * there is no `emailId` filter here any more.
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<ListEmailsResponse>` instead of the unwrapped
@@ -78,11 +47,18 @@ export function createListEmails(client: HttpClient) {
     input: ListEmailsInput = {},
     options?: RequestOptions
   ): Promise<ListEmailsResponse | BrewRawResponse<ListEmailsResponse>> {
-    const { include, ...query } = input
     const response = await client.request<ListEmailsResponse>({
       method: 'GET',
       path: '/v1/emails',
-      query: { ...query, include: serializeInclude(include) },
+      query: {
+        status: input.status,
+        groupId: input.groupId,
+        sortBy: input.sortBy,
+        from: input.from,
+        to: input.to,
+        limit: input.limit,
+        cursor: input.cursor,
+      },
       ...(options ? { options } : {}),
     })
     return unwrapResponse(response, options)

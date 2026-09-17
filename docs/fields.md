@@ -7,6 +7,7 @@ each contact (plan, signup date, lifetime value, etc.).
 | Method              | HTTP                            |
 | ------------------- | ------------------------------- |
 | [`list`](#list)     | `GET /v1/fields`                |
+| [`get`](#get)       | `GET /v1/fields/{fieldName}`    |
 | [`create`](#create) | `POST /v1/fields`               |
 | [`delete`](#delete) | `DELETE /v1/fields/{fieldName}` |
 
@@ -54,6 +55,8 @@ List every contact field definition (both core and custom).
 
 ```ts
 type ListFieldsInput = {
+  readonly include?: 'coverage' // per-field fill rates
+  readonly audienceId?: string // compute coverage over one audience
   readonly limit?: number // 1–100, default 100
   readonly cursor?: string
 }
@@ -81,6 +84,18 @@ for (const field of customOnly) {
 
 The uniform `{ data, pagination }` envelope is returned — page with
 `limit` and the opaque `cursor` echoed from `pagination.cursor`.
+
+---
+
+## `get`
+
+One field definition, as the bare row. An unknown field is
+`404 FIELD_NOT_FOUND` — no more scanning the list page for it.
+
+```ts
+const field = await brew.fields.get('plan')
+console.log(field.fieldName, field.fieldType, field.isCore)
+```
 
 ---
 

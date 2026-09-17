@@ -1,19 +1,29 @@
 import { unwrapResponse, type HttpClient } from '../../../core/http'
-import type { operations } from '../../../generated/openapi-types'
 import type { BrewRawResponse, RequestOptions } from '../../../types'
 
-import type { AudienceRunsListResponse } from './types'
+import type { AudienceRunsListResponse, ListAudienceRunsInput } from './types'
 
-/** List filters, or `audienceRunId` for a single-row detail page. */
-export type ListAudienceRunsInput = NonNullable<
-  operations['listAudienceRuns']['parameters']['query']
->
+export type { ListAudienceRunsInput }
 export type ListAudienceRunsResponse = AudienceRunsListResponse
 
-/** `GET /v1/automations/audience-runs` — manual-audience run history. */
+/**
+ * `GET /v1/automations/audience-runs` (scope: `automations`) —
+ * manual-audience run history, newest first, under the uniform
+ * `{ data, pagination }` envelope.
+ *
+ * Filter with `automationId` and `status` (the one v1 vocabulary:
+ * `queued | scheduled | running | paused | completed | failed |
+ * canceled`); page with `limit` / `cursor`. A single run is
+ * `brew.automations.audienceRuns.get(audienceRunId)` — there is no
+ * `audienceRunId` filter here any more.
+ *
+ * Pass `{ raw: true }` in `options` to receive the full
+ * `BrewRawResponse<ListAudienceRunsResponse>` instead of the unwrapped
+ * envelope.
+ */
 export function createListAudienceRuns(client: HttpClient) {
   function listAudienceRuns(
-    input: ListAudienceRunsInput,
+    input: ListAudienceRunsInput | undefined,
     options: RequestOptions & { readonly raw: true }
   ): Promise<BrewRawResponse<ListAudienceRunsResponse>>
   function listAudienceRuns(
@@ -30,9 +40,10 @@ export function createListAudienceRuns(client: HttpClient) {
       method: 'GET',
       path: '/v1/automations/audience-runs',
       query: {
-        audienceRunId: input.audienceRunId,
         automationId: input.automationId,
+        status: input.status,
         limit: input.limit,
+        cursor: input.cursor,
       },
       ...(options ? { options } : {}),
     })

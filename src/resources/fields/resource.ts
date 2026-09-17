@@ -2,6 +2,7 @@ import type { HttpClient } from '../../core/http'
 
 import { createCreateField } from './create'
 import { createDeleteField } from './delete'
+import { createGetField } from './get'
 import { createListFields } from './list'
 
 /**
@@ -11,8 +12,13 @@ import { createListFields } from './list'
  * one new line here.
  */
 export type FieldsResource = {
+  /** `GET /v1/fields` — every contact field definition; `include: 'coverage'` adds per-field fill rates (scope: `contacts`). */
   readonly list: ReturnType<typeof createListFields>
+  /** `GET /v1/fields/{fieldName}` — one field definition as the bare row (scope: `contacts`). */
+  readonly get: ReturnType<typeof createGetField>
+  /** `POST /v1/fields` — create or update a custom field definition (scope: `contacts`). */
   readonly create: ReturnType<typeof createCreateField>
+  /** `DELETE /v1/fields/{fieldName}` — idempotent remove (scope: `contacts`). */
   readonly delete: ReturnType<typeof createDeleteField>
 }
 
@@ -22,6 +28,7 @@ export type FieldsResource = {
 export function createFieldsResource(client: HttpClient): FieldsResource {
   return {
     list: createListFields(client),
+    get: createGetField(client),
     create: createCreateField(client),
     delete: createDeleteField(client),
   }

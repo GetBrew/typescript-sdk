@@ -18,7 +18,6 @@ export { autoPaginate } from './core/pagination'
 // (replaces the removed `TransactionalPayloadValue`).
 export type { SendPayloadValue } from './generated/openapi-types'
 export type { AutomationAnalyticsInput } from './resources/analytics/automations'
-export type { CampaignAnalyticsInput } from './resources/analytics/campaigns'
 export type {
   EventsAnalyticsAllInput,
   EventsAnalyticsInput,
@@ -29,34 +28,12 @@ export type {
 } from './resources/analytics/overview'
 // ---------- Resource shapes ----------
 export type { AnalyticsResource } from './resources/analytics/resource'
-export type { ListAllSendsInput } from './resources/analytics/sends/list'
-export type { AnalyticsSendsResource } from './resources/analytics/sends/resource'
-// ---------- Analytics › sends: the single sends read (+ inline events) ----------
-export type {
-  ListSendsInput,
-  Send,
-  SendEvent,
-  SendStats,
-  SendStatus,
-  SendsListResponse,
-} from './resources/analytics/sends/types'
-export type {
-  ListAllTriggerInstancesInput,
-  ListTriggerInstancesResponse,
-} from './resources/analytics/trigger-instances/list'
-export type { AnalyticsTriggerInstancesResource } from './resources/analytics/trigger-instances/resource'
-// ---------- Analytics › trigger-instances: fired-trigger history ----------
-export type {
-  ListTriggerInstancesInput,
-  TriggerInstance,
-  TriggerInstancesListResponse,
-} from './resources/analytics/trigger-instances/types'
 // ---------- Analytics: domain types + method outputs ----------
+// (`analytics` keeps only reports in v1. Send rows moved to `sends.*`
+// and fired-trigger history to `automations.triggerInstances.*`.)
 export type {
   AutomationAnalyticsResponse,
   AutomationAnalyticsRow,
-  CampaignAnalyticsResponse,
-  CampaignAnalyticsRow,
   EventRow,
   EventsAnalyticsResponse,
 } from './resources/analytics/types'
@@ -81,6 +58,10 @@ export type {
 // ---------- Audiences: method inputs + outputs ----------
 export type {
   AudiencesIncludeToken,
+  GetAudienceOptions,
+  GetAudienceResponse,
+} from './resources/audiences/get'
+export type {
   ListAudiencesInput,
   ListAudiencesResponse,
 } from './resources/audiences/list'
@@ -91,19 +72,18 @@ export type {
   UpdateAudienceInput,
   UpdateAudienceResponse,
 } from './resources/audiences/update'
-export type {
-  ControlAudienceRunInput,
-  ControlAudienceRunResponse,
-} from './resources/automations/audience-runs/control'
+export type { CancelAudienceRunResponse } from './resources/automations/audience-runs/cancel'
+export type { GetAudienceRunResponse } from './resources/automations/audience-runs/get'
 export type {
   ListAudienceRunsInput,
   ListAudienceRunsResponse,
 } from './resources/automations/audience-runs/list'
+export type { PauseAudienceRunResponse } from './resources/automations/audience-runs/pause'
 export type { AudienceRunsResource } from './resources/automations/audience-runs/resource'
+export type { ResumeAudienceRunResponse } from './resources/automations/audience-runs/resume'
 export type {
   AudienceRun,
-  AudienceRunControlAction,
-  AudienceRunControlResponse,
+  AudienceRunActionResponse,
   AudienceRunsListResponse,
 } from './resources/automations/audience-runs/types'
 export type {
@@ -124,12 +104,17 @@ export type {
 } from './resources/automations/delete'
 export type {
   AutomationsIncludeToken,
+  GetAutomationOptions,
+  GetAutomationResponse,
+} from './resources/automations/get'
+export type {
   ListAutomationsInput,
   ListAutomationsResponse,
 } from './resources/automations/list'
 export type {
   PatchAutomationInput,
   PatchAutomationResponse,
+  UnpublishAutomationInput,
 } from './resources/automations/patch'
 export type { AutomationsResource } from './resources/automations/resource'
 export type {
@@ -139,23 +124,39 @@ export type {
   RunAutomationStartedResponse,
 } from './resources/automations/run'
 export type {
+  CancelAutomationRunOptions,
+  CancelAutomationRunResponse,
+} from './resources/automations/runs/cancel'
+export type {
   AutomationRunsIncludeToken,
+  GetAutomationRunOptions,
+  GetAutomationRunResponse,
+} from './resources/automations/runs/get'
+export type {
   ListAutomationRunsInput,
   ListAutomationRunsResponse,
 } from './resources/automations/runs/list'
-export type {
-  CancelAutomationRunInput,
-  CancelAutomationRunResponse,
-} from './resources/automations/runs/cancel'
 export type { AutomationRunsResource } from './resources/automations/runs/resource'
-// ---------- Automations › runs: read-only run history ----------
+// ---------- Automations › runs: run history + one run by id ----------
 // (Exposed as `client.automations.runs.*` against /v1/automations/runs.)
 export type {
   AutomationRun,
+  AutomationRunCancelRequest,
   AutomationRunCancelResponse,
   AutomationRunLog,
   AutomationRunsListResponse,
 } from './resources/automations/runs/types'
+// ---------- Automations › trigger-instances: fired-trigger history ----------
+// (Moved off `analytics` in v1 — it is trigger history, not a report.)
+export type { GetTriggerInstanceResponse } from './resources/automations/trigger-instances/get'
+export type { ListAllTriggerInstancesInput } from './resources/automations/trigger-instances/list'
+export type { TriggerInstancesResource } from './resources/automations/trigger-instances/resource'
+export type {
+  ListTriggerInstancesInput,
+  TriggerInstance,
+  TriggerInstancesListResponse,
+  TriggerInstanceState,
+} from './resources/automations/trigger-instances/types'
 export type {
   ContractFormat,
   GetTriggerContractInput,
@@ -187,9 +188,14 @@ export type {
   PatchTriggerResponse,
 } from './resources/automations/triggers/patch'
 export type {
-  TriggerReadyInput,
-  TriggerReadyResponse,
-} from './resources/automations/triggers/ready'
+  GetTriggerOptions,
+  GetTriggerResponse,
+  TriggersIncludeToken,
+} from './resources/automations/triggers/get'
+export type {
+  TriggerReadinessBlocker,
+  TriggerReadinessResponse,
+} from './resources/automations/triggers/readiness'
 // ---------- Nested resource shapes ----------
 export type { TriggersResource } from './resources/automations/triggers/resource'
 // ---------- Automations › triggers: domain types ----------
@@ -241,6 +247,11 @@ export type {
 } from './resources/chats/types'
 // ---------- Contacts: method inputs + outputs ----------
 export type { CountContactsInput } from './resources/contacts/count'
+export type { GetContactResponse } from './resources/contacts/get'
+export type {
+  ListContactsInput,
+  ListContactsResponse,
+} from './resources/contacts/list'
 export type {
   DeleteContactInput,
   DeleteContactResponse,
@@ -288,6 +299,7 @@ export type {
   GetDomainHealthInput,
   GetDomainHealthResponse,
 } from './resources/domains/health'
+export type { GetDomainResponse } from './resources/domains/get'
 // ---------- Domains: method inputs + outputs ----------
 export type {
   ListDomainsInput,
@@ -303,6 +315,7 @@ export type {
   VerifyDomainInput,
   VerifyDomainResponse,
 } from './resources/domains/verify'
+export type { GetEmailGroupResponse } from './resources/email-groups/get'
 export type { EmailGroupsResource } from './resources/email-groups/resource'
 export type * from './resources/email-groups/types'
 export type {
@@ -333,6 +346,25 @@ export type {
 } from './resources/emails/import'
 export type {
   EmailsIncludeToken,
+  GetEmailOptions,
+  GetEmailResponse,
+} from './resources/emails/get'
+export type {
+  CreateInboxPlacementTestInput,
+  CreateInboxPlacementTestResponse,
+} from './resources/emails/inbox-placement-tests/create'
+export type { GetInboxPlacementTestResponse } from './resources/emails/inbox-placement-tests/get'
+export type {
+  ListInboxPlacementTestsInput,
+  ListInboxPlacementTestsResponse,
+} from './resources/emails/inbox-placement-tests/list'
+export type { InboxPlacementTestsResource } from './resources/emails/inbox-placement-tests/resource'
+export type {
+  InboxPlacementTest,
+  InboxPlacementTestList,
+  InboxPlacementTestStatus,
+} from './resources/emails/inbox-placement-tests/types'
+export type {
   ListEmailsInput,
   ListEmailsResponse,
 } from './resources/emails/list'
@@ -352,6 +384,7 @@ export type {
 } from './resources/emails/send'
 export type {
   EmailDetail,
+  EmailsSortBy,
   EmailStatus,
   EmailSummary,
   EmailVersion,
@@ -363,8 +396,12 @@ export type {
   CreateFieldResponse,
 } from './resources/fields/create'
 export type { DeleteFieldInput } from './resources/fields/delete'
+export type { GetFieldResponse } from './resources/fields/get'
 // ---------- Fields: method inputs + outputs ----------
-export type { ListFieldsResponse } from './resources/fields/list'
+export type {
+  ListFieldsInput,
+  ListFieldsResponse,
+} from './resources/fields/list'
 export type { FieldsResource } from './resources/fields/resource'
 // ---------- Fields: domain types ----------
 export type { ContactField, ContactFieldType } from './resources/fields/types'
@@ -380,22 +417,39 @@ export type {
   PayloadContractInferResponse,
 } from './resources/payload-contracts/infer'
 export type { PayloadContractsResource } from './resources/payload-contracts/resource'
-// `POST /v1/sends/{sendId}/cancel` is the send lifecycle action
-// (`sends.cancel`): cancel a scheduled or queued send before it goes out.
+// ---------- Sends: the send reads + the lifecycle actions ----------
+// (`sends.list` / `sends.get` replaced `analytics.campaigns` and
+// `analytics.sends.*`; sends are still CREATED with `emails.send`.)
 export type {
   SendCancelResponse,
   SendCancelStatus,
 } from './resources/sends/cancel'
+export type {
+  GetSendOptions,
+  GetSendResponse,
+  SendsIncludeToken,
+} from './resources/sends/get'
+export type { ListAllSendsInput } from './resources/sends/list'
+export type { SendPauseResponse } from './resources/sends/pause'
 export type { SendsResource } from './resources/sends/resource'
+export type { SendResumeResponse } from './resources/sends/resume'
+export type {
+  ListSendsInput,
+  Send,
+  SendEvent,
+  SendsListResponse,
+  SendStats,
+  SendStatus,
+} from './resources/sends/types'
 export type {
   ListTemplatesInput,
   ListTemplatesResponse,
 } from './resources/templates/list'
 export type { TemplatesResource } from './resources/templates/resource'
 // Send domain reads (`Send`, `SendStats`, `SendsListResponse`, …) are
-// exported from the `analytics/sends` block above; the polymorphic send
-// ACTION lives on `emails` (`emails.send` — campaign | test), so its
-// request + response shapes are exported from the `emails` block below.
+// exported from the `sends` block above; the polymorphic send ACTION
+// lives on `emails` (`emails.send` — campaign | test), so its request +
+// response shapes are exported from the `emails` block.
 export type { Template } from './resources/templates/types'
 // Public email flows (`client.flows.*` against /v1/flows): organization-wide,
 // the sequence view of the same gallery `templates` lists.
@@ -411,6 +465,7 @@ export type * from './resources/usage/types'
 // ---------- Public config + request types ----------
 export type {
   BrewClientConfig,
+  BrewErrorCode,
   BrewErrorEnvelope,
   BrewErrorType,
   BrewFetch,

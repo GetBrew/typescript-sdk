@@ -40,56 +40,69 @@ describe('automations.runs resource — read-only list/get wiring', () => {
     expect(result.data[0]?.automationRunId).toBe('run_a')
   })
 
-  it('surfaces only list + cancel (no fire / test / replay — those live on triggers and automations)', () => {
+  it('surfaces only list + get + cancel (no fire / test / replay — those live on triggers and automations)', () => {
     const { client } = makeTestHttpClient()
     const runs = createAutomationRunsResource(client)
-    expect(Object.keys(runs).sort()).toEqual(['cancel', 'list'])
+    expect(Object.keys(runs).sort()).toEqual(['cancel', 'get', 'list'])
     expect('fire' in runs).toBe(false)
     expect('test' in runs).toBe(false)
     expect('replay' in runs).toBe(false)
   })
 
-  it('list with automationRunId + include logs returns the single-row page with logs[] inlined', async () => {
+  it('get GETs /v1/automations/runs/{automationRunId} with include=logs and returns the BARE row', async () => {
+    let url: string | undefined
+    server.use(
+      http.get(
+        'https://brew.new/api/v1/automations/runs/run_a',
+        ({ request }) => {
+          url = request.url
+          return HttpResponse.json({
+            ...RUN_ROW,
+            logs: [
+              {
+                automationRunId: 'run_a',
+                nodeId: 'trg',
+                nodeName: 'On signup',
+                nodeType: 'trigger',
+                status: 'completed',
+                orderIndex: 0,
+                startedAt: '2026-04-08T12:34:56.789Z',
+              },
+            ],
+          })
+        }
+      )
+    )
+    const { client } = makeTestHttpClient()
+    const runs = createAutomationRunsResource(client)
+    const run = await runs.get('run_a', { include: 'logs' })
+
+    const parsed = new URL(url!)
+    expect(parsed.pathname).toBe('/api/v1/automations/runs/run_a')
+    expect(parsed.searchParams.get('include')).toBe('logs')
+    expect(run.automationRunId).toBe('run_a')
+    expect(run.logs).toHaveLength(1)
+    expect(run.logs?.[0]?.nodeType).toBe('trigger')
+    // A node reports running | completed | failed | skipped.
+    expect(run.logs?.[0]?.status).toBe('completed')
+  })
+
+  it('rejects an automationRunId filter on the list read', async () => {
     let url: string | undefined
     server.use(
       http.get('https://brew.new/api/v1/automations/runs', ({ request }) => {
         url = request.url
-        // Detail mode = single-row page; `include=logs` inlines per-node logs[].
         return HttpResponse.json({
-          data: [
-            {
-              ...RUN_ROW,
-              logs: [
-                {
-                  automationRunId: 'run_a',
-                  nodeId: 'trg',
-                  nodeName: 'On signup',
-                  nodeType: 'trigger',
-                  status: 'success',
-                  orderIndex: 0,
-                  startedAt: '2026-04-08T12:34:56.789Z',
-                },
-              ],
-            },
-          ],
+          data: [RUN_ROW],
+          pagination: { limit: 25, cursor: null, hasMore: false },
         })
       })
     )
     const { client } = makeTestHttpClient()
-    const runs = createAutomationRunsResource(client)
-    // Reads are flat: identity in the query, `include` for the opt-in logs.
-    const result = await runs.list({
-      automationRunId: 'run_a',
-      include: 'logs',
+    await createAutomationRunsResource(client).list({
+      automationId: 'auto_abc',
     })
 
-    const params = new URL(url!).searchParams
-    expect(new URL(url!).pathname).toBe('/api/v1/automations/runs')
-    expect(params.get('automationRunId')).toBe('run_a')
-    expect(params.get('include')).toBe('logs')
-    expect(result.data[0]?.automationRunId).toBe('run_a')
-    expect(result.data[0]?.logs).toHaveLength(1)
-    expect(result.data[0]?.logs?.[0]?.nodeType).toBe('trigger')
-    expect(result.pagination).toBeUndefined()
+    expect(new URL(url!).searchParams.get('automationRunId')).toBeNull()
   })
 })

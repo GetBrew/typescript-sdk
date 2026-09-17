@@ -68,12 +68,16 @@ system. Returns `201` immediately with `status: 'extracting'`; the crawl takes
 **1–3 minutes**.
 
 ```ts
-const { brand, extraction } = await brew.brands.create({
+const { brandId, status, extraction } = await brew.brands.create({
   url: 'acme.com',
   instructions:
     'Use the product pages for tone. Primary colour is the header navy.',
 })
 ```
+
+> **Changed in 10.0.0.** The brand row is FLAT on every brand response —
+> there is no `{ brand: … }` wrapper. `result.brand.ready` is now
+> `result.ready`.
 
 | field               | type        | notes                               |
 | ------------------- | ----------- | ----------------------------------- |
@@ -99,16 +103,16 @@ Errors worth branching on:
 `GET /v1/brands/{brandId}` — scope `emails`. The poll for `create`.
 
 ```ts
-let { brand } = await brew.brands.get({ brandId })
+let brand = await brew.brands.get({ brandId })
 while (!brand.ready && brand.status !== 'failed') {
   await new Promise((resolve) => setTimeout(resolve, 5_000))
-  ;({ brand } = await brew.brands.get({ brandId }))
+  brand = await brew.brands.get({ brandId })
 }
 if (brand.status === 'failed') throw new Error(brand.error)
 ```
 
 While extracting, `progress` (0–100) and `phase` are present; on failure,
-`error` is. **Wait for `ready` before calling `emails.create(...)`**, which
+`error` is. **Wait for `ready` before calling `emails.generate(...)`**, which
 returns `422 BRAND_NOT_READY` until then.
 
 An unknown brand, one in another organization, and one being deleted are all

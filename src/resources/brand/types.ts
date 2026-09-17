@@ -1,12 +1,12 @@
 import type { components, paths } from '../../generated/openapi-types'
 
 /**
- * Envelope returned by `GET /v1/brand` and `PATCH /v1/brand`.
+ * Body returned by `GET /v1/brand` and `PATCH /v1/brand` — the brand row
+ * itself, FLAT. There is no `{ brand: … }` wrapper in v1.
  *
- * `brand` is always present. The optional `identity` / `emailDesign` /
- * `imageStyle` / `logos` fields are populated on a `GET` only for the
- * sub-resources named in `?include=`, and on a `PATCH` only for the
- * fields that were touched.
+ * The optional `identity` / `emailDesign` / `imageStyle` / `logos`
+ * fields are populated on a `GET` only for the sub-resources named in
+ * `?include=`, and on a `PATCH` only for the fields that were touched.
  */
 export type BrandGetResponse = components['schemas']['BrandGetResponse']
 
@@ -20,7 +20,10 @@ export type BrandPatchResponse = BrandGetResponse
  * `brew.emails.generate(...)`, which 422s `BRAND_NOT_READY` until
  * extraction finishes.
  */
-export type Brand = BrandGetResponse['brand']
+export type Brand = Omit<
+  BrandGetResponse,
+  'identity' | 'emailDesign' | 'imageStyle' | 'logos'
+>
 
 /** Lifecycle status of the bound brand's extraction. */
 export type BrandStatus = Brand['status']

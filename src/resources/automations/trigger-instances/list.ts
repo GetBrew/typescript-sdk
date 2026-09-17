@@ -10,24 +10,21 @@ import type {
 
 export type { ListTriggerInstancesInput, TriggerInstancesListResponse }
 
-export type ListTriggerInstancesResponse = TriggerInstancesListResponse
-
 /**
- * `GET /v1/analytics/trigger-instances` (scope: `automations`) — the
- * single fired-trigger-event read, under the uniform
- * `{ data, pagination? }` envelope. Reads are flat: the identity lives
- * in the query.
+ * `GET /v1/automations/trigger-instances` (scope: `automations`) — the
+ * audit log of every inbound fire (API `source: 'api'` or integration
+ * `source: 'integration'`), newest first, under the uniform
+ * `{ data, pagination }` envelope. Each row links the fire to the
+ * automations it matched (`matchedAutomationIds`) and the runs it
+ * started (`automationRunIds`).
  *
- * - List mode (no `triggerInstanceId`): the audit log of every inbound
- *   fire (API `source: 'api'` or integration `source: 'integration'`),
- *   newest first. Each row links the fire to the automations it matched
- *   and the runs it started. Filter with `triggerEventId`; page with
- *   `limit` / `cursor`.
- * - Detail mode (`triggerInstanceId` set): a single-row page
- *   `{ data: [row] }` with no `pagination`.
+ * Filter with `triggerEventId`; page with `limit` / `cursor`. A single
+ * instance is `brew.automations.triggerInstances.get(triggerInstanceId)`
+ * — there is no `triggerInstanceId` filter here any more.
  *
- * To page through every instance use
- * `brew.analytics.triggerInstances.listAll`.
+ * This read moved off `analytics` in v1: it is trigger history, not a
+ * report. To page through every instance use
+ * `brew.automations.triggerInstances.listAll`.
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<TriggerInstancesListResponse>` instead of the
@@ -50,9 +47,8 @@ export function createListTriggerInstances(client: HttpClient) {
   > {
     const response = await client.request<TriggerInstancesListResponse>({
       method: 'GET',
-      path: '/v1/analytics/trigger-instances',
+      path: '/v1/automations/trigger-instances',
       query: {
-        triggerInstanceId: input.triggerInstanceId,
         triggerEventId: input.triggerEventId,
         limit: input.limit,
         cursor: input.cursor,
@@ -65,12 +61,11 @@ export function createListTriggerInstances(client: HttpClient) {
 }
 
 /**
- * Input to `brew.analytics.triggerInstances.listAll(...)`. Same filters
- * as `list` minus `cursor` (the iterator owns cursor state) and the
- * detail-only `triggerInstanceId` (paging a single row is meaningless).
+ * Input to `brew.automations.triggerInstances.listAll(...)`. Same
+ * filters as `list` minus `cursor` — the iterator owns cursor state.
  */
 export type ListAllTriggerInstancesInput = Readonly<
-  Omit<ListTriggerInstancesInput, 'cursor' | 'triggerInstanceId'>
+  Omit<ListTriggerInstancesInput, 'cursor'>
 >
 
 /**

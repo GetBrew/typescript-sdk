@@ -16,12 +16,15 @@ export type EventsAnalyticsInput = NonNullable<
  * `GET /v1/analytics/events` — the unified event explorer across email,
  * automation, trigger, and inbound domains. Requires the `emails` scope.
  *
- * Filters: `from`/`to` (ISO; default last 7d), `recipientEmail`,
- * `eventType`, `automationId`, `sendId`, plus `limit`/`cursor`. Returns
+ * Filters: `from`/`to` (ISO; default last 7d), `recipient` (renamed
+ * from `recipientEmail` in v1), `eventType`, `domain`, `source`,
+ * `messageClass`, `automationId`, `automationRunId`, `triggerEventId`,
+ * `audienceId`, `emailId`, `sendId`, the `includeMachineClicks` /
+ * `includeMachineOpens` bot toggles, plus `limit`/`cursor`. Returns
  * `{ data, pagination, range }`.
  *
- * Per-contact engagement is just `{ recipientEmail }`. To page through
- * the whole feed use `brew.analytics.eventsAll`.
+ * Per-contact engagement is just `{ recipient }`. To page through the
+ * whole feed use `brew.analytics.eventsAll`.
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<EventsAnalyticsResponse>` instead of the unwrapped
@@ -48,10 +51,19 @@ export function createEventsAnalytics(client: HttpClient) {
       query: {
         from: input.from,
         to: input.to,
-        recipientEmail: input.recipientEmail,
+        recipient: input.recipient,
         eventType: input.eventType,
+        domain: input.domain,
+        source: input.source,
+        messageClass: input.messageClass,
         automationId: input.automationId,
+        automationRunId: input.automationRunId,
+        triggerEventId: input.triggerEventId,
+        audienceId: input.audienceId,
+        emailId: input.emailId,
         sendId: input.sendId,
+        includeMachineClicks: input.includeMachineClicks,
+        includeMachineOpens: input.includeMachineOpens,
         limit: input.limit,
         cursor: input.cursor,
       },
@@ -73,7 +85,7 @@ export type EventsAnalyticsAllInput = Readonly<
 /**
  * Async iterator that pages through the entire event feed, yielding one
  * `EventRow` at a time. Ideal for exporting a contact's full engagement
- * timeline (`{ recipientEmail }`).
+ * timeline (`{ recipient }`).
  */
 export function createEventsAnalyticsAll(client: HttpClient) {
   const events = createEventsAnalytics(client)

@@ -80,31 +80,62 @@ describe('createBrewClient — end-to-end', () => {
     expect(typeof brew.apiKeys.create).toBe('function')
     expect(typeof brew.apiKeys.revoke).toBe('function')
 
-    // Nested surfaces: send reads + trigger CRUD/runs are flat reads.
-    expect(typeof brew.analytics.sends.list).toBe('function')
+    // Sends read and write at their own root in v1.
+    expect(typeof brew.sends.list).toBe('function')
+    expect(typeof brew.sends.get).toBe('function')
+    // Nested automation surfaces.
     expect(typeof brew.automations.triggers.list).toBe('function')
+    expect(typeof brew.automations.triggers.get).toBe('function')
     expect(typeof brew.automations.triggers.fire).toBe('function')
+    expect(typeof brew.automations.triggers.readiness).toBe('function')
     expect(typeof brew.automations.runs.list).toBe('function')
-    expect(typeof brew.analytics.triggerInstances.list).toBe('function')
+    expect(typeof brew.automations.runs.get).toBe('function')
+    expect(typeof brew.automations.runs.cancel).toBe('function')
+    expect(typeof brew.automations.audienceRuns.get).toBe('function')
+    expect(typeof brew.automations.audienceRuns.pause).toBe('function')
+    expect(typeof brew.automations.audienceRuns.resume).toBe('function')
+    expect(typeof brew.automations.audienceRuns.cancel).toBe('function')
+    // Trigger instances moved under automations.
+    expect(typeof brew.automations.triggerInstances.list).toBe('function')
+    expect(typeof brew.automations.triggerInstances.get).toBe('function')
 
-    // Removed: no top-level me/account resources. The send action
-    // lives on `emails.send` and send reads on `analytics.sends`; the
-    // top-level `sends` namespace now carries only the lifecycle action
-    // `sends.cancel` (no `sends.send` / `sends.list`). The separate
-    // per-detail reads (`get`, `sendTest`, `versions`, `duplicate`)
-    // collapsed into the single flat read on each resource. `integrations`
-    // was dropped in the v8 surface migration and reintroduced by a later
+    // Every collection has a real detail read at /{collection}/{id}.
+    expect(typeof brew.audiences.get).toBe('function')
+    expect(typeof brew.automations.get).toBe('function')
+    expect(typeof brew.contacts.list).toBe('function')
+    expect(typeof brew.contacts.get).toBe('function')
+    expect(typeof brew.domains.get).toBe('function')
+    expect(typeof brew.emailGroups.get).toBe('function')
+    expect(typeof brew.emails.get).toBe('function')
+    expect(typeof brew.emails.inboxPlacementTests.get).toBe('function')
+    expect(typeof brew.fields.get).toBe('function')
+
+    // Removed: no top-level me/account resources. The send ACTION still
+    // lives on `emails.send`, but the send READS moved to the `sends`
+    // root, so `analytics` keeps only reports. `integrations` was
+    // dropped in the v8 surface migration and reintroduced by a later
     // OpenAPI resync as a real read (`GET /v1/integrations`) — asserted
     // positively above instead of negatively here.
     expect('me' in brew).toBe(false)
     expect('account' in brew).toBe(false)
     expect('send' in brew.sends).toBe(false)
-    expect('list' in brew.sends).toBe(false)
     expect('sendTest' in brew.emails).toBe(false)
     const removedAuditMethod = ['audit', 'Access', 'ibility'].join('')
     expect(removedAuditMethod in brew.emails).toBe(false)
-    expect('get' in brew.analytics.sends).toBe(false)
     expect('versions' in brew.automations).toBe(false)
+    // v1 cleanup: analytics keeps only reports.
+    expect(Object.keys(brew.analytics).sort()).toEqual([
+      'automations',
+      'events',
+      'eventsAll',
+      'overview',
+    ])
+    expect('campaigns' in brew.analytics).toBe(false)
+    expect('sends' in brew.analytics).toBe(false)
+    expect('triggerInstances' in brew.analytics).toBe(false)
+    // v1 cleanup: the retargeted lifecycle verbs are gone.
+    expect('ready' in brew.automations.triggers).toBe(false)
+    expect('control' in brew.automations.audienceRuns).toBe(false)
   })
 
   it('runs a full upsert-then-fetch happy path through contacts', async () => {

@@ -6,8 +6,8 @@ import type { BrewRawResponse, RequestOptions } from '../../types'
  * Body of `POST /v1/emails/{emailId}/export`, plus the `emailId` that goes on
  * the URL.
  *
- * Set `dry_run: true` to validate the design, brand ownership, and the ESP
- * connection without creating a template.
+ * Set `dryRun: true` (renamed from `dry_run` in v1) to validate the design,
+ * brand ownership, and the ESP connection without creating a template.
  */
 export type ExportEmailInput = {
   /** The design to export. Cross-brand or unknown ids surface as `404`. */

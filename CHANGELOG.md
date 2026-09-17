@@ -1,5 +1,212 @@
 # Changelog
 
+## 10.0.0
+
+Tracks the public API v1 cleanup. Every collection gained a real detail read
+at `/{collection}/{id}` returning the BARE row, sends read and write at their
+own root, trigger instances moved under automations, and lifecycle changes
+became action sub-paths instead of a body verb.
+
+**This release is breaking on purpose and ships no aliases.** The old trick of
+calling a list with an id filter and taking `data[0]` is gone — those query
+filters now `400`, and an unknown id is a `404` you can catch instead of an
+empty page you have to test for.
+
+### Breaking — resources that moved
+
+| Was                                                      | Now                                                     |
+| -------------------------------------------------------- | ------------------------------------------------------- |
+| `analytics.campaigns()`                                  | `sends.list({ kind: 'campaign' })` — rows carry `stats` |
+| `analytics.sends.list({ sendId })`                       | `sends.get(sendId)`                                     |
+| `analytics.sends.list(query)`                            | `sends.list(query)`                                     |
+| `analytics.sends.listAll(query)`                         | `sends.listAll(query)`                                  |
+| `analytics.triggerInstances.list(query)`                 | `automations.triggerInstances.list(query)`              |
+| `analytics.triggerInstances.list({ triggerInstanceId })` | `automations.triggerInstances.get(triggerInstanceId)`   |
+| `emails.createInboxPlacementTest(input)`                 | `emails.inboxPlacementTests.create(input)`              |
+| `emails.getInboxPlacementResults({ emailId })`           | `emails.inboxPlacementTests.list({ emailId })`          |
+| `emails.getInboxPlacementResults({ emailId, testId })`   | `emails.inboxPlacementTests.get(emailId, testId)`       |
+
+`brew.analytics` keeps only reports: `overview`, `automations`, `events`,
+`eventsAll`. Types `CampaignAnalyticsResponse`, `CampaignAnalyticsRow`,
+`CampaignAnalyticsInput`, `AnalyticsSendsResource`, and
+`AnalyticsTriggerInstancesResource` are removed; `Send`, `SendStats`,
+`SendStatus`, `SendEvent`, `SendsListResponse`, `ListSendsInput`,
+`ListAllSendsInput`, `TriggerInstance`, `TriggerInstancesListResponse`, and
+`ListTriggerInstancesInput` are re-exported from their new homes under the
+same names.
+
+### Breaking — methods that were retargeted
+
+| Was                                                                                   | Now                                                                           |
+| ------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `automations.triggers.ready({ triggerEventId })` (`GET …/fire`)                       | `automations.triggers.readiness(triggerEventId)` (`GET …/readiness`)          |
+| `automations.runs.cancel({ automationRunId, reason })` (`PATCH /v1/automations/runs`) | `automations.runs.cancel(automationRunId, { reason })` (`POST …/{id}/cancel`) |
+| `automations.audienceRuns.control({ audienceRunId, action: 'pause' })`                | `automations.audienceRuns.pause(audienceRunId)`                               |
+| `automations.audienceRuns.control({ audienceRunId, action: 'resume' })`               | `automations.audienceRuns.resume(audienceRunId)`                              |
+| `automations.audienceRuns.control({ audienceRunId, action: 'cancel' })`               | `automations.audienceRuns.cancel(audienceRunId)`                              |
+
+`readiness` answers a bare `{ triggerEventId, ready, blockers[],
+publishedAutomations[], counts, … }` body instead of the fire envelope.
+`runs.cancel` no longer fills in a `status: 'canceled'` body field — the id
+rides the URL and the only body field is the optional `reason`, which moved
+into the options argument. Types `TriggerReadyInput` / `TriggerReadyResponse`
+became `TriggerReadinessResponse` (+ `TriggerReadinessBlocker`);
+`ControlAudienceRunInput`, `ControlAudienceRunResponse`,
+`AudienceRunControlAction`, and `AudienceRunControlResponse` became the single
+`AudienceRunActionResponse`; `CancelAutomationRunInput` became
+`CancelAutomationRunOptions`.
+
+### Breaking — list reads lost their id and `include` filters
+
+`audiences.list`, `automations.list`, `automations.runs.list`,
+`automations.audienceRuns.list`, `automations.triggers.list`, `domains.list`,
+`emailGroups.list`, and `emails.list` no longer accept the resource's own id
+or `include`. Pass them to the new `get` instead:
+
+```ts
+// Before
+const { data } = await brew.emails.list({ emailId, include: 'html' })
+const email = data[0] // may be undefined
+
+// After
+const email = await brew.emails.get(emailId, { include: 'html' })
+// 404 EMAIL_NOT_FOUND instead of an empty page
+```
+
+`emails.list` also swapped its four window params — `createdAtFrom`,
+`createdAtTo`, `updatedAtFrom`, `updatedAtTo` — for one `from` / `to` pair
+plus `sortBy: 'createdAt' | 'updatedAt'`.
+
+### Breaking — renamed request and response fields
+
+- **`emails.export`** takes `dryRun`, not `dry_run`.
+- **`automations.run`** takes `dryRun`, not `dry_run`, and its preview answers
+  `dryRun: true`.
+- **`automations.unpublish`** takes `stopInFlight`, not `stop_in_flight`.
+  `PatchAutomationInput` grew the same field, plus `paused`, `dryRun`, and the
+  two `expectedBase*` concurrency guards.
+- **`emails.restore`** takes `{ emailVersionId }`, not `{ version }`. Read the
+  ids from `emails.get(emailId, { include: 'versions' })`.
+- **`emails.send`** takes `from: { email, name? }` instead of `fromEmail` +
+  `senderName`; `replyTo` is a top-level string.
+- **`analytics.events`** filters on `recipient`, not `recipientEmail`. (The
+  returned rows still carry the address as `recipientEmail` — only the filter
+  was renamed.)
+- **`contacts.deleteMany`** returns `{ deletedCount, notFound }`. The count was
+  `deleted`, and `notFound` is now always present (empty when everything
+  matched).
+- **`contacts.delete`** returns `{ email, deleted: boolean }` and is idempotent
+  — an unknown email resolves `200` with `deleted: false` instead of throwing.
+- **`apiKeys.revoke`** returns `{ keyId, deleted, revokedAt? }`. The flag was
+  `revoked`.
+- **`brand.get` / `brand.patch`** return the brand row FLAT. There is no
+  `{ brand: … }` wrapper, so `result.brand.ready` is now `result.ready`. Same
+  for `brands.get`. The exported `Brand` type is the row minus the `include`
+  expansions.
+- **`automations.triggers.fire`** returns the bare accepted body
+  (`{ triggerInstanceId, triggerEventId, status, automationRunIds,
+publishedAutomations, counts, warnings, receivedAt }`). The
+  `{ success, code, message, details }` envelope is gone, so
+  `result.details.automationRunIds` is now `result.automationRunIds`. The
+  idempotency key is a request option, never a body field.
+- **`runId` is gone** from send rows and from the `POST /v1/sends` 202.
+  `sendId` is the only handle. Send rows gained the automation provenance
+  chain: `automationId`, `nodeId`, `automationRunId`, `audienceRunId`,
+  `triggerInstanceId`.
+
+### Breaking — one status vocabulary
+
+Runs, sends, audience builds, and inbox-placement tests all report
+`queued | scheduled | running | paused | completed | partially_completed |
+failed | canceled`. A step or node reports `running | completed | failed |
+skipped`. An email design reports `generating | ready | failed`.
+
+Status **filters** accept only those values, so anything typed against
+`sent`, `partially_sent`, `sending`, `pending`, `streaming`, `complete`, or
+`error` must be updated:
+
+```ts
+// Before
+await brew.analytics.sends.list({ status: 'sent' })
+await brew.emails.list({ status: 'complete' })
+
+// After
+await brew.sends.list({ status: 'completed' })
+await brew.emails.list({ status: 'ready' })
+```
+
+A test send now answers `status: 'completed'`, not `'sent'`. `sends.resume`
+answers `status: 'running'`, not `'sending'`. An inbox-placement test's old
+`collecting` status became a separate `phase` field (`sending` | `collecting`)
+alongside a real `status`.
+
+### Breaking — error codes
+
+- `SEND_QUOTA_EXCEEDED` is **402** and absorbs the old
+  `INSUFFICIENT_EMAIL_SENDS`.
+- `PUBLISH_VALIDATION_FAILED` is **422**, was 409.
+- `EVENT_NOT_FOUND` became `TRIGGER_INSTANCE_NOT_FOUND`.
+- 429 is `RATE_LIMITED` only, and `Retry-After` rides the 429 alone — so
+  `error.retryAfter` is only populated on a rate-limit error.
+- A brand-bound API key calling an organization operation gets
+  `403 ORG_SCOPE_REQUIRED` (mint an organization-scoped key). A person without
+  the role still gets `403 INSUFFICIENT_ROLE`. `GET /v1/usage` needs
+  organization standing, so a brand-bound key gets `ORG_SCOPE_REQUIRED` there.
+- `automations.run` names the missing entity: `404 AUTOMATION_NOT_FOUND` or
+  `404 AUDIENCE_NOT_FOUND` instead of a generic `NOT_FOUND`.
+
+Branch on `error.code`, which stays a `string`. New export `BrewErrorCode` is
+the union of every documented code, for exhaustive switches. `BrewErrorType`
+gained `payment_required` and `service_unavailable`.
+
+### Added — 21 methods
+
+| Method                                                   | Route                                                       |
+| -------------------------------------------------------- | ----------------------------------------------------------- |
+| `audiences.get(audienceId, { include? })`                | `GET /v1/audiences/{audienceId}`                            |
+| `automations.get(automationId, { include? })`            | `GET /v1/automations/{automationId}`                        |
+| `automations.runs.get(automationRunId, { include? })`    | `GET /v1/automations/runs/{automationRunId}`                |
+| `automations.runs.cancel(automationRunId)`               | `POST /v1/automations/runs/{automationRunId}/cancel`        |
+| `automations.audienceRuns.get(audienceRunId)`            | `GET /v1/automations/audience-runs/{audienceRunId}`         |
+| `automations.audienceRuns.pause(audienceRunId)`          | `POST …/audience-runs/{audienceRunId}/pause`                |
+| `automations.audienceRuns.resume(audienceRunId)`         | `POST …/audience-runs/{audienceRunId}/resume`               |
+| `automations.audienceRuns.cancel(audienceRunId)`         | `POST …/audience-runs/{audienceRunId}/cancel`               |
+| `automations.triggerInstances.list(query)`               | `GET /v1/automations/trigger-instances`                     |
+| `automations.triggerInstances.listAll(query)`            | `GET /v1/automations/trigger-instances` (paged)             |
+| `automations.triggerInstances.get(triggerInstanceId)`    | `GET /v1/automations/trigger-instances/{triggerInstanceId}` |
+| `automations.triggers.get(triggerEventId, { include? })` | `GET /v1/automations/triggers/{triggerEventId}`             |
+| `automations.triggers.readiness(triggerEventId)`         | `GET /v1/automations/triggers/{triggerEventId}/readiness`   |
+| `contacts.list(query)`                                   | `GET /v1/contacts`                                          |
+| `contacts.get(email)`                                    | `GET /v1/contacts/{email}`                                  |
+| `domains.get(domainId)`                                  | `GET /v1/domains/{domainId}`                                |
+| `emailGroups.get(groupId)`                               | `GET /v1/email-groups/{groupId}`                            |
+| `emails.get(emailId, { include? })`                      | `GET /v1/emails/{emailId}`                                  |
+| `emails.inboxPlacementTests.get(emailId, testId)`        | `GET /v1/emails/{emailId}/inbox-placement-tests/{testId}`   |
+| `fields.get(fieldName)`                                  | `GET /v1/fields/{fieldName}`                                |
+| `sends.list(query)` / `sends.listAll(query)`             | `GET /v1/sends`                                             |
+| `sends.get(sendId, { include? })`                        | `GET /v1/sends/{sendId}`                                    |
+
+Every `get` returns the BARE row, not a `{ data }` envelope, and `404`s on an
+unknown or cross-brand id. The `include` expansions ride the options argument
+alongside `raw` / `idempotencyKey` / `signal`.
+
+`fields.list` gained `include: 'coverage'` and `audienceId`; `domains.list`
+gained `sendingPurpose`; `sends.list` filters on `kind`, `messageClass`, and
+the four automation provenance ids.
+
+`TriggerInstance.state` is a real enum —
+`received | verified | matched | partially_fired | fired | rejected |
+dead_letter`, exported as `TriggerInstanceState`. Branch on it rather than on
+the presence of `automationRunIds`: `fired` means every matched automation
+started, `partially_fired` means some starts are still being retried.
+
+### Spec resync
+
+`openapi/public-api-v1.yaml` and `src/generated/openapi-types.ts` regenerated
+from the authoritative v1 spec (106 operations). `tests/openapi-surface-parity.test.ts`
+passes in both directions: every documented operation has a typed SDK request,
+and no SDK request points at a route the spec no longer documents.
+
 ## 9.2.0
 
 ### Added — `brew.flows.list`

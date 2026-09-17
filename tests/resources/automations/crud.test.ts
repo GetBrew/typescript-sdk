@@ -87,30 +87,25 @@ describe('automations resource — POST/GET/PATCH/DELETE wiring', () => {
     expect(waitNode.config.unit).toBe('days')
   })
 
-  it('list with automationId + include graph GETs /v1/automations?automationId&include=graph and returns the single-row page', async () => {
+  it('get GETs /v1/automations/{automationId}?include=graph and returns the BARE row', async () => {
     let captured: Request | undefined
     server.use(
-      http.get('https://brew.new/api/v1/automations', ({ request }) => {
-        captured = request.clone()
-        // Detail mode = a single-row page `{ data: [row] }`, no pagination.
-        return HttpResponse.json({ data: [ROW] })
-      })
+      http.get(
+        'https://brew.new/api/v1/automations/auto_abc',
+        ({ request }) => {
+          captured = request.clone()
+          return HttpResponse.json(ROW)
+        }
+      )
     )
     const { client } = makeTestHttpClient()
     const automations = createAutomationsResource(client)
-    // Reads are flat: identity in the query, `include` for opt-in graph.
-    const result = await automations.list({
-      automationId: 'auto_abc',
-      include: 'graph',
-    })
+    const automation = await automations.get('auto_abc', { include: 'graph' })
     const url = new URL(captured!.url)
-    expect(url.pathname).toBe('/api/v1/automations')
-    expect(url.searchParams.get('automationId')).toBe('auto_abc')
+    expect(url.pathname).toBe('/api/v1/automations/auto_abc')
     expect(url.searchParams.get('include')).toBe('graph')
-    expect(result.data).toHaveLength(1)
-    expect(result.data[0]?.automationId).toBe('auto_abc')
-    expect(result.data[0]?.nodes).toHaveLength(1)
-    expect(result.pagination).toBeUndefined()
+    expect(automation.automationId).toBe('auto_abc')
+    expect(automation.nodes).toHaveLength(1)
   })
 
   it('patch PATCHes /v1/automations/{automationId} with update-only body (no id, no published) and returns the bare row', async () => {
@@ -201,37 +196,92 @@ describe('automations resource — POST/GET/PATCH/DELETE wiring', () => {
     expect(result.published).toBe(false)
   })
 
-  it('list with automationId + include versions inlines the version history on the single-row page', async () => {
+  it('get with include versions inlines the version history on the bare row', async () => {
+    let captured: Request | undefined
+    server.use(
+      http.get(
+        'https://brew.new/api/v1/automations/auto_abc',
+        ({ request }) => {
+          captured = request.clone()
+          return HttpResponse.json({
+            ...ROW,
+            versions: [
+              { version: 'latest', automationVersionId: 'av_v2' },
+              { version: 1, automationVersionId: 'av_v1' },
+            ],
+          })
+        }
+      )
+    )
+    const { client } = makeTestHttpClient()
+    const automations = createAutomationsResource(client)
+    const automation = await automations.get('auto_abc', {
+      include: ['versions'],
+    })
+    const url = new URL(captured!.url)
+    expect(url.pathname).toBe('/api/v1/automations/auto_abc')
+    expect(url.searchParams.get('include')).toBe('versions')
+    expect(automation.versions).toHaveLength(2)
+    expect(automation.versions?.[0]?.version).toBe('latest')
+  })
+
+  it('unpublish sends the camelCase stopInFlight flag (was stop_in_flight)', async () => {
+    let body: unknown
+    server.use(
+      http.patch(
+        'https://brew.new/api/v1/automations/auto_abc',
+        async ({ request }) => {
+          body = await request.json()
+          return HttpResponse.json({ ...ROW, published: false })
+        }
+      )
+    )
+    const { client } = makeTestHttpClient()
+    const automations = createAutomationsResource(client)
+    await automations.unpublish({
+      automationId: 'auto_abc',
+      stopInFlight: true,
+    })
+
+    expect(body).toEqual({ published: false, stopInFlight: true })
+  })
+
+  it('unpublish omits stopInFlight entirely when it is not asked for', async () => {
+    let body: unknown
+    server.use(
+      http.patch(
+        'https://brew.new/api/v1/automations/auto_abc',
+        async ({ request }) => {
+          body = await request.json()
+          return HttpResponse.json({ ...ROW, published: false })
+        }
+      )
+    )
+    const { client } = makeTestHttpClient()
+    await createAutomationsResource(client).unpublish({
+      automationId: 'auto_abc',
+    })
+
+    expect(body).toEqual({ published: false })
+  })
+
+  it('rejects an automationId filter on the list read', async () => {
     let captured: Request | undefined
     server.use(
       http.get('https://brew.new/api/v1/automations', ({ request }) => {
         captured = request.clone()
-        // Detail mode with `include=versions` inlines `versions[]` on the row.
         return HttpResponse.json({
-          data: [
-            {
-              ...ROW,
-              versions: [
-                { version: 'latest', automationVersionId: 'av_v2' },
-                { version: 1, automationVersionId: 'av_v1' },
-              ],
-            },
-          ],
+          data: [ROW],
+          pagination: { limit: 100, cursor: null, hasMore: false },
         })
       })
     )
     const { client } = makeTestHttpClient()
-    const automations = createAutomationsResource(client)
-    const result = await automations.list({
-      automationId: 'auto_abc',
-      include: 'versions',
-    })
+    await createAutomationsResource(client).list({ limit: 100 })
+
     const url = new URL(captured!.url)
-    expect(url.searchParams.get('automationId')).toBe('auto_abc')
-    expect(url.searchParams.get('include')).toBe('versions')
-    expect(result.data[0]?.versions).toHaveLength(2)
-    expect(result.data[0]?.versions?.[0]?.version).toBe('latest')
-    expect(result.pagination).toBeUndefined()
+    expect(url.searchParams.get('automationId')).toBeNull()
+    expect(url.searchParams.get('include')).toBeNull()
   })
 
   it('delete DELETEs /v1/automations/{automationId} (no body) and surfaces the idempotent { automationId, deleted } envelope', async () => {

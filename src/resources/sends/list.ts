@@ -1,28 +1,31 @@
-import { autoPaginate } from '../../../core/pagination'
-import { unwrapResponse, type HttpClient } from '../../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../../types'
+import { autoPaginate } from '../../core/pagination'
+import { unwrapResponse, type HttpClient } from '../../core/http'
+import type { BrewRawResponse, RequestOptions } from '../../types'
 
 import type { ListSendsInput, Send, SendsListResponse } from './types'
 
 export type { ListSendsInput, SendsListResponse }
 
 /**
- * `GET /v1/analytics/sends` (scope: `sends`) — the single sends read,
- * under the uniform `{ data, pagination? }` envelope. Reads are flat:
- * the identity lives in the query.
+ * `GET /v1/sends` (scope: `sends`) — every send the brand has made,
+ * newest first, under the uniform `{ data, pagination }` envelope.
  *
- * - List mode (no `sendId`): the brand's sends, newest first, with
- *   lifecycle status and aggregate `stats`. Narrow to one design's
- *   history with `emailId` (mutually exclusive with `sendId`). Filter
- *   with `status`, `from` / `to` (ISO-8601); page with `limit` /
- *   `cursor`.
- * - Detail mode (`sendId` set): a single-row page `{ data: [row] }` with
- *   no `pagination`. Add `include: 'events'` for a bounded first page of
- *   the send's per-recipient analytics events inlined on the row (an
- *   `include` without `sendId` is `400 INVALID_REQUEST`).
+ * This is the read that replaced both `analytics.campaigns` and
+ * `analytics.sends.list`: campaign KPIs are just
+ * `list({ kind: 'campaign' })` — each row already carries its aggregate
+ * `stats`.
  *
- * To page through every matching send without juggling the cursor, use
- * `brew.analytics.sends.listAll`.
+ * Filter with `kind` (`campaign` | `automation`), `emailId`,
+ * `messageClass`, the automation provenance ids (`automationId`,
+ * `automationRunId`, `audienceRunId`, `triggerInstanceId`), `status`,
+ * and the `from` / `to` ISO-8601 window; page with `limit` / `cursor`.
+ * `status` accepts only the v1 vocabulary (`scheduled | queued | running
+ * | paused | completed | partially_completed | failed | canceled`) — the
+ * old `sent` / `sending` spellings now `400`.
+ *
+ * A single send is `brew.sends.get(sendId)`; there is no `sendId` filter
+ * here any more. To page through every match without juggling the cursor
+ * use `brew.sends.listAll`.
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<SendsListResponse>` instead of the unwrapped
@@ -43,12 +46,16 @@ export function createListSends(client: HttpClient) {
   ): Promise<SendsListResponse | BrewRawResponse<SendsListResponse>> {
     const response = await client.request<SendsListResponse>({
       method: 'GET',
-      path: '/v1/analytics/sends',
+      path: '/v1/sends',
       query: {
-        sendId: input.sendId,
         emailId: input.emailId,
-        include: input.include,
+        kind: input.kind,
+        automationId: input.automationId,
+        automationRunId: input.automationRunId,
+        audienceRunId: input.audienceRunId,
+        triggerInstanceId: input.triggerInstanceId,
         status: input.status,
+        messageClass: input.messageClass,
         from: input.from,
         to: input.to,
         limit: input.limit,
@@ -62,15 +69,12 @@ export function createListSends(client: HttpClient) {
 }
 
 /**
- * Input to `brew.analytics.sends.listAll(...)`. Same filters as `list`
- * minus `cursor` (the iterator owns cursor state) and the detail-only
- * `sendId` / `include` knobs (paging a single row is meaningless).
- * `limit` here is the per-page size, not a total cap; stop the
- * `for await` loop whenever you like.
+ * Input to `brew.sends.listAll(...)`. Same filters as `list` minus
+ * `cursor` — the iterator owns cursor state. `limit` here is the
+ * per-page size, not a total cap; stop the `for await` loop whenever you
+ * like.
  */
-export type ListAllSendsInput = Readonly<
-  Omit<ListSendsInput, 'cursor' | 'sendId' | 'include'>
->
+export type ListAllSendsInput = Readonly<Omit<ListSendsInput, 'cursor'>>
 
 /**
  * Async iterator that pages through every matching send, yielding one
@@ -78,7 +82,7 @@ export type ListAllSendsInput = Readonly<
  * `false`; honors `options.signal` between pages.
  *
  * ```ts
- * for await (const send of brew.analytics.sends.listAll({ status: 'sent' })) {
+ * for await (const send of brew.sends.listAll({ kind: 'campaign' })) {
  *   console.log(send.emailId, send.stats?.delivered)
  * }
  * ```
