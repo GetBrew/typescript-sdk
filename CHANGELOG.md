@@ -28,6 +28,15 @@ RUN_NOT_CANCELLABLE` once the run finished. New types:
 `CancelAutomationRunInput`, `CancelAutomationRunResponse`,
 `AutomationRunCancelResponse`.
 
+### Deprecated — `brew.apiKeys.*`
+
+The resynced spec documents that `/v1/api-keys*` now requires an exact
+`org:admin` Clerk dashboard session (`sessionAuth`) and rejects API-key and
+OAuth actors, so `brew.apiKeys.list()`, `create()`, and `revoke()` — which
+can only authenticate with the configured API key — return `403` on the
+current platform. They are marked `@deprecated` and will be removed in the
+next major; manage keys at https://brew.new/settings/api.
+
 ### Spec resync
 
 `openapi/public-api-v1.yaml` and the generated types now carry both
