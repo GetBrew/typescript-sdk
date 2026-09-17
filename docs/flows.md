@@ -13,7 +13,7 @@ brand, with the day each email landed.
 type Flow = {
   readonly slug: string // the brand domain, e.g. 'brew.new'
   readonly brand: {
-    readonly domain: string
+    // presentation only — the brand's DOMAIN is the flow's `slug`
     readonly name: string
     readonly logo?: string
   }
