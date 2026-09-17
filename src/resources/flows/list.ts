@@ -19,7 +19,7 @@ export type FlowsIncludeToken = 'html'
  *   `type` (`signup` | `newsletter`) or ranked by `semantic`; order with
  *   `sort` (`newest` | `emails` | `span` | `remixes`; ignored under
  *   `semantic`).
- * - Pass `slug` (the brand domain, e.g. `notion.com`) to fetch ONE flow —
+ * - Pass `slug` (the brand domain, e.g. `brew.new`) to fetch ONE flow —
  *   a single-row page `{ data: [flow] }` (no `pagination`) with `anchor`
  *   and every `steps[]` entry. Add `include: 'html'` (detail-only) for
  *   each step's rendered HTML.
