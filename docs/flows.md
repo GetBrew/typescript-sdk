@@ -28,7 +28,6 @@ type Flow = {
   readonly publishedAt: string
   readonly updatedAt: string
   // Detail only (`slug` set) — a LIST card never carries these:
-  readonly summary?: string // the flow's own description, when it has one
   readonly anchor?: 'submittedAt' | 'signedUpAt' | 'verifiedAt' | 'firstEmail' // what day 0 means
   readonly steps?: ReadonlyArray<FlowStep>
 }

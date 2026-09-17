@@ -1202,7 +1202,7 @@ export interface paths {
         };
         /**
          * List flows
-         * @description Public email flows — one brand’s real onboarding or newsletter sequence, with the day each email landed — under `{ data, pagination }`. Omit `slug` to LIST cards (filter `?brand=`, `?category=`, `?type=`; order with `?sort=newest|emails|span|remixes`; or `?semantic=` for relevance-ranked search). Pass `?slug=<brand domain>` to fetch ONE flow → `data: [flow]` with every step’s `subject`, `previewText`, `dayOffset`, `delayDays`, `category`, `previewImage` and `emailId`; add `?include=html` for each step’s rendered HTML (best-effort per step: a step whose body is no longer servable comes back without `html`). `summary`, `anchor` and `steps` are detail-only — a LIST card never carries them. A step’s `emailId` is a template reference: use it as `referenceEmailId` on `POST /v1/emails`, or look it up on `GET /v1/templates`. Organization-wide. The list is the gallery’s own set — the same bounded corpus the site shows (a few hundred flows today) — paged with `limit`/`cursor`.
+         * @description Public email flows — one brand’s real onboarding or newsletter sequence, with the day each email landed — under `{ data, pagination }`. Omit `slug` to LIST cards (filter `?brand=`, `?category=`, `?type=`; order with `?sort=newest|emails|span|remixes`; or `?semantic=` for relevance-ranked search). Pass `?slug=<brand domain>` to fetch ONE flow → `data: [flow]` with every step’s `subject`, `previewText`, `dayOffset`, `delayDays`, `category`, `previewImage` and `emailId`; add `?include=html` for each step’s rendered HTML (best-effort per step: a step whose body is no longer servable comes back without `html`). `anchor` and `steps` are detail-only — a LIST card never carries them. A step’s `emailId` is a template reference: use it as `referenceEmailId` on `POST /v1/emails`, or look it up on `GET /v1/templates`. Organization-wide. The list is the gallery’s own set — the same bounded corpus the site shows (a few hundred flows today) — paged with `limit`/`cursor`.
          */
         get: operations["listFlows"];
         put?: never;
@@ -2585,7 +2585,6 @@ export interface components {
             previewImages: string[];
             publishedAt: string;
             updatedAt: string;
-            summary?: string;
             /** @enum {string} */
             anchor?: "submittedAt" | "signedUpAt" | "verifiedAt" | "firstEmail";
             steps?: {
@@ -5717,7 +5716,6 @@ export interface components {
                 previewImages: string[];
                 publishedAt: string;
                 updatedAt: string;
-                summary?: string;
                 /** @enum {string} */
                 anchor?: "submittedAt" | "signedUpAt" | "verifiedAt" | "firstEmail";
                 steps?: {
