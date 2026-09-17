@@ -55,8 +55,10 @@ function serializeInclude(
  * `type`, `category`, `emailCount`, `spanDays`, `remixCount` and
  * `previewImages`; the detail read adds `anchor` (what day 0 means) and
  * `steps[]` (`order`, `dayOffset`, `delayDays`, `subject`, `previewText`,
- * `category`, `previewImage`, `emailId`). Flows are organization-wide, like
- * templates: the client never sends `X-Brand-Id` here. An unknown `slug` is
+ * `category`, `previewImage`, `emailId`). `include: 'html'` is best-effort
+ * per step — a step whose body is no longer servable comes back without
+ * `html` rather than failing the whole flow. Flows are organization-wide,
+ * like templates: the client never sends `X-Brand-Id` here. An unknown `slug` is
  * `404 FLOW_NOT_FOUND`; an `include` without `slug` is `400 INVALID_REQUEST`.
  *
  * Pass `{ raw: true }` in `options` to receive the full
