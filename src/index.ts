@@ -143,11 +143,16 @@ export type {
   ListAutomationRunsInput,
   ListAutomationRunsResponse,
 } from './resources/automations/runs/list'
+export type {
+  CancelAutomationRunInput,
+  CancelAutomationRunResponse,
+} from './resources/automations/runs/cancel'
 export type { AutomationRunsResource } from './resources/automations/runs/resource'
 // ---------- Automations › runs: read-only run history ----------
 // (Exposed as `client.automations.runs.*` against /v1/automations/runs.)
 export type {
   AutomationRun,
+  AutomationRunCancelResponse,
   AutomationRunLog,
   AutomationRunsListResponse,
 } from './resources/automations/runs/types'
@@ -392,6 +397,15 @@ export type { TemplatesResource } from './resources/templates/resource'
 // ACTION lives on `emails` (`emails.send` — campaign | test), so its
 // request + response shapes are exported from the `emails` block below.
 export type { Template } from './resources/templates/types'
+// Public email flows (`client.flows.*` against /v1/flows): organization-wide,
+// the sequence view of the same gallery `templates` lists.
+export type {
+  FlowsIncludeToken,
+  ListFlowsInput,
+  ListFlowsResponse,
+} from './resources/flows/list'
+export type { FlowsResource } from './resources/flows/resource'
+export type { Flow, FlowStep, FlowsListResponse } from './resources/flows/types'
 export type { UsageResource } from './resources/usage/resource'
 export type * from './resources/usage/types'
 // ---------- Public config + request types ----------

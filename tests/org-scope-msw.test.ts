@@ -63,6 +63,13 @@ describe('organization-scoped SDK transport', () => {
           pagination: { limit: 100, cursor: null, hasMore: false },
         })
       }),
+      http.get(`${baseUrl}/v1/flows`, ({ request }) => {
+        seen.push(['flows', request.headers.get('x-brand-id')])
+        return HttpResponse.json({
+          data: [],
+          pagination: { limit: 100, cursor: null, hasMore: false },
+        })
+      }),
       http.get(`${baseUrl}/v1/usage`, ({ request }) => {
         seen.push(['usage', request.headers.get('x-brand-id')])
         return HttpResponse.json({
@@ -77,11 +84,13 @@ describe('organization-scoped SDK transport', () => {
     const pinned = client().withBrand('brand_1')
     await pinned.brands.list()
     await pinned.templates.list()
+    await pinned.flows.list()
     await pinned.usage.get()
 
     expect(seen).toEqual([
       ['brands', null],
       ['templates', null],
+      ['flows', null],
       ['usage', null],
     ])
   })

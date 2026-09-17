@@ -81,6 +81,7 @@ etc.).
 | Retries + idempotency       | [`docs/retries-and-idempotency.md`](./docs/retries-and-idempotency.md) |
 | Sends resource (lifecycle)  | [`docs/sends.md`](./docs/sends.md)                                     |
 | Templates resource          | [`docs/templates.md`](./docs/templates.md)                             |
+| Flows resource              | [`docs/flows.md`](./docs/flows.md)                                     |
 | Development + OpenAPI sync  | [`docs/development.md`](./docs/development.md)                         |
 | **Releasing a new version** | [`RELEASING.md`](./RELEASING.md)                                       |
 

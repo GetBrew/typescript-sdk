@@ -11,5 +11,9 @@ export type AutomationRunsListResponse =
  */
 export type AutomationRun = AutomationRunsListResponse['data'][number]
 
+/** Body returned by `PATCH /v1/automations/runs` — the run's new status plus the one it held before. */
+export type AutomationRunCancelResponse =
+  components['schemas']['AutomationRunCancelResponse']
+
 /** One per-node execution log line on a run (present when `include: 'logs'`). */
 export type AutomationRunLog = NonNullable<AutomationRun['logs']>[number]

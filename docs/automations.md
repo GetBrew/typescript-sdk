@@ -13,6 +13,7 @@ scope.
 | `test`                                                     | `POST /v1/automations/{automationId}/test`                   |
 | [`run`](#manual-audience-runs)                             | `POST /v1/automations/{automationId}/run`                    |
 | `runs.list`                                                | `GET /v1/automations/runs`                                   |
+| [`runs.cancel`](#cancel-a-run)                             | `PATCH /v1/automations/runs`                                 |
 | `audienceRuns.list`                                        | `GET /v1/automations/audience-runs`                          |
 | `audienceRuns.control`                                     | `POST /v1/automations/audience-runs/{audienceRunId}/control` |
 | `triggers.list` / `create` / `patch` / `delete`            | `/v1/automations/triggers[/{triggerEventId}]`                |
@@ -104,3 +105,39 @@ if ('audienceRunId' in started) {
 
 `cancel` is permanent; already-sent messages cannot be recalled. Invalid state
 transitions return `409`, and unknown or cross-brand ids return `404`.
+
+## Cancel a run
+
+`runs.cancel` is the operator cancel for ONE run of an event-triggered
+automation (or a test run), by `automationRunId` — the same flat identity
+`runs.list` uses. The method fills in the only PATCH action (`status:
+'canceled'`); pass the id and an optional operator note.
+
+```ts
+type CancelAutomationRunInput = {
+  readonly automationRunId: string
+  readonly reason?: string // stored on the run
+}
+
+type AutomationRunCancelResponse = {
+  readonly automationRunId: string
+  readonly status: 'canceled'
+  readonly previousStatus: 'pending' | 'running' | 'completed' | 'failed' | 'canceled'
+}
+
+runs.cancel(input: CancelAutomationRunInput): Promise<AutomationRunCancelResponse>
+```
+
+```ts
+const { previousStatus } = await brew.automations.runs.cancel({
+  automationRunId: 'run_abc',
+  reason: 'wrong audience',
+})
+```
+
+Marks the run `canceled` (first-terminal-wins), wakes a run parked on a wait
+node so it observes the cancel now, and terminates the durable workflow run.
+Nothing further is sent; delivered emails are not recalled and a canceled run
+cannot be resumed. `409 RUN_NOT_CANCELLABLE` once the run already finished;
+`404 AUTOMATION_RUN_NOT_FOUND` for an unknown or cross-brand id. Manual-audience
+launches use `audienceRuns.control` instead.
