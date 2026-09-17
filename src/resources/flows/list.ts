@@ -27,8 +27,8 @@ export type FlowsIncludeToken = 'html'
 export type ListFlowsInput = Omit<ListFlowsQuery, 'include'> & {
   /**
    * Detail-only expansion (requires `slug`). `'html'` attaches each step's
-   * rendered HTML — up to 12 emails. Accepts an array of tokens or a comma
-   * string.
+   * rendered HTML — up to 12 emails, best-effort per step. Accepts an array
+   * of tokens or a comma string.
    */
   readonly include?: ReadonlyArray<FlowsIncludeToken> | string
 }
