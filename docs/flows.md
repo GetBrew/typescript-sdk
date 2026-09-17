@@ -11,7 +11,7 @@ brand, with the day each email landed.
 
 ```ts
 type Flow = {
-  readonly slug: string // the brand domain, e.g. 'notion.com'
+  readonly slug: string // the brand domain, e.g. 'brew.new'
   readonly brand: {
     readonly domain: string
     readonly name: string
@@ -90,7 +90,7 @@ const { data: cards } = await brew.flows.list({ type: 'signup', sort: 'span' })
 // One flow, every step, with the rendered HTML
 const {
   data: [flow],
-} = await brew.flows.list({ slug: 'notion.com', include: 'html' })
+} = await brew.flows.list({ slug: 'brew.new', include: 'html' })
 
 for (const step of flow?.steps ?? []) {
   console.log(step.order, `+${step.delayDays}d`, step.subject, step.emailId)
