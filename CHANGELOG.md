@@ -1,5 +1,41 @@
 # Changelog
 
+## Unreleased
+
+### Fixed — trigger-fire refusals no longer degrade to `unknown_error`
+
+`POST`/`GET /v1/automations/triggers/{id}/fire` is the ONE endpoint outside
+the `{ error: { … } }` convention: it answers success and failure alike with
+the legacy fire envelope `{ success, status, code, message, receivedAt,
+details? }`. `BrewApiError.fromResponse` only recognised the standard
+envelope, so a documented `400 INVALID_PAYLOAD` (`status:
+"payload_mismatch"`) surfaced as `code: 'unknown_error'`, `type:
+'internal_error'`, "Request failed with status 400", retry advice, and a
+dead `docs.getbrew.io` link — and `details.errors[]`, which names the
+offending fields, was unreachable. The legacy shape now maps verbatim:
+`code` and `message` from the body, `type` derived from the HTTP status
+(`400`/`422` → `invalid_request`, `404` → `not_found`, `403` →
+`authorization_error`, …), a fix-the-request suggestion for 4xx, and the
+fire reference as `docs`.
+
+### Added — `BrewApiError.details` and `BrewApiError.body`
+
+`details` is the envelope's `details` object when the server sent one
+(read from the standard envelope too, which previously dropped it); for a
+fire `payload_mismatch` it is `{ errors[], warnings[], payloadSchema,
+contractHash?, enforcement? }`. `body` is the parsed response body exactly
+as received — the escape hatch for anything the mapping does not model,
+such as the fire envelope's own `status` discriminator. Both constructor
+fields are optional, so existing `new BrewApiError({ … })` call sites keep
+compiling.
+
+### Changed — the generic fallback
+
+A body that is neither envelope now derives `type` from the HTTP status
+instead of always reporting `internal_error`, only advises a retry for
+`429`/5xx, and links `https://docs.brew.new/api-reference/api/errors`
+instead of the retired `docs.getbrew.io` host.
+
 ## 9.2.0
 
 ### Added — `brew.flows.list`

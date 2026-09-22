@@ -1,9 +1,11 @@
-import type { BrewErrorEnvelope, BrewErrorType } from '../types'
+import type { BrewErrorType } from '../types'
 
 /**
  * Input shape for the `BrewApiError` constructor. Mirrors the public
  * surface of the class — every field is required and explicit, callers
- * supply `undefined` for any field they don't have.
+ * supply `undefined` for any field they don't have. `details` and `body`
+ * are the two exceptions: they arrived after the class shipped, so they
+ * stay optional and older constructor call sites keep compiling.
  */
 type BrewApiErrorInit = {
   readonly message: string
@@ -15,6 +17,8 @@ type BrewApiErrorInit = {
   readonly docs: string
   readonly requestId: string | undefined
   readonly retryAfter: number | undefined
+  readonly details?: Record<string, unknown> | undefined
+  readonly body?: unknown
 }
 
 /**
@@ -28,6 +32,13 @@ type FromResponseInput = {
   readonly headers: Headers
   readonly body: unknown
 }
+
+/** Where the generic fallback points: the public error catalogue. */
+const ERRORS_DOCS_URL = 'https://docs.brew.new/api-reference/api/errors'
+
+/** The one endpoint whose failures do not use the `{ error }` envelope. */
+const LEGACY_FIRE_DOCS_URL =
+  'https://docs.brew.new/api-reference/public-v1/automations/fire-a-trigger'
 
 /**
  * The single public error class thrown by `@brew.new/sdk`. Every non-2xx
@@ -43,6 +54,20 @@ export class BrewApiError extends Error {
   readonly docs: string
   readonly requestId: string | undefined
   readonly retryAfter: number | undefined
+  /**
+   * The envelope's `details` object when the server sent one. For a
+   * trigger-fire `payload_mismatch` (`400 INVALID_PAYLOAD`) that is
+   * `{ errors[], warnings[], payloadSchema, contractHash?, enforcement? }`
+   * — every field the payload got wrong, and the schema to repair it
+   * against. `undefined` when the response carried none.
+   */
+  readonly details: Record<string, unknown> | undefined
+  /**
+   * The parsed response body exactly as received (`undefined` when it was
+   * not JSON). The escape hatch: whatever the mapping does not model — the
+   * fire envelope's own `status` discriminator, say — is still here.
+   */
+  readonly body: unknown
 
   constructor(init: BrewApiErrorInit) {
     super(init.message)
@@ -55,14 +80,25 @@ export class BrewApiError extends Error {
     this.docs = init.docs
     this.requestId = init.requestId
     this.retryAfter = init.retryAfter
+    this.details = init.details
+    this.body = init.body
   }
 
   /**
    * Build a `BrewApiError` from a parsed HTTP response.
    *
    * The Brew API wraps every error in `{ error: { code, type, ... } }`, so
-   * this method unwraps the envelope before mapping. Falls back to a
-   * generic envelope when the body is not a valid Brew error shape — we
+   * this method unwraps the envelope before mapping. The ONE documented
+   * exception is trigger fire (`POST`/`GET /v1/automations/triggers/{id}/fire`),
+   * which answers success and failure alike with the legacy fire envelope
+   * `{ success, status, code, message, receivedAt, details? }` — top-level
+   * `code` and `message`, no `error` wrapper, no `type`. That shape gets its
+   * own arm (`parseLegacyEnvelope`): `code`/`message`/`details` verbatim,
+   * `type` derived from the HTTP status. Before it existed a documented
+   * `400 INVALID_PAYLOAD` degraded to `code: 'unknown_error'` with retry
+   * advice, and `details.errors[]` (which fields were wrong) was lost.
+   *
+   * Falls back to a generic envelope when the body is neither shape — we
    * would rather return a readable error than throw from the error path.
    *
    * `retryAfter` can come from two places: the body envelope or the
@@ -74,10 +110,10 @@ export class BrewApiError extends Error {
     headers,
     body,
   }: FromResponseInput): BrewApiError {
-    const envelope = parseErrorEnvelope(body)
     const requestId = headers.get('x-request-id') ?? undefined
     const headerRetryAfter = parseRetryAfter(headers.get('retry-after'))
 
+    const envelope = parseErrorEnvelope(body)
     if (envelope) {
       return new BrewApiError({
         message: envelope.message,
@@ -89,6 +125,25 @@ export class BrewApiError extends Error {
         docs: envelope.docs,
         requestId,
         retryAfter: envelope.retryAfter ?? headerRetryAfter,
+        details: envelope.details,
+        body,
+      })
+    }
+
+    const legacy = parseLegacyEnvelope(body)
+    if (legacy) {
+      return new BrewApiError({
+        message: legacy.message,
+        status,
+        code: legacy.code,
+        type: errorTypeForStatus(status),
+        param: undefined,
+        suggestion: suggestionForStatus(status),
+        docs: LEGACY_FIRE_DOCS_URL,
+        requestId,
+        retryAfter: headerRetryAfter,
+        details: legacy.details,
+        body,
       })
     }
 
@@ -96,12 +151,14 @@ export class BrewApiError extends Error {
       message: `Request failed with status ${String(status)}`,
       status,
       code: 'unknown_error',
-      type: 'internal_error',
+      type: errorTypeForStatus(status),
       param: undefined,
-      suggestion: 'Retry the request. If it keeps failing, contact support.',
-      docs: 'https://docs.getbrew.io/api',
+      suggestion: suggestionForStatus(status),
+      docs: ERRORS_DOCS_URL,
       requestId,
       retryAfter: headerRetryAfter,
+      details: undefined,
+      body,
     })
   }
 }
@@ -129,15 +186,39 @@ const VALID_ERROR_TYPES: ReadonlySet<BrewErrorType> = new Set<BrewErrorType>([
   'internal_error',
 ])
 
+/** The standard envelope, narrowed — plus its optional `details` object. */
+type ParsedErrorEnvelope = {
+  code: string
+  type: BrewErrorType
+  message: string
+  suggestion: string
+  docs: string
+  param?: string
+  retryAfter?: number
+  details?: Record<string, unknown>
+}
+
+/** The legacy fire envelope's failure form, narrowed. */
+type ParsedLegacyEnvelope = {
+  code: string
+  message: string
+  details: Record<string, unknown> | undefined
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
 /**
- * Narrow an unknown response body into `BrewErrorEnvelope`, returning
+ * Narrow an unknown response body into the standard envelope, returning
  * `undefined` if the shape does not match. The Brew wire format is
  * `{ error: { code, type, message, suggestion, docs, ... } }` — the inner
  * fields `code`, `type`, `message`, `suggestion`, and `docs` are all
- * required per the OpenAPI contract; `param` and `retryAfter` are
- * optional.
+ * required per the OpenAPI contract; `param`, `retryAfter` and `details`
+ * are optional. `details` passes through untouched: the server serialises
+ * whatever the refusal attached (field errors, conflicting ids, …).
  */
-function parseErrorEnvelope(body: unknown): BrewErrorEnvelope | undefined {
+function parseErrorEnvelope(body: unknown): ParsedErrorEnvelope | undefined {
   if (body === null || typeof body !== 'object') return undefined
 
   const wrapper = body as { error?: unknown }
@@ -159,15 +240,7 @@ function parseErrorEnvelope(body: unknown): BrewErrorEnvelope | undefined {
   const innerType = inner.type as string
   if (!VALID_ERROR_TYPES.has(innerType as BrewErrorType)) return undefined
 
-  const envelope: {
-    code: string
-    type: BrewErrorType
-    message: string
-    suggestion: string
-    docs: string
-    param?: string
-    retryAfter?: number
-  } = {
+  const envelope: ParsedErrorEnvelope = {
     code: inner.code as string,
     type: innerType as BrewErrorType,
     message: inner.message as string,
@@ -184,8 +257,73 @@ function parseErrorEnvelope(body: unknown): BrewErrorEnvelope | undefined {
   ) {
     envelope.retryAfter = inner.retryAfter
   }
+  if (isRecord(inner.details)) {
+    envelope.details = inner.details
+  }
 
   return envelope
+}
+
+/**
+ * The legacy fire envelope's failure form: no `error` wrapper, string
+ * `code` + `message` at the top level, `success` anything but `true` (a
+ * `success: true` body on a non-2xx status is not a refusal we can name,
+ * so it takes the generic fallback). `details` rides along when it is an
+ * object.
+ */
+function parseLegacyEnvelope(body: unknown): ParsedLegacyEnvelope | undefined {
+  if (!isRecord(body)) return undefined
+  if (body.success === true) return undefined
+  if (typeof body.code !== 'string' || typeof body.message !== 'string') {
+    return undefined
+  }
+  return {
+    code: body.code,
+    message: body.message,
+    details: isRecord(body.details) ? body.details : undefined,
+  }
+}
+
+/**
+ * The closest `BrewErrorType` for a response that did not carry one.
+ * Keeps the branch-on-`type` contract honest for the legacy envelope and
+ * for non-JSON bodies alike: a 4xx is never an `internal_error`.
+ */
+function errorTypeForStatus(status: number): BrewErrorType {
+  switch (status) {
+    case 400:
+    case 422:
+      return 'invalid_request'
+    case 401:
+      return 'authentication_error'
+    case 402:
+      return 'payment_required'
+    case 403:
+      return 'authorization_error'
+    case 404:
+      return 'not_found'
+    case 409:
+      return 'conflict'
+    case 429:
+      return 'rate_limit'
+    case 501:
+      return 'not_implemented'
+    case 503:
+      return 'service_unavailable'
+    default:
+      return 'internal_error'
+  }
+}
+
+/**
+ * Retry advice is only honest for throttling and server faults. A 4xx
+ * fails the same way on every retry — say so, and point at the request.
+ */
+function suggestionForStatus(status: number): string {
+  if (status === 429 || status >= 500) {
+    return 'Retry the request. If it keeps failing, contact support.'
+  }
+  return 'Fix the request before sending it again — the same request fails the same way. See `details` for the specifics when present.'
 }
 
 /**
