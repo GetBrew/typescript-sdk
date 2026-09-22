@@ -127,8 +127,13 @@ carries whatever was received.
 ### The legacy fire envelope
 
 `POST`/`GET /v1/automations/triggers/{triggerEventId}/fire` is the one
-endpoint outside the `{ error }` convention. It answers success and
-failure alike with the legacy fire envelope:
+endpoint outside the `{ error }` convention. Its pipeline answers its
+successes and its own refusals — missing key, payload mismatch, unknown
+trigger, brand scope, no published automation — with the legacy fire
+envelope (a malformed JSON body is refused earlier with the standard
+envelope, and the contract documents the route's 401/403/429 as
+`ApiErrorEnvelope`; the SDK tries the standard shape first, then this
+one, so either is mapped correctly):
 
 ```json
 {
@@ -155,13 +160,15 @@ failure alike with the legacy fire envelope:
 ```
 
 The SDK maps it verbatim: `code` and `message` from the body, `type`
-derived from the HTTP status (`400`/`422` → `invalid_request`, `404` →
-`not_found`, `403` → `authorization_error`, `409` → `conflict`, …), a
-fix-the-request `suggestion` for any 4xx (the same body fails the same
-way on retry), the fire reference as `docs`, and `details` — for a
-`payload_mismatch`, `errors[]` names every offending field and
-`payloadSchema` is the schema to repair against. The envelope's own
-`status` discriminator is reachable through `body`:
+derived from the HTTP status (`401` → `authentication_error`, `403` →
+`authorization_error`, `404` → `not_found`, `409` → `conflict`, `429` →
+`rate_limit`, any other 4xx → `invalid_request`, 5xx → `internal_error`),
+a fix-the-request `suggestion` for a non-transient 4xx (the same body
+fails the same way on retry; `408`/`425`/`429`/5xx keep retry advice),
+the fire reference as `docs`, and `details` — for a `payload_mismatch`,
+`errors[]` names every offending field and `payloadSchema` is the schema
+to repair against. The envelope's own `status` discriminator is reachable
+through `body`:
 
 ```ts
 try {

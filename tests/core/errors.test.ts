@@ -393,18 +393,37 @@ describe('BrewApiError', () => {
       }
     )
 
-    it('only advises a retry for throttling and server faults', () => {
-      const legacy = (status: number) =>
+    it('only advises a retry for the transient statuses the retry policy retries', () => {
+      const legacy = ({ status }: { status: number }) =>
         BrewApiError.fromResponse({
           status,
           headers: new Headers(),
           body: { success: false, status: 'failed', code: 'X', message: 'x' },
         })
 
-      expect(legacy(500).suggestion).toMatch(/retry/i)
-      expect(legacy(429).suggestion).toMatch(/retry/i)
-      expect(legacy(404).suggestion).not.toMatch(/retry/i)
-      expect(legacy(400).suggestion).not.toMatch(/retry/i)
+      // Retried by `shouldRetry`, so after the retries a retry is still the
+      // honest remedy.
+      expect(legacy({ status: 500 }).suggestion).toMatch(/retry/i)
+      expect(legacy({ status: 429 }).suggestion).toMatch(/retry/i)
+      expect(legacy({ status: 408 }).suggestion).toMatch(/retry/i)
+      expect(legacy({ status: 425 }).suggestion).toMatch(/retry/i)
+      expect(legacy({ status: 404 }).suggestion).not.toMatch(/retry/i)
+      expect(legacy({ status: 400 }).suggestion).not.toMatch(/retry/i)
+    })
+
+    it('classifies an unlisted 4xx as invalid_request, never internal_error', () => {
+      const error = BrewApiError.fromResponse({
+        status: 413,
+        headers: new Headers(),
+        body: {
+          success: false,
+          status: 'failed',
+          code: 'TOO_LARGE',
+          message: 'x',
+        },
+      })
+
+      expect(error.type).toBe('invalid_request')
     })
 
     it('does not claim a `success: true` body as a refusal', () => {
@@ -420,6 +439,20 @@ describe('BrewApiError', () => {
       })
 
       expect(error.code).toBe('unknown_error')
+    })
+
+    it('requires `success: false` — a bare { code, message } is not a fire refusal', () => {
+      // A proxy or an unrelated endpoint answering `{ code, message }` must
+      // not be labelled with the fire reference; the contract says a fire
+      // refusal carries `success: false`.
+      const error = BrewApiError.fromResponse({
+        status: 400,
+        headers: new Headers(),
+        body: { code: 'BAD_GATEWAY_CONFIG', message: 'nope' },
+      })
+
+      expect(error.code).toBe('unknown_error')
+      expect(error.docs).toBe('https://docs.brew.new/api-reference/api/errors')
     })
   })
 
@@ -460,6 +493,24 @@ describe('BrewApiError', () => {
       expect(error.docs).toBe('https://docs.brew.new/api-reference/api/errors')
       expect(error.body).toBe('<html>Not Found</html>')
       expect(error.details).toBeUndefined()
+    })
+
+    it('a non-enveloped 413 from a proxy is invalid_request, a 408 keeps retry advice', () => {
+      const tooLarge = BrewApiError.fromResponse({
+        status: 413,
+        headers: new Headers(),
+        body: '<html>Payload Too Large</html>',
+      })
+      const timeout = BrewApiError.fromResponse({
+        status: 408,
+        headers: new Headers(),
+        body: null,
+      })
+
+      expect(tooLarge.type).toBe('invalid_request')
+      expect(tooLarge.suggestion).not.toMatch(/retry/i)
+      expect(timeout.type).toBe('invalid_request')
+      expect(timeout.suggestion).toMatch(/retry/i)
     })
   })
 })

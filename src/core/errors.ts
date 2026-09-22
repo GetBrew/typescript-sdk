@@ -90,13 +90,19 @@ export class BrewApiError extends Error {
    * The Brew API wraps every error in `{ error: { code, type, ... } }`, so
    * this method unwraps the envelope before mapping. The ONE documented
    * exception is trigger fire (`POST`/`GET /v1/automations/triggers/{id}/fire`),
-   * which answers success and failure alike with the legacy fire envelope
+   * whose pipeline answers with the legacy fire envelope
    * `{ success, status, code, message, receivedAt, details? }` — top-level
-   * `code` and `message`, no `error` wrapper, no `type`. That shape gets its
-   * own arm (`parseLegacyEnvelope`): `code`/`message`/`details` verbatim,
-   * `type` derived from the HTTP status. Before it existed a documented
-   * `400 INVALID_PAYLOAD` degraded to `code: 'unknown_error'` with retry
-   * advice, and `details.errors[]` (which fields were wrong) was lost.
+   * `code` and `message`, no `error` wrapper, no `type` — for its successes
+   * and its own refusals (missing key, payload mismatch, unknown trigger,
+   * brand scope, no published automation). A malformed JSON body is
+   * refused before that pipeline with the standard envelope, and the
+   * contract documents the route's 401/403/429 as `ApiErrorEnvelope`, so
+   * the standard parser runs first and the legacy arm
+   * (`parseLegacyEnvelope`) second — the mapping is right whichever shape
+   * arrives: `code`/`message`/`details` verbatim, `type` derived from the
+   * HTTP status. Before that arm existed a documented `400 INVALID_PAYLOAD`
+   * degraded to `code: 'unknown_error'` with retry advice, and
+   * `details.errors[]` (which fields were wrong) was lost.
    *
    * Falls back to a generic envelope when the body is neither shape — we
    * would rather return a readable error than throw from the error path.
@@ -130,15 +136,15 @@ export class BrewApiError extends Error {
       })
     }
 
-    const legacy = parseLegacyEnvelope(body)
+    const legacy = parseLegacyEnvelope({ body })
     if (legacy) {
       return new BrewApiError({
         message: legacy.message,
         status,
         code: legacy.code,
-        type: errorTypeForStatus(status),
+        type: errorTypeForStatus({ status }),
         param: undefined,
-        suggestion: suggestionForStatus(status),
+        suggestion: suggestionForStatus({ status }),
         docs: LEGACY_FIRE_DOCS_URL,
         requestId,
         retryAfter: headerRetryAfter,
@@ -151,9 +157,9 @@ export class BrewApiError extends Error {
       message: `Request failed with status ${String(status)}`,
       status,
       code: 'unknown_error',
-      type: errorTypeForStatus(status),
+      type: errorTypeForStatus({ status }),
       param: undefined,
-      suggestion: suggestionForStatus(status),
+      suggestion: suggestionForStatus({ status }),
       docs: ERRORS_DOCS_URL,
       requestId,
       retryAfter: headerRetryAfter,
@@ -265,15 +271,19 @@ function parseErrorEnvelope(body: unknown): ParsedErrorEnvelope | undefined {
 }
 
 /**
- * The legacy fire envelope's failure form: no `error` wrapper, string
- * `code` + `message` at the top level, `success` anything but `true` (a
- * `success: true` body on a non-2xx status is not a refusal we can name,
- * so it takes the generic fallback). `details` rides along when it is an
- * object.
+ * The legacy fire envelope's failure form, exactly as the contract states
+ * it: `success: false`, no `error` wrapper, string `code` + `message` at
+ * the top level. Anything else — a `{ code, message }` from a proxy, a
+ * `success: true` body on a non-2xx — is not a fire refusal and takes the
+ * generic fallback. `details` rides along when it is an object.
  */
-function parseLegacyEnvelope(body: unknown): ParsedLegacyEnvelope | undefined {
+function parseLegacyEnvelope({
+  body,
+}: {
+  body: unknown
+}): ParsedLegacyEnvelope | undefined {
   if (!isRecord(body)) return undefined
-  if (body.success === true) return undefined
+  if (body.success !== false) return undefined
   if (typeof body.code !== 'string' || typeof body.message !== 'string') {
     return undefined
   }
@@ -287,13 +297,12 @@ function parseLegacyEnvelope(body: unknown): ParsedLegacyEnvelope | undefined {
 /**
  * The closest `BrewErrorType` for a response that did not carry one.
  * Keeps the branch-on-`type` contract honest for the legacy envelope and
- * for non-JSON bodies alike: a 4xx is never an `internal_error`.
+ * for non-JSON bodies alike: every 4xx is a client-side problem (an
+ * unlisted one, `413` say, is still `invalid_request`), only a 5xx is a
+ * server fault.
  */
-function errorTypeForStatus(status: number): BrewErrorType {
+function errorTypeForStatus({ status }: { status: number }): BrewErrorType {
   switch (status) {
-    case 400:
-    case 422:
-      return 'invalid_request'
     case 401:
       return 'authentication_error'
     case 402:
@@ -311,19 +320,27 @@ function errorTypeForStatus(status: number): BrewErrorType {
     case 503:
       return 'service_unavailable'
     default:
-      return 'internal_error'
+      return status >= 400 && status < 500
+        ? 'invalid_request'
+        : 'internal_error'
   }
 }
 
 /**
- * Retry advice is only honest for throttling and server faults. A 4xx
- * fails the same way on every retry — say so, and point at the request.
+ * Retry advice is only honest for the transient statuses the retry policy
+ * itself retries — `408`, `425`, `429` and server faults (see
+ * `shouldRetry` in `core/http.ts`). Any other 4xx fails the same way on
+ * every retry: say so, and point at the request.
  */
-function suggestionForStatus(status: number): string {
-  if (status === 429 || status >= 500) {
+function suggestionForStatus({ status }: { status: number }): string {
+  if (isTransientStatus({ status })) {
     return 'Retry the request. If it keeps failing, contact support.'
   }
   return 'Fix the request before sending it again — the same request fails the same way. See `details` for the specifics when present.'
+}
+
+function isTransientStatus({ status }: { status: number }): boolean {
+  return status === 408 || status === 425 || status === 429 || status >= 500
 }
 
 /**
