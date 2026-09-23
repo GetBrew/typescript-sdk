@@ -163,8 +163,8 @@ The SDK maps it verbatim: `code` and `message` from the body, `type`
 derived from the HTTP status (`401` → `authentication_error`, `403` →
 `authorization_error`, `404` → `not_found`, `409` → `conflict`, `429` →
 `rate_limit`, any other 4xx → `invalid_request`, 5xx → `internal_error`),
-a fix-the-request `suggestion` for a non-transient 4xx (the same body
-fails the same way on retry; `408`/`425`/`429`/5xx keep retry advice),
+a fix-the-request `suggestion` for any 4xx outside the retry policy (the
+same body fails the same way on retry; `408`/`429`/5xx keep retry advice),
 the fire reference as `docs`, and `details` — for a `payload_mismatch`,
 `errors[]` names every offending field and `payloadSchema` is the schema
 to repair against. The envelope's own `status` discriminator is reachable

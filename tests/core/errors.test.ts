@@ -401,12 +401,13 @@ describe('BrewApiError', () => {
           body: { success: false, status: 'failed', code: 'X', message: 'x' },
         })
 
-      // Retried by `shouldRetry`, so after the retries a retry is still the
-      // honest remedy.
+      // The retry policy's own set (408, 429, 5xx): after the automatic
+      // retries a retry is still the honest remedy.
       expect(legacy({ status: 500 }).suggestion).toMatch(/retry/i)
       expect(legacy({ status: 429 }).suggestion).toMatch(/retry/i)
       expect(legacy({ status: 408 }).suggestion).toMatch(/retry/i)
-      expect(legacy({ status: 425 }).suggestion).toMatch(/retry/i)
+      // Not in the policy — 425 included — so no retry advice.
+      expect(legacy({ status: 425 }).suggestion).not.toMatch(/retry/i)
       expect(legacy({ status: 404 }).suggestion).not.toMatch(/retry/i)
       expect(legacy({ status: 400 }).suggestion).not.toMatch(/retry/i)
     })

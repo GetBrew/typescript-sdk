@@ -327,20 +327,21 @@ function errorTypeForStatus({ status }: { status: number }): BrewErrorType {
 }
 
 /**
- * Retry advice is only honest for the transient statuses the retry policy
- * itself retries — `408`, `425`, `429` and server faults (see
- * `shouldRetry` in `core/http.ts`). Any other 4xx fails the same way on
- * every retry: say so, and point at the request.
+ * Retry advice is only honest for the statuses the centralized retry
+ * policy itself retries — `408`, `429` and 5xx (AGENTS.md § Retries,
+ * `core/retry.ts`). Any other 4xx fails the same way on every retry: say
+ * so, and point at the request.
  */
 function suggestionForStatus({ status }: { status: number }): string {
-  if (isTransientStatus({ status })) {
+  if (isRetryableStatus({ status })) {
     return 'Retry the request. If it keeps failing, contact support.'
   }
   return 'Fix the request before sending it again — the same request fails the same way. See `details` for the specifics when present.'
 }
 
-function isTransientStatus({ status }: { status: number }): boolean {
-  return status === 408 || status === 425 || status === 429 || status >= 500
+/** Mirrors the retry policy's status set: `408`, `429`, 5xx. */
+function isRetryableStatus({ status }: { status: number }): boolean {
+  return status === 408 || status === 429 || status >= 500
 }
 
 /**

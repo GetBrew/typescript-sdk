@@ -35,7 +35,7 @@ compiling.
 A body that is neither envelope now derives `type` from the HTTP status
 instead of always reporting `internal_error` (any 4xx the map does not name
 is `invalid_request`), only advises a retry for the transient statuses the
-retry policy itself retries (`408`/`425`/`429`/5xx), and links
+retry policy itself retries (`408`/`429`/5xx), and links
 `https://docs.brew.new/api-reference/api/errors` instead of the retired
 `docs.getbrew.io` host.
 
