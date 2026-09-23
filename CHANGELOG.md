@@ -210,6 +210,7 @@ started, `partially_fired` means some starts are still being retried.
 from the authoritative v1 spec (106 operations). `tests/openapi-surface-parity.test.ts`
 passes in both directions: every documented operation has a typed SDK request,
 and no SDK request points at a route the spec no longer documents.
+
 ## 9.3.0
 
 ### Fixed — trigger-fire refusals no longer degrade to `unknown_error`

@@ -3,10 +3,10 @@
 One method for the public flows gallery: real multi-step email sequences by
 brand, with the day each email landed.
 
-| Method          | HTTP            |
-| --------------- | --------------- |
-| [`list`](#list) | `GET /v1/flows` |
-| [`get`](#get) | `GET /v1/flows/{slug}` |
+| Method          | HTTP                   |
+| --------------- | ---------------------- |
+| [`list`](#list) | `GET /v1/flows`        |
+| [`get`](#get)   | `GET /v1/flows/{slug}` |
 
 ## Shared types
 
