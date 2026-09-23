@@ -207,6 +207,44 @@ started, `partially_fired` means some starts are still being retried.
 from the authoritative v1 spec (106 operations). `tests/openapi-surface-parity.test.ts`
 passes in both directions: every documented operation has a typed SDK request,
 and no SDK request points at a route the spec no longer documents.
+## 9.3.0
+
+### Fixed — trigger-fire refusals no longer degrade to `unknown_error`
+
+`POST`/`GET /v1/automations/triggers/{id}/fire` is the ONE endpoint outside
+the `{ error: { … } }` convention: its pipeline answers its successes and its
+own refusals with the legacy fire envelope `{ success, status, code, message,
+receivedAt, details? }` (a malformed JSON body and the contract's documented
+401/403/429 stay `{ error }`; the SDK tries that shape first). `BrewApiError.fromResponse` only recognised the standard
+envelope, so a documented `400 INVALID_PAYLOAD` (`status:
+"payload_mismatch"`) surfaced as `code: 'unknown_error'`, `type:
+'internal_error'`, "Request failed with status 400", retry advice, and a
+dead `docs.getbrew.io` link — and `details.errors[]`, which names the
+offending fields, was unreachable. The legacy shape now maps verbatim:
+`code` and `message` from the body, `type` derived from the HTTP status
+(`400`/`422` → `invalid_request`, `404` → `not_found`, `403` →
+`authorization_error`, …), a fix-the-request suggestion for 4xx, and the
+fire reference as `docs`.
+
+### Added — `BrewApiError.details` and `BrewApiError.body`
+
+`details` is the envelope's `details` object when the server sent one
+(read from the standard envelope too, which previously dropped it); for a
+fire `payload_mismatch` it is `{ errors[], warnings[], payloadSchema,
+contractHash?, enforcement? }`. `body` is the parsed response body exactly
+as received — the escape hatch for anything the mapping does not model,
+such as the fire envelope's own `status` discriminator. Both constructor
+fields are optional, so existing `new BrewApiError({ … })` call sites keep
+compiling.
+
+### Changed — the generic fallback
+
+A body that is neither envelope now derives `type` from the HTTP status
+instead of always reporting `internal_error` (any 4xx the map does not name
+is `invalid_request`), only advises a retry for the transient statuses the
+retry policy itself retries (`408`/`429`/5xx), and links
+`https://docs.brew.new/api-reference/api/errors` instead of the retired
+`docs.getbrew.io` host.
 
 ## 9.2.0
 
