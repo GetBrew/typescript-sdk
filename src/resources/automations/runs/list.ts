@@ -29,7 +29,8 @@ export type ListAutomationRunsInput = {
   readonly triggerEventId?: string
   readonly triggerInstanceId?: string
   readonly recipientEmail?: string
-  readonly status?: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled'
+  /** The API's enum — `canceled`, one L. (`cancelled` was never accepted.) */
+  readonly status?: 'pending' | 'running' | 'completed' | 'failed' | 'canceled'
   readonly mode?: 'live' | 'test'
   readonly from?: string
   readonly to?: string
@@ -56,7 +57,7 @@ function serializeInclude(
  * - List mode (no `automationRunId`): recent runs, newest first. Filter
  *   with `automationId`, `triggerEventId`, `triggerInstanceId`,
  *   `recipientEmail`, `status` (pending | running | completed | failed |
- *   cancelled), `mode` (live | test), and the `from` / `to` ISO-8601
+ *   canceled), `mode` (live | test), and the `from` / `to` ISO-8601
  *   window. List rows omit per-node logs.
  * - Detail mode (`automationRunId` set): a single-row page
  *   `{ data: [row] }` with no `pagination`. Add `include: 'logs'` for

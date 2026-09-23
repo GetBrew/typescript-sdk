@@ -184,5 +184,5 @@ accident), rotate immediately:
 
 - npm package page: <https://www.npmjs.com/package/@brew.new/sdk>
 - GitHub repo: <https://github.com/GetBrew/typescript-sdk>
-- Public API docs (Mintlify): <https://docs.getbrew.io>
+- Public API docs (Mintlify): <https://docs.brew.new>
 - App package (where the OpenAPI source lives): `sub-agent-orchestrator/`

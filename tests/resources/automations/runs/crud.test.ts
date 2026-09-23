@@ -29,13 +29,19 @@ describe('automations.runs resource — read-only list/get wiring', () => {
     const runs = createAutomationRunsResource(client)
     const result = await runs.list({
       automationId: 'auto_abc',
-      status: 'completed',
+      recipientEmail: 'jane@example.com',
+      status: 'canceled',
       limit: 25,
     })
 
     const params = new URL(url!).searchParams
     expect(params.get('automationId')).toBe('auto_abc')
-    expect(params.get('status')).toBe('completed')
+    // One contact's run history — the filter the server honours since
+    // brew-v2 #1621; a dropped key would answer with everyone's runs.
+    expect(params.get('recipientEmail')).toBe('jane@example.com')
+    // The API's enum spells it `canceled` (one L); the input type used to
+    // say `cancelled`, the one value the server refuses with 400.
+    expect(params.get('status')).toBe('canceled')
     expect(params.get('limit')).toBe('25')
     expect(result.data[0]?.automationRunId).toBe('run_a')
   })

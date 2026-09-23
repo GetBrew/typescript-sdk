@@ -1,5 +1,29 @@
 # Changelog
 
+## 9.3.1
+
+### Fixed — `ListAutomationRunsInput.status` names the API's `canceled` value
+
+The input type spelled the terminal status `cancelled` (two L). The API's
+enum — the OpenAPI spec, the generated response type, and the server's
+validator — is `canceled` (one L), so the one value the type blessed for a
+cancelled-runs filter was the one `GET /v1/automations/runs` refused with
+`400`. The type now says `canceled`. No working call changes: the old
+spelling was never accepted, so nothing that succeeded before this release
+breaks, and a caller who typed it gets the compiler's word instead of the
+server's.
+
+### Changed — spec mirror resynced
+
+`openapi/public-api-v1.yaml` and `src/generated/openapi-types.ts` follow
+brew-v2 `main`: `TriggerFireDetails` declares the `errors[]`,
+`payloadSchema`, `contractHash` and `enforcement` fields a `400
+payload_mismatch` carries (the fields `BrewApiError.details` exposes since
+9.3.0), the fire 400 example shows the code the API sends
+(`INVALID_PAYLOAD`), and the runs list documents `recipientEmail`.
+`tests/resources/automations/runs/crud.test.ts` now pins that
+`recipientEmail` and `status: 'canceled'` reach the query string.
+
 ## 9.3.0
 
 ### Fixed — trigger-fire refusals no longer degrade to `unknown_error`
