@@ -47,6 +47,7 @@ export function createListAutomationRuns(client: HttpClient) {
         automationId: input.automationId,
         triggerEventId: input.triggerEventId,
         triggerInstanceId: input.triggerInstanceId,
+        recipientEmail: input.recipientEmail,
         status: input.status,
         mode: input.mode,
         from: input.from,

@@ -78,6 +78,9 @@ const email = await brew.emails.get(emailId, { include: 'html' })
 `createdAtTo`, `updatedAtFrom`, `updatedAtTo` — for one `from` / `to` pair
 plus `sortBy: 'createdAt' | 'updatedAt'`.
 
+`automations.runs.list` keeps its `recipientEmail` filter — one contact's run
+history, matched case-insensitively by the server — and forwards it again.
+
 ### Breaking — renamed request and response fields
 
 - **`emails.export`** takes `dryRun`, not `dry_run`.

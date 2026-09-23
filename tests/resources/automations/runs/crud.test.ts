@@ -29,12 +29,16 @@ describe('automations.runs resource — read-only list/get wiring', () => {
     const runs = createAutomationRunsResource(client)
     const result = await runs.list({
       automationId: 'auto_abc',
+      recipientEmail: 'Jane@Example.com',
       status: 'completed',
       limit: 25,
     })
 
     const params = new URL(url!).searchParams
     expect(params.get('automationId')).toBe('auto_abc')
+    // One contact's run history; the server matches case-insensitively, so
+    // the address goes over verbatim.
+    expect(params.get('recipientEmail')).toBe('Jane@Example.com')
     expect(params.get('status')).toBe('completed')
     expect(params.get('limit')).toBe('25')
     expect(result.data[0]?.automationRunId).toBe('run_a')
