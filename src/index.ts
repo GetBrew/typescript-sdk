@@ -455,9 +455,10 @@ export type { Template } from './resources/templates/types'
 // the sequence view of the same gallery `templates` lists.
 export type {
   FlowsIncludeToken,
-  ListFlowsInput,
-  ListFlowsResponse,
-} from './resources/flows/list'
+  GetFlowOptions,
+  GetFlowResponse,
+} from './resources/flows/get'
+export type { ListFlowsInput, ListFlowsResponse } from './resources/flows/list'
 export type { FlowsResource } from './resources/flows/resource'
 export type { Flow, FlowStep, FlowsListResponse } from './resources/flows/types'
 export type { UsageResource } from './resources/usage/resource'

@@ -25,6 +25,7 @@ empty page you have to test for.
 | `emails.createInboxPlacementTest(input)`                 | `emails.inboxPlacementTests.create(input)`              |
 | `emails.getInboxPlacementResults({ emailId })`           | `emails.inboxPlacementTests.list({ emailId })`          |
 | `emails.getInboxPlacementResults({ emailId, testId })`   | `emails.inboxPlacementTests.get(emailId, testId)`       |
+| `flows.list({ slug, include })` (a one-row page)         | `flows.get(slug, { include })` — the bare flow          |
 
 `brew.analytics` keeps only reports: `overview`, `automations`, `events`,
 `eventsAll`. Types `CampaignAnalyticsResponse`, `CampaignAnalyticsRow`,

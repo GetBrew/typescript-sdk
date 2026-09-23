@@ -6,6 +6,7 @@ brand, with the day each email landed.
 | Method          | HTTP            |
 | --------------- | --------------- |
 | [`list`](#list) | `GET /v1/flows` |
+| [`get`](#get) | `GET /v1/flows/{slug}` |
 
 ## Shared types
 
@@ -13,10 +14,9 @@ brand, with the day each email landed.
 type Flow = {
   readonly slug: string // the brand domain, e.g. 'brew.new'
   readonly brand: {
-    readonly domain: string
     readonly name: string
     readonly logo?: string
-  }
+  } // the brand's domain is `slug`, not repeated here
   readonly title: string
   readonly type: 'newsletter' | 'signup' // how the sequence starts
   readonly category: string // the dominant step category
@@ -27,7 +27,7 @@ type Flow = {
   readonly previewImages: ReadonlyArray<string> // up to three step previews
   readonly publishedAt: string
   readonly updatedAt: string
-  // Detail only (`slug` set) — a LIST card never carries these:
+  // On `get` only; a LIST card never carries these:
   readonly anchor?: 'submittedAt' | 'signedUpAt' | 'verifiedAt' | 'firstEmail' // what day 0 means
   readonly steps?: ReadonlyArray<FlowStep>
 }
@@ -55,12 +55,10 @@ to `brew.emails.generate(...)` to rebuild that email for your brand.
 
 ## `list`
 
-List flow cards, or fetch one flow with every step.
+List flow cards. Every card carries the `slug` that [`get`](#get) takes.
 
 ```ts
 type ListFlowsInput = {
-  readonly slug?: string // fetch ONE flow by brand domain → { data: [flow] }
-  readonly include?: ReadonlyArray<'html'> | string // detail-only: each step's rendered HTML
   readonly brand?: string // exact brand domain filter
   readonly category?: string
   readonly type?: 'newsletter' | 'signup'
@@ -72,8 +70,7 @@ type ListFlowsInput = {
 
 type FlowsListResponse = {
   readonly data: ReadonlyArray<Flow>
-  readonly pagination?: {
-    // present in list mode; omitted on the `slug` detail read
+  readonly pagination: {
     readonly limit: number
     readonly cursor: string | null
     readonly hasMore: boolean
@@ -88,17 +85,28 @@ list(input?: ListFlowsInput): Promise<FlowsListResponse>
 const { data: cards } = await brew.flows.list({ type: 'signup', sort: 'span' })
 
 // One flow, every step, with the rendered HTML
-const {
-  data: [flow],
-} = await brew.flows.list({ slug: 'brew.new', include: 'html' })
+const flow = await brew.flows.get('brew.new', { include: 'html' })
 
-for (const step of flow?.steps ?? []) {
+for (const step of flow.steps ?? []) {
   console.log(step.order, `+${step.delayDays}d`, step.subject, step.emailId)
 }
 ```
 
-An unknown `slug` throws a `BrewApiError` with `status: 404` and
-`code: 'FLOW_NOT_FOUND'`; `include` without `slug` is `400 INVALID_REQUEST`.
+## `get`
+
+One flow as the bare row, with `anchor` and every step.
+
+```ts
+const flow = await brew.flows.get('brew.new')
+const withBodies = await brew.flows.get('brew.new', { include: 'html' })
+```
+
+`include: 'html'` (a token, an array, or a comma string) attaches each step's
+rendered HTML, best-effort per step: a step whose body is no longer servable
+comes back without `html`. An unknown or private slug throws a `BrewApiError`
+with `status: 404` and `code: 'FLOW_NOT_FOUND'`. Passing `slug` or `include`
+to `list` is `400 INVALID_REQUEST`: identity rides the path, and the expansion
+is detail-only.
 
 `include: 'html'` is best-effort per step: a step whose template stopped
 being public between the flow read and its body read comes back without
