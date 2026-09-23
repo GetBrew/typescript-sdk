@@ -2,8 +2,26 @@ import type { components } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
-export type AudienceFromEventsInput =
+type GeneratedFromEventsRequest =
   components['schemas']['AudiencesFromEventsRequest']
+type GeneratedCohort = GeneratedFromEventsRequest['cohort']
+
+/**
+ * The cohort the API accepts: a window start (`from`) OR a `sendId` (then
+ * the window defaults to the hour before that send was dispatched). The
+ * generated type marks both optional because OpenAPI cannot say "one of",
+ * so this union makes the neither-shape a compile error instead of a 400.
+ */
+export type AudienceFromEventsCohort =
+  | (GeneratedCohort & { readonly from: string })
+  | (GeneratedCohort & { readonly sendId: string })
+
+export type AudienceFromEventsInput = Omit<
+  GeneratedFromEventsRequest,
+  'cohort'
+> & {
+  readonly cohort: AudienceFromEventsCohort
+}
 export type AudienceFromEventsResponse =
   components['schemas']['AudiencesFromEventsResponse']
 

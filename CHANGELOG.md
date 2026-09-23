@@ -1,6 +1,17 @@
 # Changelog
 
-## 9.3.1
+## 9.4.0
+
+### Added — complement cohorts and send-scoped windows are typed
+
+`brew.audiences.fromEvents` follows the resynced spec: `cohort.exclude`
+(`{ baseAudienceId? }` — the audience becomes every contact of the base who
+did NOT match, the one-call resend-after-cancel recipe) and a `sendId`
+without `from` (the window defaults to the hour before that send) are now
+part of `AudienceFromEventsInput`. The generated type marks `from` optional
+because OpenAPI cannot say "`from` or `sendId`"; the new exported
+`AudienceFromEventsCohort` union makes the neither-shape a compile error
+instead of the API's `400`.
 
 ### Fixed — `ListAutomationRunsInput.status` names the API's `canceled` value
 

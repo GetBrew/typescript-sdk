@@ -1,11 +1,31 @@
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it } from 'vitest'
 
-import { createAudienceFromEvents } from '../../../src/resources/audiences/from-events'
+import {
+  type AudienceFromEventsInput,
+  createAudienceFromEvents,
+} from '../../../src/resources/audiences/from-events'
 import { makeTestHttpClient } from '../../helpers/http-client'
 import { server } from '../../msw/server'
 
 describe('audiences.fromEvents', () => {
+  it('a cohort needs `from` or `sendId` — the compiler refuses the shape the API 400s', () => {
+    const byWindow: AudienceFromEventsInput = {
+      cohort: { eventTypes: ['opened'], from: '2026-09-01T00:00:00.000Z' },
+    }
+    const bySend: AudienceFromEventsInput = {
+      cohort: { eventTypes: ['opened'], sendId: 'snd_1' },
+    }
+    const complement: AudienceFromEventsInput = {
+      cohort: { eventTypes: ['opened'], sendId: 'snd_1', exclude: {} },
+    }
+    const neither: AudienceFromEventsInput = {
+      // @ts-expect-error — neither `from` nor `sendId`: `400 INVALID_REQUEST` on the wire, so the type refuses it first
+      cohort: { eventTypes: ['opened'] },
+    }
+    expect([byWindow, bySend, complement, neither]).toHaveLength(4)
+  })
+
   it('POSTs the cohort body and returns the async build envelope', async () => {
     let capturedBody: unknown
     server.use(

@@ -75,6 +75,7 @@ export type {
   DuplicateAudienceResponse,
 } from './resources/audiences/duplicate'
 export type {
+  AudienceFromEventsCohort,
   AudienceFromEventsInput,
   AudienceFromEventsResponse,
 } from './resources/audiences/from-events'
