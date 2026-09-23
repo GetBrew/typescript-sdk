@@ -304,4 +304,214 @@ describe('BrewApiError', () => {
       expect(error.code).toBe('unknown_error')
     })
   })
+
+  describe('fromResponse — the legacy fire envelope', () => {
+    // The ONE endpoint outside the `{ error }` convention: trigger fire
+    // (`POST`/`GET /v1/automations/triggers/{id}/fire`) answers failure with
+    // `{ success: false, status, code, message, receivedAt, details? }`.
+    // Regression pin: this body used to fall through to `unknown_error` /
+    // `internal_error` / "Request failed with status 400" + retry advice, and
+    // `details.errors[]` (which fields were wrong) was unreachable.
+    const payloadMismatch = {
+      success: false,
+      status: 'payload_mismatch',
+      code: 'INVALID_PAYLOAD',
+      message: 'Payload validation failed.',
+      triggerEventId: 'tri_signup',
+      receivedAt: '2026-09-20T10:00:00.000Z',
+      details: {
+        errors: [
+          {
+            code: 'invalid_type',
+            field: 'code',
+            message: 'Field "code" must be a string',
+            expectedType: 'string',
+            actualType: 'number',
+          },
+        ],
+        warnings: [],
+        payloadSchema: {
+          type: 'object',
+          fields: [
+            { key: 'email', type: 'string', required: true },
+            { key: 'code', type: 'string', required: true },
+          ],
+        },
+      },
+    }
+
+    it('maps a 400 payload_mismatch to its real code with the field errors attached', () => {
+      const error = BrewApiError.fromResponse({
+        status: 400,
+        headers: new Headers({
+          'x-request-id': 'req_0ee060a1c22345d49734cbea819620c3',
+        }),
+        body: payloadMismatch,
+      })
+
+      expect(error.status).toBe(400)
+      expect(error.code).toBe('INVALID_PAYLOAD')
+      expect(error.type).toBe('invalid_request')
+      expect(error.message).toBe('Payload validation failed.')
+      expect(error.requestId).toBe('req_0ee060a1c22345d49734cbea819620c3')
+      expect(error.details).toEqual(payloadMismatch.details)
+      expect(error.body).toBe(payloadMismatch)
+      // The same body fails the same way on retry — never advise one.
+      expect(error.suggestion).not.toMatch(/retry/i)
+      expect(error.docs).toBe(
+        'https://docs.brew.new/api-reference/public-v1/automations/fire-a-trigger'
+      )
+    })
+
+    it.each([
+      [404, 'TRIGGER_EVENT_NOT_FOUND', 'trigger_event_not_found', 'not_found'],
+      [403, 'BRAND_SCOPE_MISMATCH', 'forbidden', 'authorization_error'],
+      [422, 'NO_PUBLISHED_AUTOMATION', 'failed', 'invalid_request'],
+      [409, 'IDEMPOTENCY_CONFLICT', 'failed', 'conflict'],
+      [500, 'INTERNAL_ERROR', 'failed', 'internal_error'],
+    ] as const)(
+      'derives type from the HTTP status: %i %s → %s',
+      (status, code, legacyStatus, expectedType) => {
+        const error = BrewApiError.fromResponse({
+          status,
+          headers: new Headers(),
+          body: {
+            success: false,
+            status: legacyStatus,
+            code,
+            message: `${code} happened`,
+            receivedAt: '2026-09-20T10:00:00.000Z',
+          },
+        })
+
+        expect(error.code).toBe(code)
+        expect(error.type).toBe(expectedType)
+        expect(error.message).toBe(`${code} happened`)
+        expect(error.details).toBeUndefined()
+        // The envelope's own discriminator stays reachable through `body`.
+        expect((error.body as { status: string }).status).toBe(legacyStatus)
+      }
+    )
+
+    it('only advises a retry for the transient statuses the retry policy retries', () => {
+      const legacy = ({ status }: { status: number }) =>
+        BrewApiError.fromResponse({
+          status,
+          headers: new Headers(),
+          body: { success: false, status: 'failed', code: 'X', message: 'x' },
+        })
+
+      // The retry policy's own set (408, 429, 5xx): after the automatic
+      // retries a retry is still the honest remedy.
+      expect(legacy({ status: 500 }).suggestion).toMatch(/retry/i)
+      expect(legacy({ status: 429 }).suggestion).toMatch(/retry/i)
+      expect(legacy({ status: 408 }).suggestion).toMatch(/retry/i)
+      // Not in the policy — 425 included — so no retry advice.
+      expect(legacy({ status: 425 }).suggestion).not.toMatch(/retry/i)
+      expect(legacy({ status: 404 }).suggestion).not.toMatch(/retry/i)
+      expect(legacy({ status: 400 }).suggestion).not.toMatch(/retry/i)
+    })
+
+    it('classifies an unlisted 4xx as invalid_request, never internal_error', () => {
+      const error = BrewApiError.fromResponse({
+        status: 413,
+        headers: new Headers(),
+        body: {
+          success: false,
+          status: 'failed',
+          code: 'TOO_LARGE',
+          message: 'x',
+        },
+      })
+
+      expect(error.type).toBe('invalid_request')
+    })
+
+    it('does not claim a `success: true` body as a refusal', () => {
+      const error = BrewApiError.fromResponse({
+        status: 500,
+        headers: new Headers(),
+        body: {
+          success: true,
+          status: 'triggered',
+          code: 'TRIGGERED',
+          message: 'ok',
+        },
+      })
+
+      expect(error.code).toBe('unknown_error')
+    })
+
+    it('requires `success: false` — a bare { code, message } is not a fire refusal', () => {
+      // A proxy or an unrelated endpoint answering `{ code, message }` must
+      // not be labelled with the fire reference; the contract says a fire
+      // refusal carries `success: false`.
+      const error = BrewApiError.fromResponse({
+        status: 400,
+        headers: new Headers(),
+        body: { code: 'BAD_GATEWAY_CONFIG', message: 'nope' },
+      })
+
+      expect(error.code).toBe('unknown_error')
+      expect(error.docs).toBe('https://docs.brew.new/api-reference/api/errors')
+    })
+  })
+
+  describe('fromResponse — details and body on every shape', () => {
+    it('keeps `details` from the standard envelope', () => {
+      const body = {
+        error: {
+          code: 'FIELD_TYPE_MISMATCH',
+          type: 'conflict',
+          message: "Field 'score' already exists with type number.",
+          param: 'score',
+          suggestion: 'Use the existing type or pick another name.',
+          docs: 'https://docs.brew.new/api-reference/api/errors',
+          details: { existingType: 'number', requestedType: 'string' },
+        },
+      }
+
+      const error = BrewApiError.fromResponse({
+        status: 409,
+        headers: new Headers(),
+        body,
+      })
+
+      expect(error.code).toBe('FIELD_TYPE_MISMATCH')
+      expect(error.details).toEqual(body.error.details)
+      expect(error.body).toBe(body)
+    })
+
+    it('the generic fallback derives type from the status and links the live docs host', () => {
+      const error = BrewApiError.fromResponse({
+        status: 404,
+        headers: new Headers(),
+        body: '<html>Not Found</html>',
+      })
+
+      expect(error.code).toBe('unknown_error')
+      expect(error.type).toBe('not_found')
+      expect(error.docs).toBe('https://docs.brew.new/api-reference/api/errors')
+      expect(error.body).toBe('<html>Not Found</html>')
+      expect(error.details).toBeUndefined()
+    })
+
+    it('a non-enveloped 413 from a proxy is invalid_request, a 408 keeps retry advice', () => {
+      const tooLarge = BrewApiError.fromResponse({
+        status: 413,
+        headers: new Headers(),
+        body: '<html>Payload Too Large</html>',
+      })
+      const timeout = BrewApiError.fromResponse({
+        status: 408,
+        headers: new Headers(),
+        body: null,
+      })
+
+      expect(tooLarge.type).toBe('invalid_request')
+      expect(tooLarge.suggestion).not.toMatch(/retry/i)
+      expect(timeout.type).toBe('invalid_request')
+      expect(timeout.suggestion).toMatch(/retry/i)
+    })
+  })
 })

@@ -20,6 +20,8 @@ class BrewApiError extends Error {
   readonly docs: string // URL to the relevant docs section
   readonly requestId: string | undefined // From the x-request-id response header
   readonly retryAfter: number | undefined // Delta-seconds: from body envelope or Retry-After header
+  readonly details: Record<string, unknown> | undefined // The envelope's `details` object, when sent
+  readonly body: unknown // The parsed response body exactly as received
 }
 ```
 
@@ -40,6 +42,8 @@ type BrewErrorType =
   | 'not_implemented'
   | 'conflict'
   | 'rate_limit'
+  | 'payment_required'
+  | 'service_unavailable'
   | 'internal_error'
 ```
 
@@ -100,7 +104,7 @@ The Brew API wraps every error in a consistent envelope:
     "message": "email must be a valid email",
     "param": "email",
     "suggestion": "Use a valid RFC 5322 address.",
-    "docs": "https://docs.getbrew.io/api/contacts#errors"
+    "docs": "https://docs.brew.new/api-reference/api/errors"
   }
 }
 ```
@@ -110,13 +114,77 @@ The Brew API wraps every error in a consistent envelope:
 class. `requestId` comes from the `x-request-id` response header.
 `retryAfter` is read from the body envelope first, then falls back to
 the `Retry-After` header — the body wins because it is specific to
-the exact error.
+the exact error. `details`, when the server attached one, is passed
+through untouched.
 
-If the response body is not a valid Brew error envelope (an HTML 502
-from an upstream proxy, an empty body, etc.) the SDK falls back to a
-generic envelope (`code: 'unknown_error'`, `type: 'internal_error'`)
-with a generic suggestion and docs URL — better to return a readable
-error than throw from the error path.
+If the response body is neither envelope (an HTML 502 from an upstream
+proxy, an empty body, etc.) the SDK falls back to a generic envelope:
+`code: 'unknown_error'`, `type` derived from the HTTP status, a retry
+suggestion only for `429`/5xx, and the error-catalogue docs URL — better
+to return a readable error than throw from the error path. `body` still
+carries whatever was received.
+
+### The legacy fire envelope
+
+`POST`/`GET /v1/automations/triggers/{triggerEventId}/fire` is the one
+endpoint outside the `{ error }` convention. Its pipeline answers its
+successes and its own refusals — missing key, payload mismatch, unknown
+trigger, brand scope, no published automation — with the legacy fire
+envelope (a malformed JSON body is refused earlier with the standard
+envelope, and the contract documents the route's 401/403/429 as
+`ApiErrorEnvelope`; the SDK tries the standard shape first, then this
+one, so either is mapped correctly):
+
+```json
+{
+  "success": false,
+  "status": "payload_mismatch",
+  "code": "INVALID_PAYLOAD",
+  "message": "Payload validation failed.",
+  "triggerEventId": "tri_signup",
+  "receivedAt": "2026-09-20T10:00:00.000Z",
+  "details": {
+    "errors": [
+      {
+        "code": "invalid_type",
+        "field": "code",
+        "message": "Field \"code\" must be a string",
+        "expectedType": "string",
+        "actualType": "number"
+      }
+    ],
+    "warnings": [],
+    "payloadSchema": { "type": "object", "fields": [] }
+  }
+}
+```
+
+The SDK maps it verbatim: `code` and `message` from the body, `type`
+derived from the HTTP status (`401` → `authentication_error`, `403` →
+`authorization_error`, `404` → `not_found`, `409` → `conflict`, `429` →
+`rate_limit`, any other 4xx → `invalid_request`, 5xx → `internal_error`),
+a fix-the-request `suggestion` for any 4xx outside the retry policy (the
+same body fails the same way on retry; `408`/`429`/5xx keep retry advice),
+the fire reference as `docs`, and `details` — for a `payload_mismatch`,
+`errors[]` names every offending field and `payloadSchema` is the schema
+to repair against. The envelope's own `status` discriminator is reachable
+through `body`:
+
+```ts
+try {
+  await brew.automations.triggers.fire({ triggerEventId, payload })
+} catch (error) {
+  if (error instanceof BrewApiError && error.code === 'INVALID_PAYLOAD') {
+    const errors = error.details?.errors as
+      | Array<{ field: string; message: string }>
+      | undefined
+    for (const issue of errors ?? []) {
+      console.error(`${issue.field}: ${issue.message}`)
+    }
+  }
+  throw error
+}
+```
 
 ## What about network failures?
 
