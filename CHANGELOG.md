@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 9.3.0
 
 ### Fixed — trigger-fire refusals no longer degrade to `unknown_error`
 
