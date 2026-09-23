@@ -31,13 +31,22 @@ const contact = await brew.contacts.upsert({
   customFields: { plan: 'enterprise' },
 })
 
+const found = await brew.contacts.get('jane@example.com')
+
 const { data } = await brew.contacts.search({
-  filters: [{ field: 'email', operator: 'equals', value: 'jane@example.com' }],
+  filters: [
+    { field: 'customFields.plan', operator: 'equals', value: 'enterprise' },
+  ],
 })
-const found = data[0]
 ```
 
-That's the whole shape. Every other method follows the same pattern.
+That's the whole shape. Every other method follows the same pattern:
+`list(query)` for a page, `get(id)` for the bare row, and a `404` — not
+an empty page — when the id is unknown.
+
+> **Upgrading from 9.x?** 10.0.0 is a breaking release that tracks the
+> public API v1 cleanup. Read the
+> [CHANGELOG](./CHANGELOG.md) for the full migration table.
 
 ## Pointing at a different environment
 
@@ -65,25 +74,25 @@ etc.).
 
 ## Documentation
 
-| Topic                       | File                                                                   |
-| --------------------------- | ---------------------------------------------------------------------- |
-| Analytics resource          | [`docs/analytics.md`](./docs/analytics.md)                             |
-| Automations resource        | [`docs/automations.md`](./docs/automations.md)                         |
-| Audiences resource          | [`docs/audiences.md`](./docs/audiences.md)                             |
-| Brand resource              | [`docs/brand.md`](./docs/brand.md)                                     |
-| Brands (lifecycle)          | [`docs/brands.md`](./docs/brands.md)                                   |
-| Client configuration        | [`docs/configuration.md`](./docs/configuration.md)                     |
-| Contacts resource           | [`docs/contacts.md`](./docs/contacts.md)                               |
-| Domains resource            | [`docs/domains.md`](./docs/domains.md)                                 |
-| Emails resource (+ send)    | [`docs/emails.md`](./docs/emails.md)                                   |
-| Fields resource             | [`docs/fields.md`](./docs/fields.md)                                   |
-| Error handling              | [`docs/errors.md`](./docs/errors.md)                                   |
-| Retries + idempotency       | [`docs/retries-and-idempotency.md`](./docs/retries-and-idempotency.md) |
-| Sends resource (lifecycle)  | [`docs/sends.md`](./docs/sends.md)                                     |
-| Templates resource          | [`docs/templates.md`](./docs/templates.md)                             |
-| Flows resource              | [`docs/flows.md`](./docs/flows.md)                                     |
-| Development + OpenAPI sync  | [`docs/development.md`](./docs/development.md)                         |
-| **Releasing a new version** | [`RELEASING.md`](./RELEASING.md)                                       |
+| Topic                              | File                                                                   |
+| ---------------------------------- | ---------------------------------------------------------------------- |
+| Analytics resource                 | [`docs/analytics.md`](./docs/analytics.md)                             |
+| Automations resource               | [`docs/automations.md`](./docs/automations.md)                         |
+| Audiences resource                 | [`docs/audiences.md`](./docs/audiences.md)                             |
+| Brand resource                     | [`docs/brand.md`](./docs/brand.md)                                     |
+| Brands (lifecycle)                 | [`docs/brands.md`](./docs/brands.md)                                   |
+| Client configuration               | [`docs/configuration.md`](./docs/configuration.md)                     |
+| Contacts resource                  | [`docs/contacts.md`](./docs/contacts.md)                               |
+| Domains resource                   | [`docs/domains.md`](./docs/domains.md)                                 |
+| Emails resource (+ send)           | [`docs/emails.md`](./docs/emails.md)                                   |
+| Fields resource                    | [`docs/fields.md`](./docs/fields.md)                                   |
+| Error handling                     | [`docs/errors.md`](./docs/errors.md)                                   |
+| Retries + idempotency              | [`docs/retries-and-idempotency.md`](./docs/retries-and-idempotency.md) |
+| Sends resource (reads + lifecycle) | [`docs/sends.md`](./docs/sends.md)                                     |
+| Templates resource                 | [`docs/templates.md`](./docs/templates.md)                             |
+| Flows resource                     | [`docs/flows.md`](./docs/flows.md)                                     |
+| Development + OpenAPI sync         | [`docs/development.md`](./docs/development.md)                         |
+| **Releasing a new version**        | [`RELEASING.md`](./RELEASING.md)                                       |
 
 > Note: `brew.brand.*` (singular) reads the brand the CURRENT request acts on
 > — its design system, identity, and extraction readiness. `brew.brands.*`

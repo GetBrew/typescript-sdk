@@ -6,52 +6,17 @@ import type { BrewRawResponse, RequestOptions } from '../../types'
 export type ListAudiencesResponse =
   components['schemas']['AudiencesListResponse']
 
-/**
- * Input to `brew.audiences.list(...)` — the single audiences read. Reads
- * are flat: identity lives in the query.
- *
- * - Omit `audienceId` to LIST every saved audience.
- * - Pass `audienceId` to fetch ONE — the response is a single-row page
- *   `{ data: [row] }` (no `pagination`).
- * - `include: 'count'` is a detail-only opt-in (requires `audienceId`):
- *   it makes the row's `count` the authoritative, freshly computed live
- *   member total instead of the cached value. Accepts a single token, an
- *   array, or a comma string.
- */
-export type AudiencesIncludeToken = 'count'
-
-export type ListAudiencesInput = PaginationInput & {
-  /** Fetch one audience by id (detail mode → single-row page). Omit to list. */
-  readonly audienceId?: string
-  /**
-   * Detail-only expansion (requires `audienceId`). `'count'` makes the
-   * row's `count` the authoritative live member total — the size a
-   * campaign send would target — instead of the cached value. Accepts an
-   * array of `'count'` tokens or a comma string.
-   */
-  readonly include?: ReadonlyArray<AudiencesIncludeToken> | string
-}
-
-/** Serialize the `include` option into the API's comma-separated form. */
-function serializeInclude(
-  include: ListAudiencesInput['include']
-): string | undefined {
-  if (include === undefined) return undefined
-  const joined = typeof include === 'string' ? include : include.join(',')
-  return joined.length > 0 ? joined : undefined
-}
+/** Pagination knobs accepted by `brew.audiences.list(...)`. */
+export type ListAudiencesInput = PaginationInput
 
 /**
- * `GET /v1/audiences` (scope: `audiences`) — the single audiences read,
- * under the uniform `{ data, pagination? }` envelope. Reads are flat:
- * the identity lives in the query.
+ * `GET /v1/audiences` (scope: `audiences`) — every saved audience for
+ * the brand, under the uniform `{ data, pagination }` envelope. Page
+ * with `limit` / `cursor`.
  *
- * - List mode (no `audienceId`): every saved audience for the brand;
- *   page with `limit` / `cursor`.
- * - Detail mode (`audienceId` set): a single-row page `{ data: [row] }`
- *   with no `pagination`. Pass `include: 'count'` to make `count` the
- *   authoritative live member total (an `include` without `audienceId`
- *   is `400 INVALID_REQUEST`).
+ * A single audience is
+ * `brew.audiences.get(audienceId, { include: 'count' })` — there is no
+ * `audienceId` filter here any more.
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<ListAudiencesResponse>` (including `status`,
@@ -74,8 +39,6 @@ export function createListAudiences(client: HttpClient) {
       method: 'GET',
       path: '/v1/audiences',
       query: {
-        audienceId: input.audienceId,
-        include: serializeInclude(input.include),
         limit: input.limit,
         cursor: input.cursor,
       },

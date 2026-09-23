@@ -6,32 +6,19 @@ import type { TriggersListResponse } from './types'
 
 export type ListTriggersResponse = TriggersListResponse
 
-/**
- * Input to `brew.automations.triggers.list(...)` — the single triggers
- * read. Reads are flat: identity lives in the query.
- *
- * - Omit `triggerEventId` to LIST every trigger in the brand.
- * - Pass `triggerEventId` to fetch ONE — the response is a single-row
- *   page `{ data: [row] }` (no `pagination`).
- */
-export type ListTriggersInput = PaginationInput & {
-  /** Fetch one trigger by id (detail mode → single-row page). Omit to list. */
-  readonly triggerEventId?: string
-}
+/** Pagination knobs accepted by `brew.automations.triggers.list(...)`. */
+export type ListTriggersInput = PaginationInput
 
 /**
- * `GET /v1/automations/triggers` (scope: `automations`) — the single
- * triggers read, under the uniform `{ data, pagination? }` envelope.
- * Reads are flat: the identity lives in the query.
+ * `GET /v1/automations/triggers` (scope: `automations`) — every trigger
+ * in the API key's brand, under the uniform `{ data, pagination }`
+ * envelope. Includes both API-created customs (`provider: 'brew_api'`)
+ * and integration-provisioned rows (`provider: 'clerk' | 'stripe' | …`).
+ * Page with `limit` / `cursor`.
  *
- * - List mode (no `triggerEventId`): every trigger in the API key
- *   brand, including both API-created customs (`provider: 'brew_api'`)
- *   and integration-provisioned rows (`provider: 'clerk' | 'stripe' |
- *   …`). Page with `limit` / `cursor`.
- * - Detail mode (`triggerEventId` set): a single-row page
- *   `{ data: [row] }` with no `pagination`.
- *
- * Unknown / cross-brand ids return an empty page in detail mode.
+ * A single trigger is
+ * `brew.automations.triggers.get(triggerEventId)` — there is no
+ * `triggerEventId` filter here any more.
  */
 export function createListTriggers(client: HttpClient) {
   function listTriggers(
@@ -50,7 +37,6 @@ export function createListTriggers(client: HttpClient) {
       method: 'GET',
       path: '/v1/automations/triggers',
       query: {
-        triggerEventId: input.triggerEventId,
         limit: input.limit,
         cursor: input.cursor,
       },

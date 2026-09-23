@@ -4,7 +4,8 @@ import type { BrewRawResponse, RequestOptions } from '../../types'
 
 /**
  * 200 result of `POST /v1/sends/{sendId}/resume` — the resumed send
- * (`{ sendId, status: 'sending' }`).
+ * (`{ sendId, status: 'running' }`). The pre-v1 `'sending'` spelling was
+ * a ninth status outside the run vocabulary and is gone.
  */
 export type SendResumeResponse = components['schemas']['SendResumeResponse']
 
@@ -13,10 +14,10 @@ export type SendResumeResponse = components['schemas']['SendResumeResponse']
  * that was paused with `sends.pause(...)`, picking the ramp back up where it
  * left off.
  *
- * Idempotent: a send that is already sending resolves `200` with the same
+ * Idempotent: a send that is already running resolves `200` with the same
  * body. A send that is not in a resumable state (canceled, finished, or never
  * paused) surfaces as `409 SEND_NOT_RESUMABLE`. Brand-scoped, so an unknown
- * or cross-brand `sendId` is `404`.
+ * or cross-brand `sendId` is `404 SEND_NOT_FOUND`.
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<SendResumeResponse>` instead of the unwrapped payload.

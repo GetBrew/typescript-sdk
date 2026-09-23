@@ -1,29 +1,30 @@
 import type { components, operations } from '../../generated/openapi-types'
 
 /**
- * One row of the `data[]` array returned by `brew.emails.list(...)`
- * (`GET /v1/emails`). In list mode the row is lean (identity + render
- * `status` + `previewImage`); in detail mode (`?emailId=`) it can also
- * carry `html` (`?include=html`) and the inline `versions[]`
- * (`?include=versions`).
+ * One email design row. Lean from `brew.emails.list(...)` (identity +
+ * render `status` + `previewImage`); the detail read
+ * `brew.emails.get(emailId, { include })` can also carry the rendered
+ * `html` and the inline `versions[]`.
  */
-export type EmailSummary =
-  components['schemas']['EmailsListResponse']['data'][number]
+export type EmailSummary = components['schemas']['EmailSummary']
 
 /**
- * The full design row (identity + render `status`, the rendered `html`
- * of the current latest version, and `previewImage` when captured) —
- * the shape of a single detail-mode row from
- * `brew.emails.list({ emailId, include: 'html' })`.
+ * The full design row with its rendered HTML — the shape of
+ * `brew.emails.get(emailId, { include: 'html' })`.
  */
 export type EmailDetail = EmailSummary & { readonly html: string }
 
-export type EmailStatus =
-  operations['listEmails']['parameters']['query'] extends infer Query
-    ? Query extends { status?: infer Status }
-      ? Status
-      : never
-    : never
+/**
+ * Render status of a design, from the one v1 vocabulary:
+ * `generating | ready | failed`.
+ */
+export type EmailStatus = EmailSummary['status']
+
+/** The `sortBy` keys `GET /v1/emails` orders on. */
+export type EmailsSortBy = NonNullable<
+  NonNullable<operations['listEmails']['parameters']['query']>['sortBy']
+>
+
 export type GeneratedEmailArtifact = Extract<
   components['schemas']['EmailGenerateResponse'],
   { emailId: string }
@@ -35,9 +36,8 @@ export type GeneratedEmailTextResponse = Extract<
 
 /**
  * One persisted version of an email — a row of the inline `versions[]`
- * carried on a detail-mode email row when
- * `brew.emails.list({ emailId, include: 'versions' })` is used.
+ * carried by `brew.emails.get(emailId, { include: 'versions' })`.
  * `version: 'latest'` is the current head; numeric versions are
- * historical snapshots.
+ * historical snapshots. Restore one by its `emailVersionId`.
  */
 export type EmailVersion = NonNullable<EmailSummary['versions']>[number]

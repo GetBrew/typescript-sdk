@@ -3,7 +3,9 @@ import type { HttpClient } from '../../core/http'
 import { createCountContacts } from './count'
 import { createDeleteContact } from './delete'
 import { createDeleteManyContacts } from './delete-many'
+import { createGetContact } from './get'
 import { createImportCsvContacts } from './import-csv'
+import { createListContacts } from './list'
 import { createPatchContact } from './patch'
 import { createSearchAllContacts } from './search-all'
 import { createSearchContacts } from './search'
@@ -17,12 +19,15 @@ import { createValidateContacts } from './validate'
  * `resources/contacts/` so a new endpoint is always one new file plus
  * one new line here, never a diff inside an existing method.
  *
- * Reads are flat: `search` is the single contacts read (pass an empty
- * body to read all, an `audienceId` to scope, or filters to narrow);
- * writes stay path-based.
+ * `list` is the simple read, `get` fetches one by email, and `search`
+ * is the structured one (typed `filters` combined by `logic`).
  */
 export type ContactsResource = {
-  /** `POST /v1/contacts/search` — the single contacts read: structured filter/search/sort, optional `audienceId` scope, cursor pagination (scope: `contacts`). */
+  /** `GET /v1/contacts` — the brand's contacts, newest first; free-text `search`, `audienceId` scope, `sort` + `order`, cursor pagination (scope: `contacts`). */
+  readonly list: ReturnType<typeof createListContacts>
+  /** `GET /v1/contacts/{email}` — one contact as the bare row; `404 CONTACT_NOT_FOUND` when the address has none (scope: `contacts`). */
+  readonly get: ReturnType<typeof createGetContact>
+  /** `POST /v1/contacts/search` — the structured contacts read: typed `filters` combined by `logic`, optional `audienceId` scope, cursor pagination (scope: `contacts`). */
   readonly search: ReturnType<typeof createSearchContacts>
   /** Async-iterate every contact matching a `search` query (scope: `contacts`). */
   readonly searchAll: ReturnType<typeof createSearchAllContacts>
@@ -51,6 +56,8 @@ export type ContactsResource = {
  */
 export function createContactsResource(client: HttpClient): ContactsResource {
   return {
+    list: createListContacts(client),
+    get: createGetContact(client),
     search: createSearchContacts(client),
     searchAll: createSearchAllContacts(client),
     count: createCountContacts(client),

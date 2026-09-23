@@ -6,7 +6,7 @@ export type DeleteManyContactsInput = {
   readonly emails: ReadonlyArray<string>
 }
 
-/** `{ deleted, notFound }` — the deleted count plus emails that had no contact. */
+/** `{ deletedCount, notFound }` — how many were deleted plus the emails that had no contact. */
 export type DeleteManyContactsResponse =
   components['schemas']['ContactsBatchDeleteResponse']
 
@@ -15,8 +15,9 @@ export type DeleteManyContactsResponse =
  * 1000 contacts by email in one request.
  *
  * Batch delete moved to its own endpoint with a `{ emails: [...] }` body
- * (single delete now lives at `DELETE /v1/contacts/{email}`). Returns the
- * deleted count plus a `notFound[]` array for emails that had no contact.
+ * (single delete now lives at `DELETE /v1/contacts/{email}`). Returns
+ * `{ deletedCount, notFound }` — the count is `deletedCount` in v1, not
+ * `deleted`.
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<DeleteManyContactsResponse>` instead of the unwrapped

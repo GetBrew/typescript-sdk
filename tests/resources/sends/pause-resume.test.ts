@@ -13,7 +13,7 @@ describe('sends pause and resume', () => {
         HttpResponse.json({ sendId: 'send/123', status: 'paused' })
       ),
       http.post('https://brew.new/api/v1/sends/send%2F123/resume', () =>
-        HttpResponse.json({ sendId: 'send/123', status: 'sending' })
+        HttpResponse.json({ sendId: 'send/123', status: 'running' })
       )
     )
 
@@ -27,7 +27,7 @@ describe('sends pause and resume', () => {
     })
     await expect(resume('send/123')).resolves.toEqual({
       sendId: 'send/123',
-      status: 'sending',
+      status: 'running',
     })
   })
 })

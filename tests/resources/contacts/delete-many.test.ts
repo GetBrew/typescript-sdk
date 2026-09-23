@@ -15,7 +15,7 @@ describe('contacts.deleteMany', () => {
         async ({ request }) => {
           capturedRequest = request.clone()
           capturedBody = await request.json()
-          return HttpResponse.json({ deleted: 2 })
+          return HttpResponse.json({ deletedCount: 2, notFound: [] })
         }
       )
     )
@@ -34,15 +34,15 @@ describe('contacts.deleteMany', () => {
     expect(capturedBody).toEqual({
       emails: ['a@example.com', 'b@example.com'],
     })
-    expect(result.deleted).toBe(2)
-    expect(result.notFound).toBeUndefined()
+    expect(result.deletedCount).toBe(2)
+    expect(result.notFound).toEqual([])
   })
 
-  it('exposes the optional notFound array when the API surfaces partial misses', async () => {
+  it('exposes the notFound array when the API surfaces partial misses', async () => {
     server.use(
       http.post('https://brew.new/api/v1/contacts/batch-delete', () =>
         HttpResponse.json({
-          deleted: 1,
+          deletedCount: 1,
           notFound: ['missing@example.com'],
         })
       )
@@ -55,7 +55,7 @@ describe('contacts.deleteMany', () => {
       emails: ['present@example.com', 'missing@example.com'],
     })
 
-    expect(result.deleted).toBe(1)
+    expect(result.deletedCount).toBe(1)
     expect(result.notFound).toEqual(['missing@example.com'])
   })
 
@@ -63,7 +63,7 @@ describe('contacts.deleteMany', () => {
     server.use(
       http.post('https://brew.new/api/v1/contacts/batch-delete', () =>
         HttpResponse.json(
-          { deleted: 0, notFound: ['ghost@example.com'] },
+          { deletedCount: 0, notFound: ['ghost@example.com'] },
           {
             status: 200,
             headers: { 'x-request-id': 'req_raw_delete_many' },
@@ -81,7 +81,7 @@ describe('contacts.deleteMany', () => {
 
     expect(raw.status).toBe(200)
     expect(raw.requestId).toBe('req_raw_delete_many')
-    expect(raw.data.deleted).toBe(0)
+    expect(raw.data.deletedCount).toBe(0)
     expect(raw.data.notFound).toEqual(['ghost@example.com'])
   })
 })

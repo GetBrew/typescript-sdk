@@ -33,10 +33,11 @@ function serializeInclude(
  * brand, while an organization-scoped key uses the client's `brandId` pin.
  * Requires the `emails` scope.
  *
- * Returns `{ brand }`. Pass `include` (e.g. `['identity', 'logos']`) to
- * embed any of `identity` / `emailDesign` / `imageStyle` / `logos` in the
- * same response. Read `brand.ready` (true ⇔ `status: 'completed'`)
- * before generating or sending — `POST /v1/emails` 422s
+ * Returns the brand row FLAT (there is no `{ brand: … }` wrapper in
+ * v1). Pass `include` (e.g. `['identity', 'logos']`) to embed any of
+ * `identity` / `emailDesign` / `imageStyle` / `logos` in the same
+ * response. Read `ready` (true ⇔ `status: 'completed'`) before
+ * generating or sending — `POST /v1/emails` 422s
  * `BRAND_NOT_READY` until extraction completes. A `404 BRAND_NOT_FOUND`
  * means the bound brand was deleted.
  *

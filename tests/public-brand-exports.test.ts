@@ -17,5 +17,7 @@ it('exports the complete public brand lifecycle surface', () => {
   expectTypeOf<ListBrandsInput>().toHaveProperty('limit')
   expectTypeOf<ListBrandsResponse>().toHaveProperty('pagination')
   expectTypeOf<GetBrandStatusInput>().toHaveProperty('brandId')
-  expectTypeOf<GetBrandStatusResponse>().toHaveProperty('brand')
+  // v1 flattened the brand envelope: the row IS the response.
+  expectTypeOf<GetBrandStatusResponse>().toHaveProperty('brandId')
+  expectTypeOf<GetBrandStatusResponse>().toHaveProperty('ready')
 })

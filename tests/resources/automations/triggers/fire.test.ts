@@ -15,19 +15,19 @@ describe('automations.triggers.fire', () => {
         async ({ request }) => {
           captured = request.clone()
           body = await request.json()
-          return HttpResponse.json({
-            success: true,
-            status: 'triggered',
-            code: 'TRIGGERED',
-            message: 'Trigger fired.',
-            triggerEventId: 'tri_x',
-            receivedAt: '2026-04-08T12:34:56.789Z',
-            details: {
+          return HttpResponse.json(
+            {
               triggerInstanceId: 'tin_01HZ',
+              triggerEventId: 'tri_x',
+              status: 'triggered',
               automationRunIds: ['run_a'],
-              counts: { automations: 1 },
+              publishedAutomations: [{ automationId: 'auto_abc' }],
+              counts: { automations: 1, skipped: 0 },
+              warnings: [],
+              receivedAt: '2026-04-08T12:34:56.789Z',
             },
-          })
+            { status: 202 }
+          )
         }
       )
     )
@@ -48,41 +48,52 @@ describe('automations.triggers.fire', () => {
     })
     // Fire is retry-safe: the transport auto-attaches an Idempotency-Key.
     expect(captured?.headers.get('idempotency-key')).toBeTruthy()
-    expect(result.details?.automationRunIds).toEqual(['run_a'])
+    // v1 answers the BARE accepted body — no { success, code, message,
+    // details } envelope wrapped around it.
+    expect(result.automationRunIds).toEqual(['run_a'])
+    expect(result.triggerInstanceId).toBe('tin_01HZ')
+    expect(result.counts.automations).toBe(1)
     expect(result.status).toBe('triggered')
   })
 
-  it('forwards a caller-supplied idempotencyKey body field', async () => {
+  it('carries a caller-supplied idempotencyKey as the header, not a body field', async () => {
     let body: unknown
+    let captured: Request | undefined
     server.use(
       http.post(
         'https://brew.new/api/v1/automations/triggers/tri_y/fire',
         async ({ request }) => {
+          captured = request.clone()
           body = await request.json()
-          return HttpResponse.json({
-            success: true,
-            status: 'triggered',
-            code: 'TRIGGERED',
-            message: 'Trigger fired.',
-            triggerEventId: 'tri_y',
-            receivedAt: '2026-04-08T12:34:56.789Z',
-            details: { automationRunIds: ['run_b'] },
-          })
+          return HttpResponse.json(
+            {
+              triggerInstanceId: 'tin_02',
+              triggerEventId: 'tri_y',
+              status: 'replayed',
+              automationRunIds: ['run_b'],
+              publishedAutomations: [],
+              counts: { automations: 1, skipped: 0 },
+              warnings: [],
+              receivedAt: '2026-04-08T12:34:56.789Z',
+            },
+            { status: 202 }
+          )
         }
       )
     )
 
     const { client } = makeTestHttpClient()
     const triggers = createTriggersResource(client)
-    await triggers.fire({
-      triggerEventId: 'tri_y',
-      payload: { email: 'kim@example.com' },
-      idempotencyKey: 'fire-key-001',
-    })
+    const result = await triggers.fire(
+      {
+        triggerEventId: 'tri_y',
+        payload: { email: 'kim@example.com' },
+      },
+      { idempotencyKey: 'fire-key-001' }
+    )
 
-    expect(body).toEqual({
-      payload: { email: 'kim@example.com' },
-      idempotencyKey: 'fire-key-001',
-    })
+    expect(body).toEqual({ payload: { email: 'kim@example.com' } })
+    expect(captured?.headers.get('idempotency-key')).toBe('fire-key-001')
+    expect(result.status).toBe('replayed')
   })
 })

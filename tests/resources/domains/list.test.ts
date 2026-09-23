@@ -35,19 +35,10 @@ describe('domains.list', () => {
     expect(result.data[0]?.domainUrl).toBe('https://tiger-brew-testing-2.com')
   })
 
-  it('detail mode: domainId returns the single-row page; sendableOnly filters the list', async () => {
-    let detailUrl: string | undefined
+  it('filters the list with sendableOnly and sendingPurpose, never a domainId', async () => {
     let listUrl: string | undefined
     server.use(
       http.get('https://brew.new/api/v1/domains', ({ request }) => {
-        const url = new URL(request.url)
-        if (url.searchParams.get('domainId')) {
-          detailUrl = request.url
-          // Detail = single-row page `{ data: [row] }`, no pagination.
-          return HttpResponse.json({
-            data: [{ domainId: 'dom_123', sendable: true }],
-          })
-        }
         listUrl = request.url
         return HttpResponse.json({
           data: [{ domainId: 'dom_123', sendable: true }],
@@ -59,12 +50,12 @@ describe('domains.list', () => {
     const { client } = makeTestHttpClient()
     const list = createListDomains(client)
 
-    const detail = await list({ domainId: 'dom_123' })
-    expect(new URL(detailUrl!).searchParams.get('domainId')).toBe('dom_123')
-    expect(detail.data).toHaveLength(1)
-    expect(detail.pagination).toBeUndefined()
+    await list({ sendableOnly: true, sendingPurpose: 'transactional' })
 
-    await list({ sendableOnly: true })
-    expect(new URL(listUrl!).searchParams.get('sendableOnly')).toBe('true')
+    const url = new URL(listUrl!)
+    expect(url.searchParams.get('sendableOnly')).toBe('true')
+    expect(url.searchParams.get('sendingPurpose')).toBe('transactional')
+    // The detail read is domains.get(domainId) now.
+    expect(url.searchParams.get('domainId')).toBeNull()
   })
 })

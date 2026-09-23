@@ -15,7 +15,7 @@ import type { Automation } from './types'
  *    connections | triggerEventId`. Graph updates persist a new
  *    `automationVersionId` on the same `automationId`.
  * 2. **Lifecycle** — `published: true` promotes the stored latest version
- *    live (the graph is validated first → `409 PUBLISH_VALIDATION_FAILED`
+ *    live (the graph is validated first → `422 PUBLISH_VALIDATION_FAILED`
  *    on blockers); optionally pin `automationVersionId` to publish a
  *    specific historical version. `published: false` unpublishes (→
  *    `422 AUTOMATION_NOT_PUBLISHED` if it was never live).
@@ -34,9 +34,26 @@ export type PatchAutomationInput = {
   nodes?: ReadonlyArray<AutomationNodeInput>
   connections?: ReadonlyArray<AutomationConnectionInput>
   triggerEventId?: string
+  /** Validate only — run the full publish-gate check without writing. */
+  dryRun?: boolean
   // lifecycle update fields (mutually exclusive with the content fields)
   published?: boolean
   automationVersionId?: string
+  /**
+   * With `published: false` only — ALSO permanently stop contacts already
+   * mid-flow (default: they drain to completion). Spelled `stop_in_flight`
+   * before v1; that was one of the last two snake_case fields on the wire.
+   */
+  stopInFlight?: boolean
+  /**
+   * Freeze (`true`) / resume (`false`) a LIVE automation without
+   * unpublishing; held contacts resume from the same point.
+   */
+  paused?: boolean
+  /** Optimistic concurrency guard — the exact version read before this update. */
+  expectedBaseVersionId?: string
+  /** Optimistic concurrency guard — SHA-256 of the definition read before this update. */
+  expectedBaseDefinitionSha256?: string
 }
 
 /**
@@ -83,7 +100,7 @@ export function createPatchAutomation(client: HttpClient) {
  * promote the automation to live so its trigger starts matching fires.
  * Pass `automationVersionId` to publish a specific historical version;
  * omit it to publish the stored latest. The server validates the graph
- * first and returns `409 PUBLISH_VALIDATION_FAILED` on blockers (surfaced
+ * first and returns `422 PUBLISH_VALIDATION_FAILED` on blockers (surfaced
  * as a `BrewApiError`). Returns the bare published `AutomationRow`.
  *
  * (Convenience wrapper over `PATCH /v1/automations/{automationId}` — the
@@ -124,32 +141,48 @@ export function createPublishAutomation(client: HttpClient) {
 /**
  * `PATCH /v1/automations/{automationId}` with `{ published: false }` —
  * take the automation off live (its trigger stops matching fires;
- * in-flight runs finish). Returns the bare row with `published: false`,
+ * in-flight runs finish unless you pass `stopInFlight: true`). Returns
+ * the bare row with `published: false`,
  * or `422 AUTOMATION_NOT_PUBLISHED` if the automation was never live
  * (surfaced as a `BrewApiError`).
  *
  * (Convenience wrapper over `PATCH /v1/automations/{automationId}` — the
  * old `POST …/unpublish` sub-route no longer exists.)
  */
+export type UnpublishAutomationInput = {
+  readonly automationId: string
+  /**
+   * ALSO permanently stop contacts already mid-flow. Omit and they drain
+   * to completion. Spelled `stop_in_flight` before v1.
+   */
+  readonly stopInFlight?: boolean
+}
+
 export function createUnpublishAutomation(client: HttpClient) {
   function unpublishAutomation(
-    input: { automationId: string },
+    input: UnpublishAutomationInput,
     options: RequestOptions & { readonly raw: true }
   ): Promise<BrewRawResponse<PatchAutomationResponse>>
   function unpublishAutomation(
-    input: { automationId: string },
+    input: UnpublishAutomationInput,
     options?: RequestOptions
   ): Promise<PatchAutomationResponse>
   async function unpublishAutomation(
-    input: { automationId: string },
+    input: UnpublishAutomationInput,
     options?: RequestOptions
   ): Promise<
     PatchAutomationResponse | BrewRawResponse<PatchAutomationResponse>
   > {
+    const body: { published: false; stopInFlight?: boolean } = {
+      published: false,
+      ...(input.stopInFlight !== undefined
+        ? { stopInFlight: input.stopInFlight }
+        : {}),
+    }
     const response = await client.request<PatchAutomationResponse>({
       method: 'PATCH',
       path: `/v1/automations/${encodeURIComponent(input.automationId)}`,
-      body: { published: false },
+      body,
       ...(options ? { options } : {}),
     })
     return unwrapResponse(response, options)

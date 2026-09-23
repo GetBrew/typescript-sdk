@@ -18,9 +18,10 @@ export type SendPauseResponse = components['schemas']['SendPauseResponse']
  * good.
  *
  * Idempotent: a send that is already `paused` resolves `200` with the same
- * body. A send that is not in a pausable state (already finished, canceled,
- * or never a gradual send) surfaces as `409 SEND_NOT_PAUSABLE`. Brand-scoped,
- * so an unknown or cross-brand `sendId` is `404`.
+ * body. A send that is not in a pausable state (already `completed`,
+ * `canceled`, or never a gradual send) surfaces as `409 SEND_NOT_PAUSABLE`.
+ * Brand-scoped, so an unknown or cross-brand `sendId` is
+ * `404 SEND_NOT_FOUND`.
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<SendPauseResponse>` instead of the unwrapped payload.

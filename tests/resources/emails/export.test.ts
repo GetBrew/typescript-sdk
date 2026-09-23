@@ -30,13 +30,13 @@ describe('emails.export', () => {
       emailId: 'email_123',
       provider: 'klaviyo',
       templateName: 'Launch email',
-      dry_run: true,
+      dryRun: true,
     })
 
     expect(capturedBody).toEqual({
       provider: 'klaviyo',
       templateName: 'Launch email',
-      dry_run: true,
+      dryRun: true,
     })
     expect(result).toMatchObject({ provider: 'klaviyo', dryRun: true })
   })

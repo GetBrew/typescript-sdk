@@ -1,21 +1,61 @@
 # `brew.contacts`
 
-Methods for reading and managing contacts. `search` is the single,
-canonical read: every contacts query — list-all, filter, search, look up
-one by email, scope to a saved audience — goes through it. The old
-list, list-all, and get-by-email reads have all been folded into
-`search`.
+Methods for reading and managing contacts. `list` is the simple read,
+`get` fetches one by email, and `search` is the structured one — typed
+`filters` combined by `logic`, free-text search, sort, and an optional
+audience scope.
 
-| Method                      | HTTP                       |
-| --------------------------- | -------------------------- |
-| [`search`](#search)         | `POST /v1/contacts/search` |
-| [`searchAll`](#searchall)   | `POST /v1/contacts/search` |
-| [`count`](#count)           | `POST /v1/contacts/search` |
-| [`upsert`](#upsert)         | `POST /v1/contacts`        |
-| [`upsertMany`](#upsertmany) | `POST /v1/contacts`        |
-| [`patch`](#patch)           | `PATCH /v1/contacts`       |
-| [`delete`](#delete)         | `DELETE /v1/contacts`      |
-| [`deleteMany`](#deletemany) | `DELETE /v1/contacts`      |
+| Method                      | HTTP                             |
+| --------------------------- | -------------------------------- |
+| [`list`](#list)             | `GET /v1/contacts`               |
+| [`get`](#get)               | `GET /v1/contacts/{email}`       |
+| [`search`](#search)         | `POST /v1/contacts/search`       |
+| [`searchAll`](#searchall)   | `POST /v1/contacts/search`       |
+| [`count`](#count)           | `POST /v1/contacts/search`       |
+| [`upsert`](#upsert)         | `POST /v1/contacts`              |
+| [`upsertMany`](#upsertmany) | `POST /v1/contacts`              |
+| [`patch`](#patch)           | `PATCH /v1/contacts/{email}`     |
+| [`delete`](#delete)         | `DELETE /v1/contacts/{email}`    |
+| [`deleteMany`](#deletemany) | `POST /v1/contacts/batch-delete` |
+
+> **New in 10.0.0.** `list(query)` and `get(email)` are real routes.
+> Looking a contact up by email no longer means an `equals` filter and a
+> `data[0]` that might be `undefined`.
+
+---
+
+## `list`
+
+The brand's contacts, newest first, under `{ data, pagination }`.
+
+```ts
+type ListContactsInput = {
+  readonly search?: string // case-insensitive across email/first/last
+  readonly audienceId?: string // scope to a saved audience
+  readonly sort?: string
+  readonly order?: 'asc' | 'desc'
+  readonly limit?: number
+  readonly cursor?: string
+}
+
+const { data, pagination } = await brew.contacts.list({ limit: 50 })
+```
+
+Reach for [`search`](#search) when you need typed `filters` combined by
+`logic`.
+
+---
+
+## `get`
+
+One contact, as the bare row. An address with no contact is
+`404 CONTACT_NOT_FOUND`. The address is URL-encoded for you, so
+`a+b@example.com` works as written.
+
+```ts
+const contact = await brew.contacts.get('jane@example.com')
+console.log(contact.subscribed, contact.customFields)
+```
 
 ## Shared types
 
@@ -161,19 +201,9 @@ if (pagination.hasMore && pagination.cursor) {
 
 ### Look up a single contact by email
 
-There is no dedicated get-by-email method — express it as an `email`
-equality filter and read `data[0]`:
-
-```ts
-const { data } = await brew.contacts.search({
-  filters: [{ field: 'email', operator: 'equals', value: 'jane@example.com' }],
-})
-const contact = data[0]
-if (!contact) {
-  // no contact with that email
-}
-console.log(new Date(contact.createdAt)) // remember: createdAt is a number
-```
+Use [`get`](#get) — `brew.contacts.get('jane@example.com')` returns the
+bare row and `404`s when there is none. The old `equals`-filter-and-read-
+`data[0]` idiom is no longer necessary.
 
 ### Scope to a saved audience
 
@@ -385,55 +415,53 @@ rationale.
 
 ## `delete`
 
-Delete a single contact by email. Returns `404 CONTACT_NOT_FOUND` (a
-thrown `BrewApiError`) when the contact does not exist — unlike
-[`deleteMany`](#deletemany), single-delete will never resolve with
-`deleted: 0`.
+Delete a single contact by email. Idempotent: an unknown email resolves
+`200` with `{ deleted: false }` rather than throwing.
 
 ```ts
 type DeleteContactInput = { readonly email: string }
-type DeleteContactsResponse = {
-  readonly deleted: number
-  readonly notFound?: ReadonlyArray<string>
+type DeleteContactResponse = {
+  readonly email: string
+  readonly deleted: boolean
 }
 
 delete(
   input: DeleteContactInput,
   options?: RequestOptions
-): Promise<DeleteContactsResponse>
+): Promise<DeleteContactResponse>
 ```
 
 ```ts
 const { deleted } = await brew.contacts.delete({
   email: 'jane@example.com',
 })
-// deleted === 1 on success; throws BrewApiError(CONTACT_NOT_FOUND) otherwise
+// deleted === false when the email had no contact
 ```
 
 ---
 
 ## `deleteMany`
 
-Batch delete by email list. Always responds `200`. The response
-includes `deleted` (the number of contacts removed) plus an optional
-`notFound` array listing any submitted emails that did not match an
-existing contact (omitted when every email matched). Cross-check
-`notFound` to detect typos or already-deleted records.
+Batch delete by email list (up to 1000). Always responds `200`. The
+response is `{ deletedCount, notFound }` — the count was `deleted`
+before 10.0.0, and `notFound` is always present (empty when every email
+matched). Cross-check `notFound` to detect typos or already-deleted
+records.
 
 ```ts
 type DeleteManyContactsInput = {
   readonly emails: ReadonlyArray<string>
 }
 
-type DeleteContactsResponse = {
-  readonly deleted: number
-  readonly notFound?: ReadonlyArray<string>
+type DeleteManyContactsResponse = {
+  readonly deletedCount: number
+  readonly notFound: ReadonlyArray<string>
 }
 
 deleteMany(
   input: DeleteManyContactsInput,
   options?: RequestOptions
-): Promise<DeleteContactsResponse>
+): Promise<DeleteManyContactsResponse>
 ```
 
 ```ts
@@ -441,8 +469,8 @@ const result = await brew.contacts.deleteMany({
   emails: ['a@example.com', 'b@example.com', 'c@example.com'],
 })
 
-console.log(result.deleted) // e.g. 2
-if (result.notFound?.length) {
+console.log(result.deletedCount) // e.g. 2
+if (result.notFound.length > 0) {
   console.warn('No contact found for:', result.notFound)
 }
 ```

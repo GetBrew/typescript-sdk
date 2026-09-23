@@ -152,12 +152,10 @@ describe('organization-scoped SDK transport', () => {
         expect(params.brandId).toBe('brand/slash')
         calls += 1
         return HttpResponse.json({
-          brand: {
-            brandId: 'brand/slash',
-            domain: 'acme.example',
-            status: calls === 1 ? 'extracting' : 'completed',
-            ready: calls > 1,
-          },
+          brandId: 'brand/slash',
+          domain: 'acme.example',
+          status: calls === 1 ? 'extracting' : 'completed',
+          ready: calls > 1,
         })
       })
     )
@@ -166,8 +164,8 @@ describe('organization-scoped SDK transport', () => {
     const first = await brew.brands.get({ brandId: 'brand/slash' })
     const second = await brew.brands.get({ brandId: 'brand/slash' })
 
-    expect(first.brand.ready).toBe(false)
-    expect(second.brand.ready).toBe(true)
+    expect(first.ready).toBe(false)
+    expect(second.ready).toBe(true)
   })
 
   it('preserves public error envelopes from brand lifecycle calls', async () => {

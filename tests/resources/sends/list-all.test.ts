@@ -1,15 +1,15 @@
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it } from 'vitest'
 
-import { createListAllSends } from '../../../../src/resources/analytics/sends/list'
-import { makeTestHttpClient } from '../../../helpers/http-client'
-import { server } from '../../../msw/server'
+import { createListAllSends } from '../../../src/resources/sends/list'
+import { makeTestHttpClient } from '../../helpers/http-client'
+import { server } from '../../msw/server'
 
-describe('analytics.sends.listAll', () => {
+describe('sends.listAll', () => {
   it('walks every page following pagination.cursor', async () => {
     const seenCursors: Array<string | null> = []
     server.use(
-      http.get('https://brew.new/api/v1/analytics/sends', ({ request }) => {
+      http.get('https://brew.new/api/v1/sends', ({ request }) => {
         const cursor = new URL(request.url).searchParams.get('cursor')
         seenCursors.push(cursor)
         if (cursor === null) {
@@ -19,7 +19,7 @@ describe('analytics.sends.listAll', () => {
                 sendId: 'snd_1',
                 kind: 'campaign',
                 emailId: 'eml_1',
-                status: 'sent',
+                status: 'completed',
                 createdAt: '2026-04-08T12:00:00.000Z',
                 updatedAt: '2026-04-08T12:00:00.000Z',
               },
@@ -33,7 +33,7 @@ describe('analytics.sends.listAll', () => {
               sendId: 'snd_2',
               kind: 'campaign',
               emailId: 'eml_2',
-              status: 'sent',
+              status: 'completed',
               createdAt: '2026-04-08T13:00:00.000Z',
               updatedAt: '2026-04-08T13:00:00.000Z',
             },

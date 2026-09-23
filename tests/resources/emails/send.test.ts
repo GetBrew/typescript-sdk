@@ -108,7 +108,7 @@ describe('emails.send', () => {
         captured = request.clone()
         body = await request.json()
         return HttpResponse.json(
-          { status: 'sent', recipient: 'qa@example.com' },
+          { status: 'completed', recipient: 'qa@example.com' },
           { status: 200 }
         )
       })
@@ -131,8 +131,9 @@ describe('emails.send', () => {
       subject: 'Preview',
       to: 'qa@example.com',
     })
-    expect(result.status).toBe('sent')
-    if (result.status === 'sent') {
+    // v1 says `completed`, not `sent`.
+    expect(result.status).toBe('completed')
+    if (result.status === 'completed') {
       expect(result.recipient).toBe('qa@example.com')
     }
   })

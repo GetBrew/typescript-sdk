@@ -1,14 +1,16 @@
 # `brew.domains`
 
-List and manage sending domains. Reads are flat — one read per resource,
-identity in the query (`?domainId`); writes are path-based. In list mode
-`list` returns the uniform `{ data, pagination }` envelope; in detail
-mode it returns a single-row page `{ data: [row] }` with no `pagination`.
+List and manage sending domains. `list` returns the uniform
+`{ data, pagination }` envelope; `get` returns the bare `Domain` row.
 
 | Method              | HTTP                                |
 | ------------------- | ----------------------------------- |
 | [`list`](#list)     | `GET /v1/domains`                   |
+| [`get`](#get)       | `GET /v1/domains/{domainId}`        |
 | [`health`](#health) | `GET /v1/domains/{domainId}/health` |
+
+> **New in 10.0.0.** `get(domainId)` is a real route. The `domainId`
+> query filter on `GET /v1/domains` is gone — it now `400`s.
 
 > This file documents the single read path used to pick a `domainId`
 > for `brew.emails.send(...)`. The resource also exposes the lifecycle
@@ -54,19 +56,19 @@ type Domain = {
 
 ## `list`
 
-The single domains read. Omit `domainId` → list **all** sending domains
-for the current organization, including `pending` rows and their DNS
-`records` (so lifecycle callers can finish verification). Each row carries
-`status` and the derived `sendable` flag. Pass `sendableOnly: true` to
-narrow the list to verified, send-ready domains — the safe source for a
-`domainId` when you call `brew.emails.send(...)`. Pass `domainId` → a
-single-row page `{ data: [row] }`. This one method replaces both the old
-`domains.get` read and the old separate list-sendable method.
+**All** sending domains for the current organization, including `pending`
+rows and their DNS `records` (so lifecycle callers can finish
+verification). Each row carries `status` and the derived `sendable` flag.
+
+Pass `sendableOnly: true` to narrow to verified, send-ready domains — the
+safe source for a `domainId` when you call `brew.emails.send(...)` — and
+`sendingPurpose` to narrow to domains cleared for marketing or
+transactional mail.
 
 ```ts
 type ListDomainsInput = {
-  readonly domainId?: string
   readonly sendableOnly?: boolean
+  readonly sendingPurpose?: 'marketing' | 'transactional'
   readonly limit?: number
   readonly cursor?: string
 }
@@ -92,13 +94,16 @@ for (const domain of data) {
 }
 ```
 
-Look one domain up by id — the result is a single-row page, so read
-`data[0]`:
+---
+
+## `get`
+
+One domain, as the bare row. An unknown or cross-organization id is
+`404 DOMAIN_NOT_FOUND`.
 
 ```ts
-const { data } = await brew.domains.list({ domainId: 'domain_123' })
-const domain = data[0]
-console.log(domain.status, domain.records)
+const domain = await brew.domains.get('domain_123')
+console.log(domain.status, domain.sendable, domain.records)
 ```
 
 ---

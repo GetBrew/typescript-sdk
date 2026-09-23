@@ -47,8 +47,16 @@ function getContact({ email }: { email: string }) { ... }
 function getContact(email: string) { ... }
 ```
 
-Public SDK methods always take `(input, options?)` where `input` is the
-domain object and `options` is `RequestOptions`.
+Public SDK methods take `(input, options?)` where `input` is the domain
+object and `options` is `RequestOptions`, with one deliberate exception: a
+method that acts on ONE resource by identity takes that identifier
+positionally, then `options?` — `emails.get(emailId, { include })`,
+`sends.cancel(sendId)`, `automations.runs.cancel(automationRunId, { reason })`,
+`emails.inboxPlacementTests.get(emailId, testId)`. The identity rides the URL
+path on the wire, so there is no domain object to name it in; wrapping a single
+string in `{ emailId }` would make every detail read read worse than the REST
+call it stands for. Anything with a request body or a query still takes the
+object.
 
 ## Async patterns
 

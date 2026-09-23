@@ -17,13 +17,15 @@ export type SendCancelStatus = SendCancelResponse['status']
  * (`{ sendId, status: 'canceled' }`).
  *
  * Idempotent: a send that is already `canceled` resolves `200` with the
- * same body. A send that has already started or finished (`sending`,
- * `sent`, or `failed`) surfaces as `409 SEND_NOT_CANCELLABLE`.
- * Brand-scoped — an unknown or cross-brand `sendId` is `404`.
+ * same body. A send that has already started or finished (`running`,
+ * `completed`, `partially_completed`, or `failed`) surfaces as
+ * `409 SEND_NOT_CANCELLABLE`. Brand-scoped — an unknown or cross-brand
+ * `sendId` is `404 SEND_NOT_FOUND`.
  *
  * `sendId` is the id returned by `brew.emails.send(...)`
- * (`POST /v1/sends`). Supply `options.idempotencyKey` to make retries
- * safe; one is generated automatically otherwise.
+ * (`POST /v1/sends`) — the only handle a send has, now that `runId` is
+ * gone. Supply `options.idempotencyKey` to make retries safe; one is
+ * generated automatically otherwise.
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<SendCancelResponse>` instead of the unwrapped

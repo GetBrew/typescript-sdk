@@ -3,19 +3,19 @@
 Full CRUD for saved audiences (named filter sets over the brand's contacts).
 An audience is the recipient target for `brew.emails.send(...)`.
 
-Reads are flat — one read per resource, identity in the query
-(`?audienceId`), `?include` for opt-in expansions; writes are path-based.
-Detail mode = pass the id key → a single-row page `{ data: [row] }`, no
-`pagination`.
-
 | Method                      | HTTP                                        |
 | --------------------------- | ------------------------------------------- |
 | [`list`](#list)             | `GET /v1/audiences`                         |
+| [`get`](#get)               | `GET /v1/audiences/{audienceId}`            |
 | [`create`](#create)         | `POST /v1/audiences`                        |
 | [`fromEvents`](#fromevents) | `POST /v1/audiences/from-events`            |
 | [`duplicate`](#duplicate)   | `POST /v1/audiences/{audienceId}/duplicate` |
 | [`update`](#update)         | `PATCH /v1/audiences/{audienceId}`          |
 | [`delete`](#delete)         | `DELETE /v1/audiences/{audienceId}`         |
+
+> **New in 10.0.0.** `get(audienceId)` is a real route returning the bare
+> row. The `audienceId` and `include` query filters on `GET /v1/audiences`
+> are gone — they now `400`.
 
 ## Shared types
 
@@ -38,45 +38,36 @@ type Audience = {
 }
 ```
 
-In list mode `list` returns the uniform `{ data, pagination }` envelope; in
-detail mode it returns a single-row page `{ data: [row] }` with no
-`pagination`. `create` and `update` return the **bare** `Audience` row.
+`list` returns the uniform `{ data, pagination }` envelope. `get`,
+`create`, and `update` all return the **bare** `Audience` row.
 
 ---
 
 ## `list`
 
-The single audiences read. Omit `audienceId` → list all audiences,
-returning `{ data, pagination }`; accepts `{ limit, cursor }`. Pass
-`audienceId` → a single-row page `{ data: [row] }`. `include` is
-detail-only and **requires** `audienceId`; it accepts `'count'` as an
-array or a comma-separated string. This one method replaces the old
-`audiences.get` read.
+Every saved audience for the brand, under `{ data, pagination }`. Accepts
+`{ limit, cursor }`.
 
 ```ts
 type ListAudiencesInput = {
-  readonly audienceId?: string
-  readonly include?: ReadonlyArray<'count'> | string // detail-only
   readonly limit?: number
   readonly cursor?: string
 }
-```
 
-List mode:
-
-```ts
 const { data } = await brew.audiences.list()
 for (const audience of data) {
   console.log(audience.audienceId, audience.count)
 }
 ```
 
-Detail mode — pass the `audienceId` key and read `data[0]`. The result is
-empty (`data: []`) on a miss:
+## `get`
+
+One audience, as the bare row. An unknown or cross-brand id is
+`404 AUDIENCE_NOT_FOUND` — no more reading `data[0]` and testing for
+emptiness.
 
 ```ts
-const { data } = await brew.audiences.list({ audienceId })
-const audience = data[0]
+const audience = await brew.audiences.get(audienceId)
 console.log(audience.audienceName, audience.count)
 ```
 
@@ -86,8 +77,8 @@ send would target. Without it, `count` reflects the cached value, which reads
 `0` until a cache writer populates it.
 
 ```ts
-const { data } = await brew.audiences.list({ audienceId, include: 'count' })
-console.log(data[0].count) // live member total
+const audience = await brew.audiences.get(audienceId, { include: 'count' })
+console.log(audience.count) // live member total
 ```
 
 ## `create`

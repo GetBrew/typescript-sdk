@@ -45,7 +45,10 @@ export type CreateFieldResponse =
  */
 export type FieldsDeleteResponse = components['schemas']['FieldsDeleteResponse']
 
-/** Query params accepted by `brew.fields.list(...)` (`limit`, `cursor`). */
+/**
+ * Query params accepted by `brew.fields.list(...)` — `include:
+ * 'coverage'`, `audienceId`, `limit`, `cursor`.
+ */
 export type ListFieldsInput = NonNullable<
   operations['listContactFields']['parameters']['query']
 >

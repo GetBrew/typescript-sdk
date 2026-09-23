@@ -115,9 +115,10 @@ export type BrewClient = {
    */
   readonly brands: BrandsResource
   /**
-   * Read-only analytics: campaign + automation KPIs, the unified event
-   * explorer, plus the send reads (`analytics.sends.*`) and fired-trigger
-   * instances (`analytics.triggerInstances.*`).
+   * Read-only analytics REPORTS: the overview totals, per-automation
+   * performance, and the unified event explorer. The row reads moved out
+   * in v1 — send rows are `sends.list` / `sends.get`, and fired-trigger
+   * history is `automations.triggerInstances.*`.
    */
   readonly analytics: AnalyticsResource
   /**
@@ -130,7 +131,11 @@ export type BrewClient = {
   readonly audiences: AudiencesResource
   /**
    * Automation graphs plus the nested `automations.triggers.*` (trigger
-   * CRUD + fire) and `automations.runs.*` (read-only run history).
+   * CRUD, fire, and `readiness`), `automations.runs.*` (run history,
+   * one run by id, and `cancel`), `automations.audienceRuns.*`
+   * (manual-audience history and the `pause` / `resume` / `cancel`
+   * actions), and `automations.triggerInstances.*` (the audit log of
+   * every inbound fire).
    */
   readonly automations: AutomationsResource
   /** `GET/PATCH /v1/brand` — the key's brand: readiness, design system, identity, assets. */
@@ -158,7 +163,7 @@ export type BrewClient = {
    * Email designs plus the single polymorphic send action `emails.send`
    * (`POST /v1/sends`): a campaign send by default, or a one-off TEST
    * delivery via `test: true`. A send delivers a saved design to a
-   * target. (Send reads live on `analytics.sends.*`.)
+   * target. (Send reads live on `sends.list` / `sends.get`.)
    */
   readonly emails: EmailsResource
   readonly fields: FieldsResource
@@ -169,10 +174,11 @@ export type BrewClient = {
   /** `GET /v1/integrations` — the product integration catalog for the brand in scope, with a `connected` flag per provider. */
   readonly integrations: IntegrationsResource
   /**
-   * Send lifecycle actions. `sends.cancel(sendId)`
-   * (`POST /v1/sends/{sendId}/cancel`) cancels a scheduled or queued
-   * send before it goes out. (Sends are created via `emails.send`;
-   * send reads live on `analytics.sends.*`.)
+   * Sends read and write at their own root in v1. `sends.list(query)`
+   * and `sends.get(sendId, { include: 'events' })` are the reads that
+   * replaced `analytics.campaigns` and `analytics.sends.*`;
+   * `sends.cancel` / `.pause` / `.resume` are the lifecycle actions.
+   * (Sends are still CREATED via `emails.send`.)
    */
   readonly sends: SendsResource
   readonly templates: TemplatesResource

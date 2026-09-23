@@ -91,6 +91,19 @@ export type BrewErrorEnvelope =
 export type BrewErrorType = BrewErrorEnvelope['type']
 
 /**
+ * Every `code` the Brew API documents, as a union. `BrewApiError.code`
+ * stays a `string` so a code the server ships before the SDK regenerates
+ * still compares cleanly, but this union is the list to branch on:
+ *
+ *   if (error.code === 'SEND_QUOTA_EXCEEDED') { ... }
+ *
+ * v1 renamed several: `INSUFFICIENT_EMAIL_SENDS` folded into
+ * `SEND_QUOTA_EXCEEDED` (402), `EVENT_NOT_FOUND` became
+ * `TRIGGER_INSTANCE_NOT_FOUND`, and 429 is `RATE_LIMITED` only.
+ */
+export type BrewErrorCode = BrewErrorEnvelope['code']
+
+/**
  * Return shape when a caller opts into `{ raw: true }`. Gives them the
  * parsed body alongside transport metadata for debugging, rate-limit
  * inspection, or request-id correlation.

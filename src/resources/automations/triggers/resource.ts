@@ -8,19 +8,22 @@ import {
 import { createCreateTrigger } from './create'
 import { createDeleteTrigger } from './delete'
 import { createFireTrigger } from './fire'
+import { createGetTrigger } from './get'
 import { createListTriggers } from './list'
 import { createPatchTrigger } from './patch'
-import { createTriggerReady } from './ready'
+import { createTriggerReadiness } from './readiness'
 
 export type TriggersResource = {
-  /** `GET /v1/automations/triggers` — the single triggers read. List all (omit `triggerEventId`), or fetch one (`triggerEventId` → single-row page) (scope: `automations`). */
+  /** `GET /v1/automations/triggers` — every trigger in the brand, paged with `limit` / `cursor` (scope: `automations`). */
   readonly list: ReturnType<typeof createListTriggers>
+  /** `GET /v1/automations/triggers/{triggerEventId}` — one trigger as the bare row (scope: `automations`). */
+  readonly get: ReturnType<typeof createGetTrigger>
   /** `POST /v1/automations/triggers` — deterministic create (returns the bare row) (scope: `automations`). */
   readonly create: ReturnType<typeof createCreateTrigger>
   /** `POST /v1/automations/triggers/{triggerEventId}/fire` — fire a trigger; starts one run per published automation attached to it (scope: `automations`). */
   readonly fire: ReturnType<typeof createFireTrigger>
-  /** `GET /v1/automations/triggers/{triggerEventId}/fire` — preflight WITHOUT firing: credential verdict + payload contract + what a fire would start (scope: `automations`). */
-  readonly ready: ReturnType<typeof createTriggerReady>
+  /** `GET /v1/automations/triggers/{triggerEventId}/readiness` — preflight WITHOUT firing: credential verdict + payload contract + what a fire would start, as a bare body (scope: `automations`). */
+  readonly readiness: ReturnType<typeof createTriggerReadiness>
   /**
    * `PATCH /v1/automations/triggers/{triggerEventId}` — update trigger
    * metadata (title, description, payloadSchema). Trigger rows have no
@@ -42,9 +45,10 @@ export type TriggersResource = {
 export function createTriggersResource(client: HttpClient): TriggersResource {
   return {
     list: createListTriggers(client),
+    get: createGetTrigger(client),
     create: createCreateTrigger(client),
     fire: createFireTrigger(client),
-    ready: createTriggerReady(client),
+    readiness: createTriggerReadiness(client),
     patch: createPatchTrigger(client),
     delete: createDeleteTrigger(client),
     getContract: createGetTriggerContract(client),

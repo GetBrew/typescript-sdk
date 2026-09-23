@@ -8,7 +8,11 @@ failure mode.
 ## The error shape
 
 ```ts
-import { BrewApiError, type BrewErrorType } from '@brew.new/sdk'
+import {
+  BrewApiError,
+  type BrewErrorCode,
+  type BrewErrorType,
+} from '@brew.new/sdk'
 
 class BrewApiError extends Error {
   readonly status: number // HTTP status (404, 500, …)
@@ -45,6 +49,46 @@ type BrewErrorType =
   | 'payment_required'
   | 'service_unavailable'
   | 'internal_error'
+```
+
+### Error codes
+
+`error.code` stays a `string` so a code the server ships before the SDK
+regenerates still compares cleanly. `BrewErrorCode` is the union of every
+code the API documents — import it when you want exhaustive branching:
+
+```ts
+import type { BrewErrorCode } from '@brew.new/sdk'
+
+function isRetryableLater(code: BrewErrorCode): boolean {
+  return code === 'RATE_LIMITED' || code === 'SERVICE_UNAVAILABLE'
+}
+```
+
+### Codes that changed in 10.0.0
+
+| Was                             | Now                                 |
+| ------------------------------- | ----------------------------------- |
+| `INSUFFICIENT_EMAIL_SENDS`      | `SEND_QUOTA_EXCEEDED` (now **402**) |
+| `409 PUBLISH_VALIDATION_FAILED` | `422 PUBLISH_VALIDATION_FAILED`     |
+| `EVENT_NOT_FOUND`               | `TRIGGER_INSTANCE_NOT_FOUND`        |
+| assorted 429 codes              | `RATE_LIMITED` only                 |
+
+`Retry-After` rides the `429` alone now, so `error.retryAfter` is only
+populated on a rate-limit error.
+
+An API key bound to ONE BRAND that calls an organization operation — for
+example `GET /v1/usage`, which needs organization standing — gets
+`403 ORG_SCOPE_REQUIRED`: mint an organization-scoped key. A _person_
+without the role still gets `403 INSUFFICIENT_ROLE`. The two are
+deliberately distinct, so branch on the code rather than on the status.
+
+```ts
+if (error.code === 'ORG_SCOPE_REQUIRED') {
+  // The credential is brand-bound. Use an organization-scoped key.
+} else if (error.code === 'INSUFFICIENT_ROLE') {
+  // The human lacks the role. Ask an org admin.
+}
 ```
 
 ## The catch pattern

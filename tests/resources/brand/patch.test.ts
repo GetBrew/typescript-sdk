@@ -22,7 +22,7 @@ describe('brand.patch', () => {
         captured = request.clone()
         body = await request.json()
         return HttpResponse.json({
-          brand: BRAND,
+          ...BRAND,
           identity: { brandName: 'Acme Renamed' },
         })
       })
@@ -47,7 +47,7 @@ describe('brand.patch', () => {
       http.patch('https://brew.new/api/v1/brand', async ({ request }) => {
         body = await request.json()
         return HttpResponse.json({
-          brand: BRAND,
+          ...BRAND,
           emailDesign: '# New email design',
         })
       })

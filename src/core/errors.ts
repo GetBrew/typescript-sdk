@@ -125,7 +125,7 @@ export class BrewApiError extends Error {
         message: envelope.message,
         status,
         code: envelope.code,
-        type: envelope.type,
+        type: envelope.type ?? errorTypeForStatus({ status }),
         param: envelope.param,
         suggestion: envelope.suggestion,
         docs: envelope.docs,
@@ -195,7 +195,8 @@ const VALID_ERROR_TYPES: ReadonlySet<BrewErrorType> = new Set<BrewErrorType>([
 /** The standard envelope, narrowed — plus its optional `details` object. */
 type ParsedErrorEnvelope = {
   code: string
-  type: BrewErrorType
+  /** `undefined` when the wire omitted it or named a type this SDK does not know. */
+  type: BrewErrorType | undefined
   message: string
   suggestion: string
   docs: string
@@ -234,24 +235,31 @@ function parseErrorEnvelope(body: unknown): ParsedErrorEnvelope | undefined {
 
   const inner = wrapper.error as Record<string, unknown>
 
-  const hasRequiredFields =
-    typeof inner.code === 'string' &&
+  // `code` is the one field the documented branch-on-`code` contract needs.
+  // A server that trims the advisory fields, or ships a code before the SDK
+  // regenerates, must still surface a typed error rather than degrade to
+  // `unknown_error` — so only a missing code vetoes the envelope.
+  if (typeof inner.code !== 'string' || inner.code.length === 0) {
+    return undefined
+  }
+  const innerType =
     typeof inner.type === 'string' &&
-    typeof inner.message === 'string' &&
-    typeof inner.suggestion === 'string' &&
-    typeof inner.docs === 'string'
-
-  if (!hasRequiredFields) return undefined
-
-  const innerType = inner.type as string
-  if (!VALID_ERROR_TYPES.has(innerType as BrewErrorType)) return undefined
+    VALID_ERROR_TYPES.has(inner.type as BrewErrorType)
+      ? (inner.type as BrewErrorType)
+      : undefined
 
   const envelope: ParsedErrorEnvelope = {
-    code: inner.code as string,
-    type: innerType as BrewErrorType,
-    message: inner.message as string,
-    suggestion: inner.suggestion as string,
-    docs: inner.docs as string,
+    code: inner.code,
+    // Absent or unrecognised: the caller derives it from the HTTP status,
+    // which is what the status means anyway (a 404 is `not_found`, never
+    // `internal_error`).
+    type: innerType,
+    message:
+      typeof inner.message === 'string'
+        ? inner.message
+        : `Request failed with code ${inner.code}`,
+    suggestion: typeof inner.suggestion === 'string' ? inner.suggestion : '',
+    docs: typeof inner.docs === 'string' ? inner.docs : '',
   }
 
   if (typeof inner.param === 'string') {

@@ -9,14 +9,21 @@ import type { BrewRawResponse, RequestOptions } from '../../types'
  * - `{ test: true, emailId, subject, to, ... }` — a one-off TEST
  *   delivery to a single address. No verified domain or audience
  *   required; never creates a send row. Resolves synchronously (HTTP
- *   200) with `{ status: 'sent', recipient }`. Takes `variables`
+ *   200) with `{ status: 'completed', recipient }`. Takes `variables`
  *   (merge-tag example values) and `payload` — nested JSON template
  *   data rendered via Liquid as `trigger.*` (scalar keys also resolve
  *   `{{ tag | fallback }}` merge tags), matching live-fire semantics.
  * - `{ emailId, subject, domainId, audienceId | to, ... }` — a real
- *   campaign send. Provide a recipient target (`audienceId` or inline
- *   `to`) and the verified `domainId` to send from. Accepted for
- *   queueing / scheduling (HTTP 202) with `{ status, sendId, runId }`.
+ *   campaign send. Provide a recipient target (`audienceId`, or `'all'`
+ *   for every contact in the brand, or inline `to`) and the verified
+ *   `domainId` to send from. Accepted for queueing / scheduling (HTTP
+ *   202) with `{ status, sendId }`.
+ *
+ * The sender is the nested `from: { email, name? }` object in v1 (the
+ * flat `fromEmail` + `senderName` pair is gone) and `replyTo` is a
+ * top-level string. The 202 no longer carries a `runId` — `sendId` is
+ * the only handle, and it is what `brew.sends.get(sendId)`,
+ * `sends.cancel`, `sends.pause`, and `sends.resume` take.
  *
  * Event-triggered (transactional) mail is NOT sent here: wire the
  * design into a published automation on a transactional-purpose domain
@@ -59,18 +66,19 @@ export type SendEmailInput<
   TPayload extends Record<string, unknown> = DefaultSendPayload,
 > = WithTypedPayload<components['schemas']['SendEmailRequest'], TPayload>
 
-/** 200 result of a TEST send (`test: true`). */
+/** 200 result of a TEST send (`test: true`) — `{ status: 'completed', recipient }`. */
 export type SendEmailTestResponse =
   components['schemas']['SendEmailTestResponse']
 
-/** 202 result of a queued / scheduled campaign send. */
+/** 202 result of a queued / scheduled campaign send — `{ status, sendId }`, no `runId`. */
 export type SendEmailCampaignResponse =
   components['schemas']['SendsPostResponse']
 
 /**
  * Union returned by `POST /v1/sends`: the TEST shape
- * (`{ status: 'sent', recipient }`) when `test: true`, otherwise the
- * campaign shape (`{ status: 'queued' | 'scheduled', sendId, runId }`).
+ * (`{ status: 'completed', recipient }`) when `test: true`, otherwise
+ * the campaign shape
+ * (`{ status: 'queued' | 'scheduled' | 'pending_approval', sendId }`).
  */
 export type SendEmailResponse =
   | SendEmailTestResponse
@@ -85,13 +93,16 @@ export type SendEmailStatus = SendEmailResponse['status']
  * - Pass `{ test: true, ... }` for a one-off TEST delivery to a single
  *   `to` address. Forces the Brew default sender (no verified domain or
  *   audience required) and never creates a send row. Resolves
- *   synchronously (HTTP 200) with `{ status: 'sent', recipient }`.
+ *   synchronously (HTTP 200) with `{ status: 'completed', recipient }`.
  * - Otherwise it is a real campaign send: provide a recipient target
  *   (`audienceId` or inline `to`) and the verified `domainId`. A design
  *   can be sent unlimited times; every call mints a new send. This
- *   resolves when the API accepts the job (HTTP 202) — it does not wait
- *   for delivery. Poll `brew.analytics.sends.list({ sendId })` for
- *   lifecycle + stats.
+ *   resolves when the API accepts the job (HTTP 202) with `{ status,
+ *   sendId }` — it does not wait for delivery. Poll
+ *   `brew.sends.get(sendId)` for lifecycle + stats.
+ *
+ * An exhausted plan quota is `402 SEND_QUOTA_EXCEEDED` (which absorbed
+ * the old `INSUFFICIENT_EMAIL_SENDS`).
  *
  * Supply `options.idempotencyKey` to make campaign retries safe.
  *
