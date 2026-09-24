@@ -451,15 +451,18 @@ export type {
   GetTemplateResponse,
 } from './resources/templates/get'
 export type {
+  ListFullTemplatesInput,
+  ListTemplateSummariesInput,
   ListTemplatesInput,
   ListTemplatesResponse,
+  TemplateSummaryListResponse,
 } from './resources/templates/list'
 export type { TemplatesResource } from './resources/templates/resource'
 // Send domain reads (`Send`, `SendStats`, `SendsListResponse`, …) are
 // exported from the `sends` block above; the polymorphic send ACTION
 // lives on `emails` (`emails.send` — campaign | test), so its request +
 // response shapes are exported from the `emails` block.
-export type { Template } from './resources/templates/types'
+export type { Template, TemplateSummary } from './resources/templates/types'
 // Public email flows (`client.flows.*` against /v1/flows): organization-wide,
 // the sequence view of the same gallery `templates` lists.
 export type {

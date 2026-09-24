@@ -52,8 +52,19 @@ type TemplatesListResponse = {
   }
 }
 
+// representation: 'summary' rows omit html and carry referenceEmailId + viewUrl
+type TemplateSummaryListResponse = {
+  readonly data: ReadonlyArray<TemplateSummary>
+  readonly pagination: TemplatesListResponse['pagination']
+}
+
 list(input?: ListTemplatesInput): Promise<TemplatesListResponse>
+list(input: ListTemplatesInput & { representation: 'summary' }): Promise<TemplateSummaryListResponse>
 ```
+
+The return type follows the representation: full rows by default, summary
+rows when you pass `representation: 'summary'` (a value only known at
+runtime returns the union).
 
 ```ts
 const { data } = await brew.templates.list({
@@ -65,6 +76,13 @@ const { data } = await brew.templates.list({
 for (const template of data) {
   console.log(template.emailId, template.title)
 }
+
+// Lean rows for picking a layout: no html, a viewUrl and referenceEmailId.
+const { data: picks } = await brew.templates.list({
+  query: 'product launch',
+  representation: 'summary',
+})
+console.log(picks[0]?.viewUrl, picks[0]?.referenceEmailId)
 ```
 
 ---

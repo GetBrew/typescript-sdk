@@ -32,7 +32,7 @@ failed`), per-client `status` (`running | completed | failed`) with `reason`
 - `emails.edit` changes only `title`, `subjectLine` and `groupId` (`null` ungroups) when sent without a `prompt`.
 - `emails.previewClients({ emailVersionId })` renders a saved version.
 - `automations.test({ scenario })` simulates engagement and forces split branches; the response carries `testMode`, and a test run's detail carries `testCoverage`.
-- `templates.list({ query, representation: 'summary' })`.
+- `templates.list({ query, representation: 'summary' })`. The return type follows the representation: `representation: 'summary'` returns `TemplateSummaryListResponse` (rows without `html`, carrying `referenceEmailId` and `viewUrl`; new `TemplateSummary` row type), the default or `'full'` returns `TemplatesListResponse`, and a representation known only at runtime returns the union.
 - Error codes `AUDIT_NOT_FOUND`, `EMAIL_RUN_AMBIGUOUS`, `NO_ELIGIBLE_RECIPIENTS`, `PREVIEW_NOT_FOUND`, `RESUBSCRIBE_NOT_ALLOWED`, `TEMPLATE_NOT_FOUND`; warning codes `RESUBSCRIBE_SKIPPED`, `RECIPIENTS_EXCLUDED`. Contact write warnings name the contact (`email`).
 - `data.command` responses carry `stdout`, `stderr`, `pagination` and `retryCommand`.
 
