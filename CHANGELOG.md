@@ -1,5 +1,41 @@
 # Changelog
 
+## 11.0.0
+
+Tracks the MCP task refactor (brew-v2#1588) and the contact and send changes
+just before it (brew-v2#1630-#1632). Regenerated from the live spec.
+
+### Breaking
+
+- **`emails.previewClients` starts a rendering job** instead of blocking for
+  screenshots. It answers `202` with the admitted job, or `200` with the
+  existing job for the same version and clients. The response is now the job:
+  `previewId`, `status` (`queued | running | completed | partially_completed |
+failed`), per-client `status` (`running | completed | failed`) with `reason`
+  and `retryable`, `pending`, `createdAt`, `expiresAt`, `nextPollAfterMs` and
+  `credits` (`reserved | settled | released`). Poll it with the new
+  `emails.getClientPreview(previewId)`. The `ready`, `partial` and
+  `processing` values are gone.
+- **`Contact` and the contact write responses drop `verificationStatus`**,
+  the deprecated mirror of `validationStatus`. Read `validationStatus`; since
+  #1631 `valid` only comes from a real deliverability check.
+- **`emails.get` returns the detail row** (`GetEmailResponse` is the
+  `EmailDetail` schema, which adds a required `previewStatus`). The SDK's
+  `EmailDetail` type now extends that schema.
+
+### Added
+
+- `emails.getClientPreview(previewId)` — `GET /v1/emails/client-previews/{previewId}`.
+- `emails.getAudit(auditId, { cursor, limit })` — `GET /v1/emails/audits/{auditId}`, a free read of a saved audit's findings.
+- `templates.get(templateId, { include: 'html' })` — `GET /v1/templates/{templateId}`.
+- `emails.get(emailId, { emailVersionId | runId })` reads a saved version or a generation run; the row carries `version`, `runId`, `previewStatus`, `content`, and `errorMessage` / `errorCause` on a failed run.
+- `emails.edit` changes only `title`, `subjectLine` and `groupId` (`null` ungroups) when sent without a `prompt`.
+- `emails.previewClients({ emailVersionId })` renders a saved version.
+- `automations.test({ scenario })` simulates engagement and forces split branches; the response carries `testMode`, and a test run's detail carries `testCoverage`.
+- `templates.list({ query, representation: 'summary' })`.
+- Error codes `AUDIT_NOT_FOUND`, `EMAIL_RUN_AMBIGUOUS`, `NO_ELIGIBLE_RECIPIENTS`, `PREVIEW_NOT_FOUND`, `RESUBSCRIBE_NOT_ALLOWED`, `TEMPLATE_NOT_FOUND`; warning codes `RESUBSCRIBE_SKIPPED`, `RECIPIENTS_EXCLUDED`. Contact write warnings name the contact (`email`).
+- `data.command` responses carry `stdout`, `stderr`, `pagination` and `retryCommand`.
+
 ## 10.0.0
 
 Tracks the public API v1 cleanup. Every collection gained a real detail read

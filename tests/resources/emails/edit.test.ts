@@ -134,4 +134,28 @@ describe('emails.edit', () => {
     controller.abort()
     await expect(pending).rejects.toThrowError()
   })
+
+  it('forwards groupId (null ungroups) with an envelope-only edit', async () => {
+    let body: unknown
+    server.use(
+      http.patch('https://brew.new/api/v1/emails/abc', async ({ request }) => {
+        body = await request.json()
+        return HttpResponse.json({
+          emailId: 'abc',
+          emailVersionId: 'v1',
+          title: 'Renamed',
+          group: null,
+        })
+      })
+    )
+
+    const { client } = makeTestHttpClient()
+    await createEditEmail(client)({
+      emailId: 'abc',
+      title: 'Renamed',
+      groupId: null,
+    })
+
+    expect(body).toEqual({ title: 'Renamed', groupId: null })
+  })
 })

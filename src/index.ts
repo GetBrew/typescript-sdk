@@ -350,6 +350,11 @@ export type {
   GetEmailResponse,
 } from './resources/emails/get'
 export type {
+  GetEmailAuditOptions,
+  GetEmailAuditResponse,
+} from './resources/emails/get-audit'
+export type { GetEmailClientPreviewResponse } from './resources/emails/get-client-preview'
+export type {
   CreateInboxPlacementTestInput,
   CreateInboxPlacementTestResponse,
 } from './resources/emails/inbox-placement-tests/create'
@@ -441,6 +446,10 @@ export type {
   SendStats,
   SendStatus,
 } from './resources/sends/types'
+export type {
+  GetTemplateOptions,
+  GetTemplateResponse,
+} from './resources/templates/get'
 export type {
   ListTemplatesInput,
   ListTemplatesResponse,

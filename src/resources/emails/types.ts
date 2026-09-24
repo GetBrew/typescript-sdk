@@ -9,10 +9,12 @@ import type { components, operations } from '../../generated/openapi-types'
 export type EmailSummary = components['schemas']['EmailSummary']
 
 /**
- * The full design row with its rendered HTML — the shape of
- * `brew.emails.get(emailId, { include: 'html' })`.
+ * The detail row with its rendered HTML — the shape of
+ * `brew.emails.get(emailId, { include: 'html' })` once the design is `ready`.
  */
-export type EmailDetail = EmailSummary & { readonly html: string }
+export type EmailDetail = components['schemas']['EmailDetail'] & {
+  readonly html: string
+}
 
 /**
  * Render status of a design, from the one v1 vocabulary:

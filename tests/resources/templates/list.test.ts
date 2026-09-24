@@ -63,4 +63,24 @@ describe('templates.list', () => {
     expect(url.searchParams.get('category')).toBe('newsletter')
     expect(url.searchParams.get('semantic')).toBe('frontend')
   })
+
+  it('forwards the query search and the lean representation', async () => {
+    let capturedRequest: Request | undefined
+    server.use(
+      http.get('https://brew.new/api/v1/templates', ({ request }) => {
+        capturedRequest = request
+        return HttpResponse.json({ data: [], pagination: PAGINATION })
+      })
+    )
+
+    const { client } = makeTestHttpClient()
+    await createListTemplates(client)({
+      query: 'product launch',
+      representation: 'summary',
+    })
+
+    const sent = new URL(capturedRequest!.url)
+    expect(sent.searchParams.get('query')).toBe('product launch')
+    expect(sent.searchParams.get('representation')).toBe('summary')
+  })
 })

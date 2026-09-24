@@ -66,9 +66,6 @@ type Contact = {
   readonly lastName?: string
   readonly subscribed: boolean // default true
   readonly validationStatus?: 'valid' | 'risky' | 'invalid'
-  // Deprecated legacy mirror of validationStatus — same value, kept for
-  // back-compat. Read validationStatus instead.
-  readonly verificationStatus?: 'valid' | 'risky' | 'invalid'
   readonly validationDetails?: {
     readonly provider: 'brew'
     readonly reason?: string
