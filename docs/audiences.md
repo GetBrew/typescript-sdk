@@ -81,6 +81,16 @@ const audience = await brew.audiences.get(audienceId, { include: 'count' })
 console.log(audience.count) // live member total
 ```
 
+Add `'build'` for an audience made by `brew.audiences.fromEvents(...)`: the
+row gains `build`, its latest cohort build (`jobId`, `status`, `cohort`).
+
+```ts
+const audience = await brew.audiences.get(audienceId, {
+  include: ['count', 'build'],
+})
+console.log(audience.build?.status) // queued | running | completed | ...
+```
+
 ## `create`
 
 Returns the created `Audience` row.

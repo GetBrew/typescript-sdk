@@ -37,12 +37,14 @@ export type BrandLogo = NonNullable<BrandGetResponse['logos']>[number]
 /** Body for `PATCH /v1/brand`. At least one of the keys must be present. */
 export type UpdateBrandInput = components['schemas']['BrandPatchRequest']
 
-/** A sub-resource token accepted by `GET /v1/brand`'s `?include=`. */
-export type BrandIncludeToken =
-  | 'identity'
-  | 'emailDesign'
-  | 'imageStyle'
-  | 'logos'
+/** The sub-resource tokens `GET /v1/brand`'s `?include=` accepts. */
+export const BRAND_INCLUDE_TOKENS = [
+  'identity',
+  'emailDesign',
+  'imageStyle',
+  'logos',
+] as const
+export type BrandIncludeToken = (typeof BRAND_INCLUDE_TOKENS)[number]
 
 /** `{ data, pagination }` returned by `GET /v1/brand/images`. */
 export type BrandImagesResponse = components['schemas']['BrandImagesResponse']

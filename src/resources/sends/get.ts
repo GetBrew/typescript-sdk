@@ -4,7 +4,8 @@ import type { BrewRawResponse, RequestOptions } from '../../types'
 import type { Send } from './types'
 
 /** The one expansion `GET /v1/sends/{sendId}` accepts. */
-export type SendsIncludeToken = 'events'
+export const SENDS_INCLUDE_TOKENS = ['events'] as const
+export type SendsIncludeToken = (typeof SENDS_INCLUDE_TOKENS)[number]
 
 /**
  * Per-request options for `brew.sends.get(...)` — the standard

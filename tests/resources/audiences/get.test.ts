@@ -51,6 +51,21 @@ describe('audiences.get', () => {
     expect(audience.count).toBe(51)
   })
 
+  it('serializes include: ["count", "build"] as one comma list', async () => {
+    let url: string | undefined
+    server.use(
+      http.get('https://brew.new/api/v1/audiences/aud_123', ({ request }) => {
+        url = request.url
+        return HttpResponse.json({ ...AUDIENCE, count: 51 })
+      })
+    )
+
+    const { client } = makeTestHttpClient()
+    await createGetAudience(client)('aud_123', { include: ['count', 'build'] })
+
+    expect(new URL(url!).searchParams.get('include')).toBe('count,build')
+  })
+
   it('surfaces an unknown id as 404 AUDIENCE_NOT_FOUND, not an empty page', async () => {
     server.use(
       http.get('https://brew.new/api/v1/audiences/aud_missing', () =>

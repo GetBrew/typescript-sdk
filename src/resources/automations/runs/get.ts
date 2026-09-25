@@ -4,7 +4,9 @@ import type { BrewRawResponse, RequestOptions } from '../../../types'
 import type { AutomationRun } from './types'
 
 /** The one expansion `GET /v1/automations/runs/{automationRunId}` accepts. */
-export type AutomationRunsIncludeToken = 'logs'
+export const AUTOMATION_RUNS_INCLUDE_TOKENS = ['logs'] as const
+export type AutomationRunsIncludeToken =
+  (typeof AUTOMATION_RUNS_INCLUDE_TOKENS)[number]
 
 /**
  * Per-request options for `brew.automations.runs.get(...)` — the

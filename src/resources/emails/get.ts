@@ -3,7 +3,8 @@ import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
 /** Expansions `GET /v1/emails/{emailId}` accepts. */
-export type EmailsIncludeToken = 'html' | 'versions'
+export const EMAILS_INCLUDE_TOKENS = ['html', 'versions'] as const
+export type EmailsIncludeToken = (typeof EMAILS_INCLUDE_TOKENS)[number]
 
 /**
  * Per-request options for `brew.emails.get(...)` — the standard

@@ -2,9 +2,13 @@ import type { operations } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
+/** The expansion `GET /v1/templates/{templateId}` accepts. */
+export const TEMPLATES_INCLUDE_TOKENS = ['html'] as const
+export type TemplatesIncludeToken = (typeof TEMPLATES_INCLUDE_TOKENS)[number]
+
 /** `include: 'html'` adds the template's rendered HTML. */
 export type GetTemplateOptions = RequestOptions & {
-  readonly include?: 'html'
+  readonly include?: TemplatesIncludeToken
 }
 
 /** One public template: metadata, preview and links, optional content. */

@@ -11,7 +11,7 @@ import { createUpdateAudience } from './update'
 export type AudiencesResource = {
   /** `GET /v1/audiences` — every saved audience for the brand, paged with `limit` / `cursor` (scope: `audiences`). */
   readonly list: ReturnType<typeof createListAudiences>
-  /** `GET /v1/audiences/{audienceId}` — one audience as the bare row; `include: 'count'` recomputes the live member total (scope: `audiences`). */
+  /** `GET /v1/audiences/{audienceId}` — one audience as the bare row; `include: 'count'` recomputes the live member total, `'build'` attaches the latest cohort build (scope: `audiences`). */
   readonly get: ReturnType<typeof createGetAudience>
   /** `POST /v1/audiences` — create from a filter set (scope: `audiences`). */
   readonly create: ReturnType<typeof createCreateAudience>
