@@ -44,9 +44,11 @@ That's the whole shape. Every other method follows the same pattern:
 `list(query)` for a page, `get(id)` for the bare row, and a `404` — not
 an empty page — when the id is unknown.
 
-> **Upgrading from 9.x?** 10.0.0 is a breaking release that tracks the
-> public API v1 cleanup. Read the
-> [CHANGELOG](./CHANGELOG.md) for the full migration table.
+> **Upgrading from 10.x?** 11.0.0 turns `emails.previewClients` into a
+> rendering job you poll with `emails.getClientPreview`, and drops the
+> deprecated `verificationStatus` mirror on contacts. **From 9.x?** 10.0.0
+> tracks the public API v1 cleanup. Read the [CHANGELOG](./CHANGELOG.md) for
+> both migrations.
 
 ## Pointing at a different environment
 

@@ -87,4 +87,35 @@ describe('emails.get', () => {
       { status: 404, code: 'EMAIL_NOT_FOUND' }
     )
   })
+
+  it('forwards emailVersionId and runId, and returns the detail fields', async () => {
+    let url: string | undefined
+    server.use(
+      http.get('https://brew.new/api/v1/emails/email_123', ({ request }) => {
+        url = request.url
+        return HttpResponse.json({
+          ...EMAIL,
+          version: 1,
+          runId: 'run_abc',
+          previewStatus: 'available',
+        })
+      })
+    )
+
+    const { client } = makeTestHttpClient()
+    const byVersion = await createGetEmail(client)('email_123', {
+      emailVersionId: 'emv_123_v1',
+    })
+    expect(new URL(url!).searchParams.get('emailVersionId')).toBe('emv_123_v1')
+    expect(byVersion.previewStatus).toBe('available')
+
+    const byRun = await createGetEmail(client)('email_123', {
+      runId: 'run_abc',
+      include: 'html',
+    })
+    const sent = new URL(url!)
+    expect(sent.searchParams.get('runId')).toBe('run_abc')
+    expect(sent.searchParams.get('include')).toBe('html')
+    expect(byRun.runId).toBe('run_abc')
+  })
 })

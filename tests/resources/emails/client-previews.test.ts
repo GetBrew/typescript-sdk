@@ -8,9 +8,11 @@ import {
 import { makeTestHttpClient } from '../../helpers/http-client'
 import { server } from '../../msw/server'
 
+/** The job admission answers with: queued, nothing rendered yet. */
 const READY_BODY = {
+  previewId: 'prv_123',
   emailId: 'email_existing',
-  status: 'ready',
+  status: 'queued',
   previews: [
     {
       id: 'gmailcom-lm_chrcurrent_win10',
@@ -18,16 +20,21 @@ const READY_BODY = {
       category: 'gmail',
       os: 'Web',
       dark: false,
-      status: 'ready',
-      imageUrl:
-        'https://cdn.brew.new/email-client-preview/email_existing/gmail.png',
+      status: 'running',
+      imageUrl: null,
+      reason: 'pending',
+      retryable: false,
     },
   ],
-  pending: [],
+  pending: ['gmailcom-lm_chrcurrent_win10'],
+  createdAt: '2026-09-24T10:00:00.000Z',
+  expiresAt: '2026-10-24T10:00:00.000Z',
+  nextPollAfterMs: 15_000,
+  credits: { cost: 10, status: 'reserved' },
 }
 
 describe('emails.previewClients', () => {
-  it('sends POST /v1/emails/{emailId}/client-previews with the body and returns the per-client batch', async () => {
+  it('sends POST /v1/emails/{emailId}/client-previews with the body and returns the admitted job', async () => {
     let capturedRequest: Request | undefined
     let capturedBody: unknown
     server.use(
@@ -36,7 +43,7 @@ describe('emails.previewClients', () => {
         async ({ request }) => {
           capturedRequest = request.clone()
           capturedBody = await request.json()
-          return HttpResponse.json(READY_BODY)
+          return HttpResponse.json(READY_BODY, { status: 202 })
         }
       )
     )
@@ -58,8 +65,10 @@ describe('emails.previewClients', () => {
       clients: ['gmailcom-lm_chrcurrent_win10'],
     })
     expect(result.emailId).toBe('email_existing')
-    expect(result.status).toBe('ready')
-    expect(result.previews[0]?.imageUrl).toContain('cdn.brew.new')
+    expect(result.previewId).toBe('prv_123')
+    expect(result.status).toBe('queued')
+    expect(result.nextPollAfterMs).toBe(15_000)
+    expect(result.credits.status).toBe('reserved')
   })
 
   it('sends an empty JSON body for the default client spread', async () => {
@@ -118,11 +127,11 @@ describe('emails.previewClients', () => {
     expect(raw.data.previews).toHaveLength(1)
   })
 
-  it('exposes a 90s default timeout that exceeds the global SDK default', () => {
+  it('keeps a 90s ceiling on the admission call', () => {
     expect(PREVIEW_EMAIL_CLIENTS_DEFAULT_TIMEOUT_MS).toBe(90_000)
   })
 
-  it('surfaces the retryable 503 (zero previews rendered — not billed) as a BrewApiError', async () => {
+  it('surfaces a retryable 503 as a BrewApiError', async () => {
     server.use(
       http.post('https://brew.new/api/v1/emails/abc/client-previews', () =>
         HttpResponse.json(
@@ -130,10 +139,8 @@ describe('emails.previewClients', () => {
             error: {
               code: 'SERVICE_UNAVAILABLE',
               type: 'service_unavailable',
-              message:
-                'The email preview is still rendering — no client finished within the time limit.',
-              suggestion:
-                'Retry in a few seconds. You are not charged when no preview is produced.',
+              message: 'The preview service is temporarily unavailable.',
+              suggestion: 'Retry in a few seconds.',
               docs: 'https://docs.brew.new/api-reference/api/errors',
             },
           },

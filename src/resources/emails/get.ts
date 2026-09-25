@@ -1,7 +1,6 @@
+import type { components } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
-
-import type { EmailSummary } from './types'
 
 /** Expansions `GET /v1/emails/{emailId}` accepts. */
 export type EmailsIncludeToken = 'html' | 'versions'
@@ -17,10 +16,27 @@ export type GetEmailOptions = RequestOptions & {
    * Accepts a token, an array of tokens, or a comma string.
    */
   readonly include?: ReadonlyArray<EmailsIncludeToken> | string
+  /**
+   * Read this saved version instead of the current head (an
+   * `emailVersionId` from `include: 'versions'`). Mutually exclusive with
+   * `runId`.
+   */
+  readonly emailVersionId?: string
+  /**
+   * Read the version one generation run produced — the `runId` a
+   * `generate` or `edit` returned while it was still `generating`. A run
+   * that failed answers `status: 'failed'` with `errorMessage`. Mutually
+   * exclusive with `emailVersionId`.
+   */
+  readonly runId?: string
 }
 
-/** `GET /v1/emails/{emailId}` returns the BARE design row. */
-export type GetEmailResponse = EmailSummary
+/**
+ * `GET /v1/emails/{emailId}` returns the BARE design row plus what the read
+ * selected: `version`, `runId`, `previewStatus` (`available`, `unavailable`,
+ * `not_ready`), and on a failed run `errorMessage` / `errorCause`.
+ */
+export type GetEmailResponse = components['schemas']['EmailDetail']
 
 /** Serialize the `include` option into the API's comma-separated form. */
 function serializeInclude(
@@ -37,6 +53,10 @@ function serializeInclude(
  * of the current version and/or `include: 'versions'` for the
  * `{ version, emailVersionId }` history — the ids
  * `brew.emails.restore(...)` takes.
+ *
+ * Pin a saved version with `emailVersionId`, or poll a generation with the
+ * `runId` it returned (a run that failed reads `status: 'failed'`). An
+ * unknown version or run is `404 EMAIL_VERSION_NOT_FOUND`.
  *
  * An unknown or cross-brand id is `404 EMAIL_NOT_FOUND` — it is no
  * longer an empty page you have to test for.
@@ -58,10 +78,17 @@ export function createGetEmail(client: HttpClient) {
     options?: GetEmailOptions
   ): Promise<GetEmailResponse | BrewRawResponse<GetEmailResponse>> {
     const include = serializeInclude(options?.include)
+    const query = {
+      ...(include !== undefined ? { include } : {}),
+      ...(options?.emailVersionId !== undefined
+        ? { emailVersionId: options.emailVersionId }
+        : {}),
+      ...(options?.runId !== undefined ? { runId: options.runId } : {}),
+    }
     const response = await client.request<GetEmailResponse>({
       method: 'GET',
       path: `/v1/emails/${encodeURIComponent(emailId)}`,
-      ...(include !== undefined ? { query: { include } } : {}),
+      ...(Object.keys(query).length > 0 ? { query } : {}),
       ...(options ? { options } : {}),
     })
     return unwrapResponse(response, options)

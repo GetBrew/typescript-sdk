@@ -12,45 +12,46 @@ export type PreviewEmailClientsInput = {
 } & components['schemas']['EmailClientPreviewRequest']
 
 /**
- * Per-client render batch returned by
- * `POST /v1/emails/{emailId}/client-previews`.
+ * The rendering job `POST /v1/emails/{emailId}/client-previews` admits (or
+ * the existing job for the same version and clients): `previewId`, the job
+ * `status`, per-client results, `nextPollAfterMs` and the credit
+ * reservation.
  */
 export type EmailClientPreviewResponse =
   components['schemas']['EmailClientPreviewResponse']
 
 /**
- * Default per-request timeout for
- * `POST /v1/emails/{emailId}/client-previews`. The server renders in
- * real clients and blocks up to ~55s before returning whatever finished,
- * so the per-call ceiling sits above the global SDK default.
+ * Per-request timeout for `POST /v1/emails/{emailId}/client-previews`.
+ * Admission stages the design and answers promptly; the rendering itself
+ * continues server-side, so this only bounds the admission call.
  * Caller-supplied `RequestOptions.timeoutMs` and `RequestOptions.signal`
  * still win.
  */
 export const PREVIEW_EMAIL_CLIENTS_DEFAULT_TIMEOUT_MS = 90_000
 
 /**
- * `POST /v1/emails/{emailId}/client-previews` (scope: `emails`) — render
- * the design's latest version across REAL email clients & devices
- * (Gmail, Outlook, Apple Mail, iOS — with dark-mode variants — plus
- * Yahoo) and return a screenshot per client, rehosted on the Brew CDN.
+ * `POST /v1/emails/{emailId}/client-previews` (scope: `emails`) — start a
+ * rendering job for the design across REAL email clients & devices (Gmail,
+ * Outlook, Apple Mail, iOS — with dark-mode variants — plus Yahoo). Pin a
+ * saved version with `emailVersionId`, or omit it for the latest.
  *
- * Pass `clients` (ids from the supported catalogue — the field's
- * OpenAPI description carries the full `id = label` list) to target
- * specific inboxes/devices, or omit it for a popular default spread.
- * Rendering is a single bounded call: clients still rendering when the
- * window elapses come back in `pending` with `status: "partial"` — call
- * again to retry them.
+ * Answers `202` with the admitted job (`status: 'queued' | 'running'`), or
+ * `200` with the existing job for the same version and clients. Poll
+ * `brew.emails.getClientPreview(previewId)` after `nextPollAfterMs` until
+ * it settles as `completed`, `partially_completed` or `failed`; each client
+ * then carries its full-size `imageUrl`, or a `reason` and whether it is
+ * `retryable`. Polling never resubmits or charges again.
  *
- * Fixed cost: 10 credits, charged only when at least one client renders
- * (`X-Credit-Cost: 10`). A batch where ZERO clients finish (or a
- * preview-provider outage) returns a retryable `503 SERVICE_UNAVAILABLE`
- * and is NOT billed. Unknown client ids are rejected with a `422`
- * before any paid work happens.
+ * Pass `clients` (ids from the supported catalogue — the field's OpenAPI
+ * description carries the full `id = label` list) to target specific
+ * inboxes/devices, or omit it for a popular default spread. Unknown client
+ * ids are rejected with a `422` before any paid work happens.
+ *
+ * Fixed cost: 10 credits, reserved at admission and settled once; a job
+ * that renders nothing releases them (`credits.status`).
  *
  * Pass `{ raw: true }` in `options` to receive the full
- * `BrewRawResponse<EmailClientPreviewResponse>` (headers include
- * `X-Credit-Cost` / `X-Credits-Remaining`) instead of the unwrapped
- * payload.
+ * `BrewRawResponse<EmailClientPreviewResponse>` instead of the job.
  */
 export function createPreviewEmailClients(client: HttpClient) {
   function previewClients(

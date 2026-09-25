@@ -1,5 +1,6 @@
 import type { HttpClient } from '../../core/http'
 
+import { createGetTemplate } from './get'
 import { createListTemplates } from './list'
 
 export type TemplatesResource = {
@@ -9,10 +10,16 @@ export type TemplatesResource = {
    * `previewImage`.
    */
   readonly list: ReturnType<typeof createListTemplates>
+  /**
+   * `GET /v1/templates/{templateId}` — one template with its
+   * `referenceEmailId`; `include: 'html'` adds its rendered content.
+   */
+  readonly get: ReturnType<typeof createGetTemplate>
 }
 
 export function createTemplatesResource(client: HttpClient): TemplatesResource {
   return {
     list: createListTemplates(client),
+    get: createGetTemplate(client),
   }
 }

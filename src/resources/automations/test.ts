@@ -17,8 +17,13 @@ export type TestAutomationResponse =
  * delivered and test runs never count against analytics rollups. The optional
  * `payload` must match the trigger's schema.
  *
- * Returns `202` with `{ automationRunIds, status: 'test_started' }` — follow
- * the run via `brew.automations.runs.list({ automationRunId, include: 'logs' })`.
+ * Pass `scenario` to simulate engagement (opens and clicks after a delay) and
+ * force split branches; the response's `testMode` is then `'scenario'`.
+ *
+ * Returns `202` with `{ automationRunIds, status: 'test_started', testMode }` —
+ * follow a run via `brew.automations.runs.get(automationRunId, { include:
+ * 'logs' })`; a test run's detail carries `testCoverage` (the nodes,
+ * connections and decisions it exercised).
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<TestAutomationResponse>` instead of the unwrapped payload.

@@ -17,9 +17,18 @@ is not campaign-specific, so the send action lives here on `emails`. Send
 | [`restore`](#restore)                           | `POST /v1/emails/{emailId}/restore`                     | `emails` |
 | [`export`](#export)                             | `POST /v1/emails/{emailId}/export`                      | `emails` |
 | [`auditEmail`](#auditemail)                     | `POST /v1/emails/audit`                                 | `emails` |
+| [`getAudit`](#getaudit)                         | `GET /v1/emails/audits/{auditId}`                       | `emails` |
 | [`previewClients`](#previewclients)             | `POST /v1/emails/{emailId}/client-previews`             | `emails` |
+| [`getClientPreview`](#getclientpreview)         | `GET /v1/emails/client-previews/{previewId}`            | `emails` |
 | [`inboxPlacementTests.*`](#inboxplacementtests) | `/v1/emails/{emailId}/inbox-placement-tests[/{testId}]` | `emails` |
 | [`send`](#send)                                 | `POST /v1/sends`                                        | `sends`  |
+
+> **Changed in 11.0.0.** `previewClients` starts a rendering job and
+> `getClientPreview(previewId)` polls it (the call no longer blocks for
+> screenshots). `get` takes `emailVersionId` or `runId` and returns the
+> detail row (`previewStatus`, `version`, `runId`, and `errorMessage` on a
+> failed run). `edit` can change only `title` / `subjectLine` / `groupId`
+> without a prompt. `getAudit(auditId)` reads a saved audit for free.
 
 > **Changed in 10.0.0.** `get(emailId, { include })` is a real route
 > returning the bare row; the `emailId` and `include` query filters on
@@ -136,6 +145,24 @@ for (const version of full.versions ?? []) {
 
 The `emailVersionId` values from `include: 'versions'` are exactly what
 [`restore`](#restore) takes.
+
+Read a saved version with `emailVersionId`, or poll a generation with the
+`runId` that `generate` / `edit` returned while it was `generating`:
+
+```ts
+const pinned = await brew.emails.get('email_123', {
+  emailVersionId: 'emv_123_v1',
+})
+
+const run = await brew.emails.get('email_123', { runId: 'run_abc' })
+if (run.status === 'failed') {
+  console.log(run.errorMessage)
+}
+console.log(run.previewStatus) // 'available' | 'unavailable' | 'not_ready'
+```
+
+`emailVersionId` and `runId` are mutually exclusive. An unknown version or
+run is `404 EMAIL_VERSION_NOT_FOUND`.
 
 ---
 
@@ -256,11 +283,18 @@ URL path. `EditEmailInput` does **not** accept a `brandId` or an
 `emailId` field in the body — sending either returns
 `400 INVALID_REQUEST`.
 
+Send only `title`, `subjectLine` and/or `groupId` (`null` ungroups) with
+no `prompt` to rename, retitle or refile the design without an AI edit or a
+charge; the three apply in one atomic write.
+
 ```ts
 type EditEmailInput = {
   readonly emailId: string // path parameter
-  readonly prompt: string
+  readonly prompt?: string // omit for a metadata-only edit
   readonly contentUrls?: ReadonlyArray<string>
+  readonly title?: string
+  readonly subjectLine?: string
+  readonly groupId?: string | null
 }
 
 type EditEmailResponse =
@@ -378,39 +412,81 @@ with `Retry-After` and does not run or charge the audit.
 
 ---
 
+## `getAudit`
+
+Read one page of a saved audit's findings — ids, rule ids, targets,
+remediation and the audited `contentHash`. Free; it never reruns the audit.
+Continue with `pagination.cursor`. Reports are kept for seven days; an
+expired or unknown id is `404 AUDIT_NOT_FOUND`.
+
+```ts
+getAudit(
+  auditId: string,
+  options?: RequestOptions & { cursor?: string; limit?: number } // 1-100
+): Promise<GetEmailAuditResponse>
+```
+
+```ts
+const page = await brew.emails.getAudit('aud_123', { limit: 50 })
+console.log(page.summary, page.findings.length)
+if (page.pagination.hasMore && page.pagination.cursor) {
+  await brew.emails.getAudit('aud_123', { cursor: page.pagination.cursor })
+}
+```
+
+---
+
 ## `previewClients`
 
-Render the design's latest version across **real email clients &
+Start a rendering job for the design across **real email clients &
 devices** — Gmail (web/Android/iOS), Outlook (2021/365/web), Apple Mail
-(macOS/iOS), and Yahoo, with dark-mode variants — and get back a
-screenshot per client, rehosted on the Brew CDN. Use it to verify a
-design in a specific inbox before sending.
+(macOS/iOS), and Yahoo, with dark-mode variants. Poll it with
+[`getClientPreview`](#getclientpreview) until every client settles; each
+then carries a full-size screenshot on the Brew CDN.
 
-The `emailId` is sent on the URL path. Pass `clients` (ids from the
-supported catalogue — the OpenAPI description of the field carries the
-full `id = label` list, e.g. `outlook2021_win11_dm_dt = Outlook 2021
-(Windows, Dark)`) to target specific inboxes/devices, or omit it for a
-popular default spread.
+The `emailId` is sent on the URL path. Pass `emailVersionId` to render a
+saved version (omit for the latest), and `clients` (ids from the supported
+catalogue — the OpenAPI description of the field carries the full
+`id = label` list, e.g. `outlook2021_win11_dm_dt = Outlook 2021 (Windows,
+Dark)`) to target specific inboxes/devices, or omit it for a popular
+default spread.
 
 ```ts
 type PreviewEmailClientsInput = {
   readonly emailId: string // path parameter
+  readonly emailVersionId?: string
   readonly clients?: ReadonlyArray<string> // omit → default spread
 }
 
 type EmailClientPreviewResponse = {
+  readonly previewId: string
   readonly emailId: string
-  readonly status: 'ready' | 'partial'
+  readonly emailVersionId?: string
+  readonly status:
+    | 'queued'
+    | 'running'
+    | 'completed'
+    | 'partially_completed'
+    | 'failed'
   readonly previews: ReadonlyArray<{
     readonly id: string
     readonly label: string // e.g. "Apple Mail (iOS, Dark)"
     readonly category: 'gmail' | 'outlook' | 'apple' | 'yahoo' | 'other'
     readonly os: string
     readonly dark: boolean
-    readonly status: 'ready' | 'processing' | 'failed'
-    readonly imageUrl: string | null // cdn.brew.new screenshot when ready
+    readonly status: 'running' | 'completed' | 'failed'
+    readonly imageUrl: string | null // cdn.brew.new screenshot when completed
+    readonly reason?: string // why a client is pending or failed
+    readonly retryable: boolean
   }>
   readonly pending: ReadonlyArray<string> // client ids still rendering
+  readonly createdAt: string
+  readonly expiresAt: string
+  readonly nextPollAfterMs: number
+  readonly credits: {
+    readonly cost: number
+    readonly status: 'reserved' | 'settled' | 'released'
+  }
 }
 
 previewClients(
@@ -420,48 +496,66 @@ previewClients(
 ```
 
 ```ts
-const batch = await brew.emails.previewClients({
+let job = await brew.emails.previewClients({
   emailId: 'email_123',
   clients: ['outlook2021_win11_dm_dt', 'iphone16_18'],
 })
 
-for (const preview of batch.previews) {
-  if (preview.status === 'ready') {
-    console.log(preview.label, preview.imageUrl)
-  }
+while (job.status === 'queued' || job.status === 'running') {
+  await new Promise((resolve) => setTimeout(resolve, job.nextPollAfterMs))
+  job = await brew.emails.getClientPreview(job.previewId)
 }
-if (batch.pending.length > 0) {
-  // Slow clients (Outlook desktop especially) can outlive the bounded
-  // window — call previewClients again to retry just those.
+
+for (const preview of job.previews) {
+  if (preview.status === 'completed') {
+    console.log(preview.label, preview.imageUrl)
+  } else {
+    console.log(preview.label, preview.reason, preview.retryable)
+  }
 }
 ```
 
+The call answers `202` with the admitted job, or `200` with the existing job
+for the same version and clients (including its results when it already
+finished).
+
 ### Cost & billing semantics
 
-Fixed **10 credits** per call, charged only when at least one client
-renders (`X-Credit-Cost: 10` on the response — read it via
-`{ raw: true }`). A batch where **zero** clients finish in time, or a
-preview-provider outage, returns a retryable `503 SERVICE_UNAVAILABLE`
-and is **not** billed. Unknown client ids are rejected with a `422`
-before any paid work happens.
+Fixed **10 credits** per job, reserved at admission and settled once.
+A job that renders nothing releases the reservation (`credits.status:
+'released'`). Polling never resubmits or charges again. Unknown client ids
+are rejected with a `422` before any paid work happens.
 
 ### Long-running calls
 
-Rendering happens in real clients and the server blocks up to ~55s
-before returning whatever finished. The SDK applies a **90-second**
-per-request timeout for this endpoint; the constant
-`PREVIEW_EMAIL_CLIENTS_DEFAULT_TIMEOUT_MS` is the default and
-caller-supplied `RequestOptions.timeoutMs` / `RequestOptions.signal`
-still win.
+Admission stages the design and answers promptly; rendering continues
+server-side. The SDK keeps a **90-second** ceiling on the admission call
+(`PREVIEW_EMAIL_CLIENTS_DEFAULT_TIMEOUT_MS`); caller-supplied
+`RequestOptions.timeoutMs` / `RequestOptions.signal` still win.
 
 ### Errors
 
-| Status | Code                       | Cause                                                                              |
-| ------ | -------------------------- | ---------------------------------------------------------------------------------- |
-| 404    | `EMAIL_NOT_FOUND`          | The email doesn't exist for the brand bound to your key                            |
-| 409    | `IDEMPOTENCY_CONFLICT`     | Reused `Idempotency-Key` with a different request body                             |
-| 422    | `CONTENT_OPERATION_FAILED` | Unknown client id(s), or the email has no rendered HTML yet                        |
-| 503    | `SERVICE_UNAVAILABLE`      | Zero previews rendered in the window / provider outage — retryable, **not billed** |
+| Status | Code                       | Cause                                                                |
+| ------ | -------------------------- | -------------------------------------------------------------------- |
+| 402    | `INSUFFICIENT_CREDITS`     | The job's 10 credits cannot be reserved                              |
+| 404    | `EMAIL_NOT_FOUND`          | The email doesn't exist for the brand bound to your key              |
+| 409    | `IDEMPOTENCY_CONFLICT`     | Reused `Idempotency-Key` with a different request body               |
+| 422    | `CONTENT_OPERATION_FAILED` | Unknown client id(s), the email is not ready, or its HTML is too big |
+
+---
+
+## `getClientPreview`
+
+Read a rendering job by `previewId`. Poll it after `nextPollAfterMs` while
+`status` is `queued` or `running`. Free; it never resubmits the job. An
+unknown id is `404 PREVIEW_NOT_FOUND`.
+
+```ts
+getClientPreview(
+  previewId: string,
+  options?: RequestOptions
+): Promise<GetEmailClientPreviewResponse> // same shape as the job above
+```
 
 ---
 
