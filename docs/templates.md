@@ -58,13 +58,15 @@ type TemplateSummaryListResponse = {
   readonly pagination: TemplatesListResponse['pagination']
 }
 
-list(input?: ListTemplatesInput): Promise<TemplatesListResponse>
+// Overloads, most specific first (TypeScript picks the first that matches):
 list(input: ListTemplatesInput & { representation: 'summary' }): Promise<TemplateSummaryListResponse>
+list(input?: ListTemplatesInput & { representation?: 'full' }): Promise<TemplatesListResponse>
+list(input?: ListTemplatesInput): Promise<TemplatesListResponse | TemplateSummaryListResponse>
 ```
 
-The return type follows the representation: full rows by default, summary
-rows when you pass `representation: 'summary'` (a value only known at
-runtime returns the union).
+The return type follows the representation: summary rows when you pass
+`representation: 'summary'`, full rows by default or with `'full'`, and the
+union when the representation is only known at runtime.
 
 ```ts
 const { data } = await brew.templates.list({
