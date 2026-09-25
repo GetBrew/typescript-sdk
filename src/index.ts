@@ -449,6 +449,7 @@ export type {
 export type {
   GetTemplateOptions,
   GetTemplateResponse,
+  TemplatesIncludeToken,
 } from './resources/templates/get'
 export type {
   ListFullTemplatesInput,

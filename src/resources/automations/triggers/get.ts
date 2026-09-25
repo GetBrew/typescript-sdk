@@ -4,7 +4,8 @@ import type { BrewRawResponse, RequestOptions } from '../../../types'
 import type { Trigger } from './types'
 
 /** Expansions `GET /v1/automations/triggers/{triggerEventId}` accepts. */
-export type TriggersIncludeToken = 'automations'
+export const TRIGGERS_INCLUDE_TOKENS = ['skill'] as const
+export type TriggersIncludeToken = (typeof TRIGGERS_INCLUDE_TOKENS)[number]
 
 /**
  * Per-request options for `brew.automations.triggers.get(...)` — the
@@ -12,8 +13,8 @@ export type TriggersIncludeToken = 'automations'
  */
 export type GetTriggerOptions = RequestOptions & {
   /**
-   * Comma-separated expansions on the returned row. Accepts an array of tokens or a
-   * comma string.
+   * `'skill'` adds `skill`: a SKILL.md-shaped brief for wiring the fire
+   * endpoint. Accepts an array of tokens or a comma string.
    */
   readonly include?: ReadonlyArray<TriggersIncludeToken> | string
 }

@@ -93,6 +93,25 @@ describe('automations.triggers resource — POST/GET/PATCH/DELETE wiring', () =>
     expect(trigger.triggerEventId).toBe('tri_abc')
   })
 
+  it('get serializes include: ["skill"] and returns the wiring brief', async () => {
+    let captured: Request | undefined
+    server.use(
+      http.get(
+        'https://brew.new/api/v1/automations/triggers/tri_abc',
+        ({ request }) => {
+          captured = request.clone()
+          return HttpResponse.json({ ...TRIGGER_ROW, skill: '# Fire tri_abc' })
+        }
+      )
+    )
+    const { client } = makeTestHttpClient()
+    const trigger = await createTriggersResource(client).get('tri_abc', {
+      include: ['skill'],
+    })
+    expect(new URL(captured!.url).searchParams.get('include')).toBe('skill')
+    expect(trigger.skill).toBe('# Fire tri_abc')
+  })
+
   it('readiness GETs .../readiness and returns the bare readiness body', async () => {
     let captured: Request | undefined
     server.use(

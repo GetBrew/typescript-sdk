@@ -1,5 +1,31 @@
 # Changelog
 
+## 11.0.1
+
+Type and docs fixes; no runtime change. Regenerated from the live spec after
+brew-v2#1641, #1645 and #1648.
+
+### Fixed
+
+- `automations.triggers.get` typed its `include` token as `automations`,
+  which the API refuses with a `400`. The token is `skill`: it adds `skill`,
+  a SKILL.md-shaped brief for wiring the fire endpoint.
+- `audiences.get` types `include: 'build'`, which attaches the latest cohort
+  build of an audience made by `audiences.fromEvents(...)`.
+- `emails.getAudit` pages 1-50 findings (default 10). The 11.0.0 docs, and
+  the spec they came from, said 1-100 with a default of 100; a `limit` over
+  50 is a `400`.
+- Generated JSDoc: `exportEmailDesign` names all eleven ESPs (Brevo and
+  Mailjet were missing) and their `senderEmail` rule; `runAutomation`'s
+  50,000 / 30 / 30 caps apply to `gradualSend` plans.
+
+### Added
+
+- `TemplatesIncludeToken`, like the other resources' include tokens.
+- A test checks every typed `include` token against the spec's
+  `x-brew-include-tokens`, so re-vendoring a spec that adds or renames one
+  fails CI instead of shipping a stale union.
+
 ## 11.0.0
 
 Tracks the MCP task refactor (brew-v2#1588) and the contact and send changes

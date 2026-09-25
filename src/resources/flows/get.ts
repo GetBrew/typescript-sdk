@@ -4,7 +4,8 @@ import type { BrewRawResponse, RequestOptions } from '../../types'
 import type { Flow } from './types'
 
 /** The only expansion `GET /v1/flows/{slug}` accepts: each step's rendered HTML. */
-export type FlowsIncludeToken = 'html'
+export const FLOWS_INCLUDE_TOKENS = ['html'] as const
+export type FlowsIncludeToken = (typeof FLOWS_INCLUDE_TOKENS)[number]
 
 /**
  * Per-request options for `brew.flows.get(...)` — the standard
