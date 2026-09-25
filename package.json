@@ -1,6 +1,6 @@
 {
   "name": "@brew.new/sdk",
-  "version": "11.0.0",
+  "version": "11.0.1",
   "description": "Official TypeScript SDK for the Brew public API.",
   "license": "MIT",
   "author": "Brew",

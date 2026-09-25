@@ -1,5 +1,17 @@
 # Changelog
 
+## 11.0.1
+
+Docs and generated types only; no runtime change. Regenerated from the live
+spec after brew-v2#1641.
+
+- `emails.getAudit` pages 1-50 findings (default 10). The 11.0.0 docs, and
+  the spec they came from, said 1-100 with a default of 100; a `limit` over
+  50 is a `400`.
+- Generated JSDoc: `exportEmailDesign` names all eleven ESPs (Brevo and
+  Mailjet were missing) and their `senderEmail` rule; `runAutomation`'s
+  50,000 / 30 / 30 caps apply to `gradualSend` plans.
+
 ## 11.0.0
 
 Tracks the MCP task refactor (brew-v2#1588) and the contact and send changes

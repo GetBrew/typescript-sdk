@@ -6,7 +6,7 @@ import type { BrewRawResponse, RequestOptions } from '../../types'
 export type GetEmailAuditOptions = RequestOptions & {
   /** `pagination.cursor` from the previous page. */
   readonly cursor?: string
-  /** Findings per page, 1-100 (server default 100). */
+  /** Findings per page, 1-50 (server default 10). */
   readonly limit?: number
 }
 

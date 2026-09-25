@@ -422,12 +422,12 @@ expired or unknown id is `404 AUDIT_NOT_FOUND`.
 ```ts
 getAudit(
   auditId: string,
-  options?: RequestOptions & { cursor?: string; limit?: number } // 1-100
+  options?: RequestOptions & { cursor?: string; limit?: number } // limit 1-50, default 10
 ): Promise<GetEmailAuditResponse>
 ```
 
 ```ts
-const page = await brew.emails.getAudit('aud_123', { limit: 50 })
+const page = await brew.emails.getAudit('aud_123', { limit: 25 })
 console.log(page.summary, page.findings.length)
 if (page.pagination.hasMore && page.pagination.cursor) {
   await brew.emails.getAudit('aud_123', { cursor: page.pagination.cursor })
