@@ -3,7 +3,7 @@
 ## 11.0.1
 
 Type and docs fixes; no runtime change. Regenerated from the live spec after
-brew-v2#1641.
+brew-v2#1641, #1645 and #1648.
 
 ### Fixed
 
