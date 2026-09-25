@@ -262,6 +262,34 @@ const enterpriseCount = await brew.contacts.count({
 
 ---
 
+## `countBy`
+
+Exact counts per field value, per email domain, or per period, largest
+group first. Takes the `count` knobs plus at least one of `groupBy` (up to
+two fields: a contact field, a custom field, or `emailDomain`) and
+`bucket` (`day` | `week` | `month`, over `createdAt`). Returns the whole
+envelope: the total `count`, the largest 200 `groups` (`key` maps each
+grouped field to its value, `bucket` is the ISO period start), and
+`otherCount` for the contacts in the groups past the first 200.
+
+```ts
+countBy(input: CountContactsByInput): Promise<CountContactsByResponse>
+```
+
+```ts
+const { count, groups } = await brew.contacts.countBy({
+  groupBy: ['emailDomain'],
+})
+for (const group of groups ?? []) {
+  console.log(group.key.emailDomain, group.count)
+}
+
+// Signups per month in a saved audience:
+const perMonth = await brew.contacts.countBy({ audienceId, bucket: 'month' })
+```
+
+---
+
 ## `upsert`
 
 Create or update a single contact by email. Email is the identity;

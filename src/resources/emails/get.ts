@@ -3,7 +3,12 @@ import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
 /** Expansions `GET /v1/emails/{emailId}` accepts. */
-export const EMAILS_INCLUDE_TOKENS = ['html', 'versions'] as const
+export const EMAILS_INCLUDE_TOKENS = [
+  'html',
+  'versions',
+  'text',
+  'links',
+] as const
 export type EmailsIncludeToken = (typeof EMAILS_INCLUDE_TOKENS)[number]
 
 /**
@@ -13,7 +18,11 @@ export type EmailsIncludeToken = (typeof EMAILS_INCLUDE_TOKENS)[number]
 export type GetEmailOptions = RequestOptions & {
   /**
    * `'html'` inlines the rendered HTML of the current version;
-   * `'versions'` inlines the `{ version, emailVersionId }` history.
+   * `'versions'` inlines the `{ version, emailVersionId }` history;
+   * `'text'` inlines the visible body text a reader sees (merge tags
+   * kept, `textTruncated` past 20,000 characters); `'links'` inlines each
+   * link destination once with its visible text and `count`
+   * (`linksTruncated` past 200).
    * Accepts a token, an array of tokens, or a comma string.
    */
   readonly include?: ReadonlyArray<EmailsIncludeToken> | string

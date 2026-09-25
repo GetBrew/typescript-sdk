@@ -6,3 +6,11 @@ import type { components } from '../../generated/openapi-types'
  * `brew.audiences.get(audienceId, { include: 'count' })`.
  */
 export type Audience = components['schemas']['Audience']
+
+/**
+ * What `create` and `update` return: the saved row, plus
+ * `emailListMaterializations` when a long `email in [...]` list was
+ * stamped into a contact-field snapshot, and (update only) the
+ * `membership` report of an `addEmails` / `removeEmails` edit.
+ */
+export type AudienceWriteResult = components['schemas']['AudienceWriteResponse']

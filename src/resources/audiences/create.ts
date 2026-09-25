@@ -2,13 +2,16 @@ import type { components } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
-import type { Audience } from './types'
+import type { AudienceWriteResult } from './types'
 
 /** Create body — a name + a filter set over the brand's contacts. */
 export type CreateAudienceInput = components['schemas']['AudiencesPostRequest']
 
-/** Create returns the bare created `Audience` row. */
-export type CreateAudienceResponse = Audience
+/**
+ * Create returns the created row, plus `emailListMaterializations` when a
+ * long `email in [...]` list was stamped into a contact-field snapshot.
+ */
+export type CreateAudienceResponse = AudienceWriteResult
 
 /**
  * `POST /v1/audiences` — create a saved audience from a filter set.

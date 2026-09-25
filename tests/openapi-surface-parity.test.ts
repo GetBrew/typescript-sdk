@@ -177,3 +177,186 @@ describe('typed include tokens', () => {
     }
   })
 })
+
+/**
+ * `METHOD path` → the query parameters the spec documents for it. List
+ * inputs are typed from the generated query, so a new knob type-checks at
+ * every call site; a request that builds its query key by key must still
+ * forward it, or the value is silently dropped on the wire.
+ */
+function readSpecQueryParameters(): Map<string, Set<string>> {
+  const lines = readFileSync(
+    join(ROOT, 'openapi/public-api-v1.yaml'),
+    'utf8'
+  ).split('\n')
+  const byOperation = new Map<string, Set<string>>()
+  let currentPath: string | undefined
+  let operation: string | undefined
+  let isInParameters = false
+  let name: string | undefined
+  let location: string | undefined
+  const flush = () => {
+    if (operation && name && location === 'query') {
+      const names = byOperation.get(operation) ?? new Set<string>()
+      names.add(name)
+      byOperation.set(operation, names)
+    }
+    name = undefined
+    location = undefined
+  }
+  for (const line of lines) {
+    const pathMatch = /^ {2}(\/v1\/[^:]+):$/.exec(line)
+    const methodMatch = /^ {4}([a-z]+):$/.exec(line)
+    if (pathMatch || methodMatch) {
+      flush()
+      isInParameters = false
+      if (pathMatch) {
+        currentPath = pathMatch[1]
+        operation = undefined
+      } else if (currentPath && HTTP_METHODS.has(methodMatch![1]!)) {
+        operation = `${methodMatch![1]!.toUpperCase()} ${normalizePath(currentPath)}`
+      }
+      continue
+    }
+    if (/^ {6}parameters:$/.test(line)) {
+      isInParameters = true
+      continue
+    }
+    if (!isInParameters) {
+      continue
+    }
+    if (/^ {0,6}\S/.test(line)) {
+      flush()
+      isInParameters = false
+      continue
+    }
+    if (/^ {8}- /.test(line)) {
+      flush()
+    }
+    const field = /^ {8}(?:- | {2})(name|in): (\S+)$/.exec(line)
+    if (field?.[1] === 'name') {
+      name = field[2]
+    } else if (field?.[1] === 'in') {
+      location = field[2]
+    }
+  }
+  flush()
+  return byOperation
+}
+
+/** The text of the `{ … }` block opening at `start`, braces balanced. */
+function balancedBlock(source: string, start: number): string {
+  let depth = 0
+  for (let index = start; index < source.length; index += 1) {
+    if (source[index] === '{') {
+      depth += 1
+    } else if (source[index] === '}') {
+      depth -= 1
+      if (depth === 0) {
+        return source.slice(start, index + 1)
+      }
+    }
+  }
+  return source.slice(start)
+}
+
+/** The query keys forwarded in one stretch of source (`'*'` = all). */
+function forwardedQueryKeys(scope: string): Set<string> {
+  const keys = new Set<string>()
+  if (/\bquery:\s*input\b/.test(scope)) {
+    keys.add('*')
+  }
+  // `query: { … }` inline, or `const query = { … }` passed on; the
+  // literal may nest (`...(cond ? { include } : {})`).
+  for (const opening of scope.matchAll(
+    /\bquery(?::\s*|(?::[^=\n]+)?\s*=\s*)\{/g
+  )) {
+    const body = balancedBlock(scope, opening.index + opening[0].length - 1)
+    for (const key of body.matchAll(
+      /(\w+)\s*:(?!:)|[{,]\s*(\w+)\s*(?=[,}])/g
+    )) {
+      keys.add((key[1] ?? key[2])!)
+    }
+  }
+  for (const assignment of scope.matchAll(
+    /\bquery(?:\.(\w+)|\[['"](\w+)['"]\])\s*=/g
+  )) {
+    keys.add((assignment[1] ?? assignment[2])!)
+  }
+  // `query[key] = …` over the input's entries forwards every key.
+  if (/\bquery\[[a-z]\w*\]\s*=/.test(scope)) {
+    keys.add('*')
+  }
+  return keys
+}
+
+/**
+ * `METHOD path` → the query keys its SDK request forwards. Each request is
+ * credited only with the keys in its own stretch of the file: from the end
+ * of the previous request up to the end of its own call, so a key one
+ * request forwards never masks its omission from another in the same file.
+ */
+function readSdkQueryKeys(): Map<string, Set<string>> {
+  const requestPattern =
+    /method:\s*'(GET|POST|PUT|PATCH|DELETE)',[\s\S]{0,400}?path:\s*(['`])([^'`\n]+)\2/g
+  const byOperation = new Map<string, Set<string>>()
+  for (const file of collectTypeScriptFiles(join(ROOT, 'src/resources'))) {
+    const source = readFileSync(file, 'utf8')
+    let scopeStart = 0
+    for (const match of source.matchAll(requestPattern)) {
+      const open = source.lastIndexOf('{', match.index)
+      const end = open + balancedBlock(source, open).length
+      const operation = `${match[1]} ${normalizePath(match[3]!)}`
+      const forwarded = byOperation.get(operation) ?? new Set<string>()
+      for (const key of forwardedQueryKeys(source.slice(scopeStart, end))) {
+        forwarded.add(key)
+      }
+      byOperation.set(operation, forwarded)
+      scopeStart = end
+    }
+  }
+  return byOperation
+}
+
+describe('query parameter forwarding', () => {
+  /**
+   * Reviewed: a documented query parameter the SDK deliberately does not
+   * send. Each entry names why; a stale entry fails below.
+   */
+  const KNOWN_UNFORWARDED: Readonly<Record<string, string>> = {
+    // `apiKeys.list` is deprecated: the route answers 403 to every actor
+    // the SDK can authenticate as (dashboard session only).
+    'GET /v1/api-keys ?cursor': 'deprecated, session-only route',
+    'GET /v1/api-keys ?limit': 'deprecated, session-only route',
+    // `integrations.list(options?)` takes no input, so adding one is a
+    // breaking signature change; one default page (100) holds every
+    // connected provider.
+    'GET /v1/integrations ?cursor': 'list(options?) takes no input',
+    'GET /v1/integrations ?limit': 'list(options?) takes no input',
+  }
+
+  it('forwards every query parameter the spec documents', () => {
+    const documented = readSpecQueryParameters()
+    const forwarded = readSdkQueryKeys()
+    expect(documented.size).toBeGreaterThan(20)
+    const dropped = [...documented].flatMap(([operation, names]) => {
+      const keys = forwarded.get(operation) ?? new Set<string>()
+      if (keys.has('*')) {
+        return []
+      }
+      return [...names]
+        .filter((name) => !keys.has(name))
+        .map((name) => `${operation} ?${name}`)
+    })
+    expect(
+      dropped.filter((entry) => !(entry in KNOWN_UNFORWARDED)).sort(byName)
+    ).toEqual([])
+    // Staleness: an entry the spec no longer documents, or that the SDK
+    // now forwards, must be deleted so the list never masks a real drop.
+    expect(
+      Object.keys(KNOWN_UNFORWARDED)
+        .filter((entry) => !dropped.includes(entry))
+        .sort(byName)
+    ).toEqual([])
+  })
+})

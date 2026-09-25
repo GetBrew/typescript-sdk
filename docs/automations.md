@@ -39,6 +39,9 @@ scope.
 // Lean list — no graph on the rows.
 const { data } = await brew.automations.list({ limit: 50 })
 
+// Find one by name: full-text, best match first instead of newest first.
+const { data: matches } = await brew.automations.list({ search: 'welcome' })
+
 // The bare row, with the graph and the version history attached.
 const automation = await brew.automations.get('auto_abc', {
   include: ['graph', 'versions'],

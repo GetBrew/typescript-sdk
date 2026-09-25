@@ -7,7 +7,9 @@ import type { BrewRawResponse, RequestOptions } from '../../types'
  * generated `listEmails` query so any new knob upstream surfaces as a
  * compile error in the SDK.
  *
- * Filters: `status` (`generating | ready | failed`), `groupId`, the
+ * Filters: `search` (title contains, or full-text over the title,
+ * subject line, preview and visible text), `status`
+ * (`generating | ready | failed`), `groupId`, the
  * `from` / `to` ISO-8601 window, and `sortBy` (`createdAt` |
  * `updatedAt`, default `updatedAt`). Page with `limit` / `cursor`.
  */
@@ -22,7 +24,8 @@ export type ListEmailsResponse = components['schemas']['EmailsListResponse']
  * design, under the uniform `{ data, pagination }` envelope. Rows are
  * lean: no `html`, no `versions`.
  *
- * Filter with `status`, `groupId`, and the `from` / `to` window; choose
+ * Find designs with `search`; filter with `status`, `groupId`, and the
+ * `from` / `to` window; choose
  * the ordering key with `sortBy` (`createdAt` | `updatedAt`); page with
  * `limit` / `cursor`. The old `createdAt*` / `updatedAt*` window params
  * collapsed into the single `from` / `to` pair.
@@ -51,6 +54,7 @@ export function createListEmails(client: HttpClient) {
       method: 'GET',
       path: '/v1/emails',
       query: {
+        search: input.search,
         status: input.status,
         groupId: input.groupId,
         sortBy: input.sortBy,

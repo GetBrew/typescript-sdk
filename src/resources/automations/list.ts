@@ -1,4 +1,4 @@
-import type { PaginationInput } from '../../core/pagination'
+import type { operations } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
@@ -6,13 +6,21 @@ import type { AutomationsListResponse } from './types'
 
 export type ListAutomationsResponse = AutomationsListResponse
 
-/** Pagination knobs accepted by `brew.automations.list(...)`. */
-export type ListAutomationsInput = PaginationInput
+/**
+ * Query params accepted by `brew.automations.list(...)`: `search` (name
+ * words, full-text, best match first instead of newest first) plus
+ * `limit` / `cursor`. Sourced from the generated `listAutomations` query
+ * so any new knob upstream surfaces as a compile error in the SDK.
+ */
+export type ListAutomationsInput = NonNullable<
+  operations['listAutomations']['parameters']['query']
+>
 
 /**
  * `GET /v1/automations` (scope: `automations`) — every automation in the
  * brand, under the uniform `{ data, pagination }` envelope. List rows
- * are LEAN: no `nodes` / `connections`. Page with `limit` / `cursor`.
+ * are LEAN: no `nodes` / `connections`. Find one by name with `search`;
+ * page with `limit` / `cursor`.
  *
  * A single automation is
  * `brew.automations.get(automationId, { include: 'graph' })` — there is
@@ -37,6 +45,7 @@ export function createListAutomations(client: HttpClient) {
       method: 'GET',
       path: '/v1/automations',
       query: {
+        search: input.search,
         limit: input.limit,
         cursor: input.cursor,
       },

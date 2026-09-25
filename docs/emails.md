@@ -117,6 +117,15 @@ for (const email of data) {
 }
 ```
 
+Find a design with `search`: a title that contains the text
+(case-insensitive), or a full-text match of its words over the title,
+subject line, preview and visible text (each design's first 16,384
+characters; the other filters then apply to the 1,024 best matches).
+
+```ts
+const { data } = await brew.emails.list({ search: 'spring launch' })
+```
+
 The four `createdAtFrom` / `createdAtTo` / `updatedAtFrom` /
 `updatedAtTo` params collapsed into one `from` / `to` pair, with
 `sortBy` choosing which timestamp they apply to. There is no `emailId`
@@ -145,6 +154,20 @@ for (const version of full.versions ?? []) {
 
 The `emailVersionId` values from `include: 'versions'` are exactly what
 [`restore`](#restore) takes.
+
+Read what a design says without parsing its HTML: `'text'` adds the
+visible body text a reader sees (merge tags kept; `textTruncated` past
+20,000 characters), and `'links'` adds each link destination once with its
+first visible `text` and `count` (`linksTruncated` past 200).
+
+```ts
+const { text, links } = await brew.emails.get('email_123', {
+  include: ['text', 'links'],
+})
+for (const link of links ?? []) {
+  console.log(link.href, link.text, link.count)
+}
+```
 
 Read a saved version with `emailVersionId`, or poll a generation with the
 `runId` that `generate` / `edit` returned while it was `generating`:
@@ -581,12 +604,14 @@ const { versions } = await brew.emails.get('email_123', {
 })
 const previous = versions?.find((v) => v.version === 1)
 
-await brew.emails.restore({
+const restored = await brew.emails.restore({
   emailId: 'email_123',
   emailVersionId: previous!.emailVersionId,
 })
+restored.emailVersionId // the new head's version id
 ```
 
+It answers the restored design, the same shape as `clone` and `import`.
 `404 EMAIL_VERSION_NOT_FOUND` when the version doesn't exist.
 
 ---
