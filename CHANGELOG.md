@@ -1,5 +1,65 @@
 # Changelog
 
+## 11.1.0
+
+Regenerated from the live spec after brew-v2#1649, #1650, #1651, #1655,
+#1656, #1658, #1660, #1662, #1665 and #1676. No runtime change. One return
+type narrows to what the route always answered (`emails.restore`, below).
+
+### Added
+
+- `emails.list({ search })`: find designs by title, or by a full-text match
+  over the title, subject line, preview and visible text.
+- `emails.get(emailId, { include: ['text', 'links'] })`: the visible body
+  text a reader sees, and each link destination once with its visible text
+  and count.
+- `automations.list({ search })` and `audiences.list({ search })`: find one
+  by name. Both inputs are now typed from the generated query.
+- `audiences.update({ addEmails, removeEmails })`: add or remove specific
+  contacts by email instead of rewriting `filters`. The response's
+  `membership` reports what happened to each address; an edit the filters
+  cannot express exactly is `409 AUDIENCE_MEMBERSHIP_NOT_EXPRESSIBLE`.
+- `contacts.countBy({ groupBy, bucket })`: exact counts per field value,
+  email domain or period, returning `count`, the largest 200 `groups` and
+  `otherCount`. `groupBy` is typed as one or two fields, as the API
+  requires.
+- A test checks that every query parameter the spec documents is forwarded
+  on the wire, crediting each request only with the keys in its own code. List inputs are typed from the spec, so a new parameter type
+  checks at every call site, and a request that picks its keys one by one
+  would drop it silently. The guard found the three `search` parameters
+  above; the two routes it lists as reviewed exceptions are named below.
+- Typed from the spec:
+  - sends and audience runs carry `pauseReason` (`manual` | `plan_limit`)
+    while paused;
+  - an audience run's `nodeStats[].sendId` names each send step's own send,
+    where its delivery and gradual batch progress live;
+  - the domain health report types its placement test's `status` and `phase`.
+
+### Fixed
+
+- `audiences.create` and `audiences.update` are typed as
+  `AudienceWriteResult`: the saved row plus `emailListMaterializations`
+  (and `membership` on update), instead of the bare `Audience` row.
+- `contacts.count` accepts `audienceId`, which the docs already showed.
+- `emails.restore` is typed as the restored design
+  (`EmailGenerateGeneratedResponse`, as `clone` and `import` are). The route
+  never answered with text or a `generating` status, so code that branched on
+  those can drop the branch. A type test pins the SDK type to the spec's 200
+  body.
+
+### Notes
+
+- `apiKeys.list` (deprecated, session-only) and `integrations.list` still
+  send no `limit` / `cursor`; the second would need a breaking signature
+  change, and one default page of 100 holds every connected provider.
+- The spec stopped listing `409 IDEMPOTENCY_*` responses on
+  `validateTriggerPayload`, `inferPayloadContract`, `deleteContactField` and
+  `revokeApiKey`, routes that never replay an idempotency key (#1649).
+- The gradual-send `dailyVolume` on the domain health report is deprecated and
+  always empty: gradual sends no longer share a per-domain daily budget
+  (#1665).
+- Doc fix: `apiKeys.list` pages default to 100, not 50 (#1676).
+
 ## 11.0.1
 
 Type and docs fixes; no runtime change. Regenerated from the live spec after

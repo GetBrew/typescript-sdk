@@ -115,4 +115,23 @@ describe('audiences.list', () => {
     expect(url.searchParams.get('include')).toBeNull()
     expect(result.data[0]?.count).toBe(42)
   })
+
+  it('finds audiences by name with `search`', async () => {
+    let capturedRequest: Request | undefined
+    server.use(
+      http.get('https://brew.new/api/v1/audiences', ({ request }) => {
+        capturedRequest = request
+        return HttpResponse.json({ data: [], pagination: PAGINATION })
+      })
+    )
+
+    const { client } = makeTestHttpClient()
+    const list = createListAudiences(client)
+
+    await list({ search: 'launch' })
+
+    expect(new URL(capturedRequest!.url).searchParams.get('search')).toBe(
+      'launch'
+    )
+  })
 })

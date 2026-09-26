@@ -2,8 +2,6 @@ import type { components } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
-import type { GenerateEmailResponse } from './generate'
-
 export type RestoreEmailInput = {
   /**
    * The id of the email design whose history is being restored from.
@@ -13,14 +11,19 @@ export type RestoreEmailInput = {
   readonly emailId: string
 } & components['schemas']['EmailRestoreRequest']
 
-/** Restore returns the same generated-email shape as generate / edit. */
-export type RestoreEmailResponse = GenerateEmailResponse
+/**
+ * Restore answers the restored design, the generated-email artifact that
+ * clone and import also return. It never answers with text or a
+ * `generating` status, which generate and edit can.
+ */
+export type RestoreEmailResponse =
+  components['schemas']['EmailGenerateGeneratedResponse']
 
 /**
  * `POST /v1/emails/{emailId}/restore` (scope: `emails`) — non-destructively
  * clone the version named by `emailVersionId` into a NEW `latest` row
  * (the current head is demoted to history, nothing is lost) and return
- * the same generated-email shape as an edit.
+ * the restored design.
  *
  * The body takes `{ emailVersionId }` in v1, not the ordinal
  * `{ version }`. Read the ids from

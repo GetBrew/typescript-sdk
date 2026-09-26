@@ -6,13 +6,17 @@ import type { ContactsFilter } from './types'
 
 /**
  * Input to `brew.contacts.count`. Same predicate knobs as `search`
- * (`search`, `filters`, `logic`) minus the pagination/sort fields, which
- * are meaningless when you only want a count.
+ * (`search`, `filters`, `logic`, the `audienceId` scope) minus the
+ * pagination/sort fields, which are meaningless when you only want a
+ * count. For counts per field value or per period, use
+ * `brew.contacts.countBy`.
  */
 export type CountContactsInput = {
   readonly search?: string
   readonly filters?: ReadonlyArray<ContactsFilter>
   readonly logic?: components['schemas']['ContactsSearchRequest']['logic']
+  /** Count only the members of a saved audience. */
+  readonly audienceId?: components['schemas']['ContactsSearchRequest']['audienceId']
 }
 
 type ContactsCountResponse = components['schemas']['ContactsCountResponse']

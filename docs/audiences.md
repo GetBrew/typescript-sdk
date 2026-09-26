@@ -50,6 +50,7 @@ Every saved audience for the brand, under `{ data, pagination }`. Accepts
 
 ```ts
 type ListAudiencesInput = {
+  readonly search?: string // name contains, case-insensitive
   readonly limit?: number
   readonly cursor?: string
 }
@@ -58,6 +59,8 @@ const { data } = await brew.audiences.list()
 for (const audience of data) {
   console.log(audience.audienceId, audience.count)
 }
+
+const { data: matches } = await brew.audiences.list({ search: 'founders' })
 ```
 
 ## `get`
@@ -93,7 +96,11 @@ console.log(audience.build?.status) // queued | running | completed | ...
 
 ## `create`
 
-Returns the created `Audience` row.
+Returns the created row (`AudienceWriteResult`). When the filters carry an
+`email in [...]` list of more than 100 addresses, the list is stored as a
+snapshot of the matching contacts in a custom field, and
+`emailListMaterializations` reports each one (`fieldName`,
+`providedEmails`, `matchedContacts`).
 
 ```ts
 const audience = await brew.audiences.create({
@@ -107,12 +114,31 @@ const audience = await brew.audiences.create({
 
 ## `update`
 
-Pass `audienceId` plus at least one of `name` / `filters`. Returns the
-updated `Audience` row.
+Pass `audienceId` plus at least one of `name`, `filters`, `addEmails` or
+`removeEmails`. Returns the updated row (`AudienceWriteResult`).
 
 ```ts
 const updated = await brew.audiences.update({ audienceId, name: 'EU Founders' })
 ```
+
+Add or remove specific contacts by email instead of rewriting `filters`
+(pass one or the other, not both). The response's `membership` reports
+what happened to each address: `added`, `alreadyPresent`, `unExcluded`,
+`removedFromList`, `excludedByFilter`, `notAMember`, and `noContactYet`
+for an added address with no contact yet (it matches nobody until the
+contact exists).
+
+```ts
+const { membership } = await brew.audiences.update({
+  audienceId,
+  addEmails: ['ada@example.com'],
+  removeEmails: ['old@example.com'],
+})
+console.log(membership?.added, membership?.noContactYet)
+```
+
+An edit the audience's filters cannot express exactly is refused with
+`409 AUDIENCE_MEMBERSHIP_NOT_EXPRESSIBLE`, and nothing is written.
 
 ## `fromEvents`
 

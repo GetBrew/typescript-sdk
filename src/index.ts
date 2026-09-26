@@ -67,7 +67,7 @@ export type {
 } from './resources/audiences/list'
 export type { AudiencesResource } from './resources/audiences/resource'
 // ---------- Audiences: domain types ----------
-export type { Audience } from './resources/audiences/types'
+export type { Audience, AudienceWriteResult } from './resources/audiences/types'
 export type {
   UpdateAudienceInput,
   UpdateAudienceResponse,
@@ -247,6 +247,10 @@ export type {
 } from './resources/chats/types'
 // ---------- Contacts: method inputs + outputs ----------
 export type { CountContactsInput } from './resources/contacts/count'
+export type {
+  CountContactsByInput,
+  CountContactsByResponse,
+} from './resources/contacts/count-by'
 export type { GetContactResponse } from './resources/contacts/get'
 export type {
   ListContactsInput,

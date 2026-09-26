@@ -1,18 +1,24 @@
-import type { components } from '../../generated/openapi-types'
-import type { PaginationInput } from '../../core/pagination'
+import type { components, operations } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
 export type ListAudiencesResponse =
   components['schemas']['AudiencesListResponse']
 
-/** Pagination knobs accepted by `brew.audiences.list(...)`. */
-export type ListAudiencesInput = PaginationInput
+/**
+ * Query params accepted by `brew.audiences.list(...)`: `search` (name
+ * contains, case-insensitive) plus `limit` / `cursor`. Sourced from the
+ * generated `listAudiences` query so any new knob upstream surfaces as a
+ * compile error in the SDK.
+ */
+export type ListAudiencesInput = NonNullable<
+  operations['listAudiences']['parameters']['query']
+>
 
 /**
  * `GET /v1/audiences` (scope: `audiences`) — every saved audience for
- * the brand, under the uniform `{ data, pagination }` envelope. Page
- * with `limit` / `cursor`.
+ * the brand, under the uniform `{ data, pagination }` envelope. Find
+ * one by name with `search`; page with `limit` / `cursor`.
  *
  * A single audience is
  * `brew.audiences.get(audienceId, { include: 'count' })` — there is no
@@ -39,6 +45,7 @@ export function createListAudiences(client: HttpClient) {
       method: 'GET',
       path: '/v1/audiences',
       query: {
+        search: input.search,
         limit: input.limit,
         cursor: input.cursor,
       },

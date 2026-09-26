@@ -1,6 +1,7 @@
 import type { HttpClient } from '../../core/http'
 
 import { createCountContacts } from './count'
+import { createCountContactsBy } from './count-by'
 import { createDeleteContact } from './delete'
 import { createDeleteManyContacts } from './delete-many'
 import { createGetContact } from './get'
@@ -33,6 +34,8 @@ export type ContactsResource = {
   readonly searchAll: ReturnType<typeof createSearchAllContacts>
   /** `POST /v1/contacts/search` with `count: true` — count matching contacts (scope: `contacts`). */
   readonly count: ReturnType<typeof createCountContacts>
+  /** `POST /v1/contacts/search` with `count: true` and `groupBy` / `bucket` — exact counts per field value, email domain, or period (scope: `contacts`). */
+  readonly countBy: ReturnType<typeof createCountContactsBy>
   /** `POST /v1/contacts` — create or update a single contact by email; pass `validate: true` to deliverability-check and persist the verdict inline at 2 credits per address (scope: `contacts`). */
   readonly upsert: ReturnType<typeof createUpsertContact>
   /** `POST /v1/contacts` — batch create/update contacts; pass `validate: true` to deliverability-check each address (inline ≤100, else a background `validationJobId`) at 2 credits per address (scope: `contacts`). */
@@ -61,6 +64,7 @@ export function createContactsResource(client: HttpClient): ContactsResource {
     search: createSearchContacts(client),
     searchAll: createSearchAllContacts(client),
     count: createCountContacts(client),
+    countBy: createCountContactsBy(client),
     upsert: createUpsertContact(client),
     upsertMany: createUpsertManyContacts(client),
     patch: createPatchContact(client),
