@@ -2,7 +2,7 @@
 
 ## 11.2.0
 
-Regenerated from the live spec after brew-v2#1708 and brew-v2#1715
+Regenerated from the live spec after brew-v2#1708, #1711 and #1715
 (deployed 2026-09-28), which also carries brew-v2#1579's per-domain
 unsubscribe lists that 11.1.0 never mirrored. Additive, with one typing
 fix: a literal `dryRun: true` on `automations.patch` is now typed as the
@@ -39,6 +39,10 @@ that result (which were never there) stops compiling.
   `automations.patch` is now typed as that report too (it was typed as the
   row the API does not return).
 - `payloadContracts.infer({ subjectKind })`.
+- `automations.triggers.fire` responses carry `notStarted[]`
+  (`{ automationId, reason }`): each matched automation whose run failed to
+  start. `status: 'triggered'` means the event was accepted and matched, not
+  that every run started (brew-v2#1711).
 - Exported the input and response types of `contacts.validate`,
   `contacts.importCsv`, `contacts.deleteMany`, `automations.test`,
   `emails.clone`, `emails.export`, `emails.importFigma`, `fields` and

@@ -693,7 +693,7 @@ export interface paths {
          *
          *     **Input** Trigger binding, exactly one: an EVENT automation passes `triggerEventId`; a MANUAL-AUDIENCE automation omits it and gives the trigger node `config: { "mode": "manualAudience", "audienceId": "…" }`. Typed conditions: every filter and condition-mode split uses a non-empty `conditions` array; each condition needs `field`, `type` (`string`, `number`, `date` or `bool`) and a canonical snake_case `operator`; unary operators omit `value`, comparisons require a type-correct scalar, a non-empty array, or an exact two-value `between` tuple (see `AutomationNode`). Every `sendEmail` node carries `emailId`, `emailVersionId` and `subject` (`previewText` is optional; the design's `<Preview>` is the source of truth). `domainId` is optional at create time; publishing or running requires a verified one from `listDomains`. There is no `messageClass` key: the delivery class derives from the sending domain's `sendingPurpose` (a transactional-purpose domain sends with no unsubscribe link and delivers to unsubscribed contacts), so pick the class by picking the domain. `dryRun: true` validates without persisting.
          *
-         *     **Returns** `201` with the bare `AutomationRow`; with `dryRun: true`, `200` with an `AutomationDryRunReport` `{ valid, blockers[], warnings[], blockingIssues[], nodeCounts }` (`blockers[]` fail publish, `warnings[]` are advisory, `blockingIssues[]` lists per-node references the bound trigger or contact catalog cannot provide; `valid` is false when any blocker or blocking issue is present).
+         *     **Returns** `201` with the bare `AutomationRow`; with `dryRun: true`, `200` with an `AutomationDryRunReport` `{ valid, blockers[], warnings[], blockingIssues[], nodeCounts }` (`blockers[]` fail publish, `warnings[]` are advisory, `blockingIssues[]` lists per-node references the bound trigger or contact catalog cannot provide, each of which also fails publish; `valid` is false when any blocker or blocking issue is present).
          *
          *     **Errors** `400 AUTOMATION_GRAPH_INVALID` with `details.issues[]` (`kind`, `nodeId`, `message` per problem); `404 TRIGGER_EVENT_NOT_FOUND` for an unknown `triggerEventId`.
          *
@@ -745,7 +745,7 @@ export interface paths {
          *
          *     **Input** Update: one or more of `name`, `description`, `nodes`, `connections`, `triggerEventId`, under the same typed condition contract as create (explicit `type`, canonical snake_case `operator`, no `value` for unary operators, type-correct values elsewhere); `dryRun: true` validates without persisting. Lifecycle: `published: true` promotes the stored latest version live (optionally pin `automationVersionId`; the graph is validated first), `published: false` unpublishes, `paused: true` or `false` freezes or resumes future send steps (`stopInFlight` also stops runs already in progress).
          *
-         *     **Returns** the bare automation row, or with `dryRun: true` a `200 AutomationDryRunReport` `{ valid, blockers[], warnings[], blockingIssues[], nodeCounts }`: `blockingIssues[]` lists per-node references the effective trigger or contact catalog cannot provide (`fatal: true` for filter or split conditions and triple-brace `{{{ }}}` body tokens fails publish; `fatal: false` for subject, previewText, fromName, replyTo and double-brace body tags renders empty at send time); `valid` is false when any blocker or blocking issue is present, while publish itself hard-blocks only fatal issues so a live automation can be republished after a soft orphan. Updating a LIVE automation saves a draft and does not go live: the previously published version keeps serving until you republish, `published` describes the returned row, `isLive`, `liveVersion` and `liveAutomationVersionId` describe the automation, and `warnings[]` carries `DRAFT_SAVED_NOT_LIVE`.
+         *     **Returns** the bare automation row, or with `dryRun: true` a `200 AutomationDryRunReport` `{ valid, blockers[], warnings[], blockingIssues[], nodeCounts }`: `blockingIssues[]` lists per-node references the effective trigger or contact catalog cannot provide, and publish refuses every one of them, fallback or not (`fatal` says what the reference would do: `true` for filter or split conditions and triple-brace `{{{ }}}` body tokens would break the run, `false` for subject, previewText, fromName, replyTo and double-brace body tags would render empty); `valid` is false when any blocker or blocking issue is present. Updating a LIVE automation saves a draft and does not go live: the previously published version keeps serving until you republish, `published` describes the returned row, `isLive`, `liveVersion` and `liveAutomationVersionId` describe the automation, and `warnings[]` carries `DRAFT_SAVED_NOT_LIVE`.
          *
          *     **Errors** `404 AUTOMATION_NOT_FOUND`, `AUTOMATION_VERSION_NOT_FOUND` (pin `liveAutomationVersionId`, a `versions[]` id, or a run row's `automationVersionId`), `TRIGGER_EVENT_NOT_FOUND`; `400 AUTOMATION_GRAPH_INVALID` (`details.issues[]`); `409 AUTOMATION_VERSION_CONFLICT` (re-read, reapply, retry); `422 PUBLISH_VALIDATION_FAILED` (`details.blockers[]`), `AUTOMATION_NOT_PUBLISHED` (nothing to unpublish), `AUTOMATION_NOT_PAUSABLE` (a manual-audience automation pauses through its runs).
          *
@@ -1153,7 +1153,7 @@ export interface paths {
          *
          *     **Input** `{ payload }`, validated against the trigger’s `payloadSchema`. Unknown fields are accepted and reported in `warnings[]`. The contact derived from the payload is upserted before the fan-out with the declared top-level scalar fields the fire sent; object and array fields stay template data, and a contract `fallbackValue` is never written onto the contact. A value the contact field’s type refuses is left out and reported as a `FIELD_TYPE_MISMATCH` warning (`field`, `expectedType`, `actualType`); the rest of the contact is written and the runs still start.
          *
-         *     **Returns** `202 { triggerInstanceId, triggerEventId, status, automationRunIds[], publishedAutomations[], counts, warnings[], receivedAt }`. Follow a run with `getAutomationRun`, the fire itself with `getTriggerInstance`. `counts.skipped` is the recipients a suppression already covered, so `automations: 2, skipped: 2` means nothing was delivered.
+         *     **Returns** `202 { triggerInstanceId, triggerEventId, status, automationRunIds[], notStarted[], publishedAutomations[], counts, warnings[], receivedAt }`. Follow a run with `getAutomationRun`, the fire itself with `getTriggerInstance`. `notStarted[]` names each automation whose run failed to start and why, so a `triggered` fire with no runs explains itself. `counts.skipped` is the recipients a suppression already covered, so `automations: 2, skipped: 2` means nothing was delivered.
          *
          *     **Idempotency** send a stable `Idempotency-Key` header on every retry. A repeat answers `200` with `status: "replayed"` and the ORIGINAL run ids; nothing fires twice.
          *
@@ -3089,7 +3089,7 @@ export interface components {
                 /** @description Human-readable description of the finding. */
                 message: string;
             }[];
-            /** @description Trigger-payload / draft-variable compatibility findings. Present (possibly empty) on POST and PATCH dry-run responses. `valid` is false when any entry is present. */
+            /** @description Trigger-payload / draft-variable compatibility findings. Present (possibly empty) on POST and PATCH dry-run responses. Every entry blocks publish, and `valid` is false when any is present. */
             blockingIssues?: {
                 nodeId: string;
                 nodeLabel: string;
@@ -3102,9 +3102,9 @@ export interface components {
                 variable: string;
                 /** @description Short user-facing reason. */
                 reason: string;
-                /** @description true — filter/split conditions and triple-brace `{{{ }}}` body tokens: the run genuinely breaks, and publish fails. false — subject/previewText/fromName/replyTo and double-brace body tags: the value renders empty at send time; advisory only. */
+                /** @description What the reference would do at send time. true — a filter/split condition or triple-brace `{{{ }}}` body token: the run would break. false — a subject/previewText/fromName/replyTo or double-brace body tag: it would render empty. Both block publish. */
                 fatal: boolean;
-                /** @description The token carries an inline `{{ name | fallback }}` fallback, so it renders the fallback rather than empty. Never blocks publish. */
+                /** @description The token carries an inline `{{ name | fallback }}` fallback. It still blocks publish: a fallback covers a missing value, not a field the trigger never declares. */
                 hasFallback: boolean;
             }[];
             /** @description Per-kind node counts of the validated graph. */
@@ -5950,12 +5950,21 @@ export interface components {
             triggerInstanceId: string;
             triggerEventId: string;
             /**
-             * @description `triggered` = this call started the runs. `replayed` = the same `Idempotency-Key` already fired; nothing ran twice.
+             * @description `triggered` = this call accepted and matched the event; `automationRunIds` lists the runs it started and `notStarted` any it could not. `replayed` = the same `Idempotency-Key` already fired; nothing ran twice.
              * @enum {string}
              */
             status: "triggered" | "replayed";
             /** @description The runs this fire started — `GET /v1/automations/runs/{automationRunId}`. */
             automationRunIds: string[];
+            /**
+             * @description Matched automations whose run failed to start, each with the reason; one skipped on purpose (paused past its window, a suppressed contact) is not listed. A fire can answer `triggered` with no runs; this says why.
+             * @default []
+             */
+            notStarted?: {
+                automationId: string;
+                /** @description Why its run did not start. A refusal (a merge tag or condition field the trigger does not declare, a step the run gate finds incomplete) repeats on every fire until the automation or trigger is fixed; an unexpected error is retried automatically. */
+                reason: string;
+            }[];
             publishedAutomations: ({
                 automationId: string;
                 name?: string;
