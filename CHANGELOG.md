@@ -2,9 +2,9 @@
 
 ## 11.2.0
 
-Regenerated from the spec of brew-v2#1708 (merge it and deploy before
-publishing), which also carries brew-v2#1579's per-domain unsubscribe lists
-that 11.1.0 never mirrored. Additive: no existing signature changes.
+Regenerated from the live spec after brew-v2#1708 (deployed 2026-09-28),
+which also carries brew-v2#1579's per-domain unsubscribe lists that 11.1.0
+never mirrored. Additive: no existing signature changes.
 
 ### Added
 
