@@ -9,6 +9,7 @@ per-automation performance, and a unified cross-domain event explorer.
 | [`automations`](#automations) | `GET /v1/analytics/automations` | `automations` |
 | [`events`](#events)           | `GET /v1/analytics/events`      | `emails`      |
 | [`eventsAll`](#eventsall)     | `GET /v1/analytics/events`      | `emails`      |
+| [`eventCounts`](#eventcounts) | `GET /v1/analytics/events`      | `emails`      |
 
 > **Moved in 10.0.0.** `analytics` keeps only reports. The row reads that
 > used to live here went to the resources that own them:
@@ -131,3 +132,38 @@ for await (const event of brew.analytics.eventsAll({
   console.log(event.occurredAt, event.eventType, event.emailName)
 }
 ```
+
+---
+
+## `eventCounts`
+
+Counts of the email events the same filters list, instead of the rows: per
+one or two fields (`groupBy`), per UTC `day`, `week` or `month` (`bucket`),
+or both. Returns `count`, the largest 200 `groups` (`key` maps each field
+to its value, `bucket` is the ISO period start), `otherCount` for the rest,
+`range`, and `truncated` with `coveredFrom` when the window held more than
+the newest 20,000 events. It counts events, not unique recipients.
+
+```ts
+// Clicks per link on one send.
+const perLink = await brew.analytics.eventCounts({
+  sendId: 'snd_123',
+  eventType: 'clicked',
+  groupBy: ['link'],
+})
+
+// Events per type per day, last week.
+const perDay = await brew.analytics.eventCounts({
+  groupBy: ['eventType'],
+  bucket: 'day',
+})
+
+// Unsubscribes per stated reason.
+const reasons = await brew.analytics.eventCounts({
+  groupBy: ['unsubscribeReason'],
+})
+```
+
+`groupBy` takes `eventType`, `emailId`, `automationId`, `sendId`,
+`source`, `link`, `recipientDomain` or `unsubscribeReason`
+(`EVENTS_GROUP_BY_TOKENS`). A count takes no `cursor` or `limit`.

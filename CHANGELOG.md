@@ -1,5 +1,27 @@
 # Changelog
 
+## 11.2.0
+
+Regenerated from the spec of brew-v2#1708 (merge it and deploy before
+publishing), which also carries brew-v2#1579's per-domain unsubscribe lists
+that 11.1.0 never mirrored. Additive: no existing signature changes.
+
+### Added
+
+- `analytics.eventCounts({ groupBy, bucket, ...filters })`: counts of the
+  email events the same filters list, per one or two fields (`eventType`,
+  `emailId`, `automationId`, `sendId`, `source`, `link`, `recipientDomain`,
+  `unsubscribeReason`) and/or per UTC `day`, `week` or `month`. Returns
+  `count`, the largest 200 `groups`, `otherCount`, `range` and `truncated`
+  (with `coveredFrom`). Clicks per link: `groupBy: ['link']` with
+  `eventType: 'clicked'`. Counts events, not unique recipients.
+  `EVENTS_GROUP_BY_TOKENS` is pinned to the spec's `x-brew-group-by-tokens`.
+- `domains.unsubscribes.{list, add, remove, import, export}`: a marketing
+  domain's own unsubscribe list. `add` and `import` suppress addresses from
+  that domain only (a new address is created unsubscribed brand-wide);
+  `remove` never re-subscribes a brand-wide opt-out; `list` and `export`
+  narrow by `scope` (`any`, `domain`, `all`).
+
 ## 11.1.0
 
 Regenerated from the live spec after brew-v2#1649, #1650, #1651, #1655,

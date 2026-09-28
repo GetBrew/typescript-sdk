@@ -105,6 +105,13 @@ describe('createBrewClient — end-to-end', () => {
     expect(typeof brew.contacts.list).toBe('function')
     expect(typeof brew.contacts.get).toBe('function')
     expect(typeof brew.domains.get).toBe('function')
+    expect(Object.keys(brew.domains.unsubscribes).sort()).toEqual([
+      'add',
+      'export',
+      'import',
+      'list',
+      'remove',
+    ])
     expect(typeof brew.emailGroups.get).toBe('function')
     expect(typeof brew.emails.get).toBe('function')
     expect(typeof brew.emails.inboxPlacementTests.get).toBe('function')
@@ -126,6 +133,7 @@ describe('createBrewClient — end-to-end', () => {
     // v1 cleanup: analytics keeps only reports.
     expect(Object.keys(brew.analytics).sort()).toEqual([
       'automations',
+      'eventCounts',
       'events',
       'eventsAll',
       'overview',
