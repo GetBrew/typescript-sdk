@@ -2,12 +2,14 @@
 
 ## 11.2.0
 
-Regenerated from the live spec after brew-v2#1708, #1711 and #1715
+Regenerated from the live spec after brew-v2#1708, #1711, #1713 and #1715
 (deployed 2026-09-28), which also carries brew-v2#1579's per-domain
-unsubscribe lists that 11.1.0 never mirrored. Additive, with one typing
-fix: a literal `dryRun: true` on `automations.patch` is now typed as the
-`AutomationDryRunReport` the API returns, so code that read row fields off
-that result (which were never there) stops compiling.
+unsubscribe lists that 11.1.0 never mirrored. Additive, except for two
+changes that make a call fail to compile instead of failing at runtime: a
+literal `dryRun: true` on `automations.patch` is now typed as the
+`AutomationDryRunReport` the API returns (code that read row fields off it
+read fields that were never there), and `brand.getImages` no longer takes
+the `type` and `aspectRatio` filters the API retired (see below).
 
 ### Added
 
@@ -47,6 +49,16 @@ that result (which were never there) stops compiling.
   `contacts.importCsv`, `contacts.deleteMany`, `automations.test`,
   `emails.clone`, `emails.export`, `emails.importFigma`, `fields` and
   `templates.list`, which were reachable only through the methods.
+
+### Changed by the API
+
+- `brand.getImages` takes `kind` (`logo`, `brand`, `generated`) and `sort`
+  (`newest`, `oldest`) and reads the whole asset library the Assets page
+  shows; rows carry `assetId`, `kind`, `addedAt` and a logo's variant.
+  brew-v2#1713 retired the `type` and `aspectRatio` filters (the API answers
+  `400` naming `kind`), so they left `ListBrandImagesInput` and the SDK no
+  longer sends them; a call that passed them stops compiling instead of
+  failing at runtime.
 
 ### Tests
 
