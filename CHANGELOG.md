@@ -1,5 +1,45 @@
 # Changelog
 
+## 12.0.0
+
+Regenerated from brew-v2 main with GetBrew/brew-v2#1713 and #1710 (merge
+after they deploy). `brand.getImages` changes shape; the per-domain
+unsubscribe lists from brew-v2#1579 get their methods.
+
+### Breaking
+
+- `brand.getImages({ q, kind, sort, limit, cursor })` lists the brand's whole
+  asset library, as the Assets page shows it: logos, brand images (from the
+  site or uploaded) and images made with Brew.
+  - `kind`: `'logo'`, `'brand'` or `'generated'`; omit for every kind.
+  - `sort`: `'newest'` (default) or `'oldest'`. Browsing is free.
+  - `q`: semantic search over brand and generated images, 1 credit for the
+    first page, in relevance order (`sort` is ignored). `q` with
+    `kind: 'logo'` is a `400`: logos are not searchable.
+  - `type` and `aspectRatio` are gone. The API answers either with a `400`
+    that names the replacement.
+  - Rows carry `assetId` (the id the app opens at `/assets?image=<id>`),
+    `kind`, `url` and, when known, `description`, `width`, `height`,
+    `category`, `pageUrl`, `addedAt` and a logo's `logo` variant. They no
+    longer carry `aspectRatio` or `prompt`.
+
+### Added
+
+- `domains.unsubscribes`: one marketing domain's unsubscribe list.
+  - `list({ domainId, q?, scope?, limit?, cursor? })`
+  - `add({ domainId, emails })`
+  - `remove(domainId, email)`
+  - `import({ domainId, csv, column? })`: another ESP's export, up to
+    10,000 rows per call.
+  - `export({ domainId, scope? })`: the list as CSV text in `csv`.
+- Typed from the spec: contacts carry `unsubscribedDomains`; the warning
+  code enum gains `CORE_FIELD_IGNORED` and `CSV_COLUMN_IGNORED`.
+
+### Notes
+
+- `content.generateImage` output is now also saved to the brand's generated
+  images (brew-v2#1710); `brand.getImages({ kind: 'generated' })` lists it.
+
 ## 11.1.0
 
 Regenerated from the live spec after brew-v2#1649, #1650, #1651, #1655,

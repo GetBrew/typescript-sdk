@@ -75,9 +75,23 @@ const result = await brew.brand.patch({
 
 ## `getImages`
 
-Page through the brand's saved image library — `{ data, pagination }`.
-Accepts `{ limit, cursor }`.
+The brand's asset library, as the Assets page shows it: logos, brand
+images and images made with Brew — `{ data, pagination }`. Accepts
+`{ q, kind, sort, limit, cursor }`.
+
+- `kind`: `'logo'`, `'brand'` (from the site or uploaded) or `'generated'`
+  (made with Brew). Omit for every kind.
+- `sort`: `'newest'` (default) or `'oldest'`. Browsing is free.
+- `q`: semantic search over brand and generated images, 1 credit for the
+  first page (continuing with `cursor` is free). Results come in relevance
+  order and `sort` is ignored. Logos are not searchable.
+
+Each row carries `assetId` (the id the app opens at
+`/assets?image=<assetId>`), `kind`, `url` and, when known, `description`,
+`width`, `height`, `category`, `pageUrl`, `addedAt` and a logo's `logo`
+variant.
 
 ```ts
-const { data, pagination } = await brew.brand.getImages({ limit: 50 })
+const { data } = await brew.brand.getImages({ kind: 'generated', limit: 50 })
+const heroes = await brew.brand.getImages({ q: 'team at work', kind: 'brand' })
 ```

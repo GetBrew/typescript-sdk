@@ -11,7 +11,9 @@ export type { ContentGenerateImageRequest, ContentImageResponse }
  * `emails` scope.
  *
  * Returns a `ContentImageResponse` (`{ url, prompt, description?,
- * warnings? }`). This operation is credit-metered. An
+ * warnings? }`). The image is also saved to the brand's generated images
+ * (`brand.getImages({ kind: 'generated' })`). This operation is
+ * credit-metered. An
  * insufficient balance surfaces as `402 INSUFFICIENT_CREDITS`.
  *
  * Pass `{ raw: true }` in `options` to receive the full

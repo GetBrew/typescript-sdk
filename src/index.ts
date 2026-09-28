@@ -315,6 +315,30 @@ export type {
   UpdateDomainSettingsResponse,
 } from './resources/domains/settings'
 export type { Domain } from './resources/domains/types'
+// ---------- Domains › unsubscribes: method inputs + outputs ----------
+export type {
+  AddDomainUnsubscribesInput,
+  AddDomainUnsubscribesResponse,
+} from './resources/domains/unsubscribes/add'
+export type {
+  ExportDomainUnsubscribesInput,
+  ExportDomainUnsubscribesResponse,
+} from './resources/domains/unsubscribes/export'
+export type {
+  ImportDomainUnsubscribesInput,
+  ImportDomainUnsubscribesResponse,
+} from './resources/domains/unsubscribes/import'
+export type {
+  ListDomainUnsubscribesInput,
+  ListDomainUnsubscribesResponse,
+} from './resources/domains/unsubscribes/list'
+export type { RemoveDomainUnsubscribeResponse } from './resources/domains/unsubscribes/remove'
+export type { DomainUnsubscribesResource } from './resources/domains/unsubscribes/resource'
+export type {
+  DomainUnsubscribe,
+  DomainUnsubscribeScope,
+  DomainUnsubscribesScopeFilter,
+} from './resources/domains/unsubscribes/types'
 export type {
   VerifyDomainInput,
   VerifyDomainResponse,

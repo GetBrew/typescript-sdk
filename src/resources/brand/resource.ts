@@ -11,7 +11,7 @@ export type BrandResource = {
   readonly patch: ReturnType<typeof createUpdateBrand>
   /** Alias for {@link patch} — `PATCH /v1/brand`. */
   readonly update: ReturnType<typeof createUpdateBrand>
-  /** `GET /v1/brand/images` — the brand's image library: browse (paginated) or semantic search via `q`; narrow with `type` / `aspectRatio` (scope: `emails`). */
+  /** `GET /v1/brand/images` — the brand's asset library (logos, brand images, images made with Brew): browse by `sort` or search via `q`; narrow with `kind` (scope: `emails`). */
   readonly getImages: ReturnType<typeof createGetBrandImages>
 }
 
