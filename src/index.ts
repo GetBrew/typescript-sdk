@@ -18,6 +18,11 @@ export { autoPaginate } from './core/pagination'
 // (replaces the removed `TransactionalPayloadValue`).
 export type { SendPayloadValue } from './generated/openapi-types'
 export type { AutomationAnalyticsInput } from './resources/analytics/automations'
+export {
+  type EventCountsInput,
+  type EventCountsResponse,
+  EVENTS_GROUP_BY_TOKENS,
+} from './resources/analytics/event-counts'
 export type {
   EventsAnalyticsAllInput,
   EventsAnalyticsInput,
@@ -319,6 +324,27 @@ export type {
   VerifyDomainInput,
   VerifyDomainResponse,
 } from './resources/domains/verify'
+export type {
+  AddDomainUnsubscribesInput,
+  AddDomainUnsubscribesResponse,
+} from './resources/domains/unsubscribes/add'
+export type {
+  ExportDomainUnsubscribesInput,
+  ExportDomainUnsubscribesResponse,
+} from './resources/domains/unsubscribes/export'
+export type {
+  ImportDomainUnsubscribesInput,
+  ImportDomainUnsubscribesResponse,
+} from './resources/domains/unsubscribes/import'
+export type {
+  ListDomainUnsubscribesInput,
+  ListDomainUnsubscribesResponse,
+} from './resources/domains/unsubscribes/list'
+export type {
+  RemoveDomainUnsubscribeInput,
+  RemoveDomainUnsubscribeResponse,
+} from './resources/domains/unsubscribes/remove'
+export type { DomainUnsubscribesResource } from './resources/domains/unsubscribes/resource'
 export type { GetEmailGroupResponse } from './resources/email-groups/get'
 export type { EmailGroupsResource } from './resources/email-groups/resource'
 export type * from './resources/email-groups/types'

@@ -3,11 +3,12 @@
 List and manage sending domains. `list` returns the uniform
 `{ data, pagination }` envelope; `get` returns the bare `Domain` row.
 
-| Method              | HTTP                                |
-| ------------------- | ----------------------------------- |
-| [`list`](#list)     | `GET /v1/domains`                   |
-| [`get`](#get)       | `GET /v1/domains/{domainId}`        |
-| [`health`](#health) | `GET /v1/domains/{domainId}/health` |
+| Method                          | HTTP                                  |
+| ------------------------------- | ------------------------------------- |
+| [`list`](#list)                 | `GET /v1/domains`                     |
+| [`get`](#get)                   | `GET /v1/domains/{domainId}`          |
+| [`health`](#health)             | `GET /v1/domains/{domainId}/health`   |
+| [`unsubscribes`](#unsubscribes) | `/v1/domains/{domainId}/unsubscribes` |
 
 > **New in 10.0.0.** `get(domainId)` is a real route. The `domainId`
 > query filter on `GET /v1/domains` is gone — it now `400`s.
@@ -122,4 +123,42 @@ console.log(health.score.value, health.verdict)
 for (const signal of health.signals) {
   console.log(signal.severity, signal.summary, signal.suggestion)
 }
+```
+
+---
+
+## `unsubscribes`
+
+Every marketing domain keeps its own unsubscribe list. `add` and `import`
+suppress addresses from THIS domain's mail only (sends from the brand's other
+marketing domains still reach them); an address with no contact is created
+unsubscribed brand-wide. `remove` never re-subscribes a brand-wide opt-out.
+A transactional domain has no list (`422 DOMAIN_PURPOSE_NOT_ALLOWED`).
+
+```ts
+await brew.domains.unsubscribes.add(
+  { domainId: 'domain_123', emails: ['ada@example.com'] },
+  { idempotencyKey: 'suppress-ada' }
+)
+
+const page = await brew.domains.unsubscribes.list({
+  domainId: 'domain_123',
+  scope: 'domain', // 'any' | 'domain' | 'all'
+})
+
+await brew.domains.unsubscribes.import({
+  domainId: 'domain_123',
+  csv: 'Email\nada@example.com\nbo@example.com',
+  column: 'Email',
+})
+
+const { csv } = await brew.domains.unsubscribes.export({
+  domainId: 'domain_123',
+  scope: 'any',
+})
+
+await brew.domains.unsubscribes.remove({
+  domainId: 'domain_123',
+  email: 'ada@example.com',
+})
 ```

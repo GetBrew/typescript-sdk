@@ -1,6 +1,7 @@
 import type { HttpClient } from '../../core/http'
 
 import { createAutomationAnalytics } from './automations'
+import { createEventCounts } from './event-counts'
 import { createEventsAnalytics, createEventsAnalyticsAll } from './events'
 import { createAnalyticsOverview } from './overview'
 
@@ -19,6 +20,8 @@ export type AnalyticsResource = {
   readonly events: ReturnType<typeof createEventsAnalytics>
   /** Auto-pager over `events` — yields every matching `EventRow`. */
   readonly eventsAll: ReturnType<typeof createEventsAnalyticsAll>
+  /** `GET /v1/analytics/events` with `groupBy` / `bucket` — counts of the email events the same filters list, per field value and/or period (scope: `emails`). */
+  readonly eventCounts: ReturnType<typeof createEventCounts>
 }
 
 export function createAnalyticsResource(client: HttpClient): AnalyticsResource {
@@ -27,5 +30,6 @@ export function createAnalyticsResource(client: HttpClient): AnalyticsResource {
     automations: createAutomationAnalytics(client),
     events: createEventsAnalytics(client),
     eventsAll: createEventsAnalyticsAll(client),
+    eventCounts: createEventCounts(client),
   }
 }

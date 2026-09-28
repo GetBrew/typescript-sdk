@@ -6,6 +6,10 @@ import { createGetDomain } from './get'
 import { createGetDomainHealth } from './health'
 import { createListDomains } from './list'
 import { createUpdateDomainSettings } from './settings'
+import {
+  createDomainUnsubscribesResource,
+  type DomainUnsubscribesResource,
+} from './unsubscribes/resource'
 import { createVerifyDomain } from './verify'
 
 export type DomainsResource = {
@@ -23,6 +27,8 @@ export type DomainsResource = {
   readonly updateSettings: ReturnType<typeof createUpdateDomainSettings>
   /** `DELETE /v1/domains/{domainId}` — idempotent remove (scope: `domains`). */
   readonly delete: ReturnType<typeof createDeleteDomain>
+  /** A marketing domain's own unsubscribe list: `list`, `add`, `remove`, `import`, `export` (scope: `domains`). */
+  readonly unsubscribes: DomainUnsubscribesResource
 }
 
 export function createDomainsResource(client: HttpClient): DomainsResource {
@@ -34,5 +40,6 @@ export function createDomainsResource(client: HttpClient): DomainsResource {
     health: createGetDomainHealth(client),
     updateSettings: createUpdateDomainSettings(client),
     delete: createDeleteDomain(client),
+    unsubscribes: createDomainUnsubscribesResource(client),
   }
 }
