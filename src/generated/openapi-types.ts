@@ -1339,6 +1339,8 @@ export interface paths {
          *
          *     Custom-field values are coerced to the definition's type (dates → epoch ms, `"1,234"` → 1234, `yes`/`no` → booleans). A value that cannot be coerced (`"$49"` in a number field) is a `409 FIELD_TYPE_MISMATCH` on a single upsert and a per-row `errors[]` entry (`code: FIELD_TYPE_MISMATCH`, `field`) in a batch — the other rows still land. A `customFields` key is never stored under a core field name. One whose loss would change the contact (`subscribed`, `First Name`, `consent`, a suppression flag or domain opt-out, or an `email` naming another address) is a `422 CORE_FIELD_IMMUTABLE` on a single upsert (nothing written) and a per-row `errors[]` entry (`code: CORE_FIELD_IMMUTABLE`, `field`) in a batch; send `firstName`, `lastName`, `subscribed` and `consent` at the top level. A key naming a field Brew manages (`createdAt`, `validationStatus`) is dropped with a `warnings[]` entry (`code: CORE_FIELD_IGNORED`, `field`) and the contact is still written, and an `email` key repeating the contact address is ignored.
          *
+         *     Dates: a JSON number is epoch milliseconds. A string may be ISO (`2026-04-03`, with or without a time and offset), a Unix timestamp in seconds (10 digits) or milliseconds (13), a month name (`3 Apr 2026`, `April 3, 2026`, `03-Apr-26`), year-first (`2026/04/03`), compact (`20260403`), month and year read as the 1st (`2026-04`), dotted day-first (`03.04.2026`), or a slash or dash date. A slash or dash date with a day over 12 reads that way (`13/04/2026` is 13 April). One that reads either way (`03/04/2026`) follows the day/month order the batch's other dates in that field prove, else month/day, with a `warnings[]` entry (`code: DATE_ORDER_ASSUMED`, `field`). Send `YYYY-MM-DD` to be unambiguous.
+         *
          *     Optional `consent: { source: "api" | "form" | "import", capturedAt?, policyVersion?, evidence? }` records marketing consent provenance on the contact (per row, or once at batch level as the default). It never changes `subscribed`. An inline marketing send later needs the contact to be subscribed, and warns when no record exists.
          *
          *     `subscribed: false` unsubscribes the contact, new or existing. `subscribed: true` only applies to a NEW contact: Brew never re-subscribes a contact who opted out, so a single upsert asking for it is a `422 RESUBSCRIBE_NOT_ALLOWED` (nothing written), and a batch row keeps its other fields and adds a `warnings[]` entry (`code: RESUBSCRIBE_SKIPPED`, `email`).
@@ -1450,6 +1452,8 @@ export interface paths {
          * @description Parse a raw CSV string and upsert the rows as contacts (≤ 1000). By default each column header maps to a field of the same name (`email` is required). A header that spells a core field, ignoring case, spaces, `_` and `-`, or whose field key equals it (`First.Name`), maps to it: `Email`, `First Name`, `Last Name` and `Subscribed` fill `email`, `firstName`, `lastName` and `subscribed`. Pass `mapping` to remap single columns; the columns it leaves out keep their default mapping, `""` leaves a column out, and a key that names no column is a `400`. A core field that `mapping` fills is filled from that column alone: another column whose default would fill it is left out with a `CSV_COLUMN_IGNORED` warning. Rows with a missing/invalid email are SKIPPED (counted in `summary.skipped`), not errored; disposable-domain rows are imported with `validationStatus: "risky"` (deliverable but flagged). Returns the same `{ summary, fieldsCreated, errors, warnings }` as batch-create — `207` when some rows fail.
          *
          *     CSV cells are text: a column mapped onto an EXISTING field is coerced to that field's type (dates → epoch ms, `1,234` → 1234, `yes`/`no` → booleans), and a cell that cannot be coerced (`$49` in a number column) fails ITS row with a per-row `errors[]` entry (`code: FIELD_TYPE_MISMATCH`, `field`) while the other rows still land. An undeclared column is created as a `string` field unless every value is an ISO date (→ `date`); predeclare `number` / `bool` columns with `POST /v1/fields`. A column whose field Brew manages (`Created At`, `Validation Status`) is not imported and adds a `warnings[]` entry (`code: CSV_COLUMN_IGNORED`, `field` names the column).
+         *
+         *     A date column is read in ONE day/month order: the order its own dates prove (a day over 12 anywhere in the column, `13/04/2026`), else `dateOrder` (`day_first` reads `03/04/2026` as 3 April, `month_first` as 4 March), else month/day with a `warnings[]` entry (`code: DATE_ORDER_ASSUMED`, `field`). Dotted dates (`03.04.2026`) are day-first. ISO (`2026-04-03`), Unix seconds or milliseconds, month names (`3 Apr 2026`), year-first (`2026/04/03`) and compact (`20260403`) dates need no order. Convert to `YYYY-MM-DD` to be unambiguous.
          *
          *     A `subscribed` column reads true/false and ESP status words (`unsubscribed`, `cleaned`, `blocklisted`, `transactional`, `active`, …). An opt-out unsubscribes the contact, new or existing. A word that is not a subscription status (`maybe`) fails its row (`code: FIELD_TYPE_MISMATCH`, `field: subscribed`) instead of importing the contact subscribed. A subscribed value only applies to new contacts: a row that asks to re-subscribe a contact who opted out keeps its other fields and adds a `warnings[]` entry (`code: RESUBSCRIBE_SKIPPED`, `email`).
          */
@@ -3056,7 +3060,7 @@ export interface components {
         };
         ApiWarning: {
             /** @enum {string} */
-            code: "DRAFT_SAVED_NOT_LIVE" | "ENFORCEMENT_LOOSENED_WHILE_PUBLISHED" | "REQUIRED_FIELD_SATISFIED_BY_FALLBACK" | "RESUBSCRIBE_SKIPPED" | "CORE_FIELD_IGNORED" | "CSV_COLUMN_IGNORED" | "RECIPIENTS_EXCLUDED" | "CONSENT_RECORD_MISSING";
+            code: "DRAFT_SAVED_NOT_LIVE" | "ENFORCEMENT_LOOSENED_WHILE_PUBLISHED" | "REQUIRED_FIELD_SATISFIED_BY_FALLBACK" | "RESUBSCRIBE_SKIPPED" | "CORE_FIELD_IGNORED" | "DATE_ORDER_ASSUMED" | "CSV_COLUMN_IGNORED" | "RECIPIENTS_EXCLUDED" | "CONSENT_RECORD_MISSING";
             message: string;
             field?: string;
         };
@@ -6549,6 +6553,11 @@ export interface components {
                 policyVersion?: string;
                 evidence?: string;
             };
+            /**
+             * @description Order for a date column whose dates read either way (`03/04/2026`): `day_first` is 3 April, `month_first` 4 March. A day over 12 in the column overrides it. Default month-first, with a DATE_ORDER_ASSUMED warning.
+             * @enum {string}
+             */
+            dateOrder?: "month_first" | "day_first";
         };
         ContactsBatchDeleteResponse: {
             deletedCount: number;

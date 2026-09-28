@@ -100,6 +100,7 @@ export type {
   AutomationSplitNodeConfig,
   AutomationTriggerNodeConfig,
   AutomationWaitNodeConfig,
+  CreateAutomationDryRunInput,
   CreateAutomationInput,
   CreateAutomationResponse,
 } from './resources/automations/create'
@@ -117,6 +118,7 @@ export type {
   ListAutomationsResponse,
 } from './resources/automations/list'
 export type {
+  PatchAutomationDryRunInput,
   PatchAutomationInput,
   PatchAutomationResponse,
   UnpublishAutomationInput,
@@ -151,6 +153,10 @@ export type {
   AutomationRunLog,
   AutomationRunsListResponse,
 } from './resources/automations/runs/types'
+export type {
+  TestAutomationInput,
+  TestAutomationResponse,
+} from './resources/automations/test'
 // ---------- Automations › trigger-instances: fired-trigger history ----------
 // (Moved off `analytics` in v1 — it is trigger history, not a report.)
 export type { GetTriggerInstanceResponse } from './resources/automations/trigger-instances/get'
@@ -211,6 +217,7 @@ export type {
 // ---------- Automations: domain types ----------
 export type {
   Automation,
+  AutomationDryRunReport,
   AutomationsListResponse,
 } from './resources/automations/types'
 export type { GetBrandInput } from './resources/brand/get'
@@ -258,6 +265,13 @@ export type {
 } from './resources/contacts/count-by'
 export type { GetContactResponse } from './resources/contacts/get'
 export type {
+  ImportCsvContactsInput,
+  ImportCsvContactsResponse,
+  ImportCsvError,
+  ImportCsvSummary,
+  ImportCsvWarning,
+} from './resources/contacts/import-csv'
+export type {
   ListContactsInput,
   ListContactsResponse,
 } from './resources/contacts/list'
@@ -265,7 +279,10 @@ export type {
   DeleteContactInput,
   DeleteContactResponse,
 } from './resources/contacts/delete'
-export type { DeleteManyContactsInput } from './resources/contacts/delete-many'
+export type {
+  DeleteManyContactsInput,
+  DeleteManyContactsResponse,
+} from './resources/contacts/delete-many'
 export type {
   PatchContactInput,
   PatchContactResponse,
@@ -284,6 +301,7 @@ export type { SearchAllContactsInput } from './resources/contacts/search-all'
 // ---------- Contacts: domain types ----------
 export type {
   Contact,
+  ContactConsentInput,
   ContactCustomFields,
   ContactsFilter,
 } from './resources/contacts/types'
@@ -296,6 +314,11 @@ export type {
   UpsertManyContactsInput,
   UpsertManyContactsResponse,
 } from './resources/contacts/upsert-many'
+export type {
+  ContactValidationResult,
+  ValidateContactsInput,
+  ValidateContactsResponse,
+} from './resources/contacts/validate'
 export type { ContentResource } from './resources/content/resource'
 // ---------- New v1 resource domain types ----------
 export type * from './resources/content/types'
@@ -360,9 +383,22 @@ export type {
 } from './resources/emails/client-previews'
 export { PREVIEW_EMAIL_CLIENTS_DEFAULT_TIMEOUT_MS } from './resources/emails/client-previews'
 export type {
+  CloneEmailInput,
+  CloneEmailResponse,
+} from './resources/emails/clone'
+export type {
   DeleteEmailInput,
   DeleteEmailResponse,
 } from './resources/emails/delete'
+export type {
+  ExportEmailInput,
+  ExportEmailResponse,
+  ExportProvider,
+} from './resources/emails/export'
+export type {
+  ImportFigmaDesignInput,
+  ImportFigmaDesignResponse,
+} from './resources/emails/figma'
 export type { EditEmailInput, EditEmailResponse } from './resources/emails/edit'
 export { EDIT_EMAIL_DEFAULT_TIMEOUT_MS } from './resources/emails/edit'
 export type {
@@ -439,7 +475,13 @@ export type {
 } from './resources/fields/list'
 export type { FieldsResource } from './resources/fields/resource'
 // ---------- Fields: domain types ----------
-export type { ContactField, ContactFieldType } from './resources/fields/types'
+export type {
+  ContactField,
+  ContactFieldType,
+  FieldsDeleteResponse,
+  FieldsGetResponse,
+  FieldsPagination,
+} from './resources/fields/types'
 // ---------- Health + Help: domain types ----------
 export type { GetHealthResponse, HealthResponse } from './resources/health/get'
 export type { HealthResource } from './resources/health/resource'
@@ -493,7 +535,11 @@ export type { TemplatesResource } from './resources/templates/resource'
 // exported from the `sends` block above; the polymorphic send ACTION
 // lives on `emails` (`emails.send` — campaign | test), so its request +
 // response shapes are exported from the `emails` block.
-export type { Template, TemplateSummary } from './resources/templates/types'
+export type {
+  Template,
+  TemplateSummary,
+  TemplatesListResponse,
+} from './resources/templates/types'
 // Public email flows (`client.flows.*` against /v1/flows): organization-wide,
 // the sequence view of the same gallery `templates` lists.
 export type {

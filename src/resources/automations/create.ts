@@ -1,7 +1,7 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
-import type { Automation } from './types'
+import type { Automation, AutomationDryRunReport } from './types'
 
 // --------------------------------------------------------------------
 // Per-kind config shapes
@@ -150,6 +150,20 @@ export type CreateAutomationInput = {
   triggerEventId: string
   nodes: ReadonlyArray<AutomationNodeInput>
   connections: ReadonlyArray<AutomationConnectionInput>
+  /** Pass `dryRun: true` (`CreateAutomationDryRunInput`) to validate only. */
+  dryRun?: false
+}
+
+/**
+ * `automations.create({ ...input, dryRun: true })` — run the full
+ * publish-gate check on the graph without creating anything. Answers `200`
+ * with an `AutomationDryRunReport` instead of the created row.
+ */
+export type CreateAutomationDryRunInput = Omit<
+  CreateAutomationInput,
+  'dryRun'
+> & {
+  dryRun: true
 }
 
 /**
@@ -161,9 +175,19 @@ export type CreateAutomationInput = {
 export type CreateAutomationResponse = Automation
 
 /**
- * `POST /v1/automations` — deterministic create.
+ * `POST /v1/automations` — deterministic create. With `dryRun: true` it
+ * validates the graph without creating anything and answers the
+ * `AutomationDryRunReport`.
  */
 export function createCreateAutomation(client: HttpClient) {
+  function createAutomation(
+    input: CreateAutomationDryRunInput,
+    options: RequestOptions & { readonly raw: true }
+  ): Promise<BrewRawResponse<AutomationDryRunReport>>
+  function createAutomation(
+    input: CreateAutomationDryRunInput,
+    options?: RequestOptions
+  ): Promise<AutomationDryRunReport>
   function createAutomation(
     input: CreateAutomationInput,
     options: RequestOptions & { readonly raw: true }
@@ -173,12 +197,16 @@ export function createCreateAutomation(client: HttpClient) {
     options?: RequestOptions
   ): Promise<CreateAutomationResponse>
   async function createAutomation(
-    input: CreateAutomationInput,
+    input: CreateAutomationInput | CreateAutomationDryRunInput,
     options?: RequestOptions
   ): Promise<
-    CreateAutomationResponse | BrewRawResponse<CreateAutomationResponse>
+    | CreateAutomationResponse
+    | AutomationDryRunReport
+    | BrewRawResponse<CreateAutomationResponse | AutomationDryRunReport>
   > {
-    const response = await client.request<CreateAutomationResponse>({
+    const response = await client.request<
+      CreateAutomationResponse | AutomationDryRunReport
+    >({
       method: 'POST',
       path: '/v1/automations',
       body: input,

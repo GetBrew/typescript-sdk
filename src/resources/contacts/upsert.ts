@@ -2,6 +2,8 @@ import type { components } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
+import type { ContactConsentInput } from './types'
+
 /**
  * Caller-facing input for a single-contact upsert.
  *
@@ -18,6 +20,8 @@ export type UpsertContactInput = {
   readonly lastName?: string
   readonly subscribed?: boolean
   readonly customFields?: { readonly [key: string]: unknown }
+  /** Marketing consent provenance to record on this contact. */
+  readonly consent?: ContactConsentInput
   /**
    * When `true`, the contact's email is deliverability-checked via the
    * validation provider after the upsert and the verdict is saved onto the

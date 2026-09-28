@@ -160,4 +160,27 @@ describe('payload contract methods', () => {
     expect(sent).toEqual({ example: { email: 'a@b.co' } })
     expect(draft.fields[0]?.key).toBe('email')
   })
+
+  it('payloadContracts.infer forwards subjectKind when given', async () => {
+    let sent: unknown
+    server.use(
+      http.post(
+        'https://brew.new/api/v1/payload-contracts/infer',
+        async ({ request }) => {
+          sent = await request.json()
+          return HttpResponse.json({ fields: [], issues: [] })
+        }
+      )
+    )
+    const { client } = makeTestHttpClient()
+    const payloadContracts = createPayloadContractsResource(client)
+    await payloadContracts.infer({
+      example: { email: 'a@b.co' },
+      subjectKind: 'trigger',
+    })
+    expect(sent).toEqual({
+      example: { email: 'a@b.co' },
+      subjectKind: 'trigger',
+    })
+  })
 })

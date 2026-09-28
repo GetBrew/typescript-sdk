@@ -33,6 +33,30 @@ scope.
 > `status` body verb; `audienceRuns.control({ action })` split into `pause`,
 > `resume`, and `cancel`; and `analytics.triggerInstances.*` moved here.
 
+## Validate before you write
+
+`dryRun: true` on `create` or `patch` runs the full publish-gate check on
+the graph and writes nothing. It answers an `AutomationDryRunReport`
+instead of the row: `valid`, `blockers[]` (publishing fails while any
+remain), `warnings[]` (advisory), `blockingIssues[]` (references the bound
+trigger or contact catalog cannot provide) and `nodeCounts`. A literal
+`dryRun: true` is typed as the report.
+
+```ts
+const report = await brew.automations.create({
+  name: 'Welcome',
+  triggerEventId: 'tri_signup',
+  nodes,
+  connections,
+  dryRun: true,
+})
+if (!report.valid) {
+  for (const blocker of report.blockers) {
+    console.error(blocker.nodeLabel, blocker.message)
+  }
+}
+```
+
 ## Reading one automation
 
 ```ts

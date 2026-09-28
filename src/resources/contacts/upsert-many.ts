@@ -2,6 +2,8 @@ import type { components } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
+import type { ContactConsentInput } from './types'
+
 /**
  * Per-row input for a batch upsert. Same shape as the single upsert
  * input minus the explicit type alias — the spec types each row of the
@@ -13,10 +15,14 @@ export type UpsertManyContactRow = {
   readonly lastName?: string
   readonly subscribed?: boolean
   readonly customFields?: { readonly [key: string]: unknown }
+  /** Marketing consent provenance for this row; overrides the batch `consent`. */
+  readonly consent?: ContactConsentInput
 }
 
 export type UpsertManyContactsInput = {
   readonly contacts: ReadonlyArray<UpsertManyContactRow>
+  /** Default consent record for every row that does not carry its own. */
+  readonly consent?: ContactConsentInput
   /**
    * When `true`, every address in the batch is deliverability-checked and
    * the verdict is saved onto each matching contact. Batches of ≤100

@@ -2,9 +2,12 @@
 
 ## 11.2.0
 
-Regenerated from the live spec after brew-v2#1708 (deployed 2026-09-28),
-which also carries brew-v2#1579's per-domain unsubscribe lists that 11.1.0
-never mirrored. Additive: no existing signature changes.
+Regenerated from the live spec after brew-v2#1708 and brew-v2#1715
+(deployed 2026-09-28), which also carries brew-v2#1579's per-domain
+unsubscribe lists that 11.1.0 never mirrored. Additive, with one typing
+fix: a literal `dryRun: true` on `automations.patch` is now typed as the
+`AutomationDryRunReport` the API returns, so code that read row fields off
+that result (which were never there) stops compiling.
 
 ### Added
 
@@ -21,6 +24,32 @@ never mirrored. Additive: no existing signature changes.
   that domain only (a new address is created unsubscribed brand-wide);
   `remove` never re-subscribes a brand-wide opt-out; `list` and `export`
   narrow by `scope` (`any`, `domain`, `all`).
+- `contacts.importCsv({ dateOrder })`: `month_first` or `day_first` for a
+  date column whose dates read either way (`03/04/2026`). A day over 12 in
+  the column overrides it; without it such a column reads month-first with
+  a `DATE_ORDER_ASSUMED` warning (brew-v2#1715). `ImportCsvContactsInput` is
+  now the spec's request body, so it also takes `consent`.
+- `consent` (marketing consent provenance: `source`, `capturedAt`,
+  `policyVersion`, `evidence`) on `contacts.upsert`, `contacts.upsertMany`
+  (per row, plus a batch default) and `contacts.patch`. The API took it
+  since the send-eligibility release; the SDK could not send it.
+  `contacts.patch` now takes `fields`, `consent`, or both.
+- `automations.create({ ..., dryRun: true })` validates without creating
+  and returns an `AutomationDryRunReport`; a literal `dryRun: true` on
+  `automations.patch` is now typed as that report too (it was typed as the
+  row the API does not return).
+- `payloadContracts.infer({ subjectKind })`.
+- Exported the input and response types of `contacts.validate`,
+  `contacts.importCsv`, `contacts.deleteMany`, `automations.test`,
+  `emails.clone`, `emails.export`, `emails.importFigma`, `fields` and
+  `templates.list`, which were reachable only through the methods.
+
+### Tests
+
+- `tests/openapi-body-parity.test.ts`: every request-body property the spec
+  documents is one some SDK method for that route can send. The surface
+  parity test covered routes and query parameters only, which is how
+  `consent` and `dateOrder` went unmirrored.
 
 ## 11.1.0
 
