@@ -214,6 +214,12 @@ after a timeout or dropped connection, it throws the original
 work is still running — rather than a conflict. Wait, then replay with
 the same key. A completed key replays its stored result for 24 hours.
 
+The replay guarantee needs the API's idempotency store. While it is
+degraded, real sends refuse with a retryable `503` rather than risk sending
+twice, and other writes run without the guarantee — so before retrying a
+write that must not happen twice (creating a brand, say), check whether the
+first attempt landed.
+
 ## Caps and worst-case behavior
 
 The retry loop has hard upper bounds:
