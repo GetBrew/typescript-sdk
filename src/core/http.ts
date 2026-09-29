@@ -279,12 +279,12 @@ export function createHttpClient(
           // Runs on every exit — success, throw, retry — and only AFTER the
           // body has been read. Releasing at headers-time is what let a
           // stalled body outlive its deadline and its cancel.
-          attemptSignal.release()
+          attemptSignal.release?.()
         }
         attempt++
       }
     } finally {
-      caller.release()
+      caller.release?.()
     }
     /* eslint-enable no-await-in-loop */
 

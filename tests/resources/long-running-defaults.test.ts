@@ -44,13 +44,13 @@ import * as sdk from '../../src/index'
  * credit-metered content, bills.
  */
 
-/** An `HttpClient` that records what each method asked the transport for. */
-function recordingClient(): {
-  client: HttpClient
+/** An `HttpClient` that records each transport request into `calls`. */
+function recordingClient({
+  calls,
+}: {
   calls: Array<HttpRequestInput>
-} {
-  const calls: Array<HttpRequestInput> = []
-  const client: HttpClient = {
+}): HttpClient {
+  return {
     request: <T>(input: HttpRequestInput) => {
       calls.push(input)
       return Promise.resolve({
@@ -61,7 +61,6 @@ function recordingClient(): {
       })
     },
   }
-  return { client, calls }
 }
 
 type Case = {
@@ -168,7 +167,8 @@ const CASES: ReadonlyArray<Case> = [
 
 describe('long-running methods — per-call timeout defaults', () => {
   it.each(CASES)('$name defaults to its own timeout', async (testCase) => {
-    const { client, calls } = recordingClient()
+    const calls: Array<HttpRequestInput> = []
+    const client = recordingClient({ calls })
 
     await testCase.call({ client, timeoutMs: undefined })
 
@@ -180,7 +180,8 @@ describe('long-running methods — per-call timeout defaults', () => {
   })
 
   it.each(CASES)('$name lets the caller override it', async (testCase) => {
-    const { client, calls } = recordingClient()
+    const calls: Array<HttpRequestInput> = []
+    const client = recordingClient({ calls })
 
     await testCase.call({ client, timeoutMs: 5_000 })
 

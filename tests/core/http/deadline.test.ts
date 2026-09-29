@@ -12,7 +12,9 @@ import {
   afterHeaders,
   elapsedSince,
   rejectionOf,
+  silentRoute,
   STALL_TEST,
+  stallingBodyRoute,
   useLoopbackServers,
 } from '../../helpers/loopback-server'
 import { server } from '../../msw/server'
@@ -33,7 +35,7 @@ const servers = useLoopbackServers()
 
 describe('http.request — timeoutMs covers the whole attempt', () => {
   it('times out while waiting for headers (control)', STALL_TEST, async () => {
-    const { baseUrl, requests } = await servers.silent()
+    const { baseUrl, requests } = await servers.start({ route: silentRoute })
     const { client } = makeTestHttpClient({
       configOverrides: { baseUrl, timeoutMs: 400, maxRetries: 0 },
     })
@@ -55,7 +57,7 @@ describe('http.request — timeoutMs covers the whole attempt', () => {
   })
 
   it('times out while the body is still streaming', STALL_TEST, async () => {
-    const { baseUrl } = await servers.stallingBody()
+    const { baseUrl } = await servers.start({ route: stallingBodyRoute })
     const tracked = afterHeaders()
     const { client } = makeTestHttpClient({
       configOverrides: {
@@ -82,7 +84,7 @@ describe('http.request — timeoutMs covers the whole attempt', () => {
     'retries a body-phase timeout by default, one full deadline per attempt',
     STALL_TEST,
     async () => {
-      const { baseUrl } = await servers.stallingBody()
+      const { baseUrl } = await servers.start({ route: stallingBodyRoute })
       const { client } = makeTestHttpClient({
         configOverrides: { baseUrl, timeoutMs: 250, maxRetries: 2 },
       })
@@ -100,7 +102,7 @@ describe('http.request — timeoutMs covers the whole attempt', () => {
     'does not retry a timeout when the request sets retryOnTimeout: false',
     STALL_TEST,
     async () => {
-      const { baseUrl } = await servers.stallingBody()
+      const { baseUrl } = await servers.start({ route: stallingBodyRoute })
       const { client } = makeTestHttpClient({
         configOverrides: { baseUrl, timeoutMs: 300, maxRetries: 2 },
       })
@@ -122,7 +124,7 @@ describe('http.request — timeoutMs covers the whole attempt', () => {
     'does not retry a timeout when the client sets retryOnTimeout: false',
     STALL_TEST,
     async () => {
-      const { baseUrl } = await servers.stallingBody()
+      const { baseUrl } = await servers.start({ route: stallingBodyRoute })
       const { client } = makeTestHttpClient({
         configOverrides: {
           baseUrl,
@@ -145,7 +147,7 @@ describe('http.request — timeoutMs covers the whole attempt', () => {
     'lets a request re-enable timeout retries the client turned off',
     STALL_TEST,
     async () => {
-      const { baseUrl } = await servers.stallingBody()
+      const { baseUrl } = await servers.start({ route: stallingBodyRoute })
       const { client } = makeTestHttpClient({
         configOverrides: {
           baseUrl,
@@ -305,7 +307,7 @@ describe('http.request — which deadline applies', () => {
     methodFloorMs?: number
     requestMs?: number
   }): Promise<number> {
-    const { baseUrl } = await servers.silent()
+    const { baseUrl } = await servers.start({ route: silentRoute })
     const { client } = makeTestHttpClient({
       configOverrides: { baseUrl, timeoutMs: clientMs, maxRetries: 0 },
     })

@@ -9,7 +9,9 @@ import {
   elapsedSince,
   errorEnvelope,
   rejectionOf,
+  silentRoute,
   STALL_TEST,
+  stallingBodyRoute,
   useLoopbackServers,
 } from '../../helpers/loopback-server'
 import { server } from '../../msw/server'
@@ -28,7 +30,7 @@ describe('http.request — the caller can cancel at any point', () => {
     'rejects with the signal reason while waiting for headers (control)',
     STALL_TEST,
     async () => {
-      const { baseUrl, requests } = await servers.silent()
+      const { baseUrl, requests } = await servers.start({ route: silentRoute })
       const { client } = makeTestHttpClient({ configOverrides: { baseUrl } })
       const controller = new AbortController()
       setTimeout(() => {
@@ -56,7 +58,9 @@ describe('http.request — the caller can cancel at any point', () => {
     'rejects with the signal reason while the body is streaming',
     STALL_TEST,
     async () => {
-      const { baseUrl, requests } = await servers.stallingBody()
+      const { baseUrl, requests } = await servers.start({
+        route: stallingBodyRoute,
+      })
       const controller = new AbortController()
       const tracked = afterHeaders({
         then: () => {
@@ -87,7 +91,9 @@ describe('http.request — the caller can cancel at any point', () => {
     'rethrows a non-Error abort reason exactly as given, without retrying',
     STALL_TEST,
     async () => {
-      const { baseUrl, requests } = await servers.stallingBody()
+      const { baseUrl, requests } = await servers.start({
+        route: stallingBodyRoute,
+      })
       const controller = new AbortController()
       const tracked = afterHeaders({
         then: () => {
@@ -233,7 +239,7 @@ describe('http.request — the caller can cancel at any point', () => {
 
 describe('http.request — client-level signal', () => {
   it('cancels every request made through the client', STALL_TEST, async () => {
-    const { baseUrl } = await servers.stallingBody()
+    const { baseUrl } = await servers.start({ route: stallingBodyRoute })
     const controller = new AbortController()
     const tracked = afterHeaders({
       then: () => {
@@ -257,7 +263,7 @@ describe('http.request — client-level signal', () => {
   })
 
   it('carries through withBrand()', STALL_TEST, async () => {
-    const { baseUrl, requests } = await servers.silent()
+    const { baseUrl, requests } = await servers.start({ route: silentRoute })
     const controller = new AbortController()
     const brew = createBrewClient({
       apiKey: 'brew_test_abc',

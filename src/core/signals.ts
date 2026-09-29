@@ -5,9 +5,6 @@
  * exactly as given.
  */
 
-/** A `release` for a signal that attached no listener: nothing to undo. */
-const RELEASE_NOTHING = (): void => undefined
-
 export type AttemptSignal = {
   /** Handed to `fetch`; stays live through the body read. */
   readonly signal: AbortSignal
@@ -15,8 +12,8 @@ export type AttemptSignal = {
   readonly timeoutSignal: AbortSignal
   /** Abort this attempt because its response is being thrown away. */
   readonly discard: () => void
-  /** Detaches any listener on the caller's signal. */
-  readonly release: () => void
+  /** Detaches listeners the fallback attached; absent when there are none. */
+  readonly release?: () => void
 }
 
 /**
@@ -50,6 +47,7 @@ export function createAttemptSignal({
   return {
     signal: combined.signal,
     timeoutSignal,
+    ...(combined.release === undefined ? {} : { release: combined.release }),
     discard: () => {
       discarded.abort(
         new DOMException(
@@ -58,7 +56,6 @@ export function createAttemptSignal({
         )
       )
     },
-    release: combined.release,
   }
 }
 
@@ -66,14 +63,16 @@ export function combineCallerSignals({
   signals,
 }: {
   readonly signals: ReadonlyArray<AbortSignal | undefined>
-}): { readonly signal: AbortSignal | undefined; readonly release: () => void } {
+}): {
+  readonly signal: AbortSignal | undefined
+  readonly release?: () => void
+} {
   const present = signals.filter(
     (signal): signal is AbortSignal => signal !== undefined
   )
   const [first, ...rest] = present
-  if (first === undefined)
-    return { signal: undefined, release: RELEASE_NOTHING }
-  if (rest.length === 0) return { signal: first, release: RELEASE_NOTHING }
+  if (first === undefined) return { signal: undefined }
+  if (rest.length === 0) return { signal: first }
   return anySignal({ signals: [first, ...rest] })
 }
 
@@ -86,16 +85,16 @@ export function anySignal({
   signals,
 }: {
   readonly signals: readonly [AbortSignal, ...Array<AbortSignal>]
-}): { readonly signal: AbortSignal; readonly release: () => void } {
+}): { readonly signal: AbortSignal; readonly release?: () => void } {
   if (typeof AbortSignal.any === 'function') {
-    return { signal: AbortSignal.any([...signals]), release: RELEASE_NOTHING }
+    return { signal: AbortSignal.any([...signals]) }
   }
 
   const controller = new AbortController()
   const alreadyAborted = signals.find((signal) => signal.aborted)
   if (alreadyAborted !== undefined) {
     controller.abort(alreadyAborted.reason)
-    return { signal: controller.signal, release: RELEASE_NOTHING }
+    return { signal: controller.signal }
   }
 
   const listeners = signals.map((source) => {

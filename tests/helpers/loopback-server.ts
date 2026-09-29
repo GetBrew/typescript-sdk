@@ -244,66 +244,60 @@ export function afterHeaders({
 }
 
 /**
- * Wrap the global fetch and record the `Idempotency-Key` each attempt SENT —
- * on the client side, so a test does not depend on the request reaching a
- * server before its deadline (on a loaded machine it may not).
+ * Wrap the global fetch and record into `sentKeys` the `Idempotency-Key` each
+ * attempt SENT — on the client side, so a test does not depend on the request
+ * reaching a server before its deadline (on a loaded machine it may not).
  */
-export function keyRecordingFetch(): {
-  fetch: typeof globalThis.fetch
-  sentKeys: ReadonlyArray<string | null>
-} {
-  const sentKeys: Array<string | null> = []
-  const wrapped: typeof globalThis.fetch = (input, init) => {
+export function keyRecordingFetch({
+  sentKeys,
+}: {
+  sentKeys: Array<string | null>
+}): typeof globalThis.fetch {
+  return (input, init) => {
     sentKeys.push(new Headers(init?.headers).get('idempotency-key'))
     return globalThis.fetch(input, init)
   }
-  return { fetch: wrapped, sentKeys }
 }
 
 /** Per-test timeout for body-phase cases: a regression HANGS, this fails it. */
 export const STALL_TEST = { timeout: 4000 }
 
+/** A route that sends the headers and part of a JSON body, then nothing, ever. */
+export function stallingBodyRoute({ res }: LoopbackRouteInput): void {
+  startJson({ res, status: 200, partial: '{"contacts":[{"email":' })
+}
+
+/** A route that never writes a byte: the headers never arrive. */
+export function silentRoute({ res }: LoopbackRouteInput): void {
+  // Hold the socket open and say nothing; an aborting client resets it.
+  res.on('error', () => undefined)
+}
+
 /**
  * Loopback servers for one test file, each closed after its test. Call once
  * at the top level of a suite.
  */
-export function useLoopbackServers(): {
-  /** Start a server with a custom route. */
+export function useLoopbackServers({
+  registerCleanup = afterEach,
+}: {
+  /** Where to register the per-test close (vitest's `afterEach`). */
+  registerCleanup?: (cleanup: () => Promise<void>) => void
+} = {}): {
+  /** Start a server with a route, closed after the current test. */
   start: (input: {
     route: (input: LoopbackRouteInput) => void
   }) => Promise<Loopback>
-  /** Headers and part of the JSON body immediately, then nothing, ever. */
-  stallingBody: () => Promise<Loopback>
-  /** Never writes a byte: the headers never arrive. */
-  silent: () => Promise<Loopback>
 } {
   let current: Loopback | undefined
-  afterEach(async () => {
+  registerCleanup(async () => {
     await current?.close()
     current = undefined
   })
-  const start = async ({
-    route,
-  }: {
-    route: (input: LoopbackRouteInput) => void
-  }): Promise<Loopback> => {
-    current = await startLoopback({ route })
-    return current
-  }
   return {
-    start,
-    stallingBody: () =>
-      start({
-        route: ({ res }) => {
-          startJson({ res, status: 200, partial: '{"contacts":[{"email":' })
-        },
-      }),
-    silent: () =>
-      start({
-        route: () => {
-          // Hold the socket open and say nothing.
-        },
-      }),
+    start: async ({ route }) => {
+      current = await startLoopback({ route })
+      return current
+    },
   }
 }
 

@@ -8,6 +8,7 @@ import {
   keyRecordingFetch,
   rejectionOf,
   sendJson,
+  silentRoute,
   STALL_TEST,
   useLoopbackServers,
 } from '../../helpers/loopback-server'
@@ -24,12 +25,12 @@ const servers = useLoopbackServers()
 
 describe('http.request — the idempotency key survives an unknown outcome', () => {
   it('puts the key it sent on a timeout from a POST', STALL_TEST, async () => {
-    const { baseUrl } = await servers.silent()
-    const recorded = keyRecordingFetch()
+    const { baseUrl } = await servers.start({ route: silentRoute })
+    const sentKeys: Array<string | null> = []
     const { client } = makeTestHttpClient({
       configOverrides: {
         baseUrl,
-        fetch: recorded.fetch,
+        fetch: keyRecordingFetch({ sentKeys }),
         timeoutMs: 300,
         maxRetries: 0,
       },
@@ -44,16 +45,14 @@ describe('http.request — the idempotency key survives an unknown outcome', () 
     })
 
     expect(error).toBeInstanceOf(BrewTimeoutError)
-    expect((error as BrewTimeoutError).idempotencyKey).toBe(
-      recorded.sentKeys[0]
-    )
+    expect((error as BrewTimeoutError).idempotencyKey).toBe(sentKeys[0])
     expect((error as BrewTimeoutError).idempotencyKey).toEqual(
       expect.any(String)
     )
   })
 
   it('carries no key for a GET', STALL_TEST, async () => {
-    const { baseUrl } = await servers.silent()
+    const { baseUrl } = await servers.start({ route: silentRoute })
     const { client } = makeTestHttpClient({
       configOverrides: { baseUrl, timeoutMs: 300, maxRetries: 0 },
     })
@@ -84,11 +83,11 @@ describe('http.request — the idempotency key survives an unknown outcome', () 
           })
         },
       })
-      const recorded = keyRecordingFetch()
+      const sentKeys: Array<string | null> = []
       const { client } = makeTestHttpClient({
         configOverrides: {
           baseUrl,
-          fetch: recorded.fetch,
+          fetch: keyRecordingFetch({ sentKeys }),
           timeoutMs: 300,
           maxRetries: 3,
         },
@@ -110,9 +109,9 @@ describe('http.request — the idempotency key survives an unknown outcome', () 
       // on attempt 2; a loaded machine can time a later attempt out first.)
       expect(timeout.attempts).toBeGreaterThanOrEqual(2)
       expect(timeout.attempts).toBeLessThan(4)
-      expect(recorded.sentKeys).toHaveLength(timeout.attempts)
-      expect(new Set(recorded.sentKeys).size).toBe(1)
-      expect(timeout.idempotencyKey).toBe(recorded.sentKeys[0])
+      expect(sentKeys).toHaveLength(timeout.attempts)
+      expect(new Set(sentKeys).size).toBe(1)
+      expect(timeout.idempotencyKey).toBe(sentKeys[0])
       expect(requests.at(-1)?.idempotencyKey).toBe(timeout.idempotencyKey)
     }
   )
