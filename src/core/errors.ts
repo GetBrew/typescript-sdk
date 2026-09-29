@@ -262,7 +262,7 @@ export class BrewTimeoutError extends BrewTransportError {
   constructor(init: BrewTimeoutErrorInit) {
     super({
       ...init,
-      message: timeoutMessage(init),
+      message: timeoutMessage({ init }),
     })
     this.name = 'TimeoutError'
     this.timeoutMs = init.timeoutMs
@@ -278,7 +278,7 @@ export class BrewConnectionError extends BrewTransportError {
   constructor(init: BrewConnectionErrorInit) {
     super({
       ...init,
-      message: connectionMessage(init),
+      message: connectionMessage({ init }),
     })
     this.name = 'BrewConnectionError'
   }
@@ -373,7 +373,11 @@ function attemptsNote({ attempts }: { attempts: number }): string {
 const IN_PROGRESS_NOTE =
   ' The server is still processing the first attempt: wait, then replay it with the same idempotencyKey rather than sending it again.'
 
-function timeoutMessage(init: BrewTimeoutErrorInit): string {
+function timeoutMessage({
+  init,
+}: {
+  readonly init: BrewTimeoutErrorInit
+}): string {
   const request = describeRequest(init)
   const runtimeCode = runtimeTimeoutCode({ error: init.cause })
   const what =
@@ -383,7 +387,11 @@ function timeoutMessage(init: BrewTimeoutErrorInit): string {
   return init.inProgress === true ? what + IN_PROGRESS_NOTE : what
 }
 
-function connectionMessage(init: BrewConnectionErrorInit): string {
+function connectionMessage({
+  init,
+}: {
+  readonly init: BrewConnectionErrorInit
+}): string {
   const reason =
     init.cause instanceof Error && init.cause.message !== ''
       ? `: ${init.cause.message}`

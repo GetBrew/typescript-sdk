@@ -17,6 +17,13 @@ import { assertRetryCount, assertTimeoutMs } from './config'
 import { buildHeaders } from './headers'
 import { resolveIdempotencyKey } from './idempotency'
 import { computeBackoff, type RetryCause, shouldRetry } from './retry'
+import { cancelBody, readTextWithin } from './body'
+import {
+  combineCallerSignals,
+  createAttemptSignal,
+  defaultSleep,
+  throwReason,
+} from './signals'
 import { buildUrl, type BuildUrlInput } from './url'
 
 /**
@@ -559,226 +566,6 @@ async function readErrorBody({
 }
 
 /**
- * Read a response body as UTF-8 text, bounded by `signal`.
- *
- * Reads through its own reader rather than `response.text()`: `text()`
- * locks the stream for its whole lifetime, and a locked stream cannot be
- * cancelled — `body.cancel()` throws `Invalid state: ReadableStream is
- * locked` and releases nothing. Owning the reader lets an abort both end the
- * read at once AND release the connection.
- *
- * Native `fetch` already errors the body when the request signal aborts, so
- * on undici the listener below is belt and braces. It is not redundant:
- * `config.fetch` is public, and a wrapper, polyfill or test double may hand
- * back a body that ignores the signal entirely — which would silently bring
- * back the exact hang this exists to prevent.
- */
-async function readTextWithin({
-  response,
-  signal,
-}: {
-  readonly response: Response
-  readonly signal: AbortSignal
-}): Promise<string> {
-  const stream = response.body
-  if (stream === null) return ''
-
-  const reader = stream.getReader()
-  const decoder = new TextDecoder()
-  let wasAborted = false
-
-  const onAbort = (): void => {
-    wasAborted = true
-    // Not awaited: a pending `read()` settles as part of the cancel, and
-    // waiting on the source's own cleanup is exactly what could hang.
-    reader.cancel(signal.reason).catch(() => {
-      // Nothing left to release.
-    })
-  }
-
-  if (signal.aborted) {
-    onAbort()
-  } else {
-    signal.addEventListener('abort', onAbort, { once: true })
-  }
-
-  try {
-    let text = ''
-    /* eslint-disable no-await-in-loop --
-     * A stream is read one chunk at a time; that is what a stream is. */
-    for (;;) {
-      const chunk = await reader.read()
-      if (chunk.done) break
-      text += decoder.decode(chunk.value, { stream: true })
-    }
-    /* eslint-enable no-await-in-loop */
-    text += decoder.decode()
-
-    // A cancelled read ends like a short body. Without this check a
-    // deadline would surface as a truncated payload and a SyntaxError.
-    if (wasAborted) throwReason({ reason: signal.reason })
-    return text
-  } finally {
-    signal.removeEventListener('abort', onAbort)
-  }
-}
-
-/**
- * Release a body we are abandoning. Best effort: `cancel()` throws on a
- * locked or used stream and rejects on an errored one, and neither matters
- * when the response is being thrown away. The wait is bounded to one turn
- * of the event loop, so a custom stream whose cancel never settles cannot
- * stall the retry.
- */
-async function cancelBody({
-  response,
-  reason,
-}: {
-  readonly response: Response | undefined
-  readonly reason?: unknown
-}): Promise<void> {
-  const body = response?.body
-  if (body === null || body === undefined || response?.bodyUsed === true) {
-    return
-  }
-  let cancelled: Promise<void>
-  try {
-    cancelled = body.cancel(reason).catch(() => {
-      // Already errored or closed.
-    })
-  } catch {
-    return
-  }
-  await Promise.race([cancelled, nextTurn()])
-}
-
-function nextTurn(): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, 0)
-  })
-}
-
-type AttemptSignal = {
-  /** Handed to `fetch`; stays live through the body read. */
-  readonly signal: AbortSignal
-  /** The deadline alone, so a failure is attributed by flag. */
-  readonly timeoutSignal: AbortSignal
-  /** Abort this attempt because its response is being thrown away. */
-  readonly discard: () => void
-  /** Detaches any listener on the caller's signal. */
-  readonly release: () => void
-}
-
-/**
- * The signal for one attempt: the caller's, plus a fresh deadline.
- *
- * `AbortSignal.timeout` is the heart of the fix. `fetch` keeps its request
- * signal bound to the response body, so the deadline — and the caller's
- * abort — reach the body read as well as the headers. The hand-rolled
- * `setTimeout` it replaces could only ever cover the headers: the one safe
- * moment to clear that timer was when `fetch` resolved.
- *
- * Nothing needs clearing on the native path: the `AbortSignal.timeout`
- * timer is unref'd (it never keeps a process alive) and `AbortSignal.any`
- * holds its composite weakly from the sources.
- */
-function createAttemptSignal({
-  timeoutMs,
-  callerSignal,
-}: {
-  readonly timeoutMs: number
-  readonly callerSignal: AbortSignal | undefined
-}): AttemptSignal {
-  const timeoutSignal = AbortSignal.timeout(timeoutMs)
-  const discarded = new AbortController()
-  const combined = anySignal({
-    signals:
-      callerSignal === undefined
-        ? [timeoutSignal, discarded.signal]
-        : [callerSignal, timeoutSignal, discarded.signal],
-  })
-  return {
-    signal: combined.signal,
-    timeoutSignal,
-    discard: () => {
-      discarded.abort(
-        new DOMException(
-          'The SDK discarded this response to retry the request.',
-          'AbortError'
-        )
-      )
-    },
-    release: combined.release,
-  }
-}
-
-function combineCallerSignals({
-  signals,
-}: {
-  readonly signals: ReadonlyArray<AbortSignal | undefined>
-}): { readonly signal: AbortSignal | undefined; readonly release: () => void } {
-  const present = signals.filter(
-    (signal): signal is AbortSignal => signal !== undefined
-  )
-  const [first, ...rest] = present
-  if (first === undefined) return { signal: undefined, release: noop }
-  if (rest.length === 0) return { signal: first, release: noop }
-  return anySignal({ signals: [first, ...rest] })
-}
-
-/**
- * `AbortSignal.any`, which landed in Node 20.3.0. `engines` says `>=20`, so
- * 20.0–20.2 get the listener-based equivalent (and a `release` to detach it)
- * instead of a TypeError at runtime.
- */
-function anySignal({
-  signals,
-}: {
-  readonly signals: readonly [AbortSignal, ...Array<AbortSignal>]
-}): { readonly signal: AbortSignal; readonly release: () => void } {
-  if (typeof AbortSignal.any === 'function') {
-    return { signal: AbortSignal.any([...signals]), release: noop }
-  }
-
-  const controller = new AbortController()
-  const alreadyAborted = signals.find((signal) => signal.aborted)
-  if (alreadyAborted !== undefined) {
-    controller.abort(alreadyAborted.reason)
-    return { signal: controller.signal, release: noop }
-  }
-
-  const listeners = signals.map((source) => {
-    const onAbort = (): void => {
-      controller.abort(source.reason)
-    }
-    source.addEventListener('abort', onAbort, { once: true })
-    return { source, onAbort }
-  })
-  return {
-    signal: controller.signal,
-    release: () => {
-      for (const { source, onAbort } of listeners) {
-        source.removeEventListener('abort', onAbort)
-      }
-    },
-  }
-}
-
-function noop(): void {
-  // Nothing to release.
-}
-
-/**
- * Rethrow the abort reason exactly as the caller gave it. `AbortSignal.reason`
- * is `any` by spec and a caller may `abort('because')`, so this is the one
- * place the SDK throws a value it cannot prove is an `Error` — on purpose:
- * `fetch` rejects with the reason verbatim and consumers compare against it.
- */
-function throwReason({ reason }: { readonly reason: unknown }): never {
-  throw reason
-}
-
-/**
  * A validated `timeoutMs` as a timer delay. `Infinity` means "no deadline"
  * (the longest a timer can wait); a fraction rounds down. `NaN` and negative
  * values never get here — `assertTimeoutMs` refuses them, because silently
@@ -809,37 +596,6 @@ function readRetryAfterMs({
   const seconds = Number(raw)
   if (!Number.isFinite(seconds)) return undefined
   return seconds * 1000
-}
-
-/**
- * Default sleep: a real `setTimeout`-backed wait that a caller abort ends at
- * once, rejecting with the abort reason. Tests override it via
- * `HttpTuning.sleep` so the retry loop runs at full speed.
- */
-function defaultSleep({
-  ms,
-  signal,
-}: {
-  readonly ms: number
-  readonly signal: AbortSignal | undefined
-}): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (signal?.aborted === true) {
-      // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- the caller's reason, verbatim (see throwReason).
-      reject(signal.reason)
-      return
-    }
-    const onAbort = (): void => {
-      clearTimeout(timer)
-      // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- the caller's reason, verbatim (see throwReason).
-      reject(signal?.reason)
-    }
-    const timer = setTimeout(() => {
-      signal?.removeEventListener('abort', onAbort)
-      resolve()
-    }, ms)
-    signal?.addEventListener('abort', onAbort, { once: true })
-  })
 }
 
 /**
