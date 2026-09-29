@@ -19,6 +19,8 @@ const brew = createBrewClient({
   baseUrl: 'https://brew.new/api',
   timeoutMs: 30_000,
   maxRetries: 2,
+  retryOnTimeout: true,
+  signal: undefined,
   userAgent: 'brew.new-sdk/0.1.0-alpha.0',
   fetch: globalThis.fetch,
 })
@@ -74,21 +76,87 @@ trailing slash automatically — `https://brew.new/api/` and
 
 Default: `30_000` (30 seconds).
 
-Per-attempt timeout. The SDK aborts the underlying fetch via
-`AbortController` if the response has not arrived within this many
-milliseconds. Retries get a fresh timeout each, so the worst-case
-wall-clock for a request is roughly `(maxRetries + 1) * timeoutMs` plus
-backoff.
+Per-attempt deadline covering the **whole** attempt: connecting, waiting
+for the response headers, and reading the response body. A server that
+answers quickly and then stalls partway through its body fails at
+`timeoutMs` with a `BrewTimeoutError`; it does not hang. Retries get a
+fresh deadline each (see [`retryOnTimeout`](#retryontimeout)), so the
+worst-case wall-clock for a request is roughly
+`(maxRetries + 1) * timeoutMs` plus backoff.
 
 You can override this per-request via `RequestOptions.timeoutMs`.
 
-> **Exception: `brew.emails.generate` and `brew.emails.edit`** use a
-> per-call default of `240_000` ms (4 minutes) because both endpoints
-> run the same long-form agent loop and typically take 30–90 seconds.
-> Caller-supplied `timeoutMs` still wins. The constants are exported
-> as `GENERATE_EMAIL_DEFAULT_TIMEOUT_MS` and
-> `EDIT_EMAIL_DEFAULT_TIMEOUT_MS` for callers that want to compose
-> their own timeouts.
+Methods whose server work routinely outlasts 30 seconds set their own
+per-call default; a caller-supplied `timeoutMs` still wins. Each
+constant is exported for callers composing their own deadlines:
+
+| Method                  | Default | Constant                                   |
+| ----------------------- | ------- | ------------------------------------------ |
+| `emails.generate`       | 240 s   | `GENERATE_EMAIL_DEFAULT_TIMEOUT_MS`        |
+| `emails.edit`           | 240 s   | `EDIT_EMAIL_DEFAULT_TIMEOUT_MS`            |
+| `emails.import`         | 300 s   | `IMPORT_EMAIL_DEFAULT_TIMEOUT_MS`          |
+| `emails.importFigma`    | 800 s\* | `IMPORT_FIGMA_DEFAULT_TIMEOUT_MS`          |
+| `emails.previewClients` | 90 s    | `PREVIEW_EMAIL_CLIENTS_DEFAULT_TIMEOUT_MS` |
+| `emails.audit`          | 65 s    | `AUDIT_EMAIL_DEFAULT_TIMEOUT_MS`           |
+| `content.gif`           | 300 s   | `GIF_DEFAULT_TIMEOUT_MS`                   |
+| `content.generateImage` | 180 s   | `GENERATE_IMAGE_DEFAULT_TIMEOUT_MS`        |
+
+\* **Node's built-in `fetch` has its own 300-second ceiling.** It stops
+waiting after 300 s for the response headers, or after 300 s without a
+byte of the body, whatever `timeoutMs` says. The SDK reports that as a
+`BrewTimeoutError` too (the runtime's error is on `cause`), so on Node
+any `timeoutMs` above 300 s behaves as 300 s. To wait longer, raise the
+runtime's limits — for example with the `undici` package, whose global
+dispatcher Node's `fetch` uses:
+
+```ts
+import { Agent, setGlobalDispatcher } from 'undici'
+
+setGlobalDispatcher(
+  new Agent({ headersTimeout: 900_000, bodyTimeout: 900_000 })
+)
+```
+
+### `retryOnTimeout`
+
+Default: `true`.
+
+Whether an attempt that hit `timeoutMs` is retried like any other
+transient failure (subject to the method policy in
+[retries-and-idempotency.md](./retries-and-idempotency.md)). Set it to
+`false` for a hard deadline: one attempt, then `BrewTimeoutError`.
+Override per request via `RequestOptions.retryOnTimeout`.
+
+A POST retried after a timeout carries the same idempotency key. If the
+first attempt is still running on the server, the retry is refused and
+the SDK throws the timeout with `inProgress: true` rather than waiting
+another full `timeoutMs` — see
+[Recovering after an unknown outcome](./retries-and-idempotency.md#recovering-after-an-unknown-outcome).
+
+### `signal`
+
+Default: none.
+
+An `AbortSignal` that cancels **every** request made through this client
+(and its `withBrand()` clients) — for shutting a process down cleanly.
+It combines with each request's own `RequestOptions.signal`: either one
+aborting stops the request wherever it is (connecting, reading the body,
+backing off), and it rejects with that signal's `reason`. Never retried.
+
+```ts
+const shutdown = new AbortController()
+process.once('SIGTERM', () => shutdown.abort())
+
+const brew = createBrewClient({
+  apiKey: process.env.BREW_API_KEY!,
+  signal: shutdown.signal,
+})
+```
+
+Cancelling does not stop work the server already started. Replay an
+interrupted write with the same idempotency key — pass your own
+`idempotencyKey` on writes you might cancel, since a cancel rejects with
+your `reason` and carries no key of the SDK's.
 
 ### `maxRetries`
 
@@ -144,19 +212,23 @@ const brew = createBrewClient({
 ```
 
 The custom fetch must satisfy `typeof globalThis.fetch` — i.e., the
-standard Fetch API signature.
+standard Fetch API signature — and should pass `init.signal` through.
+The SDK aborts that signal to enforce `timeoutMs`, to cancel, and to
+close a discarded retry's connection. The SDK bounds the response body
+read itself either way, but a fetch that drops the signal keeps its
+connections open until it closes them on its own.
 
 ## Per-request overrides
 
-Every resource method that mutates data (`upsert`, `upsertMany`,
-`patch`, `delete`, `deleteMany`, `fields.create`, `fields.delete`)
-accepts a second `RequestOptions` argument:
+Every resource method accepts a `RequestOptions` object as its last
+argument:
 
 ```ts
 type RequestOptions = {
   readonly signal?: AbortSignal
   readonly timeoutMs?: number
   readonly maxRetries?: number
+  readonly retryOnTimeout?: boolean
   readonly idempotencyKey?: string
   readonly raw?: boolean
 }
@@ -179,6 +251,11 @@ setTimeout(() => controller.abort(), 5_000)
 
 await brew.contacts.search({ limit: 100 }, { signal: controller.signal })
 ```
+
+The request rejects with `controller.signal.reason` — here a
+`DOMException` named `'AbortError'`; with `abort(myReason)`, `myReason`
+itself — whether it was connecting, reading the body, or backing off
+between retries.
 
 See [`docs/retries-and-idempotency.md`](./retries-and-idempotency.md)
 for the `idempotencyKey` and `raw` fields in detail.

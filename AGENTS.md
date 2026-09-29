@@ -27,9 +27,18 @@ All functional work is test-driven.
 
 The fail-then-pass cycle must happen. Do not skip it.
 
-Tests use `vitest`. Network behavior will be tested via MSW once it is
-installed — until then, keep tests focused on pure logic (URL building,
-header construction, retry policy decisions, error mapping, etc.).
+Tests use `vitest`. Network behavior is tested with MSW
+(`tests/msw/`, `onUnhandledRequest: 'error'`).
+
+MSW cannot express the BODY phase of a response: a mocked stream ignores
+the request signal, a socket reset cannot be mocked, and a passthrough
+response comes back tee'd (MSW keeps a `clone()`), so cancelling it does
+not reach the socket. Deadlines and cancels while a body streams, drops
+after the headers, and releasing a discarded attempt are tested against a
+real server: `tests/helpers/loopback-server.ts` (it registers the MSW
+`passthrough()` for its own origin). A body-phase test must PROVE the
+headers arrived first — use `afterHeaders()` — and set a per-test
+`timeout`, because a regression there hangs instead of failing.
 
 Do not hit the real Brew API from tests. The app repo already owns real
 API integration coverage.
@@ -70,15 +79,19 @@ object.
 
 ## Error handling
 
-There is one public error class: `BrewApiError`. All non-2xx responses and
-transport failures become a `BrewApiError` with:
+Every failure a public method gives up on is typed (`docs/errors.md`):
 
-- `status`
-- `code`
-- `type`
-- `requestId` (from response headers)
-- `retryAfter` (if present)
-- `suggestion` / `docs` (if present in the API envelope)
+- `BrewApiError` — the server answered non-2xx: `status`, `code`, `type`,
+  `requestId`, `retryAfter`, `suggestion` / `docs`, `details`, `body`,
+  plus `bodyError` when the envelope was cut off and `idempotencyKey`.
+- `BrewTransportError` → `BrewTimeoutError` / `BrewConnectionError` — no
+  usable answer (deadline, failed or dropped connection). Never a
+  `BrewApiError`: there is no status to report, and the public docs route
+  `BrewApiError` and plain `Error` down different branches.
+- `BrewParseError` — a complete 2xx body that is not JSON.
+- A caller abort rethrows the signal's `reason` verbatim — the one value a
+  public path throws that may not be an `Error`, because `fetch` does the
+  same and callers compare against it.
 
 Never throw bare `Error` from public code paths. Never swallow errors
 silently.
@@ -88,13 +101,29 @@ silently.
 Retries are centralized in `src/core/retry.ts` and applied by the HTTP layer.
 Do not scatter retry loops across resources. Rules:
 
-- Retry on network failures, `408`, `429`, `5xx`.
+- Retry on connection failures (including a body that breaks after the
+  headers), `408`, `429`, `5xx`, and timeouts unless `retryOnTimeout` is
+  `false`.
 - Do not retry on `4xx` other than the above.
+- Never retry a caller abort (whatever its `reason`) or a malformed 2xx.
 - `GET` / `DELETE` are safe to retry by default.
-- `POST` is only retried when an idempotency key is attached.
+- `POST` is only retried when an idempotency key is attached — the same
+  key on every attempt.
 - `PATCH` is not retried by default.
-- Honor `Retry-After` headers.
+- Honor `Retry-After` up to 60 s (`MAX_RETRY_AFTER_MS`); beyond it, throw.
 - Exponential backoff with jitter. Boring and predictable.
+
+`src/core/http.ts` rules that exist because breaking them caused real
+bugs:
+
+- A deadline and a caller signal bound the WHOLE attempt, body included.
+  Never clear a timer or detach a signal when `fetch` resolves — that is
+  when the headers arrive, not the body. Attribute a failure by signal
+  state (`classifyFailure`), never by `error.name`.
+- Read bodies through `readTextWithin`, never `response.text()`: `text()`
+  locks the stream so nothing can cancel it.
+- Before retrying, abort the discarded attempt's signal and cancel its
+  body, so its connection closes now rather than at garbage collection.
 
 ## Idempotency
 

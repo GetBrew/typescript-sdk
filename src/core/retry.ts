@@ -19,26 +19,66 @@ const ALWAYS_RETRYABLE_METHODS: ReadonlySet<BrewHttpMethod> = new Set([
   'PUT',
 ])
 
+/**
+ * The longest `Retry-After` the SDK will wait out inside one call. A longer
+ * wait looks exactly like a hang to the caller, so the `BrewApiError` is
+ * thrown instead, carrying `retryAfter` for the caller to schedule. Matches
+ * the Brew app's own ceiling for provider retries; every Brew rate-limit
+ * window is 60 s.
+ */
+export const MAX_RETRY_AFTER_MS = 60_000
+
+/**
+ * Why an attempt failed. An explicit discriminant rather than a loose
+ * `{ status?, error? }` pair: a body that broke after a 200 arrived has a
+ * status AND is a network failure, and a caller abort, a deadline and a
+ * dropped connection all reject `fetch` the same way but deserve different
+ * answers.
+ */
+export type RetryCause =
+  /** The server answered with this status (the body may not have been read). */
+  | {
+      readonly kind: 'status'
+      readonly status: number
+      /** From the `Retry-After` header, when it had one. */
+      readonly retryAfterMs?: number | undefined
+    }
+  /** DNS, TCP, TLS, a rejected `fetch`, or a body stream that broke mid-read. */
+  | { readonly kind: 'connection' }
+  /** The attempt's deadline — `timeoutMs`, or the HTTP runtime's own. */
+  | { readonly kind: 'timeout' }
+  /** The caller's `AbortSignal` (request or client). */
+  | { readonly kind: 'abort' }
+  /** A complete 2xx body that is not JSON. */
+  | { readonly kind: 'parse' }
+
 export type RetryDecisionInput = {
   readonly method: BrewHttpMethod
-  readonly status?: number
-  readonly error?: unknown
+  readonly cause: RetryCause
   readonly attempt: number
   readonly maxRetries: number
   readonly hasIdempotencyKey: boolean
+  /** `RequestOptions.retryOnTimeout ?? BrewClientConfig.retryOnTimeout`. */
+  readonly shouldRetryOnTimeout: boolean
 }
 
 /**
  * Decide whether a failing request should be retried.
  *
- * The decision has three gates, applied in order:
+ *   0. Intent and determinism — never retry a caller abort (the caller
+ *      asked for the request to stop) or a malformed 2xx (the same bytes
+ *      come back). Checked before anything else.
  *   1. Attempt cap — never retry past `maxRetries`.
  *   2. Method policy — PATCH never retries; POST only retries when an
  *      idempotency key is attached; GET/PUT/DELETE are fine to retry.
- *   3. Cause — the failure must be either a network error (no `status`
- *      present, an `error` was caught) or a retryable status code.
+ *   3. Cause — a connection failure retries; a timeout retries unless
+ *      `shouldRetryOnTimeout` is off; a status retries when it is
+ *      408/429/5xx and any `Retry-After` is within `MAX_RETRY_AFTER_MS`.
  */
 export function shouldRetry(input: RetryDecisionInput): boolean {
+  const { cause } = input
+  if (cause.kind === 'abort' || cause.kind === 'parse') return false
+
   if (input.attempt >= input.maxRetries) return false
 
   const isMethodRetryable = isRetryableForMethod({
@@ -47,11 +87,15 @@ export function shouldRetry(input: RetryDecisionInput): boolean {
   })
   if (!isMethodRetryable) return false
 
-  const isNetworkError = input.error !== undefined && input.status === undefined
-  if (isNetworkError) return true
-
-  if (input.status === undefined) return false
-  return RETRYABLE_STATUSES.has(input.status)
+  switch (cause.kind) {
+    case 'connection':
+      return true
+    case 'timeout':
+      return input.shouldRetryOnTimeout
+    case 'status':
+      if (!RETRYABLE_STATUSES.has(cause.status)) return false
+      return (cause.retryAfterMs ?? 0) <= MAX_RETRY_AFTER_MS
+  }
 }
 
 function isRetryableForMethod({

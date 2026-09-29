@@ -6,6 +6,20 @@ import type { ContentGifRequest, ContentGifResponse } from './types'
 export type { ContentGifRequest, ContentGifResponse }
 
 /**
+ * Default per-call timeout for `POST /v1/content/gif`.
+ *
+ * A prompt- or image-to-GIF run is a video generation: healthy runs take
+ * 37–125 s (production p95 ≈ 130 s) and the server allows up to 360 s. On
+ * the 30 s client default most calls would time out while the server kept
+ * working — and billed the GIF — and the retry would find the first attempt
+ * still holding its idempotency key. 300 s is also the longest Node's
+ * built-in `fetch` waits for a response (see `docs/configuration.md`).
+ * Caller-supplied `RequestOptions.timeoutMs` and `RequestOptions.signal`
+ * still win.
+ */
+export const GIF_DEFAULT_TIMEOUT_MS = 300_000
+
+/**
  * `POST /v1/content/gif` — produce an animated GIF. The body is a
  * discriminated union on `from`:
  *
@@ -19,6 +33,9 @@ export type { ContentGifRequest, ContentGifResponse }
  * videoUrl?, altText?, duration?, fps?, aspectRatio?, loop? }`). This
  * operation is credit-metered. An insufficient balance surfaces as
  * `402 INSUFFICIENT_CREDITS`.
+ *
+ * Long-running: the SDK applies a 5-minute default timeout
+ * (`GIF_DEFAULT_TIMEOUT_MS`).
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<ContentGifResponse>` instead of the unwrapped payload.
@@ -36,13 +53,17 @@ export function createGif(client: HttpClient) {
     input: ContentGifRequest,
     options?: RequestOptions
   ): Promise<ContentGifResponse | BrewRawResponse<ContentGifResponse>> {
+    const resolvedOptions: RequestOptions = {
+      ...(options ?? {}),
+      timeoutMs: options?.timeoutMs ?? GIF_DEFAULT_TIMEOUT_MS,
+    }
     const response = await client.request<ContentGifResponse>({
       method: 'POST',
       path: '/v1/content/gif',
       body: input,
-      ...(options ? { options } : {}),
+      options: resolvedOptions,
     })
-    return unwrapResponse(response, options)
+    return unwrapResponse(response, resolvedOptions)
   }
   return gif
 }

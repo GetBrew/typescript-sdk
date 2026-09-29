@@ -1,9 +1,19 @@
 # Error handling
 
-Every non-2xx response from the Brew API — and every network failure
-the SDK gives up on after retries are exhausted — surfaces as a single
-typed error class: **`BrewApiError`**. One `catch` branch covers every
-failure mode.
+Every failure the SDK gives up on is typed, and which type tells you
+what you know about the request:
+
+| Thrown                                         | Means                                                                                                             |
+| ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `BrewApiError`                                 | The server answered with a non-2xx status. `status`, `code` and the rest of the envelope say what it said.        |
+| `BrewTimeoutError` (a `BrewTransportError`)    | No complete answer within `timeoutMs` — waiting for the headers or reading the body. **Outcome unknown.**         |
+| `BrewConnectionError` (a `BrewTransportError`) | The connection failed, or dropped while the body streamed. **Outcome unknown.** The original error is on `cause`. |
+| `BrewParseError`                               | The server answered 2xx, but the body was not JSON. Report it with `requestId`.                                   |
+| your signal's `reason`                         | You cancelled — the `signal` you passed (request- or client-level) aborted.                                       |
+
+All four classes extend `Error`, so the two-branch pattern below —
+`BrewApiError` for API errors, `Error` for everything else — covers
+every case.
 
 ## The error shape
 
@@ -26,6 +36,8 @@ class BrewApiError extends Error {
   readonly retryAfter: number | undefined // Delta-seconds: from body envelope or Retry-After header
   readonly details: Record<string, unknown> | undefined // The envelope's `details` object, when sent
   readonly body: unknown // The parsed response body exactly as received
+  readonly bodyError: Error | undefined // Set when the body was cut off mid-read (see below)
+  readonly idempotencyKey: string | undefined // The Idempotency-Key the request carried
 }
 ```
 
@@ -230,21 +242,54 @@ try {
 }
 ```
 
-## What about network failures?
+### A cut-off error body
 
-A network failure (DNS resolution, TCP reset, fetch reject) becomes a
-`BrewApiError` only AFTER all retry attempts have been exhausted. The
-SDK retries network errors by default for safe methods (`GET`,
-`DELETE`) and for `POST` (which always carries an auto-generated
-idempotency key). `PATCH` is **never** retried; the public v1 surface
-exposes no `PUT` operations. See
-[retries-and-idempotency](./retries-and-idempotency.md) for the full
-matrix.
+When the connection drops — or `timeoutMs` passes — while an error
+response's body is still arriving, the SDK still throws the
+`BrewApiError` for its status: a `502` is a `502`. The envelope never
+finished, so `code` is `'unknown_error'` and the rest is the generic
+fallback; `bodyError` holds why, and the message ends with
+`(response body was truncated: …)`. A complete body that simply is not
+JSON (an HTML page from a proxy) is the ordinary fallback above, with
+no `bodyError`.
 
-If retries do not save the request, the SDK throws the underlying
-`Error` directly (it does NOT wrap it in `BrewApiError` because there
-is no HTTP envelope to map). You should still expect both shapes from
-a defensive `catch`:
+## Transport failures
+
+A transport failure means no usable answer arrived: there is no status
+and no envelope, so it is not a `BrewApiError`. It is a
+`BrewTransportError`, thrown only once retries are exhausted (the SDK
+retries these for `GET`, `DELETE`, and a `POST` with an idempotency
+key — which the SDK attaches automatically; `PATCH` is never retried;
+see [retries-and-idempotency](./retries-and-idempotency.md)).
+
+```ts
+class BrewTransportError extends Error {
+  readonly method: string // 'GET', 'POST', …
+  readonly url: string // Full URL. The message leaves the query string out.
+  readonly attempts: number // HTTP attempts made, retries included
+  readonly idempotencyKey: string | undefined // Replay a write with this key
+  readonly inProgress: boolean // A retry found the first attempt still running
+  readonly cause: unknown // What the runtime threw, when there was something
+}
+class BrewTimeoutError extends BrewTransportError {
+  readonly timeoutMs: number // The per-attempt deadline that applied
+} // name: 'TimeoutError'
+class BrewConnectionError extends BrewTransportError {} // name: 'BrewConnectionError'
+```
+
+`BrewTimeoutError`'s `name` is `'TimeoutError'` — the platform's name
+for this event, the one `AbortSignal.timeout` uses — so name-based
+checks written for plain `fetch` keep working; `instanceof
+BrewTimeoutError` is the precise one. It also covers the HTTP runtime
+giving up first: Node's `fetch` stops waiting after 300 s (see
+[configuration.md](./configuration.md#timeoutms)).
+
+**The outcome is unknown.** The server may have finished, may still be
+working, or may never have seen the request. Do not resend a write with
+a new key — replay it with `error.idempotencyKey`. See
+[Recovering after an unknown outcome](./retries-and-idempotency.md#recovering-after-an-unknown-outcome).
+
+The two-branch pattern works unchanged:
 
 ```ts
 try {
@@ -253,16 +298,56 @@ try {
   if (error instanceof BrewApiError) {
     // API responded with a non-2xx
   } else if (error instanceof Error) {
-    // Network/transport failure after retries — error.message has details
+    // Transport failure, parse failure, or your own abort
   }
   throw error
 }
 ```
 
+Or branch on what actually happened:
+
+```ts
+import {
+  BrewApiError,
+  BrewParseError,
+  BrewTimeoutError,
+  BrewTransportError,
+} from '@brew.new/sdk'
+
+try {
+  await brew.emails.generate({ prompt })
+} catch (error) {
+  if (error instanceof BrewApiError) {
+    // The server said no: branch on error.code.
+  } else if (error instanceof BrewTimeoutError) {
+    // Too slow. The server may still finish: replay with
+    // error.idempotencyKey rather than generating twice.
+  } else if (error instanceof BrewTransportError) {
+    // Connection failed or dropped. Same advice for a write.
+  } else if (error instanceof BrewParseError) {
+    // A 2xx that was not JSON: report error.requestId.
+  }
+  throw error
+}
+```
+
+## A 2xx that is not JSON
+
+`BrewParseError` means the request reached the server and succeeded
+there, but the body that came back — complete — was not JSON. It is not
+a transport failure (`instanceof BrewTransportError` is false) and it is
+not retried: the same bytes would come back. It carries `status`,
+`requestId`, the first 256 characters as `bodyPreview`, and the
+`SyntaxError` as `cause`.
+
 ## Caller-initiated aborts
 
-Aborts triggered by your own `AbortSignal` are NEVER retried — they
-are intentional, and rethrown as the original `AbortError`. Check for
+Aborts triggered by your own `AbortSignal` — a request's `signal` or
+the client's — are NEVER retried: they are intentional. The request
+rejects with the signal's `reason` exactly as you gave it: a
+`DOMException` named `'AbortError'` for a plain `abort()`, or whatever
+you passed to `abort(reason)`. It stops the request wherever it is —
+connecting, reading the body, or backing off between retries. Check for
 abort separately if you handle it specially:
 
 ```ts
@@ -279,3 +364,17 @@ try {
   throw error
 }
 ```
+
+Before 11.3.0 an SDK timeout also surfaced as an `AbortError`, so this
+check could not tell a timeout from a cancel. A timeout is now a
+`BrewTimeoutError` (`name: 'TimeoutError'`), and `'AbortError'` means
+only that you cancelled. (A total deadline built from
+`AbortSignal.timeout(ms)` and passed as `signal` is your own cancel: it
+rejects with that signal's `DOMException`, whose `name` is also
+`'TimeoutError'`.)
+
+Cancelling does not stop work the server already started. To finish an
+interrupted write without doing it twice, replay it with the same
+idempotency key. A cancel rejects with your own `reason`, which carries
+no key, so on a write you might cancel, pass your own
+`RequestOptions.idempotencyKey` and keep it.

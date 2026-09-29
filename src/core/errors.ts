@@ -1,4 +1,4 @@
-import type { BrewErrorType } from '../types'
+import type { BrewErrorType, BrewHttpMethod } from '../types'
 
 /**
  * Input shape for the `BrewApiError` constructor. Mirrors the public
@@ -19,6 +19,8 @@ type BrewApiErrorInit = {
   readonly retryAfter: number | undefined
   readonly details?: Record<string, unknown> | undefined
   readonly body?: unknown
+  readonly bodyError?: Error | undefined
+  readonly idempotencyKey?: string | undefined
 }
 
 /**
@@ -31,6 +33,10 @@ type FromResponseInput = {
   readonly status: number
   readonly headers: Headers
   readonly body: unknown
+  /** Why the body could not be read to the end, when it could not. */
+  readonly bodyError?: Error | undefined
+  /** The `Idempotency-Key` the request carried, if any. */
+  readonly idempotencyKey?: string | undefined
 }
 
 /** Where the generic fallback points: the public error catalogue. */
@@ -41,9 +47,13 @@ const LEGACY_FIRE_DOCS_URL =
   'https://docs.brew.new/api-reference/public-v1/automations/fire-a-trigger'
 
 /**
- * The single public error class thrown by `@brew.new/sdk`. Every non-2xx
- * response and every transport-level failure becomes a `BrewApiError` with
- * the same shape, so consumers only need one `catch` branch.
+ * The error for every non-2xx response the SDK gives up on: the server
+ * answered, and this is what it said.
+ *
+ * A request that got NO usable answer — a deadline, a dropped connection, a
+ * body cut off mid-stream — is not a `BrewApiError`. Those have no status and
+ * no envelope, so they are their own family rooted at `BrewTransportError`
+ * (see below). A caller abort rethrows the signal's own `reason`.
  */
 export class BrewApiError extends Error {
   readonly status: number
@@ -68,6 +78,19 @@ export class BrewApiError extends Error {
    * fire envelope's own `status` discriminator, say — is still here.
    */
   readonly body: unknown
+  /**
+   * Set when the error body could not be read to the end — the connection
+   * dropped, or the deadline fired, partway through the envelope. The
+   * `status` is still authoritative, but `code`, `type` and `suggestion`
+   * are then the generic fallback rather than what the server meant to send.
+   */
+  readonly bodyError: Error | undefined
+  /**
+   * The `Idempotency-Key` this request was sent with. On a POST the SDK
+   * generates one unless you pass your own; this is where you find it to
+   * replay the request (see `docs/retries-and-idempotency.md`).
+   */
+  readonly idempotencyKey: string | undefined
 
   constructor(init: BrewApiErrorInit) {
     super(init.message)
@@ -82,6 +105,8 @@ export class BrewApiError extends Error {
     this.retryAfter = init.retryAfter
     this.details = init.details
     this.body = init.body
+    this.bodyError = init.bodyError
+    this.idempotencyKey = init.idempotencyKey
   }
 
   /**
@@ -115,9 +140,12 @@ export class BrewApiError extends Error {
     status,
     headers,
     body,
+    bodyError,
+    idempotencyKey,
   }: FromResponseInput): BrewApiError {
     const requestId = headers.get('x-request-id') ?? undefined
     const headerRetryAfter = parseRetryAfter(headers.get('retry-after'))
+    const transport = { bodyError, idempotencyKey }
 
     const envelope = parseErrorEnvelope(body)
     if (envelope) {
@@ -133,6 +161,7 @@ export class BrewApiError extends Error {
         retryAfter: envelope.retryAfter ?? headerRetryAfter,
         details: envelope.details,
         body,
+        ...transport,
       })
     }
 
@@ -150,11 +179,15 @@ export class BrewApiError extends Error {
         retryAfter: headerRetryAfter,
         details: legacy.details,
         body,
+        ...transport,
       })
     }
 
     return new BrewApiError({
-      message: `Request failed with status ${String(status)}`,
+      message: withTruncationNote({
+        message: `Request failed with status ${String(status)}`,
+        bodyError,
+      }),
       status,
       code: 'unknown_error',
       type: errorTypeForStatus({ status }),
@@ -165,8 +198,210 @@ export class BrewApiError extends Error {
       retryAfter: headerRetryAfter,
       details: undefined,
       body,
+      ...transport,
     })
   }
+}
+
+/**
+ * A request that got no usable HTTP answer: the deadline fired, the
+ * connection failed or dropped, or the body broke partway through. There is
+ * no status and no envelope — which is why this family is separate from
+ * `BrewApiError`, and why the documented
+ * `if (error instanceof BrewApiError) … else if (error instanceof Error) …`
+ * pattern still routes it to the transport branch.
+ *
+ * The outcome is UNKNOWN: the server may have finished the work, may still
+ * be doing it, or may never have seen the request. For a write, replay it
+ * with the same `idempotencyKey` rather than sending it again with a new one.
+ */
+export class BrewTransportError extends Error {
+  readonly method: BrewHttpMethod
+  /** The full request URL, query string included. The `message` omits the query. */
+  readonly url: string
+  /** How many HTTP attempts were made, retries included. */
+  readonly attempts: number
+  /** The `Idempotency-Key` every attempt carried, when the request had one. */
+  readonly idempotencyKey: string | undefined
+  /**
+   * `true` when a retry of this request was refused with
+   * `409 IDEMPOTENCY_IN_PROGRESS`: the first attempt is still running on the
+   * server. Wait, then replay with the same `idempotencyKey` to get its result.
+   */
+  readonly inProgress: boolean
+
+  constructor(init: BrewTransportErrorInit) {
+    super(
+      init.message,
+      init.cause === undefined ? undefined : { cause: init.cause }
+    )
+    this.name = 'BrewTransportError'
+    this.method = init.method
+    this.url = init.url
+    this.attempts = init.attempts
+    this.idempotencyKey = init.idempotencyKey
+    this.inProgress = init.inProgress ?? false
+  }
+}
+
+/**
+ * The request's deadline passed before the response finished arriving —
+ * headers or body. `timeoutMs` is the per-attempt deadline that applied.
+ *
+ * Also thrown when the HTTP runtime gives up first: Node's built-in `fetch`
+ * stops waiting after 300 s for the headers or 300 s of body silence,
+ * whatever `timeoutMs` says (the runtime error is on `cause`).
+ *
+ * `name` is `'TimeoutError'` — the platform's name for this event, the same
+ * as `AbortSignal.timeout` uses — so name-based checks written for plain
+ * `fetch` keep working. `instanceof BrewTimeoutError` is the precise check.
+ */
+export class BrewTimeoutError extends BrewTransportError {
+  readonly timeoutMs: number
+
+  constructor(init: BrewTimeoutErrorInit) {
+    super({
+      ...init,
+      message: timeoutMessage(init),
+    })
+    this.name = 'TimeoutError'
+    this.timeoutMs = init.timeoutMs
+  }
+}
+
+/**
+ * The connection failed — DNS, TCP, TLS, a rejected custom `fetch` — or it
+ * dropped while the response body was streaming. The original failure is on
+ * `cause`.
+ */
+export class BrewConnectionError extends BrewTransportError {
+  constructor(init: BrewConnectionErrorInit) {
+    super({
+      ...init,
+      message: connectionMessage(init),
+    })
+    this.name = 'BrewConnectionError'
+  }
+}
+
+/**
+ * The server answered 2xx and the whole body arrived, but it was not JSON.
+ * Not a transport failure — the request reached the server and succeeded
+ * there — and not retried, because the same bytes would come back. Report
+ * it with `requestId`.
+ */
+export class BrewParseError extends Error {
+  readonly status: number
+  readonly requestId: string | undefined
+  /** The first 256 characters of the body, for diagnosis. */
+  readonly bodyPreview: string
+
+  constructor(init: BrewParseErrorInit) {
+    super(
+      `The response body (status ${String(init.status)}) was not valid JSON.`,
+      init.cause === undefined ? undefined : { cause: init.cause }
+    )
+    this.name = 'BrewParseError'
+    this.status = init.status
+    this.requestId = init.requestId
+    this.bodyPreview = init.bodyPreview
+  }
+}
+
+type BrewTransportErrorInit = {
+  readonly message: string
+  readonly method: BrewHttpMethod
+  readonly url: string
+  readonly attempts: number
+  readonly idempotencyKey?: string | undefined
+  readonly inProgress?: boolean | undefined
+  readonly cause?: unknown
+}
+
+type BrewTimeoutErrorInit = Omit<BrewTransportErrorInit, 'message'> & {
+  readonly timeoutMs: number
+}
+
+type BrewConnectionErrorInit = Omit<BrewTransportErrorInit, 'message'>
+
+type BrewParseErrorInit = {
+  readonly status: number
+  readonly requestId?: string | undefined
+  readonly bodyPreview: string
+  readonly cause?: unknown
+}
+
+/**
+ * The undici error code when the RUNTIME, not the SDK, gave up waiting:
+ * Node's `fetch` enforces its own 300 s `headersTimeout` and `bodyTimeout`
+ * and reports them as `TypeError: fetch failed` with the code on `cause`.
+ */
+export function runtimeTimeoutCode({
+  error,
+}: {
+  error: unknown
+}): string | undefined {
+  const cause = error instanceof Error ? error.cause : undefined
+  if (!isRecord(cause)) return undefined
+  const code = cause.code
+  if (code === 'UND_ERR_HEADERS_TIMEOUT' || code === 'UND_ERR_BODY_TIMEOUT') {
+    return code
+  }
+  return undefined
+}
+
+/** `GET https://brew.new/api/v1/contacts` — never the query string, which can hold an email. */
+function describeRequest({
+  method,
+  url,
+}: {
+  method: BrewHttpMethod
+  url: string
+}): string {
+  try {
+    const parsed = new URL(url)
+    return `${method} ${parsed.origin}${parsed.pathname}`
+  } catch {
+    return `${method} ${url.split('?')[0] ?? ''}`
+  }
+}
+
+function attemptsNote({ attempts }: { attempts: number }): string {
+  return attempts > 1 ? ` (${String(attempts)} attempts)` : ''
+}
+
+const IN_PROGRESS_NOTE =
+  ' The server is still processing the first attempt: wait, then replay it with the same idempotencyKey rather than sending it again.'
+
+function timeoutMessage(init: BrewTimeoutErrorInit): string {
+  const request = describeRequest(init)
+  const runtimeCode = runtimeTimeoutCode({ error: init.cause })
+  const what =
+    runtimeCode === undefined
+      ? `${request} timed out after ${String(init.timeoutMs)}ms${attemptsNote(init)}.`
+      : `${request} timed out: the HTTP runtime stopped waiting (${runtimeCode}) before timeoutMs (${String(init.timeoutMs)}ms)${attemptsNote(init)}.`
+  return init.inProgress === true ? what + IN_PROGRESS_NOTE : what
+}
+
+function connectionMessage(init: BrewConnectionErrorInit): string {
+  const reason =
+    init.cause instanceof Error && init.cause.message !== ''
+      ? `: ${init.cause.message}`
+      : ''
+  const what = `${describeRequest(init)} failed before a complete response arrived${reason}${attemptsNote(init)}.`
+  return init.inProgress === true ? what + IN_PROGRESS_NOTE : what
+}
+
+/** Say so when the error envelope was cut off, instead of degrading silently. */
+function withTruncationNote({
+  message,
+  bodyError,
+}: {
+  message: string
+  bodyError: Error | undefined
+}): string {
+  if (bodyError === undefined) return message
+  return `${message} (response body was truncated: ${bodyError.message})`
 }
 
 /**

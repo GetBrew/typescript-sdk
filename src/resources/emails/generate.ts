@@ -12,7 +12,7 @@ export type GenerateEmailResponse =
  * The Brew email agent typically takes 30–90 seconds to produce an
  * artifact (planning, render, screenshot). The
  * client default `timeoutMs` of 30s is too short for this single
- * endpoint and would surface as an `AbortError` mid-generation. We
+ * endpoint and would surface as a `BrewTimeoutError` mid-generation. We
  * raise the floor to 4 minutes here while still allowing callers to
  * override it via `RequestOptions.timeoutMs` or to supply an
  * `AbortSignal` of their own. The server route declares

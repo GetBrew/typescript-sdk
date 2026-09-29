@@ -15,14 +15,18 @@ import type { BrewClientConfig } from '../../src/types'
  *
  * Accepts overrides on both the public `BrewClientConfig` (apiKey,
  * baseUrl, maxRetries, etc.) and the internal `HttpTuning` (for tests
- * that want to swap out `sleep` or `random`).
+ * that want to swap out `sleep` or `random`). `useRealSleep` keeps the
+ * transport's own timer-backed, abortable backoff — for the few tests that
+ * are about the wait itself.
  */
 export function makeTestHttpClient({
   configOverrides = {},
   tuningOverrides = {},
+  useRealSleep = false,
 }: {
   configOverrides?: Partial<BrewClientConfig>
   tuningOverrides?: HttpTuning
+  useRealSleep?: boolean
 } = {}): {
   client: ReturnType<typeof createHttpClient>
   sleepCalls: Array<number>
@@ -36,14 +40,15 @@ export function makeTestHttpClient({
     },
   })
   const sleepCalls: Array<number> = []
+  const recordingSleep = (ms: number): Promise<void> => {
+    sleepCalls.push(ms)
+    return Promise.resolve()
+  }
   const client = createHttpClient(config, {
     retryBaseMs: 1,
     retryMaxMs: 1,
     random: () => 0,
-    sleep: (ms: number): Promise<void> => {
-      sleepCalls.push(ms)
-      return Promise.resolve()
-    },
+    ...(useRealSleep ? {} : { sleep: recordingSleep }),
     ...tuningOverrides,
   })
   return { client, sleepCalls }

@@ -28,6 +28,13 @@ export const DEFAULT_TIMEOUT_MS = 30_000
 export const DEFAULT_MAX_RETRIES = 2
 
 /**
+ * Whether an attempt that hit `timeoutMs` is retried. `true`: a timeout is a
+ * transient failure like any other, and `(maxRetries + 1) * timeoutMs` is the
+ * documented worst case. Callers who need a hard deadline set it `false`.
+ */
+export const shouldRetryOnTimeoutByDefault = true
+
+/**
  * Default `User-Agent` value. Identifies the SDK and its version so
  * incoming requests are attributable in server logs. Sourced from
  * `src/version.ts` so bumping the version in one place propagates here.
@@ -81,6 +88,8 @@ export function resolveConfig(
     fetch: userConfig.fetch ?? defaultFetch,
     timeoutMs: userConfig.timeoutMs ?? DEFAULT_TIMEOUT_MS,
     maxRetries: userConfig.maxRetries ?? DEFAULT_MAX_RETRIES,
+    retryOnTimeout: userConfig.retryOnTimeout ?? shouldRetryOnTimeoutByDefault,
+    signal: userConfig.signal,
     userAgent: userConfig.userAgent ?? DEFAULT_USER_AGENT,
   }
 }
