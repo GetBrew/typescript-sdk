@@ -6,25 +6,24 @@ import type { BrandImagesResponse, ListBrandImagesInput } from './types'
 export type { BrandImagesResponse, ListBrandImagesInput }
 
 /**
- * `GET /v1/brand/images` — the brand's asset library, as the Assets page in
- * the Brew app shows it: logos, brand images (from the site or uploaded,
- * including the social preview and site screenshot) and images made with
- * Brew. Requires the `emails` scope.
+ * `GET /v1/brand/images` — the brand's asset library as the Assets page
+ * shows it: logos, brand images (from the site or uploaded, including the
+ * social preview and site screenshot) and images made with Brew. Each row
+ * carries its `assetId`, `kind`, `addedAt` and dimensions. Requires the
+ * `emails` scope.
  *
  * Two modes on the same read:
- * - Browse (default, free): every asset, `sort: 'newest'` (default) or
- *   `'oldest'`, paginated via `limit` + `cursor`. Pass `pagination.cursor`
- *   back as `cursor` while `pagination.hasMore` is `true`.
- * - Semantic search: pass `q` to rank brand and generated images by
- *   meaning. 1 credit for the first page (continuing with `cursor` is
- *   free); results come in relevance order and `sort` is ignored. Logos
- *   are not searchable.
+ * - Browse (default, free): every asset, `sort` `newest` (default) or
+ *   `oldest`, paginated via `limit` + `cursor`. Pass `pagination.cursor`
+ *   back as `cursor` to fetch the next page while `pagination.hasMore` is
+ *   `true`.
+ * - Semantic search: pass `q` to rank images by what they show (1 credit
+ *   per new search; relevance order, `sort` ignored). Logos are not
+ *   searchable.
  *
- * Narrow either mode with `kind`: `'logo'`, `'brand'` or `'generated'`.
- * Each row carries `assetId` — the id the app opens at
- * `/assets?image=<assetId>` — plus `kind`, `url` and what is known about it
- * (`description`, `width`, `height`, `category`, `pageUrl`, `addedAt`, and a
- * logo's `logo` variant).
+ * Narrow either mode with `kind` (`logo`, `brand` or `generated`). The
+ * `type` and `aspectRatio` filters were retired by the API
+ * (brew-v2#1713), which refuses them with a `400` naming `kind`.
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<BrandImagesResponse>` instead of the unwrapped

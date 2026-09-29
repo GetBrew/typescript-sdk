@@ -53,6 +53,19 @@ export type ContactCustomFields = Contact['customFields']
  * { field: 'customFields.plan', operator: 'equals', value: 'enterprise' }
  * ```
  */
+/**
+ * Marketing consent provenance to record on a contact: who captured it
+ * (`source`: `api`, `form` or `import`), when (`capturedAt`, ISO 8601,
+ * defaults to now), and an optional `policyVersion` and `evidence`. Record
+ * it where the address was collected: `emails.send` refuses an inline
+ * marketing recipient whose contact has no consent record
+ * (`422 CONSENT_REQUIRED`) unless the send supplies one. Recording consent
+ * never re-subscribes an opted-out contact.
+ */
+export type ContactConsentInput = NonNullable<
+  components['schemas']['ContactsPatchRequest']['consent']
+>
+
 export type ContactsFilter = NonNullable<
   components['schemas']['ContactsSearchRequest']['filters']
 >[number]

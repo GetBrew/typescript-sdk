@@ -41,8 +41,8 @@ export type FireTriggerInput<
 
 /**
  * The 202 fire body — bare in v1: `{ triggerInstanceId, triggerEventId,
- * status, automationRunIds, publishedAutomations, counts, warnings,
- * receivedAt }`. The old `{ success, code, message, details }` envelope
+ * status, automationRunIds, notStarted, publishedAutomations, counts,
+ * warnings, receivedAt }`. The old `{ success, code, message, details }` envelope
  * is gone.
  */
 export type FireTriggerResponse = components['schemas']['TriggerFireAccepted']
@@ -54,7 +54,8 @@ export type FireTriggerResponse = components['schemas']['TriggerFireAccepted']
  * and starts one run per published automation attached to the trigger.
  *
  * Returns `202` with the bare accepted body: read `automationRunIds[]`
- * and follow each run via
+ * (the runs it started) and `notStarted[]` (each matched automation whose
+ * run could not start, with its `reason`), and follow each run via
  * `brew.automations.runs.get(automationRunId, { include: 'logs' })`, or
  * read the whole fire back with
  * `brew.automations.triggerInstances.get(triggerInstanceId)`. Set

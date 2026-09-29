@@ -2,7 +2,7 @@ import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
 import type { AutomationConnectionInput, AutomationNodeInput } from './create'
-import type { Automation } from './types'
+import type { Automation, AutomationDryRunReport } from './types'
 
 /**
  * `PATCH /v1/automations/{automationId}` body — the update fields per
@@ -34,7 +34,11 @@ export type PatchAutomationInput = {
   nodes?: ReadonlyArray<AutomationNodeInput>
   connections?: ReadonlyArray<AutomationConnectionInput>
   triggerEventId?: string
-  /** Validate only — run the full publish-gate check without writing. */
+  /**
+   * Validate only — run the full publish-gate check without writing. A
+   * literal `dryRun: true` (`PatchAutomationDryRunInput`) is typed as the
+   * `AutomationDryRunReport` it answers.
+   */
   dryRun?: boolean
   // lifecycle update fields (mutually exclusive with the content fields)
   published?: boolean
@@ -57,6 +61,17 @@ export type PatchAutomationInput = {
 }
 
 /**
+ * A content update with `dryRun: true`: the full publish-gate check on the
+ * updated graph, nothing written. Answers an `AutomationDryRunReport`.
+ */
+export type PatchAutomationDryRunInput = Omit<
+  PatchAutomationInput,
+  'dryRun'
+> & {
+  dryRun: true
+}
+
+/**
  * `PATCH /v1/automations/{automationId}` response — the BARE updated
  * `AutomationRow`, NOT a `{ automations: [...] }` envelope.
  */
@@ -66,9 +81,17 @@ export type PatchAutomationResponse = Automation
  * `PATCH /v1/automations/{automationId}` — update metadata and/or the
  * graph, OR change the published lifecycle. Graph updates persist a new
  * `automationVersionId` on the same `automationId`. Returns the bare
- * updated row.
+ * updated row; with `dryRun: true`, the `AutomationDryRunReport` instead.
  */
 export function createPatchAutomation(client: HttpClient) {
+  function patchAutomation(
+    input: PatchAutomationDryRunInput,
+    options: RequestOptions & { readonly raw: true }
+  ): Promise<BrewRawResponse<AutomationDryRunReport>>
+  function patchAutomation(
+    input: PatchAutomationDryRunInput,
+    options?: RequestOptions
+  ): Promise<AutomationDryRunReport>
   function patchAutomation(
     input: PatchAutomationInput,
     options: RequestOptions & { readonly raw: true }
@@ -78,13 +101,17 @@ export function createPatchAutomation(client: HttpClient) {
     options?: RequestOptions
   ): Promise<PatchAutomationResponse>
   async function patchAutomation(
-    input: PatchAutomationInput,
+    input: PatchAutomationInput | PatchAutomationDryRunInput,
     options?: RequestOptions
   ): Promise<
-    PatchAutomationResponse | BrewRawResponse<PatchAutomationResponse>
+    | PatchAutomationResponse
+    | AutomationDryRunReport
+    | BrewRawResponse<PatchAutomationResponse | AutomationDryRunReport>
   > {
     const { automationId, ...body } = input
-    const response = await client.request<PatchAutomationResponse>({
+    const response = await client.request<
+      PatchAutomationResponse | AutomationDryRunReport
+    >({
       method: 'PATCH',
       path: `/v1/automations/${encodeURIComponent(automationId)}`,
       body,

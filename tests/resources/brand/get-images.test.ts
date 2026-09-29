@@ -40,7 +40,7 @@ describe('brand.getImages', () => {
     expect(result.data[0]?.url).toBe(IMAGE.url)
   })
 
-  it('narrows by kind and orders by sort', async () => {
+  it('semantic search: q + kind + sort are serialized into the query', async () => {
     let captured: Request | undefined
     server.use(
       http.get('https://brew.new/api/v1/brand/images', ({ request }) => {
@@ -55,35 +55,18 @@ describe('brand.getImages', () => {
     const { client } = makeTestHttpClient()
     const getImages = createGetBrandImages(client)
 
-    const result = await getImages({ kind: 'generated', sort: 'oldest' })
-
-    const params = new URL(captured!.url).searchParams
-    expect(params.get('kind')).toBe('generated')
-    expect(params.get('sort')).toBe('oldest')
-    expect(result.data[0]?.assetId).toBe('5bc912f9')
-  })
-
-  it('semantic search: q + kind are serialized into the query', async () => {
-    let captured: Request | undefined
-    server.use(
-      http.get('https://brew.new/api/v1/brand/images', ({ request }) => {
-        captured = request
-        return HttpResponse.json({
-          data: [IMAGE],
-          pagination: { limit: 20, cursor: null, hasMore: false },
-        })
-      })
-    )
-
-    const { client } = makeTestHttpClient()
-    const getImages = createGetBrandImages(client)
-
-    await getImages({ q: 'user profile component', kind: 'brand' })
+    await getImages({
+      q: 'user profile component',
+      kind: 'brand',
+      sort: 'oldest',
+    })
 
     const params = new URL(captured!.url).searchParams
     expect(params.get('q')).toBe('user profile component')
     expect(params.get('kind')).toBe('brand')
-    expect(params.get('type')).toBeNull()
-    expect(params.get('aspectRatio')).toBeNull()
+    expect(params.get('sort')).toBe('oldest')
+    // Retired by the API (brew-v2#1713); the SDK never sends them.
+    expect(params.has('type')).toBe(false)
+    expect(params.has('aspectRatio')).toBe(false)
   })
 })

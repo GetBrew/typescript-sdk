@@ -12,11 +12,14 @@ audience scope.
 | [`search`](#search)         | `POST /v1/contacts/search`       |
 | [`searchAll`](#searchall)   | `POST /v1/contacts/search`       |
 | [`count`](#count)           | `POST /v1/contacts/search`       |
+| [`countBy`](#countby)       | `POST /v1/contacts/search`       |
 | [`upsert`](#upsert)         | `POST /v1/contacts`              |
 | [`upsertMany`](#upsertmany) | `POST /v1/contacts`              |
 | [`patch`](#patch)           | `PATCH /v1/contacts/{email}`     |
 | [`delete`](#delete)         | `DELETE /v1/contacts/{email}`    |
 | [`deleteMany`](#deletemany) | `POST /v1/contacts/batch-delete` |
+| [`validate`](#validate)     | `POST /v1/contacts/validate`     |
+| [`importCsv`](#importcsv)   | `POST /v1/contacts/import-csv`   |
 
 > **New in 10.0.0.** `list(query)` and `get(email)` are real routes.
 > Looking a contact up by email no longer means an `equals` filter and a
@@ -302,6 +305,15 @@ type UpsertContactInput = {
   readonly lastName?: string
   readonly subscribed?: boolean
   readonly customFields?: { readonly [key: string]: unknown }
+  readonly consent?: ContactConsentInput // marketing consent provenance
+  readonly validate?: boolean // deliverability check, 2 credits
+}
+
+type ContactConsentInput = {
+  readonly source: 'api' | 'form' | 'import'
+  readonly capturedAt?: string // ISO 8601; defaults to now
+  readonly policyVersion?: string
+  readonly evidence?: string
 }
 
 type UpsertContactResponse = {
@@ -327,6 +339,18 @@ const result = await brew.contacts.upsert({
 console.log(result.contact.email)
 console.log(result.created) // true if this was an insert
 console.log(result.fieldsCreated) // ['plan'] if 'plan' was a new custom field
+```
+
+Record `consent` where you collect the address: `emails.send` refuses an
+inline marketing recipient whose contact has no consent record
+(`422 CONSENT_REQUIRED`) unless the send supplies one. Recording consent
+never re-subscribes an opted-out contact.
+
+```ts
+await brew.contacts.upsert({
+  email: 'jane@example.com',
+  consent: { source: 'form', evidence: 'Newsletter footer form' },
+})
 ```
 
 POST requests get an auto-generated `Idempotency-Key` so retries are
@@ -396,12 +420,14 @@ if (result.errors.length > 0) {
 
 ## `patch`
 
-Partial update by email. The wire format is `{ email, fields: {...} }`.
+Partial update by email. The email travels in the path; the body is
+`{ fields?, consent? }` with at least one of them.
 
 ```ts
 type PatchContactInput = {
   readonly email: string
-  readonly fields: { readonly [key: string]: unknown }
+  readonly fields?: { readonly [key: string]: unknown } // at least one of
+  readonly consent?: ContactConsentInput //                fields / consent
 }
 
 type PatchContactResponse = {
@@ -429,7 +455,15 @@ console.log(result.updated) // ['firstName', 'customFields.plan']
 
 `fields` is an open object: include any combination of writable core
 fields (`firstName`, `lastName`, `subscribed`) and custom fields
-(keys like `'customFields.plan'`).
+(keys like `'customFields.plan'`). `consent` records (or replaces) the
+contact's marketing consent provenance, alone or with `fields`:
+
+```ts
+await brew.contacts.patch({
+  email: 'jane@example.com',
+  consent: { source: 'import', capturedAt: '2026-01-15T00:00:00.000Z' },
+})
+```
 
 **PATCH is never retried**, even with an idempotency key — the
 server's view of "current state" may have shifted between attempts.
@@ -499,3 +533,63 @@ if (result.notFound.length > 0) {
   console.warn('No contact found for:', result.notFound)
 }
 ```
+
+---
+
+## `validate`
+
+Deliverability-check up to 100 addresses before importing or sending:
+each is `valid`, `risky` or `invalid`, with a `reason`, a `didYouMean`
+typo correction and `risk`, `isDisposable` and `isRole` flags. The verdict
+is also saved onto any matching existing contacts. Metered 2 credits per
+address, charged only on success; a check that cannot complete answers a
+retryable `503` and is not billed.
+
+```ts
+const { data } = await brew.contacts.validate({
+  emails: ['jane@example.com', 'bo@exampel.com'],
+})
+for (const result of data) {
+  console.log(result.email, result.status, result.didYouMean)
+}
+```
+
+---
+
+## `importCsv`
+
+Bulk-import contacts from raw CSV text. The server parses the file,
+auto-defines the custom fields it finds (`fieldsCreated`) and upserts each
+row. The input is the spec's request body:
+
+```ts
+type ImportCsvContactsInput = {
+  csv: string
+  mapping?: { [csvColumn: string]: string } // overrides header inference
+  validate?: boolean // deliverability check, 2 credits per address
+  consent?: ContactConsentInput // stamped on every imported row
+  dateOrder?: 'month_first' | 'day_first'
+}
+```
+
+`dateOrder` says how to read a date column whose dates read either way:
+`day_first` reads `03/04/2026` as 3 April, `month_first` as 4 March. A day
+over 12 anywhere in the column (`13/04/2026`) proves the order and
+overrides it. Without it, such a column reads month-first and the response
+carries a `DATE_ORDER_ASSUMED` warning naming the field.
+
+```ts
+const result = await brew.contacts.importCsv({
+  csv: 'Email,Signup Date\nada@example.com,03/04/2026',
+  dateOrder: 'day_first',
+  consent: { source: 'import' },
+})
+
+console.log(result.summary) // { inserted, updated, failed, skipped }
+for (const warning of result.warnings) {
+  console.warn(warning.code, warning.field, warning.message)
+}
+```
+
+The response has the same shape on full and partial success: inspect
+`summary.failed` and `errors` for row-level problems.
