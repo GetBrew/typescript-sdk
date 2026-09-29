@@ -63,7 +63,8 @@ the `type` and `aspectRatio` filters the API retired (see below).
 ### Tests
 
 - `tests/openapi-body-parity.test.ts`: every request-body property the spec
-  documents is one some SDK method for that route can send. The surface
+  documents, one level into array rows (`contacts[].consent`), is one some
+  SDK method for that route can send. The surface
   parity test covered routes and query parameters only, which is how
   `consent` and `dateOrder` went unmirrored.
 

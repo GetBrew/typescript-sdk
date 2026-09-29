@@ -16,7 +16,8 @@ import { describe, expect, it } from 'vitest'
  * spec property to appear in at least one call for that route. One route
  * may be split across methods (`search` / `count` / `countBy`, `upsert` /
  * `upsertMany`, `patch` / `publish` / `unpublish`); their union must cover
- * it. Top-level properties only: a batch row's fields are not walked.
+ * it. Properties are walked one level into array rows, so a batch row's
+ * fields count too (`contacts[].consent`).
  */
 
 const ROOT = process.cwd()
@@ -49,7 +50,49 @@ function propertyNames(checker: ts.TypeChecker, type: ts.Type): Set<string> {
   return names
 }
 
-/** `"POST /v1/contacts/import-csv"` → the JSON body's property names. */
+/** An array's rows are objects (not strings or numbers) whose fields to walk. */
+function isObjectRow(type: ts.Type): boolean {
+  const parts = type.isUnion() ? type.types : [type]
+  return parts.every(
+    (part) =>
+      (part.flags & (ts.TypeFlags.Object | ts.TypeFlags.Intersection)) !== 0
+  )
+}
+
+/**
+ * Top-level property names, plus `name[].field` for every field of an
+ * array-of-objects property (a batch's rows, a graph's nodes).
+ */
+function propertyPaths(
+  checker: ts.TypeChecker,
+  type: ts.Type,
+  location: ts.Node
+): Set<string> {
+  const paths = new Set<string>()
+  const parts = type.isUnionOrIntersection() ? type.types : [type]
+  for (const part of parts) {
+    for (const symbol of checker.getPropertiesOfType(
+      checker.getApparentType(part)
+    )) {
+      paths.add(symbol.name)
+      const propertyType = checker.getNonNullableType(
+        checker.getTypeOfSymbolAtLocation(
+          symbol,
+          symbol.valueDeclaration ?? location
+        )
+      )
+      const row = checker.getIndexTypeOfType(propertyType, ts.IndexKind.Number)
+      if (row && isObjectRow(row)) {
+        for (const field of propertyNames(checker, row)) {
+          paths.add(`${symbol.name}[].${field}`)
+        }
+      }
+    }
+  }
+  return paths
+}
+
+/** `"POST /v1/contacts/import-csv"` → the JSON body's property paths. */
 function readSpecBodies(
   program: ts.Program,
   checker: ts.TypeChecker
@@ -81,7 +124,7 @@ function readSpecBodies(
       if (json) {
         bodies.set(
           `${method.toUpperCase()} ${normalizePath(route.name)}`,
-          propertyNames(checker, typeOf(json))
+          propertyPaths(checker, typeOf(json), paths)
         )
       }
     }
@@ -171,9 +214,10 @@ function readSdkBodies(
           }
           if (expression) {
             const keys = sent.get(key) ?? new Set<string>()
-            for (const name of propertyNames(
+            for (const name of propertyPaths(
               checker,
-              checker.getTypeAtLocation(expression)
+              checker.getTypeAtLocation(expression),
+              expression
             )) {
               keys.add(name)
             }
@@ -208,6 +252,7 @@ describe('request body parity', () => {
     // The walk found the bodies (a broken walk would pass vacuously).
     expect(spec.size).toBeGreaterThan(40)
     expect(spec.get('POST /v1/contacts/import-csv')).toContain('csv')
+    expect(spec.get('POST /v1/contacts')).toContain('contacts[].consent')
 
     const unsendable = [...spec].flatMap(([route, properties]) => {
       const keys = sdk.get(route)
