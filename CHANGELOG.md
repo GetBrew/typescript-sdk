@@ -1,5 +1,17 @@
 # Changelog
 
+## 11.2.1
+
+Not tagged or published yet: pushing the `v11.2.1` tag publishes it (see
+`RELEASING.md`). No signature changes.
+
+### Changed
+
+- `content.generateImage` documents that the API now saves each image to the
+  brand's generated images (brew-v2#1710), which
+  `brand.getImages({ kind: 'generated' })` lists. The spec mirror and
+  generated types are regenerated from brew-v2 main to match.
+
 ## 11.2.0
 
 Regenerated from the live spec after brew-v2#1708, #1711, #1713 and #1715

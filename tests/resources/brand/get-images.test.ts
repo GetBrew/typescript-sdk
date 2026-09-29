@@ -6,6 +6,8 @@ import { makeTestHttpClient } from '../../helpers/http-client'
 import { server } from '../../msw/server'
 
 const IMAGE = {
+  assetId: '5bc912f9',
+  kind: 'generated' as const,
   url: 'https://cdn.brew.new/cnt/abc.png',
   description: 'Clerk user-profile component',
   width: 1056,
