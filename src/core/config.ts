@@ -5,6 +5,36 @@ import type {
 } from '../types'
 import { SDK_NAME, SDK_VERSION } from '../version'
 
+/** `timeoutMs` must be a number >= 0; `Infinity` means no deadline. */
+export function assertTimeoutMs({
+  value,
+  name,
+}: {
+  readonly value: unknown
+  readonly name: string
+}): void {
+  if (typeof value !== 'number' || Number.isNaN(value) || value < 0) {
+    throw new TypeError(
+      `\`${name}\` must be a number of milliseconds >= 0 (Infinity for no deadline); got ${String(value)}.`
+    )
+  }
+}
+
+/** `maxRetries` must be a whole number >= 0. */
+export function assertRetryCount({
+  value,
+  name,
+}: {
+  readonly value: unknown
+  readonly name: string
+}): void {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
+    throw new TypeError(
+      `\`${name}\` must be a whole number >= 0; got ${String(value)}.`
+    )
+  }
+}
+
 /**
  * Production base URL for the Brew public API. Exposed as a constant so
  * tests and downstream consumers can reference the same value without
@@ -79,6 +109,13 @@ export function resolveConfig(
     throw new TypeError(
       'resolveConfig: `brandId` must be a non-empty string when provided'
     )
+  }
+
+  if (userConfig.timeoutMs !== undefined) {
+    assertTimeoutMs({ value: userConfig.timeoutMs, name: 'timeoutMs' })
+  }
+  if (userConfig.maxRetries !== undefined) {
+    assertRetryCount({ value: userConfig.maxRetries, name: 'maxRetries' })
   }
 
   return {

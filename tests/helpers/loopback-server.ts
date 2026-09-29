@@ -241,3 +241,20 @@ export function afterHeaders({
   }
   return { fetch: wrapped, wereHeadersReceived: () => wasReceived }
 }
+
+/**
+ * Wrap the global fetch and record the `Idempotency-Key` each attempt SENT —
+ * on the client side, so a test does not depend on the request reaching a
+ * server before its deadline (on a loaded machine it may not).
+ */
+export function keyRecordingFetch(): {
+  fetch: typeof globalThis.fetch
+  sentKeys: ReadonlyArray<string | null>
+} {
+  const sentKeys: Array<string | null> = []
+  const wrapped: typeof globalThis.fetch = (input, init) => {
+    sentKeys.push(new Headers(init?.headers).get('idempotency-key'))
+    return globalThis.fetch(input, init)
+  }
+  return { fetch: wrapped, sentKeys }
+}

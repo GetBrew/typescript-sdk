@@ -18,6 +18,8 @@ export type GenerateEmailResponse =
  * `AbortSignal` of their own. The server route declares
  * `maxDuration = 800` seconds, so the SDK ceiling is well below the
  * server ceiling.
+ *
+ * It is a floor, never a cap: a longer client-wide `timeoutMs` is kept.
  */
 export const GENERATE_EMAIL_DEFAULT_TIMEOUT_MS = 240_000
 
@@ -55,17 +57,14 @@ export function createGenerateEmail(client: HttpClient) {
     input: GenerateEmailInput,
     options?: RequestOptions
   ): Promise<GenerateEmailResponse | BrewRawResponse<GenerateEmailResponse>> {
-    const resolvedOptions: RequestOptions = {
-      ...(options ?? {}),
-      timeoutMs: options?.timeoutMs ?? GENERATE_EMAIL_DEFAULT_TIMEOUT_MS,
-    }
     const response = await client.request<GenerateEmailResponse>({
       method: 'POST',
       path: '/v1/emails',
       body: input,
-      options: resolvedOptions,
+      defaultTimeoutMs: GENERATE_EMAIL_DEFAULT_TIMEOUT_MS,
+      ...(options ? { options } : {}),
     })
-    return unwrapResponse(response, resolvedOptions)
+    return unwrapResponse(response, options)
   }
   return generateEmail
 }

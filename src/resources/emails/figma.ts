@@ -37,6 +37,8 @@ export type ImportFigmaDesignResponse =
  * is still running when a retry arrives, the SDK throws the timeout with
  * `inProgress: true` and that key, so you can replay it later instead of
  * converting the frame twice.
+ *
+ * It is a floor, never a cap: a longer client-wide `timeoutMs` is kept.
  */
 export const IMPORT_FIGMA_DEFAULT_TIMEOUT_MS = 800_000
 
@@ -87,10 +89,8 @@ export function createImportFigmaDesign(client: HttpClient) {
       method: 'POST',
       path: '/v1/emails/figma',
       body: input,
-      options: {
-        ...(options ?? {}),
-        timeoutMs: options?.timeoutMs ?? IMPORT_FIGMA_DEFAULT_TIMEOUT_MS,
-      },
+      defaultTimeoutMs: IMPORT_FIGMA_DEFAULT_TIMEOUT_MS,
+      ...(options ? { options } : {}),
     })
     return unwrapResponse(response, options)
   }

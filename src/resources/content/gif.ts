@@ -16,6 +16,8 @@ export type { ContentGifRequest, ContentGifResponse }
  * built-in `fetch` waits for a response (see `docs/configuration.md`).
  * Caller-supplied `RequestOptions.timeoutMs` and `RequestOptions.signal`
  * still win.
+ *
+ * It is a floor, never a cap: a longer client-wide `timeoutMs` is kept.
  */
 export const GIF_DEFAULT_TIMEOUT_MS = 300_000
 
@@ -53,17 +55,14 @@ export function createGif(client: HttpClient) {
     input: ContentGifRequest,
     options?: RequestOptions
   ): Promise<ContentGifResponse | BrewRawResponse<ContentGifResponse>> {
-    const resolvedOptions: RequestOptions = {
-      ...(options ?? {}),
-      timeoutMs: options?.timeoutMs ?? GIF_DEFAULT_TIMEOUT_MS,
-    }
     const response = await client.request<ContentGifResponse>({
       method: 'POST',
       path: '/v1/content/gif',
       body: input,
-      options: resolvedOptions,
+      defaultTimeoutMs: GIF_DEFAULT_TIMEOUT_MS,
+      ...(options ? { options } : {}),
     })
-    return unwrapResponse(response, resolvedOptions)
+    return unwrapResponse(response, options)
   }
   return gif
 }

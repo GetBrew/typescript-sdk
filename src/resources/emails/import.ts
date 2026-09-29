@@ -26,6 +26,8 @@ export type EmailImportResponse =
  * default. 300 s is also the longest Node's built-in `fetch` waits for a
  * response. Caller-supplied `RequestOptions.timeoutMs` and
  * `RequestOptions.signal` still win.
+ *
+ * It is a floor, never a cap: a longer client-wide `timeoutMs` is kept.
  */
 export const IMPORT_EMAIL_DEFAULT_TIMEOUT_MS = 300_000
 
@@ -63,17 +65,14 @@ export function createImportEmail(client: HttpClient) {
     input: EmailImportInput,
     options?: RequestOptions
   ): Promise<EmailImportResponse | BrewRawResponse<EmailImportResponse>> {
-    const resolvedOptions: RequestOptions = {
-      ...(options ?? {}),
-      timeoutMs: options?.timeoutMs ?? IMPORT_EMAIL_DEFAULT_TIMEOUT_MS,
-    }
     const response = await client.request<EmailImportResponse>({
       method: 'POST',
       path: '/v1/emails/import',
       body: input,
-      options: resolvedOptions,
+      defaultTimeoutMs: IMPORT_EMAIL_DEFAULT_TIMEOUT_MS,
+      ...(options ? { options } : {}),
     })
-    return unwrapResponse(response, resolvedOptions)
+    return unwrapResponse(response, options)
   }
   return importEmail
 }

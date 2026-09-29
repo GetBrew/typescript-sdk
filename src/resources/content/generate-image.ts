@@ -13,6 +13,8 @@ export type { ContentGenerateImageRequest, ContentImageResponse }
  * the 30 s client default, which would time out while the server kept
  * working and billed the image. Caller-supplied `RequestOptions.timeoutMs`
  * and `RequestOptions.signal` still win.
+ *
+ * It is a floor, never a cap: a longer client-wide `timeoutMs` is kept.
  */
 export const GENERATE_IMAGE_DEFAULT_TIMEOUT_MS = 180_000
 
@@ -47,17 +49,14 @@ export function createGenerateImage(client: HttpClient) {
     input: ContentGenerateImageRequest,
     options?: RequestOptions
   ): Promise<ContentImageResponse | BrewRawResponse<ContentImageResponse>> {
-    const resolvedOptions: RequestOptions = {
-      ...(options ?? {}),
-      timeoutMs: options?.timeoutMs ?? GENERATE_IMAGE_DEFAULT_TIMEOUT_MS,
-    }
     const response = await client.request<ContentImageResponse>({
       method: 'POST',
       path: '/v1/content/generate-image',
       body: input,
-      options: resolvedOptions,
+      defaultTimeoutMs: GENERATE_IMAGE_DEFAULT_TIMEOUT_MS,
+      ...(options ? { options } : {}),
     })
-    return unwrapResponse(response, resolvedOptions)
+    return unwrapResponse(response, options)
   }
   return generateImage
 }

@@ -13,6 +13,7 @@ import {
   BrewTimeoutError,
   runtimeTimeoutCode,
 } from './errors'
+import { assertRetryCount, assertTimeoutMs } from './config'
 import { buildHeaders } from './headers'
 import { resolveIdempotencyKey } from './idempotency'
 import { computeBackoff, type RetryCause, shouldRetry } from './retry'
@@ -30,6 +31,13 @@ export type HttpRequestInput = {
   readonly query?: BuildUrlInput['query']
   readonly body?: unknown
   readonly options?: RequestOptions
+  /**
+   * A long-running method's minimum per-attempt deadline. A FLOOR, never a
+   * cap: a per-request `timeoutMs` always wins, and otherwise the attempt
+   * gets the longer of this and the client's `timeoutMs` — so a method
+   * default can raise a deadline the user configured but never shorten it.
+   */
+  readonly defaultTimeoutMs?: number
 }
 
 /**
@@ -49,7 +57,10 @@ export type HttpTuning = {
    * ends a backoff at once; a test double may ignore it — the loop checks
    * the caller's signal again after every wait either way.
    */
-  readonly sleep?: (ms: number, signal?: AbortSignal) => Promise<void>
+  readonly sleep?: (input: {
+    readonly ms: number
+    readonly signal: AbortSignal | undefined
+  }) => Promise<void>
 }
 
 export type HttpClient = {
@@ -92,9 +103,17 @@ export function createHttpClient(
     input: HttpRequestInput
   ): Promise<BrewRawResponse<T>> {
     const options: RequestOptions = input.options ?? {}
+    if (options.maxRetries !== undefined) {
+      assertRetryCount({ value: options.maxRetries, name: 'maxRetries' })
+    }
+    if (options.timeoutMs !== undefined) {
+      assertTimeoutMs({ value: options.timeoutMs, name: 'timeoutMs' })
+    }
     const maxRetries = options.maxRetries ?? config.maxRetries
     const timeoutMs = normalizeTimeoutMs({
-      timeoutMs: options.timeoutMs ?? config.timeoutMs,
+      timeoutMs:
+        options.timeoutMs ??
+        Math.max(config.timeoutMs, input.defaultTimeoutMs ?? 0),
     })
     const shouldRetryOnTimeout = options.retryOnTimeout ?? config.retryOnTimeout
 
@@ -232,8 +251,8 @@ export function createHttpClient(
           attemptSignal.discard()
           await cancelBody({ response: responseOf({ result }) })
 
-          await sleep(
-            computeBackoff({
+          await sleep({
+            ms: computeBackoff({
               attempt,
               baseMs: retryBaseMs,
               maxMs: retryMaxMs,
@@ -242,8 +261,8 @@ export function createHttpClient(
                 : {}),
               random,
             }),
-            callerSignal
-          )
+            signal: callerSignal,
+          })
           // The default sleep already rejects on abort; a sleep that ignores
           // the signal still must not start another attempt.
           if (callerSignal?.aborted === true) {
@@ -759,13 +778,19 @@ function throwReason({ reason }: { readonly reason: unknown }): never {
   throw reason
 }
 
+/**
+ * A validated `timeoutMs` as a timer delay. `Infinity` means "no deadline"
+ * (the longest a timer can wait); a fraction rounds down. `NaN` and negative
+ * values never get here — `assertTimeoutMs` refuses them, because silently
+ * turning a bad value into "wait forever" is exactly the hang to avoid.
+ */
 function normalizeTimeoutMs({
   timeoutMs,
 }: {
   readonly timeoutMs: number
 }): number {
-  if (!Number.isFinite(timeoutMs)) return MAX_TIMER_MS
-  return Math.min(Math.max(0, Math.floor(timeoutMs)), MAX_TIMER_MS)
+  if (timeoutMs === Number.POSITIVE_INFINITY) return MAX_TIMER_MS
+  return Math.min(Math.floor(timeoutMs), MAX_TIMER_MS)
 }
 
 /**
@@ -791,7 +816,13 @@ function readRetryAfterMs({
  * once, rejecting with the abort reason. Tests override it via
  * `HttpTuning.sleep` so the retry loop runs at full speed.
  */
-function defaultSleep(ms: number, signal?: AbortSignal): Promise<void> {
+function defaultSleep({
+  ms,
+  signal,
+}: {
+  readonly ms: number
+  readonly signal: AbortSignal | undefined
+}): Promise<void> {
   return new Promise((resolve, reject) => {
     if (signal?.aborted === true) {
       // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- the caller's reason, verbatim (see throwReason).

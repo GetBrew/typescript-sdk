@@ -173,7 +173,10 @@ describe('long-running methods — per-call timeout defaults', () => {
     await testCase.call({ client, timeoutMs: undefined })
 
     expect(testCase.defaultMs).toBe(testCase.expectedMs)
-    expect(calls[0]?.options?.timeoutMs).toBe(testCase.expectedMs)
+    // Declared as a floor for the transport, not forced onto the request:
+    // a longer client-wide timeoutMs must survive it.
+    expect(calls[0]?.defaultTimeoutMs).toBe(testCase.expectedMs)
+    expect(calls[0]?.options?.timeoutMs).toBeUndefined()
   })
 
   it.each(CASES)('$name lets the caller override it', async (testCase) => {
@@ -182,6 +185,7 @@ describe('long-running methods — per-call timeout defaults', () => {
     await testCase.call({ client, timeoutMs: 5_000 })
 
     expect(calls[0]?.options?.timeoutMs).toBe(5_000)
+    expect(calls[0]?.defaultTimeoutMs).toBe(testCase.expectedMs)
   })
 
   it('exports every default from the package entry point', () => {

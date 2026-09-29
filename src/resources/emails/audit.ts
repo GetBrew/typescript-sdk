@@ -15,6 +15,8 @@ export type EmailAuditResponse = components['schemas']['EmailAuditResponse']
  * The server gives the independent provider lanes up to 50 seconds to
  * finish. This ceiling includes enough transport overhead to receive the
  * bounded response while still allowing callers to lower it.
+ *
+ * It is a floor, never a cap: a longer client-wide `timeoutMs` is kept.
  */
 export const AUDIT_EMAIL_DEFAULT_TIMEOUT_MS = 65_000
 
@@ -41,17 +43,14 @@ export function createAuditEmail(client: HttpClient) {
     input: AuditEmailInput,
     options?: RequestOptions
   ): Promise<EmailAuditResponse | BrewRawResponse<EmailAuditResponse>> {
-    const resolvedOptions: RequestOptions = {
-      ...(options ?? {}),
-      timeoutMs: options?.timeoutMs ?? AUDIT_EMAIL_DEFAULT_TIMEOUT_MS,
-    }
     const response = await client.request<EmailAuditResponse>({
       method: 'POST',
       path: '/v1/emails/audit',
       body: input,
-      options: resolvedOptions,
+      defaultTimeoutMs: AUDIT_EMAIL_DEFAULT_TIMEOUT_MS,
+      ...(options ? { options } : {}),
     })
-    return unwrapResponse(response, resolvedOptions)
+    return unwrapResponse(response, options)
   }
   return auditEmail
 }

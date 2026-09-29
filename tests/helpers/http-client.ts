@@ -40,7 +40,7 @@ export function makeTestHttpClient({
     },
   })
   const sleepCalls: Array<number> = []
-  const recordingSleep = (ms: number): Promise<void> => {
+  const recordingSleep = ({ ms }: { ms: number }): Promise<void> => {
     sleepCalls.push(ms)
     return Promise.resolve()
   }

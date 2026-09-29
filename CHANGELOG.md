@@ -47,9 +47,17 @@ Reproduced in 10.0.0, 11.0.0 and 11.2.0. Nothing is removed or renamed.
   `emails.import` (300 s) get per-call timeouts.** On the 30 s default they
   timed out while the server kept working (and, for content, billed), then
   hit the in-progress key on retry.
-- A fractional `timeoutMs` works and `Infinity` means no deadline;
-  `AbortSignal.timeout` rejects both, and the old timer fired `Infinity`
-  almost at once.
+- **A method's own default timeout is a floor, never a cap.** A per-request
+  `timeoutMs` still wins; otherwise the call gets the longer of the method
+  default and the client's `timeoutMs`. `emails.generate`, `emails.edit`,
+  `emails.audit`, `emails.previewClients` and `emails.importFigma` used to
+  replace a longer client-wide `timeoutMs` with their own shorter default.
+- **`timeoutMs` and `maxRetries` are validated.** `NaN` or a negative
+  `timeoutMs`, or a `maxRetries` that is not a whole number `>= 0`, throws a
+  `TypeError` (from `createBrewClient`, or from the call for a per-request
+  value) instead of silently misbehaving. A fractional `timeoutMs` works and
+  `Infinity` means no deadline; `AbortSignal.timeout` rejects both, and the
+  old timer fired `Infinity` almost at once.
 
 ### Added
 

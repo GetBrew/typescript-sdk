@@ -86,9 +86,15 @@ worst-case wall-clock for a request is roughly
 
 You can override this per-request via `RequestOptions.timeoutMs`.
 
+Must be a number of milliseconds `>= 0`; `Infinity` means no deadline.
+`NaN` or a negative value throws a `TypeError` rather than silently
+waiting forever.
+
 Methods whose server work routinely outlasts 30 seconds set their own
-per-call default; a caller-supplied `timeoutMs` still wins. Each
-constant is exported for callers composing their own deadlines:
+per-call default. It is a **floor**, never a cap: a per-request
+`timeoutMs` always wins; otherwise the call gets the longer of the
+method default and the client's `timeoutMs`. Each constant is exported
+for callers composing their own deadlines:
 
 | Method                  | Default | Constant                                   |
 | ----------------------- | ------- | ------------------------------------------ |
@@ -106,8 +112,9 @@ waiting after 300 s for the response headers, or after 300 s without a
 byte of the body, whatever `timeoutMs` says. The SDK reports that as a
 `BrewTimeoutError` too (the runtime's error is on `cause`), so on Node
 any `timeoutMs` above 300 s behaves as 300 s. To wait longer, raise the
-runtime's limits — for example with the `undici` package, whose global
-dispatcher Node's `fetch` uses:
+runtime's limits — for example with the `undici` package (`npm install
+undici`; the SDK itself has no dependencies), whose global dispatcher
+Node's `fetch` uses:
 
 ```ts
 import { Agent, setGlobalDispatcher } from 'undici'
