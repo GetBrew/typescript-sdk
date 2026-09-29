@@ -33,6 +33,30 @@ scope.
 > `status` body verb; `audienceRuns.control({ action })` split into `pause`,
 > `resume`, and `cancel`; and `analytics.triggerInstances.*` moved here.
 
+## Validate before you write
+
+`dryRun: true` on `create` or `patch` runs the full publish-gate check on
+the graph and writes nothing. It answers an `AutomationDryRunReport`
+instead of the row: `valid`, `blockers[]` (publishing fails while any
+remain), `warnings[]` (advisory), `blockingIssues[]` (references the bound
+trigger or contact catalog cannot provide) and `nodeCounts`. A literal
+`dryRun: true` is typed as the report.
+
+```ts
+const report = await brew.automations.create({
+  name: 'Welcome',
+  triggerEventId: 'tri_signup',
+  nodes,
+  connections,
+  dryRun: true,
+})
+if (!report.valid) {
+  for (const blocker of report.blockers) {
+    console.error(blocker.nodeLabel, blocker.message)
+  }
+}
+```
+
 ## Reading one automation
 
 ```ts
@@ -83,13 +107,18 @@ const result = await brew.automations.triggers.fire<OrderCompletedPayload>(
   { idempotencyKey: 'ord_1042' }
 )
 
-console.log(result.automationRunIds) // one run per published automation
+console.log(result.automationRunIds) // the runs this fire started
+console.log(result.notStarted) // [{ automationId, reason }] that could not start
 console.log(result.triggerInstanceId)
 ```
 
 The fire body is **bare** in 10.0.0 — `{ triggerInstanceId, triggerEventId,
-status, automationRunIds, publishedAutomations, counts, warnings,
-receivedAt }`. The old `{ success, code, message, details }` envelope, and the
+status, automationRunIds, notStarted, publishedAutomations, counts,
+warnings, receivedAt }`. `status: 'triggered'` means the event was accepted
+and matched; `notStarted[]` names each matched automation whose run failed
+to start, with the reason. A refusal (a merge tag or condition field the
+trigger does not declare) repeats on every fire until the automation or
+trigger is fixed. The old `{ success, code, message, details }` envelope, and the
 `details.automationRunIds` nesting with it, are gone.
 
 Payloads support arbitrarily nested JSON; the email reads them as

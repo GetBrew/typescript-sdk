@@ -75,9 +75,21 @@ const result = await brew.brand.patch({
 
 ## `getImages`
 
-Page through the brand's saved image library — `{ data, pagination }`.
-Accepts `{ limit, cursor }`.
+Page through the brand's asset library as the Assets page shows it: logos,
+brand images and images made with Brew, under `{ data, pagination }`. Each
+row carries its `assetId`, `kind`, `url`, dimensions and `addedAt`.
 
 ```ts
-const { data, pagination } = await brew.brand.getImages({ limit: 50 })
+// Browse (free): newest first by default, or sort: 'oldest'.
+const { data, pagination } = await brew.brand.getImages({
+  kind: 'generated',
+  limit: 50,
+})
+
+// Semantic search (1 credit per new search, relevance order).
+const hits = await brew.brand.getImages({ q: 'team photo', kind: 'brand' })
 ```
+
+`kind` is `logo`, `brand` or `generated`; logos are not searchable. The
+`type` and `aspectRatio` filters were retired by the API, which answers
+`400` naming `kind`; every image still carries its `width` and `height`.

@@ -2,19 +2,31 @@ import type { components } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
+import type { ContactConsentInput } from './types'
+
 /**
  * Patchable fields on a contact. Email travels in the path now; the wire
- * body is just `{ fields: { ... } }` — an open object containing any
- * combination of writable core fields (`firstName`, `lastName`,
- * `subscribed`) and custom fields.
+ * body is `{ fields?, consent? }` with at least one of them. `fields` is an
+ * open object containing any combination of writable core fields
+ * (`firstName`, `lastName`, `subscribed`) and custom fields; `consent`
+ * records (or replaces) the contact's marketing consent provenance and
+ * never re-subscribes an opted-out contact.
  *
  * The SDK keeps `email` on the input object (so callers pass one record)
  * and splits it out into the path / body at the request boundary.
  */
 export type PatchContactInput = {
   readonly email: string
-  readonly fields: { readonly [key: string]: unknown }
-}
+} & (
+  | {
+      readonly fields: { readonly [key: string]: unknown }
+      readonly consent?: ContactConsentInput
+    }
+  | {
+      readonly fields?: { readonly [key: string]: unknown }
+      readonly consent: ContactConsentInput
+    }
+)
 
 export type PatchContactResponse =
   components['schemas']['ContactsPatchResponse']
@@ -23,7 +35,7 @@ export type PatchContactResponse =
  * `PATCH /v1/contacts/{email}` (scope: `contacts`) — partially update a
  * contact by email.
  *
- * Email moved into the path; only `{ fields }` is sent in the body.
+ * Email moved into the path; only `{ fields?, consent? }` is sent in the body.
  * Returns the full envelope which includes the updated contact AND an
  * `updated` array of field names that actually changed — useful for
  * confirming whether a no-op patch (e.g. setting a field to its existing
@@ -52,7 +64,10 @@ export function createPatchContact(client: HttpClient) {
     const response = await client.request<PatchContactResponse>({
       method: 'PATCH',
       path: `/v1/contacts/${encodeURIComponent(input.email)}`,
-      body: { fields: input.fields },
+      body: {
+        ...(input.fields === undefined ? {} : { fields: input.fields }),
+        ...(input.consent === undefined ? {} : { consent: input.consent }),
+      },
       ...(options ? { options } : {}),
     })
     return unwrapResponse(response, options)

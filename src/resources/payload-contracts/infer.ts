@@ -5,6 +5,10 @@ import type { BrewRawResponse, RequestOptions } from '../../types'
 export type InferPayloadContractInput = {
   /** A real example payload — the JSON your system sends. */
   example: Record<string, unknown>
+  /** What the contract is for. `trigger` (a trigger's payload) is the only kind today. */
+  subjectKind?: NonNullable<
+    components['schemas']['PayloadContractInferRequest']['subjectKind']
+  >
 }
 
 export type PayloadContractInferResponse =
@@ -39,7 +43,12 @@ export function createInferPayloadContract(client: HttpClient) {
     const response = await client.request<PayloadContractInferResponse>({
       method: 'POST',
       path: '/v1/payload-contracts/infer',
-      body: { example: input.example },
+      body: {
+        example: input.example,
+        ...(input.subjectKind === undefined
+          ? {}
+          : { subjectKind: input.subjectKind }),
+      },
       ...(options ? { options } : {}),
     })
     return unwrapResponse(response, options)

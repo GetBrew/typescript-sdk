@@ -38,7 +38,7 @@ describe('brand.getImages', () => {
     expect(result.data[0]?.url).toBe(IMAGE.url)
   })
 
-  it('semantic search: q + type + aspectRatio are serialized into the query', async () => {
+  it('semantic search: q + kind + sort are serialized into the query', async () => {
     let captured: Request | undefined
     server.use(
       http.get('https://brew.new/api/v1/brand/images', ({ request }) => {
@@ -55,13 +55,16 @@ describe('brand.getImages', () => {
 
     await getImages({
       q: 'user profile component',
-      type: 'screenshot',
-      aspectRatio: '16:9',
+      kind: 'brand',
+      sort: 'oldest',
     })
 
     const params = new URL(captured!.url).searchParams
     expect(params.get('q')).toBe('user profile component')
-    expect(params.get('type')).toBe('screenshot')
-    expect(params.get('aspectRatio')).toBe('16:9')
+    expect(params.get('kind')).toBe('brand')
+    expect(params.get('sort')).toBe('oldest')
+    // Retired by the API (brew-v2#1713); the SDK never sends them.
+    expect(params.has('type')).toBe(false)
+    expect(params.has('aspectRatio')).toBe(false)
   })
 })
