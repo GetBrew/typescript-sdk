@@ -1,107 +1,79 @@
 import { describe, expect, it } from 'vitest'
 
-import { computeBackoff, shouldRetry } from '../../src/core/retry'
+import {
+  computeBackoff,
+  type RetryDecisionInput,
+  shouldRetry,
+} from '../../src/core/retry'
 import type { BrewHttpMethod } from '../../src/types'
 
 describe('shouldRetry', () => {
+  /** A retryable-by-default decision; each test overrides what it probes. */
+  function decide({ ...overrides }: Partial<RetryDecisionInput>): boolean {
+    return shouldRetry({
+      method: 'GET',
+      cause: { kind: 'status', status: 500 },
+      attempt: 0,
+      maxRetries: 2,
+      hasIdempotencyKey: false,
+      shouldRetryOnTimeout: true,
+      ...overrides,
+    })
+  }
+
   describe('retry cap', () => {
     it('returns false once attempt reaches maxRetries', () => {
-      expect(
-        shouldRetry({
-          method: 'GET',
-          status: 500,
-          attempt: 2,
-          maxRetries: 2,
-          hasIdempotencyKey: false,
-        })
-      ).toBe(false)
+      expect(decide({ attempt: 2, maxRetries: 2 })).toBe(false)
     })
 
     it('returns false when attempt exceeds maxRetries', () => {
-      expect(
-        shouldRetry({
-          method: 'GET',
-          status: 500,
-          attempt: 5,
-          maxRetries: 2,
-          hasIdempotencyKey: false,
-        })
-      ).toBe(false)
+      expect(decide({ attempt: 5, maxRetries: 2 })).toBe(false)
     })
 
     it('allows retry when attempt is below maxRetries', () => {
-      expect(
-        shouldRetry({
-          method: 'GET',
-          status: 500,
-          attempt: 0,
-          maxRetries: 2,
-          hasIdempotencyKey: false,
-        })
-      ).toBe(true)
+      expect(decide({ attempt: 0, maxRetries: 2 })).toBe(true)
     })
   })
 
   describe('status matrix (idempotent methods)', () => {
     const retryable = [408, 429, 500, 502, 503, 504] as const
     const notRetryable = [400, 401, 403, 404, 409, 422] as const
+    const idempotentMethods: ReadonlyArray<BrewHttpMethod> = [
+      'GET',
+      'DELETE',
+      'PUT',
+    ]
 
-    it.each(retryable)('retries %i on GET', (status) => {
-      expect(
-        shouldRetry({
-          method: 'GET',
-          status,
-          attempt: 0,
-          maxRetries: 2,
-          hasIdempotencyKey: false,
-        })
-      ).toBe(true)
-    })
+    for (const method of idempotentMethods) {
+      it.each(retryable)(`retries %i on ${method}`, (status) => {
+        expect(decide({ method, cause: { kind: 'status', status } })).toBe(true)
+      })
+    }
 
     it.each(notRetryable)('does NOT retry %i on GET', (status) => {
-      expect(
-        shouldRetry({
-          method: 'GET',
-          status,
-          attempt: 0,
-          maxRetries: 2,
-          hasIdempotencyKey: false,
-        })
-      ).toBe(false)
-    })
-
-    it.each(retryable)('retries %i on DELETE', (status) => {
-      expect(
-        shouldRetry({
-          method: 'DELETE',
-          status,
-          attempt: 0,
-          maxRetries: 2,
-          hasIdempotencyKey: false,
-        })
-      ).toBe(true)
-    })
-
-    it.each(retryable)('retries %i on PUT', (status) => {
-      expect(
-        shouldRetry({
-          method: 'PUT',
-          status,
-          attempt: 0,
-          maxRetries: 2,
-          hasIdempotencyKey: false,
-        })
-      ).toBe(true)
+      expect(decide({ cause: { kind: 'status', status } })).toBe(false)
     })
 
     it('does NOT retry 2xx (no retries needed for success)', () => {
+      expect(decide({ cause: { kind: 'status', status: 200 } })).toBe(false)
+    })
+  })
+
+  describe('Retry-After ceiling', () => {
+    it('retries when the server asks for a wait of up to a minute', () => {
       expect(
-        shouldRetry({
-          method: 'GET',
-          status: 200,
-          attempt: 0,
-          maxRetries: 2,
-          hasIdempotencyKey: false,
+        decide({
+          cause: { kind: 'status', status: 429, retryAfterMs: 60_000 },
+        })
+      ).toBe(true)
+    })
+
+    it('does NOT retry when the server asks for a longer wait', () => {
+      // Sleeping minutes inside one call looks exactly like a hang; the
+      // BrewApiError carries `retryAfter` so the caller can schedule it.
+      expect(
+        decide({
+          cause: { kind: 'status', status: 429, retryAfterMs: 60_001 },
         })
       ).toBe(false)
     })
@@ -109,49 +81,29 @@ describe('shouldRetry', () => {
 
   describe('method policy: POST', () => {
     it('does NOT retry POST on 500 without an idempotency key', () => {
-      expect(
-        shouldRetry({
-          method: 'POST',
-          status: 500,
-          attempt: 0,
-          maxRetries: 2,
-          hasIdempotencyKey: false,
-        })
-      ).toBe(false)
+      expect(decide({ method: 'POST', hasIdempotencyKey: false })).toBe(false)
     })
 
     it('retries POST on 500 when an idempotency key is attached', () => {
-      expect(
-        shouldRetry({
-          method: 'POST',
-          status: 500,
-          attempt: 0,
-          maxRetries: 2,
-          hasIdempotencyKey: true,
-        })
-      ).toBe(true)
+      expect(decide({ method: 'POST', hasIdempotencyKey: true })).toBe(true)
     })
 
     it('retries POST on 429 when an idempotency key is attached', () => {
       expect(
-        shouldRetry({
+        decide({
           method: 'POST',
-          status: 429,
-          attempt: 0,
-          maxRetries: 2,
           hasIdempotencyKey: true,
+          cause: { kind: 'status', status: 429 },
         })
       ).toBe(true)
     })
 
     it('does NOT retry POST 400 even with an idempotency key', () => {
       expect(
-        shouldRetry({
+        decide({
           method: 'POST',
-          status: 400,
-          attempt: 0,
-          maxRetries: 2,
           hasIdempotencyKey: true,
+          cause: { kind: 'status', status: 400 },
         })
       ).toBe(false)
     })
@@ -159,91 +111,84 @@ describe('shouldRetry', () => {
 
   describe('method policy: PATCH', () => {
     it('never retries PATCH, even on 500', () => {
-      expect(
-        shouldRetry({
-          method: 'PATCH',
-          status: 500,
-          attempt: 0,
-          maxRetries: 2,
-          hasIdempotencyKey: true,
-        })
-      ).toBe(false)
+      expect(decide({ method: 'PATCH', hasIdempotencyKey: true })).toBe(false)
     })
 
     it('never retries PATCH on 429', () => {
       expect(
-        shouldRetry({
+        decide({
           method: 'PATCH',
-          status: 429,
-          attempt: 0,
-          maxRetries: 2,
           hasIdempotencyKey: true,
+          cause: { kind: 'status', status: 429 },
         })
       ).toBe(false)
     })
   })
 
-  describe('network failures (no status, error present)', () => {
-    const networkError = new TypeError('fetch failed')
+  describe('connection failures (no HTTP answer, or the body broke)', () => {
+    const connection = { kind: 'connection' } as const
 
-    it('retries a network error on GET', () => {
+    it('retries on GET', () => {
+      expect(decide({ cause: connection })).toBe(true)
+    })
+
+    it('retries on POST WITH an idempotency key', () => {
       expect(
-        shouldRetry({
-          method: 'GET',
-          error: networkError,
-          attempt: 0,
-          maxRetries: 2,
-          hasIdempotencyKey: false,
-        })
+        decide({ method: 'POST', hasIdempotencyKey: true, cause: connection })
       ).toBe(true)
     })
 
-    it('retries a network error on POST WITH an idempotency key', () => {
+    it('does NOT retry on POST without an idempotency key', () => {
       expect(
-        shouldRetry({
-          method: 'POST',
-          error: networkError,
-          attempt: 0,
-          maxRetries: 2,
-          hasIdempotencyKey: true,
-        })
-      ).toBe(true)
-    })
-
-    it('does NOT retry a network error on POST without an idempotency key', () => {
-      expect(
-        shouldRetry({
-          method: 'POST',
-          error: networkError,
-          attempt: 0,
-          maxRetries: 2,
-          hasIdempotencyKey: false,
-        })
+        decide({ method: 'POST', hasIdempotencyKey: false, cause: connection })
       ).toBe(false)
     })
 
-    it('does NOT retry a network error on PATCH', () => {
+    it('does NOT retry on PATCH', () => {
       expect(
-        shouldRetry({
-          method: 'PATCH',
-          error: networkError,
-          attempt: 0,
-          maxRetries: 2,
-          hasIdempotencyKey: true,
-        })
+        decide({ method: 'PATCH', hasIdempotencyKey: true, cause: connection })
       ).toBe(false)
     })
   })
 
-  it('returns false when neither status nor error is provided (nothing to retry on)', () => {
-    expect(
-      shouldRetry({
-        method: 'GET' satisfies BrewHttpMethod,
-        attempt: 0,
-        maxRetries: 2,
-        hasIdempotencyKey: false,
-      })
-    ).toBe(false)
+  describe('timeouts', () => {
+    const timeout = { kind: 'timeout' } as const
+
+    it('retries by default, like any transient failure', () => {
+      expect(decide({ cause: timeout })).toBe(true)
+    })
+
+    it('does NOT retry when shouldRetryOnTimeout is false', () => {
+      expect(decide({ cause: timeout, shouldRetryOnTimeout: false })).toBe(
+        false
+      )
+    })
+
+    it('still follows the method policy', () => {
+      expect(
+        decide({ method: 'PATCH', hasIdempotencyKey: true, cause: timeout })
+      ).toBe(false)
+      expect(
+        decide({ method: 'POST', hasIdempotencyKey: false, cause: timeout })
+      ).toBe(false)
+      expect(
+        decide({ method: 'POST', hasIdempotencyKey: true, cause: timeout })
+      ).toBe(true)
+    })
+  })
+
+  describe('never retried', () => {
+    it('does NOT retry a caller abort, however much budget is left', () => {
+      expect(
+        decide({ cause: { kind: 'abort' }, attempt: 0, maxRetries: 10 })
+      ).toBe(false)
+    })
+
+    it('does NOT retry a 2xx body that is not JSON (the same bytes come back)', () => {
+      expect(
+        decide({ cause: { kind: 'parse' }, attempt: 0, maxRetries: 10 })
+      ).toBe(false)
+    })
   })
 })
 

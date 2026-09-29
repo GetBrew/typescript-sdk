@@ -1,9 +1,98 @@
 # Changelog
 
+## 11.3.0
+
+`timeoutMs` and cancellation now cover the whole request, the response body
+included. Until now the SDK cleared its timer and detached the caller's
+`AbortSignal` as soon as the response headers arrived, so a body that
+stalled afterwards ran with no deadline and could not be cancelled: a
+request with `timeoutMs: 50` could succeed after 259 ms, a cancel during the
+body was ignored, and a connection that dropped mid-body skipped every retry.
+Reproduced in 10.0.0, 11.0.0 and 11.2.0. Nothing is removed or renamed.
+
+### Behavior changes
+
+- **The deadline and the caller's signal bound the response body read.** A
+  server that answers and then stalls fails at `timeoutMs` (or at your
+  cancel) instead of hanging. A response that streams more slowly than
+  `timeoutMs` now throws where it used to succeed: raise `timeoutMs` for it.
+- **Timeouts throw `BrewTimeoutError`** (`name: 'TimeoutError'`, with
+  `timeoutMs`, `attempts`, `idempotencyKey`) instead of a `DOMException`
+  named `'AbortError'`. `error.name === 'AbortError'` now means only that
+  you cancelled.
+- **Connection failures throw `BrewConnectionError`**, the original error on
+  `cause`, instead of the raw `TypeError`.
+- **A connection that drops mid-body is retried** under the normal policy
+  (same idempotency key), where it used to escape as a raw `TypeError`.
+- **A malformed 2xx body throws `BrewParseError`** instead of a bare
+  `SyntaxError`, and is never retried.
+- **A cancel rejects with your signal's `reason` exactly**: a plain
+  `abort()` still gives an `AbortError`, and `abort('shutting down')` now
+  rejects with `'shutting down'` rather than a generic `AbortError`. A
+  cancel is never retried, even through a custom `fetch` that rejects with
+  its own error on abort (it was retried).
+- **A cancel ends a retry backoff immediately** instead of sleeping out the
+  `Retry-After` first. A `Retry-After` over 60 s is no longer waited out
+  inside the call: the `BrewApiError` is thrown with `retryAfter` set.
+- **A POST whose retry finds the first attempt still running**
+  (`409 IDEMPOTENCY_IN_PROGRESS`) throws the original `BrewTimeoutError` /
+  `BrewConnectionError` with `inProgress: true` and the key, instead of a
+  conflict.
+- **Node's own fetch timeout** (`UND_ERR_HEADERS_TIMEOUT`,
+  `UND_ERR_BODY_TIMEOUT`, after 300 s) is a `BrewTimeoutError`, and
+  `retryOnTimeout: false` applies to it; it was a retried `TypeError`.
+- **A discarded retry releases its connection** before the backoff instead
+  of when it is garbage collected.
+- **`content.gif` (300 s), `content.generateImage` (180 s) and
+  `emails.import` (300 s) get per-call timeouts.** On the 30 s default they
+  timed out while the server kept working (and, for content, billed), then
+  hit the in-progress key on retry.
+- **A method's own default timeout is a floor, never a cap.** A per-request
+  `timeoutMs` still wins; otherwise the call gets the longer of the method
+  default and the client's `timeoutMs`. `emails.generate`, `emails.edit`,
+  `emails.audit`, `emails.previewClients` and `emails.importFigma` used to
+  replace a longer client-wide `timeoutMs` with their own shorter default.
+- **`timeoutMs` and `maxRetries` are validated.** `NaN` or a negative
+  `timeoutMs`, or a `maxRetries` that is not a whole number `>= 0`, throws a
+  `TypeError` (from `createBrewClient`, or from the call for a per-request
+  value) instead of silently misbehaving. A fractional `timeoutMs` works and
+  `Infinity` means no deadline; `AbortSignal.timeout` rejects both, and the
+  old timer fired `Infinity` almost at once.
+
+### Added
+
+- `BrewTransportError` (base), `BrewTimeoutError`, `BrewConnectionError`,
+  `BrewParseError`. Transport errors carry `method`, `url` (the message
+  leaves the query string out), `attempts`, `idempotencyKey` and
+  `inProgress`.
+- `BrewApiError.idempotencyKey` and `BrewApiError.bodyError` (set, with a
+  "response body was truncated" message, when the error envelope was cut
+  off; the status is still reported).
+- `retryOnTimeout` on the client config and on `RequestOptions` (default
+  `true`): `false` makes `timeoutMs` a hard deadline.
+- `signal` on the client config: cancels every request made through the
+  client and its `withBrand()` clients.
+- `GIF_DEFAULT_TIMEOUT_MS`, `GENERATE_IMAGE_DEFAULT_TIMEOUT_MS`,
+  `IMPORT_EMAIL_DEFAULT_TIMEOUT_MS`, and `IMPORT_FIGMA_DEFAULT_TIMEOUT_MS`
+  (existing, now exported).
+
+### Docs
+
+- `docs/errors.md`, `docs/configuration.md` and
+  `docs/retries-and-idempotency.md` describe one contract: API errors vs
+  transport errors, the whole-attempt deadline, Node's 300 s fetch ceiling,
+  recovering after an unknown outcome with `error.idempotencyKey`, and that
+  cancelling does not stop work the server started. The three disagreed on
+  whether transport failures were `BrewApiError`s (they never were).
+- `PATCH` forwards an `Idempotency-Key` you pass (the docs said it never
+  sends one).
+- `emails.import` is free and deterministic (its doc comment called it a
+  usage-metered agent run).
+
 ## 11.2.1
 
-Not tagged or published yet: pushing the `v11.2.1` tag publishes it (see
-`RELEASING.md`). No signature changes.
+Never published on its own: this change shipped in 11.3.0. No signature
+changes.
 
 ### Changed
 

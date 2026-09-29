@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { BrewApiError } from '../../src/core/errors'
+import {
+  BrewApiError,
+  BrewConnectionError,
+  BrewParseError,
+  BrewTimeoutError,
+  BrewTransportError,
+} from '../../src/core/errors'
 
 describe('BrewApiError', () => {
   describe('constructor', () => {
@@ -532,5 +538,111 @@ describe('BrewApiError', () => {
       expect(timeout.type).toBe('invalid_request')
       expect(timeout.suggestion).toMatch(/retry/i)
     })
+  })
+})
+
+describe('BrewApiError — what the transport adds', () => {
+  const headers = new Headers({ 'x-request-id': 'req_1' })
+
+  it('says the envelope was truncated when the body could not be read', () => {
+    const bodyError = new TypeError('terminated')
+    const error = BrewApiError.fromResponse({
+      status: 502,
+      headers,
+      body: null,
+      bodyError,
+    })
+
+    expect(error.bodyError).toBe(bodyError)
+    expect(error.code).toBe('unknown_error')
+    expect(error.message).toMatch(/response body was truncated: terminated/)
+  })
+
+  it('leaves bodyError undefined for a body that arrived whole', () => {
+    const error = BrewApiError.fromResponse({
+      status: 502,
+      headers,
+      body: null,
+    })
+
+    expect(error.bodyError).toBeUndefined()
+    expect(error.message).toBe('Request failed with status 502')
+  })
+
+  it('carries the idempotency key the request was sent with', () => {
+    const error = BrewApiError.fromResponse({
+      status: 500,
+      headers,
+      body: null,
+      idempotencyKey: 'key_123',
+    })
+
+    expect(error.idempotencyKey).toBe('key_123')
+  })
+})
+
+describe('transport errors', () => {
+  const base = {
+    method: 'POST' as const,
+    url: 'https://brew.new/api/v1/contacts/search?email=jane%40example.com',
+    attempts: 3,
+    idempotencyKey: 'key_123',
+  }
+
+  it('BrewTimeoutError is a BrewTransportError, never a BrewApiError', () => {
+    const error = new BrewTimeoutError({ ...base, timeoutMs: 30_000 })
+
+    expect(error).toBeInstanceOf(Error)
+    expect(error).toBeInstanceOf(BrewTransportError)
+    expect(error).toBeInstanceOf(BrewTimeoutError)
+    expect(error).not.toBeInstanceOf(BrewApiError)
+    // The platform's name for this event (`AbortSignal.timeout`), so
+    // `error.name === 'TimeoutError'` checks written for fetch keep working.
+    expect(error.name).toBe('TimeoutError')
+    expect(error.constructor.name).toBe('BrewTimeoutError')
+    expect(error.timeoutMs).toBe(30_000)
+    expect(error.attempts).toBe(3)
+    expect(error.method).toBe('POST')
+    expect(error.idempotencyKey).toBe('key_123')
+  })
+
+  it('BrewConnectionError keeps the original failure on cause', () => {
+    const cause = new TypeError('fetch failed')
+    const error = new BrewConnectionError({ ...base, cause })
+
+    expect(error).toBeInstanceOf(BrewTransportError)
+    expect(error).not.toBeInstanceOf(BrewApiError)
+    expect(error.name).toBe('BrewConnectionError')
+    expect(error.cause).toBe(cause)
+  })
+
+  it('keeps the query string out of the message but on the url', () => {
+    const error = new BrewTimeoutError({ ...base, timeoutMs: 30_000 })
+
+    expect(error.message).toContain(
+      'POST https://brew.new/api/v1/contacts/search'
+    )
+    expect(error.message).not.toContain('jane')
+    expect(error.message).not.toContain('?')
+    expect(error.url).toBe(base.url)
+  })
+
+  it('BrewParseError is its own family: the server answered', () => {
+    const cause = new SyntaxError('Unexpected end of JSON input')
+    const error = new BrewParseError({
+      status: 200,
+      requestId: 'req_1',
+      bodyPreview: '{"contacts":[',
+      cause,
+    })
+
+    expect(error).toBeInstanceOf(Error)
+    expect(error).not.toBeInstanceOf(BrewTransportError)
+    expect(error).not.toBeInstanceOf(BrewApiError)
+    expect(error.name).toBe('BrewParseError')
+    expect(error.status).toBe(200)
+    expect(error.requestId).toBe('req_1')
+    expect(error.bodyPreview).toBe('{"contacts":[')
+    expect(error.cause).toBe(cause)
   })
 })

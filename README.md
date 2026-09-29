@@ -3,7 +3,11 @@
 Official TypeScript SDK for the [Brew](https://brew.new) public API.
 
 - Resource-oriented surface — `brew.contacts.upsert(...)` instead of raw HTTP plumbing.
-- One typed error class (`BrewApiError`) for every non-2xx path.
+- One typed error class (`BrewApiError`) for every non-2xx path, and typed
+  transport errors (`BrewTimeoutError`, `BrewConnectionError`) when no
+  answer arrives.
+- A deadline (`timeoutMs`) and cancellation (`signal`) that cover the whole
+  request, response body included.
 - Safe retries with exponential backoff + jitter.
 - Auto-generated `Idempotency-Key` on POST so retries never double-write.
 - Node 20+, server-first. API keys are secrets — do not use this SDK directly in a browser.
@@ -71,8 +75,8 @@ Common values:
 
 Trailing slashes are normalized either way. See
 [`docs/configuration.md`](./docs/configuration.md) for the full list of
-config options (`timeoutMs`, `maxRetries`, `userAgent`, custom `fetch`,
-etc.).
+config options (`timeoutMs`, `maxRetries`, `retryOnTimeout`, `signal`,
+`userAgent`, custom `fetch`, etc.).
 
 ## Documentation
 

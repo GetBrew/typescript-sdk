@@ -19,6 +19,19 @@ export type EmailImportResponse =
   components['schemas']['EmailGenerateGeneratedResponse']
 
 /**
+ * Default per-call timeout for `POST /v1/emails/import`.
+ *
+ * An import re-hosts every public asset the markup references and captures
+ * a preview, so a real newsletter routinely outlasts the 30 s client
+ * default. 300 s is also the longest Node's built-in `fetch` waits for a
+ * response. Caller-supplied `RequestOptions.timeoutMs` and
+ * `RequestOptions.signal` still win.
+ *
+ * It is a floor, never a cap: a longer client-wide `timeoutMs` is kept.
+ */
+export const IMPORT_EMAIL_DEFAULT_TIMEOUT_MS = 300_000
+
+/**
  * `POST /v1/emails/import` (scope: `emails`) — import existing markup
  * (raw `html`, `mjml`, or React-Email `jsx`) as a new editable Brand
  * design, returning the same shape as `brew.emails.generate(...)`: `emailId`,
@@ -27,9 +40,9 @@ export type EmailImportResponse =
  *
  * The brand is resolved from the API key — the body does not accept a
  * `brandId`. Pass `baseUrl` to resolve relative asset URLs in the
- * source. This operation is usage-metered (the agent's token usage is
- * charged); an insufficient balance surfaces as
- * `402 INSUFFICIENT_CREDITS`.
+ * source. Free: the import is a deterministic compiler — no model runs and
+ * no credits are charged. Long-running: the SDK applies a 5-minute default
+ * timeout (`IMPORT_EMAIL_DEFAULT_TIMEOUT_MS`).
  *
  * Supply `options.idempotencyKey` to make retries safe — reusing the
  * same key with the same body returns the original response for 24
@@ -56,6 +69,7 @@ export function createImportEmail(client: HttpClient) {
       method: 'POST',
       path: '/v1/emails/import',
       body: input,
+      defaultTimeoutMs: IMPORT_EMAIL_DEFAULT_TIMEOUT_MS,
       ...(options ? { options } : {}),
     })
     return unwrapResponse(response, options)

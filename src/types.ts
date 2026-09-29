@@ -33,8 +33,27 @@ export type BrewClientConfig = {
   readonly brandId?: string
   readonly baseUrl?: string
   readonly fetch?: BrewFetch
+  /**
+   * Per-attempt deadline in milliseconds, covering the whole attempt:
+   * connecting, waiting for the headers, and reading the response body.
+   * Default `30_000`. A few long-running methods set their own (see
+   * `docs/configuration.md`).
+   */
   readonly timeoutMs?: number
   readonly maxRetries?: number
+  /**
+   * Retry an attempt that hit `timeoutMs`, like any other transient failure.
+   * Default `true`. Set `false` for a hard deadline: one attempt, then
+   * `BrewTimeoutError`. A request's own `retryOnTimeout` wins.
+   */
+  readonly retryOnTimeout?: boolean
+  /**
+   * Cancels every request made through this client (and its `withBrand()`
+   * clients) when it aborts — for shutting a process down cleanly. Combined
+   * with each request's own `signal`; either one aborting stops the request,
+   * and the request rejects with that signal's `reason`. Never retried.
+   */
+  readonly signal?: AbortSignal
   readonly userAgent?: string
 }
 
@@ -51,6 +70,9 @@ export type ResolvedBrewClientConfig = {
   readonly fetch: BrewFetch
   readonly timeoutMs: number
   readonly maxRetries: number
+  readonly retryOnTimeout: boolean
+  /** `undefined` unless the caller passed one. See `BrewClientConfig`. */
+  readonly signal: AbortSignal | undefined
   readonly userAgent: string
 }
 
@@ -59,9 +81,19 @@ export type ResolvedBrewClientConfig = {
  * the client config.
  */
 export type RequestOptions = {
+  /**
+   * Cancels this request — while it connects, waits for headers, reads the
+   * body, or backs off between retries. The request rejects with the
+   * signal's `reason` (an `AbortError` `DOMException` unless you passed your
+   * own) and is never retried. Cancelling does not stop work the server
+   * already started; replay a write with the same `idempotencyKey`.
+   */
   readonly signal?: AbortSignal
+  /** Per-attempt deadline, body read included. Overrides the client's. */
   readonly timeoutMs?: number
   readonly maxRetries?: number
+  /** Retry an attempt that hit `timeoutMs`. Overrides the client's. */
+  readonly retryOnTimeout?: boolean
   readonly idempotencyKey?: string
   readonly raw?: boolean
 }

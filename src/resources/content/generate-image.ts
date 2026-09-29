@@ -6,6 +6,19 @@ import type { ContentGenerateImageRequest, ContentImageResponse } from './types'
 export type { ContentGenerateImageRequest, ContentImageResponse }
 
 /**
+ * Default per-call timeout for `POST /v1/content/generate-image`.
+ *
+ * The server gives one model call up to 90 s (75 s for an edit), falls back
+ * to a second model when the first fails, then stores the result — well past
+ * the 30 s client default, which would time out while the server kept
+ * working and billed the image. Caller-supplied `RequestOptions.timeoutMs`
+ * and `RequestOptions.signal` still win.
+ *
+ * It is a floor, never a cap: a longer client-wide `timeoutMs` is kept.
+ */
+export const GENERATE_IMAGE_DEFAULT_TIMEOUT_MS = 180_000
+
+/**
  * `POST /v1/content/generate-image` — generate an image from a text
  * `prompt` (optionally editing one or two source images). Requires the
  * `emails` scope.
@@ -15,6 +28,9 @@ export type { ContentGenerateImageRequest, ContentImageResponse }
  * (`brand.getImages({ kind: 'generated' })`). This operation is
  * credit-metered. An
  * insufficient balance surfaces as `402 INSUFFICIENT_CREDITS`.
+ *
+ * Long-running: the SDK applies a 3-minute default timeout
+ * (`GENERATE_IMAGE_DEFAULT_TIMEOUT_MS`).
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<ContentImageResponse>` instead of the unwrapped
@@ -37,6 +53,7 @@ export function createGenerateImage(client: HttpClient) {
       method: 'POST',
       path: '/v1/content/generate-image',
       body: input,
+      defaultTimeoutMs: GENERATE_IMAGE_DEFAULT_TIMEOUT_MS,
       ...(options ? { options } : {}),
     })
     return unwrapResponse(response, options)

@@ -5,6 +5,36 @@ import type {
 } from '../types'
 import { SDK_NAME, SDK_VERSION } from '../version'
 
+/** `timeoutMs` must be a number >= 0; `Infinity` means no deadline. */
+export function assertTimeoutMs({
+  value,
+  name,
+}: {
+  readonly value: unknown
+  readonly name: string
+}): void {
+  if (typeof value !== 'number' || Number.isNaN(value) || value < 0) {
+    throw new TypeError(
+      `\`${name}\` must be a number of milliseconds >= 0 (Infinity for no deadline); got ${String(value)}.`
+    )
+  }
+}
+
+/** `maxRetries` must be a whole number >= 0. */
+export function assertRetryCount({
+  value,
+  name,
+}: {
+  readonly value: unknown
+  readonly name: string
+}): void {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
+    throw new TypeError(
+      `\`${name}\` must be a whole number >= 0; got ${String(value)}.`
+    )
+  }
+}
+
 /**
  * Production base URL for the Brew public API. Exposed as a constant so
  * tests and downstream consumers can reference the same value without
@@ -26,6 +56,13 @@ export const DEFAULT_TIMEOUT_MS = 30_000
  * safety, without amplifying thundering-herd pressure.
  */
 export const DEFAULT_MAX_RETRIES = 2
+
+/**
+ * Whether an attempt that hit `timeoutMs` is retried. `true`: a timeout is a
+ * transient failure like any other, and `(maxRetries + 1) * timeoutMs` is the
+ * documented worst case. Callers who need a hard deadline set it `false`.
+ */
+export const shouldRetryOnTimeoutByDefault = true
 
 /**
  * Default `User-Agent` value. Identifies the SDK and its version so
@@ -74,6 +111,13 @@ export function resolveConfig(
     )
   }
 
+  if (userConfig.timeoutMs !== undefined) {
+    assertTimeoutMs({ value: userConfig.timeoutMs, name: 'timeoutMs' })
+  }
+  if (userConfig.maxRetries !== undefined) {
+    assertRetryCount({ value: userConfig.maxRetries, name: 'maxRetries' })
+  }
+
   return {
     apiKey: userConfig.apiKey,
     brandId: userConfig.brandId,
@@ -81,6 +125,8 @@ export function resolveConfig(
     fetch: userConfig.fetch ?? defaultFetch,
     timeoutMs: userConfig.timeoutMs ?? DEFAULT_TIMEOUT_MS,
     maxRetries: userConfig.maxRetries ?? DEFAULT_MAX_RETRIES,
+    retryOnTimeout: userConfig.retryOnTimeout ?? shouldRetryOnTimeoutByDefault,
+    signal: userConfig.signal,
     userAgent: userConfig.userAgent ?? DEFAULT_USER_AGENT,
   }
 }

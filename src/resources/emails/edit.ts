@@ -18,6 +18,8 @@ export type EditEmailResponse = components['schemas']['EmailGenerateResponse']
  * runs the same agent loop as generate (planning, render, screenshot),
  * so we share the 4-minute ceiling. Caller-supplied
  * `RequestOptions.timeoutMs` and `RequestOptions.signal` still win.
+ *
+ * It is a floor, never a cap: a longer client-wide `timeoutMs` is kept.
  */
 export const EDIT_EMAIL_DEFAULT_TIMEOUT_MS = 240_000
 
@@ -51,17 +53,14 @@ export function createEditEmail(client: HttpClient) {
     options?: RequestOptions
   ): Promise<EditEmailResponse | BrewRawResponse<EditEmailResponse>> {
     const { emailId, ...body } = input
-    const resolvedOptions: RequestOptions = {
-      ...(options ?? {}),
-      timeoutMs: options?.timeoutMs ?? EDIT_EMAIL_DEFAULT_TIMEOUT_MS,
-    }
     const response = await client.request<EditEmailResponse>({
       method: 'PATCH',
       path: `/v1/emails/${encodeURIComponent(emailId)}`,
       body,
-      options: resolvedOptions,
+      defaultTimeoutMs: EDIT_EMAIL_DEFAULT_TIMEOUT_MS,
+      ...(options ? { options } : {}),
     })
-    return unwrapResponse(response, resolvedOptions)
+    return unwrapResponse(response, options)
   }
   return editEmail
 }

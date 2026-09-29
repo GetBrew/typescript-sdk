@@ -10,7 +10,16 @@
 export { type BrewClient, createBrewClient } from './client'
 
 // ---------- Errors ----------
-export { BrewApiError } from './core/errors'
+// `BrewApiError`: the server answered non-2xx. The transport family —
+// `BrewTransportError` and its `BrewTimeoutError` / `BrewConnectionError` —
+// means no usable answer arrived. `BrewParseError`: a 2xx body was not JSON.
+export {
+  BrewApiError,
+  BrewConnectionError,
+  BrewParseError,
+  BrewTimeoutError,
+  BrewTransportError,
+} from './core/errors'
 export type { Pagination, PaginationInput } from './core/pagination'
 // ---------- Pagination ----------
 export { autoPaginate } from './core/pagination'
@@ -320,6 +329,8 @@ export type {
   ValidateContactsResponse,
 } from './resources/contacts/validate'
 export type { ContentResource } from './resources/content/resource'
+export { GENERATE_IMAGE_DEFAULT_TIMEOUT_MS } from './resources/content/generate-image'
+export { GIF_DEFAULT_TIMEOUT_MS } from './resources/content/gif'
 // ---------- New v1 resource domain types ----------
 export type * from './resources/content/types'
 export type { AddDomainInput, AddDomainResponse } from './resources/domains/add'
@@ -399,6 +410,7 @@ export type {
   ImportFigmaDesignInput,
   ImportFigmaDesignResponse,
 } from './resources/emails/figma'
+export { IMPORT_FIGMA_DEFAULT_TIMEOUT_MS } from './resources/emails/figma'
 export type { EditEmailInput, EditEmailResponse } from './resources/emails/edit'
 export { EDIT_EMAIL_DEFAULT_TIMEOUT_MS } from './resources/emails/edit'
 export type {
@@ -410,6 +422,7 @@ export type {
   EmailImportInput,
   EmailImportResponse,
 } from './resources/emails/import'
+export { IMPORT_EMAIL_DEFAULT_TIMEOUT_MS } from './resources/emails/import'
 export type {
   EmailsIncludeToken,
   GetEmailOptions,

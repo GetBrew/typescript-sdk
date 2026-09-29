@@ -52,12 +52,32 @@ against that snapshot.
 
 ### By cause
 
-- **Network errors** (DNS failure, TCP reset, fetch reject) follow the
-  same method policy as status-code failures. A network error on `GET`
-  retries; a network error on `POST` without an idempotency key does
-  not.
-- **Caller aborts** (an `AbortSignal` you passed) are **never retried**.
-  See [errors.md](./errors.md#caller-initiated-aborts).
+| Cause                                                                                                                 | Retried?                                              | Thrown when it is the last attempt |
+| --------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- | ---------------------------------- |
+| Retryable status (`408`, `429`, 5xx)                                                                                  | Per the method policy                                 | `BrewApiError`                     |
+| Connection failure: DNS, TCP, TLS, a rejected `fetch`, **or the connection dropping while the response body streams** | Per the method policy                                 | `BrewConnectionError`              |
+| Timeout: `timeoutMs` passed — waiting for headers **or reading the body** — or the HTTP runtime gave up first         | Per the method policy, unless `retryOnTimeout: false` | `BrewTimeoutError`                 |
+| Caller abort (a `signal` you passed, request- or client-level), with any `reason`                                     | **Never**                                             | the signal's `reason`, verbatim    |
+| A 2xx whose body is complete but not JSON                                                                             | **Never** — the same bytes would come back            | `BrewParseError`                   |
+
+A connection or timeout failure has an **unknown outcome**: the server may
+have finished the work, may still be doing it, or may never have seen the
+request. That is why a write only retries with an idempotency key — see
+[Recovering after an unknown outcome](#recovering-after-an-unknown-outcome).
+
+Set `retryOnTimeout: false` (client-wide or per request) when a deadline
+should be a hard stop — one attempt, then `BrewTimeoutError`:
+
+```ts
+await brew.emails.generate({ prompt }, { retryOnTimeout: false })
+```
+
+### Discarded attempts release their connection
+
+When a retryable response is thrown away, the SDK aborts that attempt
+before backing off, so the runtime closes its connection immediately
+instead of leaving the server streaming into a response nobody will
+read until it is garbage collected.
 
 ## Backoff
 
@@ -90,10 +110,19 @@ client or per request — see
 
 ## `Retry-After` honoring
 
-If a 429 response includes a `Retry-After` header, the SDK uses that
-value verbatim instead of computing its own backoff. The server is
+If a retryable response includes a `Retry-After` header, the SDK uses
+that value verbatim instead of computing its own backoff. The server is
 authoritative — it knows when the rate limit resets, and undercutting
 its hint with a shorter backoff just gets you another 429.
+
+The SDK waits out at most **60 seconds** (`MAX_RETRY_AFTER_MS`; every
+Brew rate-limit window is 60 s). A longer `Retry-After` is not retried —
+sleeping minutes inside one call is indistinguishable from a hang — and
+the `BrewApiError` is thrown with `retryAfter` set, so you can schedule
+the retry yourself.
+
+A caller abort ends a backoff immediately; the request rejects with the
+signal's `reason`.
 
 The Brew API emits `Retry-After` as **delta-seconds**. The HTTP-date
 form is intentionally not supported because the public contract does
@@ -135,22 +164,78 @@ await brew.contacts.upsert(
 Caller-provided keys win verbatim — no prefix, no wrapping. Use any
 string the server accepts.
 
+Every attempt of one call — the first and each retry — carries the
+**same** key. A new key would turn a replay into a second write.
+
 ### What does NOT carry an idempotency key
 
-`GET`, `DELETE`, `PUT`, and `PATCH` requests **never** send
-`Idempotency-Key`, even if you pass one in `RequestOptions`. The Brew
-API contract only honors the header on `POST`, and attaching it to
-other methods would be misleading at best.
+`GET`, `DELETE` and `PUT` requests **never** send `Idempotency-Key`,
+even if you pass one in `RequestOptions`. `PATCH` sends only a key you
+pass (the API honors it on `PATCH /v1/emails/{id}`) and never generates
+one — and `PATCH` is never retried either way.
+
+### Recovering after an unknown outcome
+
+A timeout, a dropped connection or your own cancel tells you nothing
+about whether the server did the work. **Cancelling does not stop work
+the server has started.** To finish a write without doing it twice,
+replay it later with the key it was sent with. Every SDK error carries
+that key, including one the SDK generated. A cancel rejects with your
+own `reason` instead, so on a write you might cancel, pass your own
+`idempotencyKey` and keep it:
+
+```ts
+import { BrewTransportError } from '@brew.new/sdk'
+
+try {
+  await brew.emails.generate({ prompt })
+} catch (error) {
+  if (error instanceof BrewTransportError && error.idempotencyKey) {
+    // Keep the key with the job and retry it later.
+    await jobs.retryLater({ prompt, idempotencyKey: error.idempotencyKey })
+    return
+  }
+  throw error
+}
+
+// Later: the same body and the same key. The server replays the result of
+// the first attempt instead of generating a second email.
+await brew.emails.generate({ prompt }, { idempotencyKey })
+```
+
+`error.idempotencyKey` is on `BrewTimeoutError`, `BrewConnectionError`
+and `BrewApiError` alike.
+
+The server holds a key "in progress" while its first attempt runs (up
+to 15 minutes), and answers any other request with that key
+`409 IDEMPOTENCY_IN_PROGRESS`. When the SDK's own retry gets that answer
+after a timeout or dropped connection, it throws the original
+`BrewTimeoutError` / `BrewConnectionError` with `inProgress: true` — the
+work is still running — rather than a conflict. Wait, then replay with
+the same key. A completed key replays its stored result for 24 hours.
+
+The replay guarantee needs the API's idempotency store. While it is
+degraded, real sends refuse with a retryable `503` rather than risk sending
+twice, and other writes run without the guarantee. So for a write that must
+not happen twice (creating a brand, say), pass `maxRetries: 0` on that call
+— otherwise the SDK's own retry after a timeout or dropped connection can
+re-run it before you can look — and check whether the first attempt landed
+before you retry it yourself.
 
 ## Caps and worst-case behavior
 
 The retry loop has hard upper bounds:
 
 - **Per-request attempts**: `maxRetries + 1` total HTTP calls.
-- **Per-attempt timeout**: `timeoutMs` (default 30s).
+- **Per-attempt timeout**: `timeoutMs` (default 30s), covering the
+  **whole** attempt: connecting, waiting for the headers, and reading
+  the response body.
 - **Wall-clock budget**: roughly `(maxRetries + 1) * timeoutMs` plus
   the sum of backoffs. With defaults, that's about 90 seconds before a
-  request gives up entirely.
+  request gives up entirely. Long-running methods raise `timeoutMs`
+  per call (see [configuration.md](./configuration.md#timeoutms)), so
+  their worst case is longer — unless a retry finds the first attempt
+  still in progress, which ends the call at once (above).
 
 If you need a tighter total budget, pass a caller `AbortSignal` from
 `AbortSignal.timeout(ms)`:
@@ -162,5 +247,7 @@ await brew.contacts.search(
 )
 ```
 
-That signal aborts the in-flight fetch immediately when it fires, and
-since caller aborts are never retried, the request fails fast.
+That signal stops the request wherever it is — connecting, reading the
+body, or backing off — and since caller aborts are never retried, the
+request fails fast. It rejects with that signal's reason: a
+`DOMException` whose `name` is `'TimeoutError'`.
