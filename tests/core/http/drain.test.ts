@@ -13,11 +13,30 @@ import {
  * never read it, and the socket plus its buffered bytes are held until the
  * `Response` happens to be garbage collected.
  *
- * The assertion is on what the SERVER observes — its response closed by the
- * client before the next attempt starts — never on how many sockets were
- * opened: an HTTP/1.1 connection with an unread body can never be reused, so
- * releasing it closes it rather than returning it to a pool.
+ * The assertion is on what the SERVER observes — each discarded response
+ * closed by the client promptly — never on how many sockets were opened: an
+ * HTTP/1.1 connection with an unread body can never be reused, so releasing
+ * it closes it rather than returning it to a pool. Nor on the ORDER of that
+ * close and the next attempt's request: the server sees the old socket's FIN
+ * and the new connection's request as independent I/O events (CI observed
+ * them 1.7 ms "out of order"). Without the release the close never comes at
+ * all while the test runs.
  */
+
+/** Poll `isDone` until it holds or `timeoutMs` passes. */
+async function waitFor({
+  isDone,
+  timeoutMs,
+}: {
+  isDone: () => boolean
+  timeoutMs: number
+}): Promise<void> {
+  const deadline = performance.now() + timeoutMs
+  while (!isDone() && performance.now() < deadline) {
+    // eslint-disable-next-line no-await-in-loop -- polling is sequential by nature.
+    await new Promise((resolve) => setTimeout(resolve, 10))
+  }
+}
 
 let loopback: Loopback | undefined
 
@@ -28,7 +47,7 @@ afterEach(async () => {
 
 describe('http.request — a discarded attempt releases its body', () => {
   it(
-    'closes each retried 503 before the next attempt starts',
+    'closes each retried 503 promptly, not at garbage collection',
     {
       timeout: 4000,
     },
@@ -59,10 +78,15 @@ describe('http.request — a discarded attempt releases its body', () => {
 
       expect(result.status).toBe(200)
       const { requests, clientCloses } = loopback
+      await waitFor({ isDone: () => clientCloses.length >= 2, timeoutMs: 1000 })
       expect(requests).toHaveLength(3)
       expect(clientCloses.map((close) => close.attempt)).toEqual([1, 2])
-      expect(clientCloses[0]?.at).toBeLessThan(requests[1]?.at ?? 0)
-      expect(clientCloses[1]?.at).toBeLessThan(requests[2]?.at ?? 0)
+      // Released at the retry, not at garbage collection: each close lands
+      // within a moment of the attempt that replaced it.
+      for (const close of clientCloses) {
+        const next = requests[close.attempt]
+        expect(Math.abs(close.at - (next?.at ?? Number.NaN))).toBeLessThan(250)
+      }
     }
   )
 })
