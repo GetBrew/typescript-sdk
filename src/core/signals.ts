@@ -5,6 +5,9 @@
  * exactly as given.
  */
 
+/** A `release` for a signal that attached no listener: nothing to undo. */
+const RELEASE_NOTHING = (): void => undefined
+
 export type AttemptSignal = {
   /** Handed to `fetch`; stays live through the body read. */
   readonly signal: AbortSignal
@@ -68,8 +71,9 @@ export function combineCallerSignals({
     (signal): signal is AbortSignal => signal !== undefined
   )
   const [first, ...rest] = present
-  if (first === undefined) return { signal: undefined, release: noop }
-  if (rest.length === 0) return { signal: first, release: noop }
+  if (first === undefined)
+    return { signal: undefined, release: RELEASE_NOTHING }
+  if (rest.length === 0) return { signal: first, release: RELEASE_NOTHING }
   return anySignal({ signals: [first, ...rest] })
 }
 
@@ -84,14 +88,14 @@ export function anySignal({
   readonly signals: readonly [AbortSignal, ...Array<AbortSignal>]
 }): { readonly signal: AbortSignal; readonly release: () => void } {
   if (typeof AbortSignal.any === 'function') {
-    return { signal: AbortSignal.any([...signals]), release: noop }
+    return { signal: AbortSignal.any([...signals]), release: RELEASE_NOTHING }
   }
 
   const controller = new AbortController()
   const alreadyAborted = signals.find((signal) => signal.aborted)
   if (alreadyAborted !== undefined) {
     controller.abort(alreadyAborted.reason)
-    return { signal: controller.signal, release: noop }
+    return { signal: controller.signal, release: RELEASE_NOTHING }
   }
 
   const listeners = signals.map((source) => {
@@ -109,10 +113,6 @@ export function anySignal({
       }
     },
   }
-}
-
-function noop(): void {
-  // Nothing to release.
 }
 
 /**

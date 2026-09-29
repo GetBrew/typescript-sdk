@@ -91,8 +91,8 @@ Reproduced in 10.0.0, 11.0.0 and 11.2.0. Nothing is removed or renamed.
 
 ## 11.2.1
 
-Not tagged or published yet: pushing the `v11.2.1` tag publishes it (see
-`RELEASING.md`). No signature changes.
+Never published on its own: this change shipped in 11.3.0. No signature
+changes.
 
 ### Changed
 

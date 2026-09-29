@@ -97,11 +97,10 @@ export async function cancelBody({
   } catch {
     return
   }
-  await Promise.race([cancelled, nextTurn()])
-}
-
-function nextTurn(): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, 0)
-  })
+  await Promise.race([
+    cancelled,
+    new Promise<void>((resolve) => {
+      setTimeout(resolve, 0)
+    }),
+  ])
 }

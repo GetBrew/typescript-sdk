@@ -9,7 +9,7 @@ import type { BrewHttpMethod } from '../../src/types'
 
 describe('shouldRetry', () => {
   /** A retryable-by-default decision; each test overrides what it probes. */
-  function decide(overrides: Partial<RetryDecisionInput>): boolean {
+  function decide({ ...overrides }: Partial<RetryDecisionInput>): boolean {
     return shouldRetry({
       method: 'GET',
       cause: { kind: 'status', status: 500 },

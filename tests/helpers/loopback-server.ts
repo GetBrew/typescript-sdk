@@ -6,6 +6,7 @@ import {
 import type { AddressInfo } from 'node:net'
 
 import { http, passthrough } from 'msw'
+import { afterEach } from 'vitest'
 
 import { server as mswServer } from '../msw/server'
 
@@ -257,4 +258,55 @@ export function keyRecordingFetch(): {
     return globalThis.fetch(input, init)
   }
   return { fetch: wrapped, sentKeys }
+}
+
+/** Per-test timeout for body-phase cases: a regression HANGS, this fails it. */
+export const STALL_TEST = { timeout: 4000 }
+
+/**
+ * Loopback servers for one test file, each closed after its test. Call once
+ * at the top level of a suite.
+ */
+export function useLoopbackServers(): {
+  /** Start a server with a custom route. */
+  start: (input: {
+    route: (input: LoopbackRouteInput) => void
+  }) => Promise<Loopback>
+  /** Headers and part of the JSON body immediately, then nothing, ever. */
+  stallingBody: () => Promise<Loopback>
+  /** Never writes a byte: the headers never arrive. */
+  silent: () => Promise<Loopback>
+} {
+  let current: Loopback | undefined
+  afterEach(async () => {
+    await current?.close()
+    current = undefined
+  })
+  const start = async ({
+    route,
+  }: {
+    route: (input: LoopbackRouteInput) => void
+  }): Promise<Loopback> => {
+    current = await startLoopback({ route })
+    return current
+  }
+  return {
+    start,
+    stallingBody: () =>
+      start({
+        route: ({ res }) => {
+          startJson({ res, status: 200, partial: '{"contacts":[{"email":' })
+        },
+      }),
+    silent: () =>
+      start({
+        route: () => {
+          // Hold the socket open and say nothing.
+        },
+      }),
+  }
+}
+
+export function elapsedSince({ started }: { started: number }): number {
+  return performance.now() - started
 }
