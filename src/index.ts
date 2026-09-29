@@ -18,6 +18,11 @@ export { autoPaginate } from './core/pagination'
 // (replaces the removed `TransactionalPayloadValue`).
 export type { SendPayloadValue } from './generated/openapi-types'
 export type { AutomationAnalyticsInput } from './resources/analytics/automations'
+export {
+  type EventCountsInput,
+  type EventCountsResponse,
+  EVENTS_GROUP_BY_TOKENS,
+} from './resources/analytics/event-counts'
 export type {
   EventsAnalyticsAllInput,
   EventsAnalyticsInput,
@@ -315,7 +320,10 @@ export type {
   UpdateDomainSettingsResponse,
 } from './resources/domains/settings'
 export type { Domain } from './resources/domains/types'
-// ---------- Domains › unsubscribes: method inputs + outputs ----------
+export type {
+  VerifyDomainInput,
+  VerifyDomainResponse,
+} from './resources/domains/verify'
 export type {
   AddDomainUnsubscribesInput,
   AddDomainUnsubscribesResponse,
@@ -332,17 +340,11 @@ export type {
   ListDomainUnsubscribesInput,
   ListDomainUnsubscribesResponse,
 } from './resources/domains/unsubscribes/list'
-export type { RemoveDomainUnsubscribeResponse } from './resources/domains/unsubscribes/remove'
+export type {
+  RemoveDomainUnsubscribeInput,
+  RemoveDomainUnsubscribeResponse,
+} from './resources/domains/unsubscribes/remove'
 export type { DomainUnsubscribesResource } from './resources/domains/unsubscribes/resource'
-export type {
-  DomainUnsubscribe,
-  DomainUnsubscribeScope,
-  DomainUnsubscribesScopeFilter,
-} from './resources/domains/unsubscribes/types'
-export type {
-  VerifyDomainInput,
-  VerifyDomainResponse,
-} from './resources/domains/verify'
 export type { GetEmailGroupResponse } from './resources/email-groups/get'
 export type { EmailGroupsResource } from './resources/email-groups/resource'
 export type * from './resources/email-groups/types'

@@ -2,9 +2,8 @@
 
 ## 12.0.0
 
-Regenerated from brew-v2 main with GetBrew/brew-v2#1713 and #1710 (merge
-after they deploy). `brand.getImages` changes shape; the per-domain
-unsubscribe lists from brew-v2#1579 get their methods.
+Regenerated from brew-v2 main after GetBrew/brew-v2#1713, #1714 and #1710
+(merged 2026-09-28). `brand.getImages` changes shape.
 
 ### Breaking
 
@@ -25,20 +24,37 @@ unsubscribe lists from brew-v2#1579 get their methods.
 
 ### Added
 
-- `domains.unsubscribes`: one marketing domain's unsubscribe list.
-  - `list({ domainId, q?, scope?, limit?, cursor? })`
-  - `add({ domainId, emails })`
-  - `remove(domainId, email)`
-  - `import({ domainId, csv, column? })`: another ESP's export, up to
-    10,000 rows per call.
-  - `export({ domainId, scope? })`: the list as CSV text in `csv`.
-- Typed from the spec: contacts carry `unsubscribedDomains`; the warning
-  code enum gains `CORE_FIELD_IGNORED` and `CSV_COLUMN_IGNORED`.
+- Typed from the spec (no new methods): `automations.triggers.fire`
+  responses carry `notStarted[]`, each automation a fire could not start and
+  why (brew-v2#1711); the warning code enum gains `DATE_ORDER_ASSUMED`
+  (brew-v2#1715).
 
 ### Notes
 
 - `content.generateImage` output is now also saved to the brand's generated
   images (brew-v2#1710); `brand.getImages({ kind: 'generated' })` lists it.
+
+## 11.2.0
+
+Regenerated from the live spec after brew-v2#1708 (deployed 2026-09-28),
+which also carries brew-v2#1579's per-domain unsubscribe lists that 11.1.0
+never mirrored. Additive: no existing signature changes.
+
+### Added
+
+- `analytics.eventCounts({ groupBy, bucket, ...filters })`: counts of the
+  email events the same filters list, per one or two fields (`eventType`,
+  `emailId`, `automationId`, `sendId`, `source`, `link`, `recipientDomain`,
+  `unsubscribeReason`) and/or per UTC `day`, `week` or `month`. Returns
+  `count`, the largest 200 `groups`, `otherCount`, `range` and `truncated`
+  (with `coveredFrom`). Clicks per link: `groupBy: ['link']` with
+  `eventType: 'clicked'`. Counts events, not unique recipients.
+  `EVENTS_GROUP_BY_TOKENS` is pinned to the spec's `x-brew-group-by-tokens`.
+- `domains.unsubscribes.{list, add, remove, import, export}`: a marketing
+  domain's own unsubscribe list. `add` and `import` suppress addresses from
+  that domain only (a new address is created unsubscribed brand-wide);
+  `remove` never re-subscribes a brand-wide opt-out; `list` and `export`
+  narrow by `scope` (`any`, `domain`, `all`).
 
 ## 11.1.0
 

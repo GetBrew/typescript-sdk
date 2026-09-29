@@ -3,6 +3,7 @@ import { extname, join } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
+import { EVENTS_GROUP_BY_TOKENS } from '../src/resources/analytics/event-counts'
 import { AUDIENCES_INCLUDE_TOKENS } from '../src/resources/audiences/get'
 import { AUTOMATIONS_INCLUDE_TOKENS } from '../src/resources/automations/get'
 import { AUTOMATION_RUNS_INCLUDE_TOKENS } from '../src/resources/automations/runs/get'
@@ -111,6 +112,16 @@ describe('OpenAPI to SDK surface parity', () => {
  * each `include` accepts, generated from the tuples the API parses with.
  */
 function readIncludeTokens(): Map<string, Array<string>> {
+  return readPublishedTokens('x-brew-include-tokens')
+}
+
+/**
+ * `operationId` → the tokens a comma-separated query parameter publishes
+ * under `extension` (`x-brew-include-tokens`, `x-brew-group-by-tokens`).
+ */
+function readPublishedTokens(
+  extensionName: string
+): Map<string, Array<string>> {
   const lines = readFileSync(
     join(ROOT, 'openapi/public-api-v1.yaml'),
     'utf8'
@@ -123,7 +134,7 @@ function readIncludeTokens(): Map<string, Array<string>> {
       operationId = operation[1]
       continue
     }
-    const extension = /^( +)x-brew-include-tokens:$/.exec(line)
+    const extension = new RegExp(`^( +)${extensionName}:$`).exec(line)
     if (!operationId || !extension) {
       continue
     }
@@ -175,6 +186,16 @@ describe('typed include tokens', () => {
         [...(published.get(operationId) ?? [])].sort(byName)
       )
     }
+  })
+})
+
+describe('typed groupBy fields', () => {
+  it('types exactly the fields the spec publishes for events groupBy', () => {
+    const published = readPublishedTokens('x-brew-group-by-tokens')
+    expect([...published.keys()]).toEqual(['getEventsAnalytics'])
+    expect([...EVENTS_GROUP_BY_TOKENS].sort(byName)).toEqual(
+      [...(published.get('getEventsAnalytics') ?? [])].sort(byName)
+    )
   })
 })
 

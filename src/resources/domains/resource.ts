@@ -27,7 +27,7 @@ export type DomainsResource = {
   readonly updateSettings: ReturnType<typeof createUpdateDomainSettings>
   /** `DELETE /v1/domains/{domainId}` — idempotent remove (scope: `domains`). */
   readonly delete: ReturnType<typeof createDeleteDomain>
-  /** `/v1/domains/{domainId}/unsubscribes` — a marketing domain's own unsubscribe list: `list`, `add`, `remove`, CSV `import`, and `export` (scope: `domains`). */
+  /** A marketing domain's own unsubscribe list: `list`, `add`, `remove`, `import`, `export` (scope: `domains`). */
   readonly unsubscribes: DomainUnsubscribesResource
 }
 
