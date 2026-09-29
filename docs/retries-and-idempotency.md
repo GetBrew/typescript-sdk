@@ -216,9 +216,11 @@ the same key. A completed key replays its stored result for 24 hours.
 
 The replay guarantee needs the API's idempotency store. While it is
 degraded, real sends refuse with a retryable `503` rather than risk sending
-twice, and other writes run without the guarantee — so before retrying a
-write that must not happen twice (creating a brand, say), check whether the
-first attempt landed.
+twice, and other writes run without the guarantee. So for a write that must
+not happen twice (creating a brand, say), pass `maxRetries: 0` on that call
+— otherwise the SDK's own retry after a timeout or dropped connection can
+re-run it before you can look — and check whether the first attempt landed
+before you retry it yourself.
 
 ## Caps and worst-case behavior
 
