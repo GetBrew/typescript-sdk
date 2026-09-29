@@ -1,38 +1,16 @@
 # Changelog
 
-## 12.0.0
+## 11.2.1
 
-Regenerated from brew-v2 main after GetBrew/brew-v2#1713, #1714 and #1710
-(merged 2026-09-28). `brand.getImages` changes shape.
+Not tagged or published yet: pushing the `v11.2.1` tag publishes it (see
+`RELEASING.md`). No signature changes.
 
-### Breaking
+### Changed
 
-- `brand.getImages({ q, kind, sort, limit, cursor })` lists the brand's whole
-  asset library, as the Assets page shows it: logos, brand images (from the
-  site or uploaded) and images made with Brew.
-  - `kind`: `'logo'`, `'brand'` or `'generated'`; omit for every kind.
-  - `sort`: `'newest'` (default) or `'oldest'`. Browsing is free.
-  - `q`: semantic search over brand and generated images, 1 credit for the
-    first page, in relevance order (`sort` is ignored). `q` with
-    `kind: 'logo'` is a `400`: logos are not searchable.
-  - `type` and `aspectRatio` are gone. The API answers either with a `400`
-    that names the replacement.
-  - Rows carry `assetId` (the id the app opens at `/assets?image=<id>`),
-    `kind`, `url` and, when known, `description`, `width`, `height`,
-    `category`, `pageUrl`, `addedAt` and a logo's `logo` variant. They no
-    longer carry `aspectRatio` or `prompt`.
-
-### Added
-
-- Typed from the spec (no new methods): `automations.triggers.fire`
-  responses carry `notStarted[]`, each automation a fire could not start and
-  why (brew-v2#1711); the warning code enum gains `DATE_ORDER_ASSUMED`
-  (brew-v2#1715).
-
-### Notes
-
-- `content.generateImage` output is now also saved to the brand's generated
-  images (brew-v2#1710); `brand.getImages({ kind: 'generated' })` lists it.
+- `content.generateImage` documents that the API now saves each image to the
+  brand's generated images (brew-v2#1710), which
+  `brand.getImages({ kind: 'generated' })` lists. The spec mirror and
+  generated types are regenerated from brew-v2 main to match.
 
 ## 11.2.0
 
