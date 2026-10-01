@@ -32,9 +32,10 @@ export type { FlowsListResponse }
  *
  * `total` counts every flow the query matches across ALL pages (filters
  * narrow it, `semantic` only orders it), so `list({ limit: 1 })` answers
- * "how many". It is a floor when `isTotalExact` is `false`: the read
- * covered only part of the catalog (cut at 500 flows, or a `semantic`
- * search that could not run).
+ * "how many". It is a floor when `isTotalExact` is `false`: the read was cut
+ * at 500 flows (the newest, or the 500 nearest a `semantic` query) before
+ * the filters applied. A `semantic` search that cannot run throws a
+ * `BrewApiError` (`503 SERVICE_UNAVAILABLE`): retry without `semantic`.
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<ListFlowsResponse>` instead of the unwrapped envelope.

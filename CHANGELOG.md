@@ -11,10 +11,14 @@ removed or renamed.
 - **`total` and `isTotalExact` on `FlowsListResponse`.** `total` counts every
   flow the query matches across all pages (filters narrow it, `semantic`
   only orders it), so `brew.flows.list({ limit: 1 })` answers "how many".
-  `isTotalExact` is `false` when the read covered only part of the catalog —
-  the corpus read stops at 500 flows (filters apply after it, so a filtered
-  total is a floor then too), or a `semantic` search could not run — and
+  `isTotalExact` is `false` when the read was cut at 500 flows (the newest,
+  or the 500 nearest a `semantic` query) before the filters applied, and
   `total` is then a floor (GetBrew/brew-v2#1805).
+- **`flows.list` documents `503 SERVICE_UNAVAILABLE`** for a `semantic`
+  search that cannot run (no search index, or its kill switch), which the
+  API used to answer with an empty page. It throws a `BrewApiError` at once
+  (`Retry-After: 300` is over the SDK's 60 s ceiling); retry without
+  `semantic`.
 
 ### Spec resync
 

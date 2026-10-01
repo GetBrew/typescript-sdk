@@ -4,7 +4,7 @@ import type { components } from '../../generated/openapi-types'
  * Envelope returned by `GET /v1/flows`: `{ data, pagination, total,
  * isTotalExact }`. `total` counts every flow the query matches across all
  * pages (filters narrow it, `semantic` only orders it); it is a floor when
- * `isTotalExact` is `false` — the read covered only part of the catalog.
+ * `isTotalExact` is `false` — the read was cut at 500 flows.
  */
 export type FlowsListResponse = components['schemas']['FlowsListResponse']
 

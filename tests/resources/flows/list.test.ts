@@ -1,6 +1,7 @@
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it } from 'vitest'
 
+import { BrewApiError } from '../../../src/core/errors'
 import { createListFlows } from '../../../src/resources/flows/list'
 import { makeTestHttpClient } from '../../helpers/http-client'
 import { server } from '../../msw/server'
@@ -48,6 +49,48 @@ describe('flows.list', () => {
     const isExact: boolean = isTotalExact
     expect(count).toBe(167)
     expect(isExact).toBe(true)
+  })
+
+  it('throws a semantic search that cannot run as a 503 BrewApiError, without sleeping out its Retry-After', async () => {
+    let attempts = 0
+    server.use(
+      http.get('https://brew.new/api/v1/flows', () => {
+        attempts += 1
+        return HttpResponse.json(
+          {
+            error: {
+              code: 'SERVICE_UNAVAILABLE',
+              type: 'service_unavailable',
+              message: 'Semantic search over flows is unavailable right now.',
+              suggestion:
+                'Retry without `semantic`: `brand`, `category`, `type` and `sort` still narrow and order the list.',
+              docs: 'https://docs.brew.new/api-reference/api/errors',
+            },
+          },
+          {
+            status: 503,
+            headers: { 'Retry-After': '300', 'x-request-id': 'req_503' },
+          }
+        )
+      })
+    )
+
+    const { client, sleepCalls } = makeTestHttpClient()
+    const list = createListFlows(client)
+
+    const error = await list({ semantic: 'onboarding drip' }).catch(
+      (caught: unknown) => caught
+    )
+
+    expect(error).toBeInstanceOf(BrewApiError)
+    expect(error).toMatchObject({
+      status: 503,
+      code: 'SERVICE_UNAVAILABLE',
+      retryAfter: 300,
+    })
+    // Over the 60 s ceiling: thrown at once, not slept out and retried.
+    expect(attempts).toBe(1)
+    expect(sleepCalls).toEqual([])
   })
 
   it('passes a partial read through as isTotalExact: false (total is then a floor)', async () => {

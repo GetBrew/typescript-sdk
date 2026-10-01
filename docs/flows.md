@@ -85,10 +85,15 @@ list(input?: ListFlowsInput): Promise<FlowsListResponse>
 
 `total` counts every flow the query matches across all pages: filters narrow
 it, `semantic` only orders it. One `limit: 1` call answers "how many".
-`isTotalExact` is `false` when the read covered only part of the catalog —
-the corpus read stops at 500 flows (filters apply after it, so a filtered
-total is a floor then too), or a `semantic` search could not run (an empty
-page that is no count at all). Treat `total` as a floor in that case.
+`isTotalExact` is `false` when the read was cut at 500 flows — the newest,
+or the 500 nearest a `semantic` query — before the filters applied, so a
+filtered total is a floor then too. Treat `total` as a floor in that case.
+
+A `semantic` search that cannot run (no search index, or its kill switch)
+throws a `BrewApiError` with `status: 503` and `code: 'SERVICE_UNAVAILABLE'`
+instead of answering an empty page; retry without `semantic`. Its
+`Retry-After` is 300 s, over the SDK's 60 s ceiling, so it is thrown at once
+rather than retried.
 
 ```ts
 // How many signup sequences are there?
