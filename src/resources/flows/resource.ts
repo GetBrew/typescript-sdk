@@ -6,7 +6,8 @@ import { createListFlows } from './list'
 export type FlowsResource = {
   /**
    * `GET /v1/flows` — list public email flows as cards under
-   * `{ data, pagination }`. Organization-wide; no `X-Brand-Id`.
+   * `{ data, pagination, total, isTotalExact }`. Organization-wide; no
+   * `X-Brand-Id`.
    */
   readonly list: ReturnType<typeof createListFlows>
   /**

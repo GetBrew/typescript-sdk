@@ -22,13 +22,19 @@ export type ListFlowsResponse = FlowsListResponse
 export type { FlowsListResponse }
 
 /**
- * `GET /v1/flows` — list public email flows as cards under the uniform
- * `{ data, pagination }` envelope. A flow is one brand's real sequence —
- * onboarding drip, newsletter cadence, win-back — with the day each email
- * landed. Cards carry `slug`, `brand`, `type`, `category`, `emailCount`,
- * `spanDays`, `remixCount` and `previewImages`; `anchor` and `steps[]` are
- * on `brew.flows.get(slug)`. Flows are organization-wide, like templates:
- * the client never sends `X-Brand-Id` here.
+ * `GET /v1/flows` — list public email flows as cards under
+ * `{ data, pagination, total, isTotalExact }`. A flow is one brand's real
+ * sequence — onboarding drip, newsletter cadence, win-back — with the day
+ * each email landed. Cards carry `slug`, `brand`, `type`, `category`,
+ * `emailCount`, `spanDays`, `remixCount` and `previewImages`; `anchor` and
+ * `steps[]` are on `brew.flows.get(slug)`. Flows are organization-wide, like
+ * templates: the client never sends `X-Brand-Id` here.
+ *
+ * `total` counts every flow the query matches across ALL pages (filters
+ * narrow it, `semantic` only orders it), so `list({ limit: 1 })` answers
+ * "how many". It is a floor when `isTotalExact` is `false`: the read
+ * covered only part of the catalog (cut at 500 flows, or a `semantic`
+ * search that could not run).
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<ListFlowsResponse>` instead of the unwrapped envelope.

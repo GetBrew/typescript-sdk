@@ -1,5 +1,37 @@
 # Changelog
 
+## 11.4.0
+
+`brew.flows.list()` now says how many flows a query matches, so counting the
+gallery takes one call instead of paging through it. Additive: nothing is
+removed or renamed.
+
+### Added
+
+- **`total` and `isTotalExact` on `FlowsListResponse`.** `total` counts every
+  flow the query matches across all pages (filters narrow it, `semantic`
+  only orders it), so `brew.flows.list({ limit: 1 })` answers "how many".
+  `isTotalExact` is `false` when the read covered only part of the catalog —
+  the corpus read stops at 500 flows (filters apply after it, so a filtered
+  total is a floor then too), or a `semantic` search could not run — and
+  `total` is then a floor (GetBrew/brew-v2#1805).
+
+### Spec resync
+
+The bundled OpenAPI spec and generated types catch up with the API:
+
+- `pauseReason` on sends and runs gains `'domain_unsendable'`: a campaign
+  whose sending domain stopped passing DNS is held, not failed.
+- `ApiErrorCode` gains `EMAIL_IMAGES_MISSING`: an email that shows a missing
+  `cdn.brew.new` image is not sent (`details.missingImages[]` lists each
+  URL). `brew.automations.run(...)` now documents it as a `422`.
+- `brew.automations.triggers.patch(...)` now documents its `409
+CONTRACT_LOCKED_BY_PUBLISHED_AUTOMATIONS`: a contract change a published
+  automation reads must stay backward compatible.
+- A payload-contract dry run's issue codes gain `'invalid_email'`.
+- Field descriptions: a trigger condition's field may read the recipient
+  contact (`contact.<name>`), and the subject-line rules on sends.
+
 ## 11.3.0
 
 `timeoutMs` and cancellation now cover the whole request, the response body

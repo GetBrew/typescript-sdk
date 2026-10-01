@@ -23,12 +23,65 @@ const CARD = {
 }
 
 describe('flows.list', () => {
+  it('returns total and isTotalExact, so one limit-1 call counts the matching flows', async () => {
+    let capturedRequest: Request | undefined
+    server.use(
+      http.get('https://brew.new/api/v1/flows', ({ request }) => {
+        capturedRequest = request
+        return HttpResponse.json({
+          data: [CARD],
+          pagination: { limit: 1, cursor: 'b2ZmOjE', hasMore: true },
+          total: 167,
+          isTotalExact: true,
+        })
+      })
+    )
+
+    const { client } = makeTestHttpClient()
+    const list = createListFlows(client)
+
+    const { total, isTotalExact, data } = await list({ limit: 1 })
+
+    expect(new URL(capturedRequest!.url).searchParams.get('limit')).toBe('1')
+    expect(data).toHaveLength(1)
+    const count: number = total
+    const isExact: boolean = isTotalExact
+    expect(count).toBe(167)
+    expect(isExact).toBe(true)
+  })
+
+  it('passes a partial read through as isTotalExact: false (total is then a floor)', async () => {
+    server.use(
+      http.get('https://brew.new/api/v1/flows', () =>
+        HttpResponse.json({
+          data: [],
+          pagination: PAGINATION,
+          total: 0,
+          isTotalExact: false,
+        })
+      )
+    )
+
+    const { client } = makeTestHttpClient()
+    const list = createListFlows(client)
+
+    const result = await list({ semantic: 'developer onboarding drip' })
+
+    expect(result.total).toBe(0)
+    expect(result.isTotalExact).toBe(false)
+  })
+
   it('sends GET /v1/flows with no filters and returns the { data, pagination } envelope', async () => {
     let capturedRequest: Request | undefined
     server.use(
       http.get('https://brew.new/api/v1/flows', ({ request }) => {
         capturedRequest = request
-        return HttpResponse.json({ data: [CARD], pagination: PAGINATION })
+        return HttpResponse.json({
+          data: [CARD],
+          pagination: PAGINATION,
+          total: 1,
+          isTotalExact: true,
+        })
       })
     )
 
@@ -53,7 +106,12 @@ describe('flows.list', () => {
     server.use(
       http.get('https://brew.new/api/v1/flows', ({ request }) => {
         capturedRequest = request
-        return HttpResponse.json({ data: [], pagination: PAGINATION })
+        return HttpResponse.json({
+          data: [],
+          pagination: PAGINATION,
+          total: 0,
+          isTotalExact: true,
+        })
       })
     )
 
