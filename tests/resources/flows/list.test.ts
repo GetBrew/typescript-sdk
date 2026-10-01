@@ -61,7 +61,8 @@ describe('flows.list', () => {
             error: {
               code: 'SERVICE_UNAVAILABLE',
               type: 'service_unavailable',
-              message: 'Semantic search over flows is unavailable right now.',
+              message:
+                'Semantic search over flows cannot run right now (no search index, or its kill switch), so a `semantic` query is refused rather than answered with an empty page.',
               suggestion:
                 'Retry without `semantic`: `brand`, `category`, `type` and `sort` still narrow and order the list.',
               docs: 'https://docs.brew.new/api-reference/api/errors',
