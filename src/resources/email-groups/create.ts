@@ -7,7 +7,9 @@ export type { CreateEmailGroupInput, CreateEmailGroupResponse }
 
 /**
  * `POST /v1/email-groups` (scope: `emails`) — create a named email
- * folder. Returns `201` with `{ groupId, groupName, emailCount: 0 }`.
+ * folder, optionally moving up to 50 designs into it (`emailIds`). Returns
+ * `201` with the row; when designs were sent, `moved` counts those that
+ * landed and `notMoved` names each one left behind, with its reason.
  *
  * Reserved names (`Ungrouped` / `ungrouped` / `__ungrouped__`) are
  * `400`. Duplicate names are `409 EMAIL_GROUP_NAME_CONFLICT`. Pass the

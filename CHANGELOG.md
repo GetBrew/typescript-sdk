@@ -1,5 +1,56 @@
 # Changelog
 
+## 11.4.0
+
+`brew.flows.list()` now says how many flows a query matches, so counting the
+gallery takes one call instead of paging through it. Additive: nothing is
+removed or renamed.
+
+### Added
+
+- **`total` and `isTotalExact` on `FlowsListResponse`.** `total` counts every
+  flow the query matches across all pages (filters narrow it, `semantic`
+  only orders it), so `brew.flows.list({ limit: 1 })` answers "how many".
+  `isTotalExact` is `false` when the read was cut at 500 flows (the newest,
+  or the 500 nearest a `semantic` query) before the filters applied, and
+  `total` is then a floor (GetBrew/brew-v2#1805).
+- **`flows.list` documents `503 SERVICE_UNAVAILABLE`** for a `semantic`
+  search that cannot run (no search index, or its kill switch), which the
+  API used to answer with an empty page. It throws a `BrewApiError` at once
+  (`Retry-After: 300` is over the SDK's 60 s ceiling); retry without
+  `semantic`.
+
+- **Move designs into a folder in one call** (GetBrew/brew-v2#1814).
+  `brew.emailGroups.create` and `.update` take `emailIds` (up to 50 designs),
+  and `update` no longer requires `name`, so a move alone is one call. Both
+  now return `EmailGroupWriteResponse`: the row plus `moved` and `notMoved`
+  (each design left where it was, with a reason: `not_found`, `generating`,
+  `not_movable`, `folder_full` or `retry`).
+
+### Spec resync
+
+The bundled OpenAPI spec and generated types catch up with the API:
+
+- `pauseReason` on sends and runs gains `'domain_unsendable'`: a campaign
+  whose sending domain stopped passing DNS is held, not failed.
+- `ApiErrorCode` gains `EMAIL_IMAGES_MISSING`: an email that shows a missing
+  `cdn.brew.new` image is not sent (`details.missingImages[]` lists each
+  URL). `brew.automations.run(...)` now documents it as a `422`.
+- `brew.automations.triggers.patch(...)` now documents its `409
+CONTRACT_LOCKED_BY_PUBLISHED_AUTOMATIONS`: a contract change a published
+  automation reads must stay backward compatible.
+- A payload-contract dry run's issue codes gain `'invalid_email'`.
+- Creator attribution (GetBrew/brew-v2#1816): emails and email groups carry
+  `createdBy` / `createdByUserId`, and automations `createdByUserId`,
+  `publishedBy` / `publishedByUserId`. `createdBy` is the label Brew shows:
+  a name or `Former member` (a creator who left the brand), `API` or `MCP`,
+  or both joined (`Name · MCP`); a group's is a name or `Former member` (a
+  group made by an organization API key has none). It is absent when the
+  creator cannot be named, with `createdByUserId` still present
+  (GetBrew/brew-v2#1822).
+- Field descriptions: a trigger condition's field may read the recipient
+  contact (`contact.<name>`), and the subject-line rules on sends.
+
 ## 11.3.0
 
 `timeoutMs` and cancellation now cover the whole request, the response body

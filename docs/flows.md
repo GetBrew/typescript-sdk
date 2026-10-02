@@ -1,6 +1,6 @@
 # `brew.flows`
 
-One method for the public flows gallery: real multi-step email sequences by
+Two methods for the public flows gallery: real multi-step email sequences by
 brand, with the day each email landed.
 
 | Method          | HTTP                   |
@@ -76,12 +76,33 @@ type FlowsListResponse = {
     readonly cursor: string | null
     readonly hasMore: boolean
   }
+  readonly total: number // every flow the query matches, across all pages
+  readonly isTotalExact: boolean // false: `total` is a floor
 }
 
 list(input?: ListFlowsInput): Promise<FlowsListResponse>
 ```
 
+`total` counts every flow the query matches across all pages: filters narrow
+it, `semantic` only orders it. One `limit: 1` call answers "how many".
+`isTotalExact` is `false` when the read was cut at 500 flows — the newest,
+or the 500 nearest a `semantic` query — before the filters applied, so a
+filtered total is a floor then too. Treat `total` as a floor in that case.
+
+A `semantic` search that cannot run (no search index, or its kill switch)
+throws a `BrewApiError` with `status: 503` and `code: 'SERVICE_UNAVAILABLE'`
+instead of answering an empty page; retry without `semantic`. Its
+`Retry-After` is 300 s, over the SDK's 60 s ceiling, so it is thrown at once
+rather than retried.
+
 ```ts
+// How many signup sequences are there?
+const { total, isTotalExact } = await brew.flows.list({
+  type: 'signup',
+  limit: 1,
+})
+console.log(isTotalExact ? `${total}` : `at least ${total}`)
+
 // Which signup sequences run the longest?
 const { data: cards } = await brew.flows.list({ type: 'signup', sort: 'span' })
 

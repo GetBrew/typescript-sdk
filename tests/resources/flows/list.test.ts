@@ -1,6 +1,7 @@
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it } from 'vitest'
 
+import { BrewApiError } from '../../../src/core/errors'
 import { createListFlows } from '../../../src/resources/flows/list'
 import { makeTestHttpClient } from '../../helpers/http-client'
 import { server } from '../../msw/server'
@@ -23,12 +24,108 @@ const CARD = {
 }
 
 describe('flows.list', () => {
+  it('returns total and isTotalExact, so one limit-1 call counts the matching flows', async () => {
+    let capturedRequest: Request | undefined
+    server.use(
+      http.get('https://brew.new/api/v1/flows', ({ request }) => {
+        capturedRequest = request
+        return HttpResponse.json({
+          data: [CARD],
+          pagination: { limit: 1, cursor: 'b2ZmOjE', hasMore: true },
+          total: 167,
+          isTotalExact: true,
+        })
+      })
+    )
+
+    const { client } = makeTestHttpClient()
+    const list = createListFlows(client)
+
+    const { total, isTotalExact, data } = await list({ limit: 1 })
+
+    expect(new URL(capturedRequest!.url).searchParams.get('limit')).toBe('1')
+    expect(data).toHaveLength(1)
+    const count: number = total
+    const isExact: boolean = isTotalExact
+    expect(count).toBe(167)
+    expect(isExact).toBe(true)
+  })
+
+  it('throws a semantic search that cannot run as a 503 BrewApiError, without sleeping out its Retry-After', async () => {
+    let attempts = 0
+    server.use(
+      http.get('https://brew.new/api/v1/flows', () => {
+        attempts += 1
+        return HttpResponse.json(
+          {
+            error: {
+              code: 'SERVICE_UNAVAILABLE',
+              type: 'service_unavailable',
+              message:
+                'Semantic search over flows cannot run right now (no search index, or its kill switch), so a `semantic` query is refused rather than answered with an empty page.',
+              suggestion:
+                'Retry without `semantic`: `brand`, `category`, `type` and `sort` still narrow and order the list.',
+              docs: 'https://docs.brew.new/api-reference/api/errors',
+            },
+          },
+          {
+            status: 503,
+            headers: { 'Retry-After': '300', 'x-request-id': 'req_503' },
+          }
+        )
+      })
+    )
+
+    const { client, sleepCalls } = makeTestHttpClient()
+    const list = createListFlows(client)
+
+    const error = await list({ semantic: 'onboarding drip' }).catch(
+      (caught: unknown) => caught
+    )
+
+    expect(error).toBeInstanceOf(BrewApiError)
+    expect(error).toMatchObject({
+      status: 503,
+      code: 'SERVICE_UNAVAILABLE',
+      retryAfter: 300,
+    })
+    // Over the 60 s ceiling: thrown at once, not slept out and retried.
+    expect(attempts).toBe(1)
+    expect(sleepCalls).toEqual([])
+  })
+
+  it('passes a partial read through as isTotalExact: false (total is then a floor)', async () => {
+    server.use(
+      http.get('https://brew.new/api/v1/flows', () =>
+        HttpResponse.json({
+          data: [],
+          pagination: PAGINATION,
+          total: 0,
+          isTotalExact: false,
+        })
+      )
+    )
+
+    const { client } = makeTestHttpClient()
+    const list = createListFlows(client)
+
+    const result = await list({ semantic: 'developer onboarding drip' })
+
+    expect(result.total).toBe(0)
+    expect(result.isTotalExact).toBe(false)
+  })
+
   it('sends GET /v1/flows with no filters and returns the { data, pagination } envelope', async () => {
     let capturedRequest: Request | undefined
     server.use(
       http.get('https://brew.new/api/v1/flows', ({ request }) => {
         capturedRequest = request
-        return HttpResponse.json({ data: [CARD], pagination: PAGINATION })
+        return HttpResponse.json({
+          data: [CARD],
+          pagination: PAGINATION,
+          total: 1,
+          isTotalExact: true,
+        })
       })
     )
 
@@ -53,7 +150,12 @@ describe('flows.list', () => {
     server.use(
       http.get('https://brew.new/api/v1/flows', ({ request }) => {
         capturedRequest = request
-        return HttpResponse.json({ data: [], pagination: PAGINATION })
+        return HttpResponse.json({
+          data: [],
+          pagination: PAGINATION,
+          total: 0,
+          isTotalExact: true,
+        })
       })
     )
 
