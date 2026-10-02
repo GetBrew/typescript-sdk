@@ -3,6 +3,10 @@ import type { HttpClient } from '../../core/http'
 import { createAuditEmail } from './audit'
 import { createPreviewEmailClients } from './client-previews'
 import { createCloneEmail } from './clone'
+import {
+  createEmailCommentsResource,
+  type EmailCommentsResource,
+} from './comments/resource'
 import { createDeleteEmail } from './delete'
 import { createEditEmail } from './edit'
 import { createExportEmail } from './export'
@@ -49,6 +53,8 @@ export type EmailsResource = {
   readonly getClientPreview: ReturnType<typeof createGetEmailClientPreview>
   /** `/v1/emails/{emailId}/inbox-placement-tests` — create a seed-list placement test, list a design's recent tests, and poll ONE by `testId` (scope: `emails`). */
   readonly inboxPlacementTests: InboxPlacementTestsResource
+  /** `GET /v1/emails/{emailId}/comments` — the design's open comment threads (`list`), and one thread's messages newest first (`listAllMessages`); free (scope: `emails`). */
+  readonly comments: EmailCommentsResource
   /** `POST /v1/emails/{emailId}/export` — export the design to a connected ESP as a template; `dryRun` validates without writing (scope: `emails`). */
   readonly export: ReturnType<typeof createExportEmail>
   /** `POST /v1/sends` — the single polymorphic send: campaign by default, or a one-off TEST delivery via `test: true` (scope: `sends`). */
@@ -71,6 +77,7 @@ export function createEmailsResource(client: HttpClient): EmailsResource {
     previewClients: createPreviewEmailClients(client),
     getClientPreview: createGetEmailClientPreview(client),
     inboxPlacementTests: createInboxPlacementTestsResource(client),
+    comments: createEmailCommentsResource(client),
     export: createExportEmail(client),
     send: createSendEmail(client),
   }

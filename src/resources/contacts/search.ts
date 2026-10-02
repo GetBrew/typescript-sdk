@@ -1,4 +1,4 @@
-import type { components } from '../../generated/openapi-types'
+import type { components, operations } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
@@ -18,7 +18,8 @@ type ContactsSearchRequest = components['schemas']['ContactsSearchRequest']
  * audience (combined with any `filters` / `search`).
  *
  * `count` is intentionally NOT exposed here — `search` always returns a
- * page. Use `brew.contacts.count` for the `count: true` mode.
+ * page. Use `brew.contacts.count` for the `count: true` mode (the API
+ * refuses `include` with `count: true`, so the count inputs have none).
  *
  * Sourced from the generated request schema so any new search knob
  * upstream surfaces as a compile error in the SDK.
@@ -33,11 +34,48 @@ export type SearchContactsInput = {
   readonly order?: ContactsSearchRequest['order']
   readonly limit?: ContactsSearchRequest['limit']
   readonly cursor?: ContactsSearchRequest['cursor']
+  /**
+   * `['openProfile']` attaches each returned contact's smart-send open-time
+   * profile (`openProfile`, as on `get`; `null` when they have no opens
+   * yet). Each row costs one profile read, so a page then holds at most 10
+   * contacts (`pagination.limit` reports the size read). It needs the
+   * `emails` scope as well (`403 INSUFFICIENT_PERMISSIONS` without it).
+   */
+  readonly include?: ReadonlyArray<
+    NonNullable<ContactsSearchRequest['include']>[number]
+  >
 }
 
-/** A page of matching contacts under the uniform `{ data, pagination }` envelope. */
-export type SearchContactsResponse =
-  components['schemas']['ContactsListResponse']
+/** The page arms of `POST /v1/contacts/search` (not the `{ count }` arm). */
+type SearchContactsPage = Extract<
+  operations['searchContacts']['responses'][200]['content']['application/json'],
+  { readonly data: unknown }
+>
+
+/**
+ * The page arm whose rows can carry `openProfile`. A plain page's rows
+ * are the same contacts without it, so this one types both answers, and
+ * `row.openProfile` reads on every row instead of only after narrowing.
+ */
+type PageWithOpenProfile<Page> = Page extends {
+  readonly data: ReadonlyArray<infer Row>
+}
+  ? 'openProfile' extends keyof Row
+    ? Page
+    : never
+  : never
+
+/**
+ * A page of matching contacts under the uniform `{ data, pagination }`
+ * envelope — each row with `openProfile` when `include` asked for it.
+ * Derived from the generated `searchContacts` operation (its page arm, not
+ * the `{ count }` arm that `count` / `countBy` read), so it follows the
+ * response schemas the route actually declares.
+ */
+export type SearchContactsResponse = PageWithOpenProfile<SearchContactsPage>
+
+/** One contact on a `search` page (and what `searchAll` yields). */
+export type ContactSearchRow = SearchContactsResponse['data'][number]
 
 /**
  * `POST /v1/contacts/search` (scope: `contacts`) — the canonical
@@ -47,8 +85,10 @@ export type SearchContactsResponse =
  * pagination. Returns the uniform `{ data, pagination }` page.
  *
  * Pass an empty body (`{}`) to read every contact newest-first — search,
- * filters, and sort are all opt-in. To walk every match use
- * `brew.contacts.searchAll`; to get just a count use
+ * filters, and sort are all opt-in. `include: ['openProfile']` attaches
+ * each row's open-time profile (at most 10 rows a page; needs the
+ * `emails` scope as well, `403 INSUFFICIENT_PERMISSIONS` without it). To
+ * walk every match use `brew.contacts.searchAll`; to get just a count use
  * `brew.contacts.count`. Look one contact up by email with a
  * `{ field: 'email', operator: 'equals', value }` filter.
  *

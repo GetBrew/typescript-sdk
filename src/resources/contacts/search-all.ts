@@ -2,14 +2,17 @@ import { autoPaginate } from '../../core/pagination'
 import type { HttpClient } from '../../core/http'
 import type { RequestOptions } from '../../types'
 
-import type { Contact } from './types'
-import { createSearchContacts, type SearchContactsInput } from './search'
+import {
+  type ContactSearchRow,
+  createSearchContacts,
+  type SearchContactsInput,
+} from './search'
 
 /**
  * Input to `brew.contacts.searchAll(...)`. Same shape as
- * `SearchContactsInput` (search, filters, logic, sort, order) but without
- * `cursor` — the iterator owns the cursor state internally and would
- * happily collide with a caller-supplied one.
+ * `SearchContactsInput` (search, filters, logic, sort, order, include)
+ * but without `cursor` — the iterator owns the cursor state internally
+ * and would happily collide with a caller-supplied one.
  *
  * `limit` here is the **per-page** limit (1–100, default 50 per the
  * API). It is not the total cap; iterate the result to stop at any count
@@ -24,7 +27,8 @@ export type SearchAllContactsInput = Readonly<
  * structured search (`POST /v1/contacts/search`).
  *
  * Behavior:
- * - Yields `Contact` objects one at a time (not pages). Use a normal
+ * - Yields contacts one at a time (not pages) — each with `openProfile`
+ *   when `include: ['openProfile']` asked for it. Use a normal
  *   `for await` loop to walk the entire result set without ever seeing
  *   pagination state.
  * - Internally calls `search` repeatedly and follows `pagination.cursor`
@@ -53,8 +57,8 @@ export function createSearchAllContacts(client: HttpClient) {
   return function searchAllContacts(
     input: SearchAllContactsInput = {},
     options?: RequestOptions
-  ): AsyncGenerator<Contact, void, void> {
-    return autoPaginate<Contact>(
+  ): AsyncGenerator<ContactSearchRow, void, void> {
+    return autoPaginate<ContactSearchRow>(
       async (cursor) => {
         const pageInput: SearchContactsInput = {
           ...input,
