@@ -97,6 +97,97 @@ describe('content.createImageUpload', () => {
     expect((error as BrewApiError).retryAfter).toBe(600)
   })
 
+  describe('no replay, so no retry by default', () => {
+    // The route never replays its answer (it carries a bearer URL), so a
+    // retry after a lost answer opens a second upload that holds one of the
+    // brand's 20 slots for 15 minutes.
+    const INPUT = {
+      fileName: 'logo.png',
+      contentType: 'image/png',
+      size: 2048,
+    } as const
+
+    function unavailable(): Response {
+      return HttpResponse.json(
+        {
+          error: {
+            code: 'SERVICE_UNAVAILABLE',
+            type: 'service_unavailable',
+            message: 'Try again.',
+            suggestion: 'Retry.',
+            docs: 'https://docs.brew.new/api-reference/api/errors',
+          },
+        },
+        { status: 503 }
+      )
+    }
+
+    it('sends no Idempotency-Key, not even one the caller passes', async () => {
+      const keys: Array<string | null> = []
+      server.use(
+        http.post(UPLOADS_URL, ({ request }) => {
+          keys.push(request.headers.get('idempotency-key'))
+          return HttpResponse.json(OPENED, { status: 201 })
+        })
+      )
+      const { client } = makeTestHttpClient()
+      const createImageUpload = createCreateImageUpload(client)
+
+      await createImageUpload(INPUT)
+      await createImageUpload(INPUT, { idempotencyKey: 'caller-key' })
+
+      expect(keys).toEqual([null, null])
+    })
+
+    it.each([
+      { failure: 'a 503', answer: unavailable },
+      { failure: 'a dropped connection', answer: () => HttpResponse.error() },
+    ])(
+      'makes one attempt on $failure, whatever the client maxRetries',
+      async ({ answer }) => {
+        let calls = 0
+        server.use(
+          http.post(UPLOADS_URL, () => {
+            calls++
+            return answer()
+          })
+        )
+        // The client-wide setting is for routes that replay; it does not
+        // apply here.
+        const { client } = makeTestHttpClient({
+          configOverrides: { maxRetries: 2 },
+        })
+
+        const error = await createCreateImageUpload(client)(INPUT).catch(
+          (caught: unknown) => caught
+        )
+
+        expect(error).toBeInstanceOf(Error)
+        expect(calls).toBe(1)
+      }
+    )
+
+    it('retries when the caller passes maxRetries for the request', async () => {
+      let calls = 0
+      server.use(
+        http.post(UPLOADS_URL, () => {
+          calls++
+          return calls === 1
+            ? unavailable()
+            : HttpResponse.json(OPENED, { status: 201 })
+        })
+      )
+      const { client } = makeTestHttpClient()
+
+      const result = await createCreateImageUpload(client)(INPUT, {
+        maxRetries: 1,
+      })
+
+      expect(calls).toBe(2)
+      expect(result).toEqual(OPENED)
+    })
+  })
+
   it('supports the { raw: true } escape hatch', async () => {
     server.use(
       http.post(UPLOADS_URL, () =>

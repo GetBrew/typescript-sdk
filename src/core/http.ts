@@ -19,6 +19,12 @@ import { resolveIdempotencyKey } from './idempotency'
 import { computeBackoff, type RetryCause, shouldRetry } from './retry'
 import { cancelBody, readTextWithin } from './body'
 import {
+  credentialRedactor,
+  type Redactor,
+  redactThrown,
+  withoutQuery,
+} from './redact'
+import {
   combineCallerSignals,
   createAttemptSignal,
   defaultSleep,
@@ -45,6 +51,20 @@ export type HttpRequestInput = {
    * default can raise a deadline the user configured but never shorten it.
    */
   readonly defaultTimeoutMs?: number
+  /**
+   * `'none'` for a route that never replays (`x-brew-idempotency:
+   * disabled`), such as one whose answer carries a one-time credential: no
+   * `Idempotency-Key` is sent, not even one the caller passed, because it
+   * would promise a replay that never happens. A retry is then a fresh
+   * request that may write again, so such a POST retries only as often as
+   * the request's own `maxRetries` says (default `defaultMaxRetries`).
+   */
+  readonly idempotency?: 'none'
+  /**
+   * A method's own default `maxRetries`. It replaces the client-wide
+   * setting; a per-request `maxRetries` still wins.
+   */
+  readonly defaultMaxRetries?: number
 }
 
 /**
@@ -143,13 +163,16 @@ export function createHttpClient(
     input: HttpRequestInput
   ): Promise<BrewRawResponse<T>> {
     const options: RequestOptions = input.options ?? {}
+    const isNeverReplayed = input.idempotency === 'none'
     // Resolved ONCE, before the loop: every attempt of this call carries
     // the same key, which is what lets the server replay instead of
     // re-running a write whose first attempt had an unknown outcome.
-    const idempotencyKey = resolveIdempotencyKey({
-      method: input.method,
-      provided: options.idempotencyKey,
-    })
+    const idempotencyKey = isNeverReplayed
+      ? undefined
+      : resolveIdempotencyKey({
+          method: input.method,
+          provided: options.idempotencyKey,
+        })
     const hasBody = input.body !== undefined
 
     const url = buildUrl({
@@ -175,8 +198,10 @@ export function createHttpClient(
       body: hasBody ? JSON.stringify(input.body) : null,
       options,
       defaultTimeoutMs: input.defaultTimeoutMs,
+      defaultMaxRetries: input.defaultMaxRetries,
       idempotencyKey,
-      isRepeatSafe: idempotencyKey !== undefined,
+      mayRetryPost: idempotencyKey !== undefined || isNeverReplayed,
+      redact: undefined,
     })
   }
 
@@ -194,8 +219,10 @@ export function createHttpClient(
       body: input.bytes,
       options: input.options ?? {},
       defaultTimeoutMs: input.defaultTimeoutMs,
+      defaultMaxRetries: undefined,
       idempotencyKey: undefined,
-      isRepeatSafe: true,
+      mayRetryPost: true,
+      redact: credentialRedactor({ url: input.url }),
     })
   }
 
@@ -208,7 +235,8 @@ export function createHttpClient(
     if (options.timeoutMs !== undefined) {
       assertTimeoutMs({ value: options.timeoutMs, name: 'timeoutMs' })
     }
-    const maxRetries = options.maxRetries ?? config.maxRetries
+    const maxRetries =
+      options.maxRetries ?? exchange.defaultMaxRetries ?? config.maxRetries
     const timeoutMs = normalizeTimeoutMs({
       timeoutMs:
         options.timeoutMs ??
@@ -277,8 +305,9 @@ export function createHttpClient(
             cause,
             attempt,
             maxRetries,
-            // A POST retries only when a repeat cannot write twice.
-            hasIdempotencyKey: exchange.isRepeatSafe,
+            // A POST retries only when a repeat cannot write twice, or when
+            // the route never replays and the caller owns the retry count.
+            hasIdempotencyKey: exchange.mayRetryPost,
             shouldRetryOnTimeout,
           })
 
@@ -295,6 +324,7 @@ export function createHttpClient(
                 timeoutMs,
                 attempts: attempt + 1,
                 idempotencyKey,
+                redact: exchange.redact,
               },
             })
           }
@@ -369,26 +399,20 @@ type Exchange = {
   readonly body: string | Blob | null
   readonly options: RequestOptions
   readonly defaultTimeoutMs: number | undefined
+  readonly defaultMaxRetries: number | undefined
   readonly idempotencyKey: string | undefined
   /**
-   * A repeat cannot write twice: the request carries an idempotency key, or
-   * its URL names the one write it makes. Gates retrying a POST.
+   * Gates retrying a POST: a repeat cannot write twice (the request carries
+   * an idempotency key, or its URL names the one write it makes), or the
+   * route never replays and `maxRetries` alone decides (`idempotency:
+   * 'none'`, which defaults it to `defaultMaxRetries`).
    */
-  readonly isRepeatSafe: boolean
-}
-
-/**
- * `url` without its query string or fragment. A URL the API hands back
- * (an image upload's `uploadUrl`) keeps its credential in the query, and an
- * error's `url` ends up in logs.
- */
-function withoutQuery({ url }: { readonly url: string }): string {
-  try {
-    const parsed = new URL(url)
-    return `${parsed.origin}${parsed.pathname}`
-  } catch {
-    return url.split(/[?#]/)[0] ?? ''
-  }
+  readonly mayRetryPost: boolean
+  /**
+   * Set when `url` carries a credential (`sendBytes`): transport errors
+   * redact it from their message and their `cause` chain.
+   */
+  readonly redact: Redactor | undefined
 }
 
 /** What one attempt produced. */
@@ -543,6 +567,7 @@ type TerminalRequest = {
   readonly timeoutMs: number
   readonly attempts: number
   readonly idempotencyKey: string | undefined
+  readonly redact: Redactor | undefined
 }
 
 /** Build the error for the attempt the loop gives up on. */
@@ -624,13 +649,19 @@ function transportError({
   readonly request: TerminalRequest
   readonly isInProgress: boolean
 }): Error {
+  // The message quotes the cause, so a credential-bearing URL that a
+  // `fetch` named in its own error is redacted before either is built.
+  const cause =
+    request.redact === undefined
+      ? error
+      : redactThrown({ value: error, redact: request.redact })
   const shared = {
     method: request.method,
     url: request.url,
     attempts: request.attempts,
     idempotencyKey: request.idempotencyKey,
     inProgress: isInProgress,
-    cause: error,
+    cause,
   }
   if (kind === 'timeout') {
     return new BrewTimeoutError({ ...shared, timeoutMs: request.timeoutMs })

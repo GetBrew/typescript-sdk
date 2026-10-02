@@ -80,12 +80,16 @@ await brew.brand.deleteImage(hero.assetId) // → { assetId, deleted: true }
 
 `uploadImage` takes a `Blob`/`File`, an `ArrayBuffer` or a `Uint8Array`
 up to 20 MB (2 MB for SVG) as PNG, JPEG, GIF, WebP, AVIF, TIFF or SVG.
-Pass `contentType` when the file name has no such extension. The bytes go
-straight to the upload's own URL without your API key, and that step is
-retried like any other (a repeat never replaces the first file). To drive
-the steps yourself, call `brew.content.createImageUpload({ fileName,
-contentType, size })`, POST the raw bytes to its `uploadUrl` within 15
-minutes, then `brew.content.addImage({ uploadId })`.
+Pass `contentType` when the file name has no such extension. An empty
+file, or one over those limits, throws a `TypeError` before any request.
+The bytes go straight to the upload's own URL without your API key, and
+that step is retried like any other (a repeat never replaces the first
+file). Opening the upload is not retried by default, because the API never
+replays it and each retry would hold one of the brand's 20 upload slots
+for 15 minutes; if it fails, call `uploadImage` again. To drive the steps
+yourself, call `brew.content.createImageUpload({ fileName, contentType,
+size })`, POST the raw bytes to its `uploadUrl` within 15 minutes, then
+`brew.content.addImage({ uploadId })`.
 
 ## Pointing at a different environment
 

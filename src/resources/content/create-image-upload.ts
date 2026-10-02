@@ -28,13 +28,16 @@ export type {
  *
  * `brew.content.uploadImage({ file, fileName })` does all three steps.
  *
- * The API never replays this answer (it carries a bearer URL), so the
- * `Idempotency-Key` the SDK attaches does not dedupe it: a retry after a
- * lost answer opens a second upload, and the unused one counts toward the
- * brand's 20 open uploads until it expires. `400 INVALID_REQUEST` for an
- * unsupported `contentType` or a `size` over the cap; `429 RATE_LIMITED`
- * when the brand already has 20 uploads open (`retryAfter` is when the
- * oldest expires).
+ * NOT retried by default, and sent without an `Idempotency-Key`. The API
+ * never replays this answer (it carries a bearer URL), so a retry after a
+ * lost answer would open a second upload, and the unused one would hold one
+ * of the brand's 20 upload slots until it expires (15 minutes). The
+ * client-wide `maxRetries` does not apply; pass `maxRetries` on this
+ * request to opt in. After a failure, open a new upload.
+ *
+ * `400 INVALID_REQUEST` for an unsupported `contentType` or a `size` over
+ * the cap; `429 RATE_LIMITED` when the brand already has 20 uploads open
+ * (`retryAfter` is when the oldest expires).
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<ContentImageUploadCreateResponse>` instead of the
@@ -60,6 +63,8 @@ export function createCreateImageUpload(client: HttpClient) {
       method: 'POST',
       path: '/v1/content/image-uploads',
       body: input,
+      idempotency: 'none',
+      defaultMaxRetries: 0,
       ...(options ? { options } : {}),
     })
     return unwrapResponse(response, options)

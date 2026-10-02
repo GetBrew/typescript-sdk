@@ -220,7 +220,8 @@ export class BrewTransportError extends Error {
   /**
    * The full request URL, query string included — except for a URL that
    * keeps its credential in the query (an image upload's `uploadUrl`),
-   * which is reported without it. The `message` omits the query.
+   * which is reported without it, and whose token is also redacted from
+   * `message` and from the `cause` chain. The `message` omits the query.
    */
   readonly url: string
   /** How many HTTP attempts were made, retries included. */

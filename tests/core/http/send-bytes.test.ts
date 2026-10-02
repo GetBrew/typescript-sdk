@@ -1,3 +1,5 @@
+import { inspect } from 'node:util'
+
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it } from 'vitest'
 
@@ -199,6 +201,119 @@ describe('http.sendBytes', () => {
     expect(connection.url).toBe(UPLOAD_PATH)
     expect(connection.idempotencyKey).toBeUndefined()
     expect(connection.message).not.toContain('s3cr3t')
+  })
+
+  describe('a fetch that puts the upload URL in its rejection', () => {
+    // The real shape: 64 hex characters, `?uploadId=…&token=…`.
+    const TOKEN = 'f'.repeat(32) + '0123456789abcdef'.repeat(2)
+    const REAL_URL = `${UPLOAD_PATH}?uploadId=imgup_abcdefghijklmnopqrstu&token=${TOKEN}`
+
+    /** A `fetch` whose error names the URL at every level, as wrappers do. */
+    function leakyFetch({ code }: { code: string }): typeof globalThis.fetch {
+      return (input) => {
+        const url = urlOf(input)
+        const root = new Error(`socket closed while sending to ${url}`)
+        Object.defineProperty(root, 'code', { value: code, enumerable: true })
+        Object.defineProperty(root, 'request', {
+          value: { url, token: TOKEN },
+          enumerable: true,
+        })
+        return Promise.reject(
+          new TypeError(`fetch failed: POST ${url} (token ${TOKEN})`, {
+            cause: root,
+          })
+        )
+      }
+    }
+
+    /** Everything a logger could print for `error`. */
+    function everyRendering(error: unknown): Array<string> {
+      const transport = error as BrewConnectionError
+      return [
+        transport.message,
+        transport.url,
+        String(transport),
+        transport.stack ?? '',
+        inspect(transport, { depth: 10 }),
+        JSON.stringify(transport),
+      ]
+    }
+
+    it('keeps the token out of the connection error, its message and its cause chain', async () => {
+      const { client } = makeTestHttpClient({
+        configOverrides: {
+          maxRetries: 0,
+          fetch: leakyFetch({ code: 'ECONNRESET' }),
+        },
+      })
+
+      const error = await rejectionOf({
+        promise: client.sendBytes({
+          url: REAL_URL,
+          bytes: pngBlob(),
+          contentType: 'image/png',
+        }),
+      })
+
+      expect(error).toBeInstanceOf(BrewConnectionError)
+      for (const rendering of everyRendering(error)) {
+        expect(rendering).not.toContain(TOKEN)
+      }
+      // Still useful: the cause chain survives, with the URL's path and the
+      // runtime's code, minus the credential.
+      const cause = (error as BrewConnectionError).cause as Error
+      expect(cause.name).toBe('TypeError')
+      expect(cause.message).toContain(`POST ${UPLOAD_PATH}?[redacted]`)
+      expect((error as BrewConnectionError).message).toContain(
+        `POST ${UPLOAD_PATH}?[redacted]`
+      )
+      const root = cause.cause as Error & { code?: unknown }
+      expect(root.code).toBe('ECONNRESET')
+      expect(root.message).toContain(UPLOAD_PATH)
+    })
+
+    it("keeps the token out of a runtime timeout, and keeps the runtime's code", async () => {
+      const { client } = makeTestHttpClient({
+        configOverrides: {
+          maxRetries: 0,
+          fetch: leakyFetch({ code: 'UND_ERR_HEADERS_TIMEOUT' }),
+        },
+      })
+
+      const error = await rejectionOf({
+        promise: client.sendBytes({
+          url: REAL_URL,
+          bytes: pngBlob(),
+          contentType: 'image/png',
+        }),
+      })
+
+      // The runtime code still reaches the classification and the message.
+      expect(error).toBeInstanceOf(BrewTimeoutError)
+      expect((error as BrewTimeoutError).message).toContain(
+        'UND_ERR_HEADERS_TIMEOUT'
+      )
+      for (const rendering of everyRendering(error)) {
+        expect(rendering).not.toContain(TOKEN)
+      }
+    })
+
+    it('leaves a request() connection error exactly as the runtime gave it', async () => {
+      const original = new TypeError('fetch failed')
+      const { client } = makeTestHttpClient({
+        configOverrides: {
+          maxRetries: 0,
+          fetch: () => Promise.reject(original),
+        },
+      })
+
+      const error = await rejectionOf({
+        promise: client.request({ method: 'GET', path: '/v1/contacts' }),
+      })
+
+      // Only a credential-bearing URL is redacted; API errors keep their cause.
+      expect((error as BrewConnectionError).cause).toBe(original)
+    })
   })
 
   it(

@@ -14,18 +14,25 @@ GetBrew/brew-v2#1819). Additive: nothing is removed or renamed.
   a `Uint8Array` (a Node `Buffer`); `contentType` is inferred from the
   extension (`.png`, `.jpg`/`.jpeg`, `.gif`, `.webp`, `.avif`,
   `.tif`/`.tiff`, `.svg`), and a name it cannot read throws a `TypeError`
-  before any request. It opens an upload, POSTs the bytes to its
-  `uploadUrl` through your client's `fetch` WITHOUT the API key or
-  `X-Brand-Id` (the URL carries its own credential), then adds the
-  `uploadId`. `signal`, `timeoutMs`, `maxRetries` and `retryOnTimeout`
-  apply to every step, and the bytes POST is retried under the normal
-  policy, since a repeat never replaces the first file. Its refusals throw
-  `BrewApiError` with the upload URL's `code` (`404 UPLOAD_NOT_FOUND`,
-  `413 PAYLOAD_TOO_LARGE`, `400 INVALID_REQUEST` for an empty file).
+  before any request. So does a size the API would refuse: an empty file,
+  over 20,000,000 bytes, or an SVG over 2,097,152 bytes. It opens an
+  upload, POSTs the bytes to its `uploadUrl` through your client's `fetch`
+  WITHOUT the API key or `X-Brand-Id` (the URL carries its own
+  credential), then adds the `uploadId`. `signal`, `timeoutMs`,
+  `maxRetries` and `retryOnTimeout` apply to every step. Opening the
+  upload is not retried by default (see `createImageUpload`); the bytes
+  POST is retried under the normal policy, since a repeat never replaces
+  the first file, and its errors never carry the upload URL's token. Its
+  refusals throw `BrewApiError` with the upload URL's `code`
+  (`404 UPLOAD_NOT_FOUND`, `413 PAYLOAD_TOO_LARGE`).
 - **`brew.content.createImageUpload({ fileName, contentType, size })`**
   (`POST /v1/content/image-uploads`): the first step on its own. Returns
   `201 { uploadId, uploadUrl, expiresAt, maxBytes }`; `429 RATE_LIMITED`
-  when the brand already has 20 uploads open. Free.
+  when the brand already has 20 uploads open. Free. It is sent without an
+  `Idempotency-Key` and NOT retried by default: the API never replays it,
+  so a retry after a lost answer would hold a second of the brand's 20
+  upload slots for 15 minutes. The client-wide `maxRetries` does not apply;
+  pass `maxRetries` on the request to opt in.
 - **`brew.brand.deleteImage(assetId)`** (`DELETE /v1/brand/images/{assetId}`)
   removes one image from the library and from image search, as the Assets
   page's Delete image does. Returns `{ assetId, deleted }`; an id not in the

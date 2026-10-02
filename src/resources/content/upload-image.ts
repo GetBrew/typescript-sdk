@@ -54,6 +54,12 @@ const CONTENT_TYPE_BY_EXTENSION: ReadonlyMap<
   ['svg', 'image/svg+xml'],
 ])
 
+/** The API's cap on an uploaded image, in bytes. */
+const MAX_IMAGE_BYTES = 20_000_000
+
+/** The API's cap on an uploaded SVG, in bytes (2 MiB). */
+const MAX_SVG_BYTES = 2_097_152
+
 /**
  * What `uploadUrl` answers once the bytes landed. Not a Brew API route (it
  * is the storage endpoint the URL points at), so it is not in the spec.
@@ -89,6 +95,37 @@ function resolveContentType({
 }
 
 /**
+ * Refuse a size the API is certain to refuse, before any request: an empty
+ * file, over 20,000,000 bytes, or an SVG over 2,097,152 bytes. Checked
+ * locally because an upload refused after it opened holds one of the
+ * brand's 20 upload slots until it expires.
+ */
+function assertUploadableSize({
+  fileName,
+  contentType,
+  size,
+}: {
+  readonly fileName: string
+  readonly contentType: ContentImageUploadContentType
+  readonly size: number
+}): void {
+  const name = JSON.stringify(fileName)
+  if (size === 0) {
+    throw new TypeError(
+      `uploadImage: ${name} is empty (0 bytes). Pass the file's bytes.`
+    )
+  }
+  const isSvg = contentType === 'image/svg+xml'
+  const limit = isSvg ? MAX_SVG_BYTES : MAX_IMAGE_BYTES
+  if (size > limit) {
+    const what = isSvg ? 'an SVG' : 'an image'
+    throw new TypeError(
+      `uploadImage: ${name} is ${size.toLocaleString('en-US')} bytes; ${what} upload takes at most ${limit.toLocaleString('en-US')} bytes.`
+    )
+  }
+}
+
+/**
  * The file as a `Blob`, which every attempt of the upload re-reads whole.
  * A `Uint8Array` is copied: it may be a view into a larger buffer (a Node
  * `Buffer` often is), and only the view's bytes are the file.
@@ -120,21 +157,28 @@ function toBlob({ file }: Pick<UploadImageInput, 'file'>): Blob {
  *    image, …).
  *
  * `contentType` is inferred from `fileName`'s extension when omitted; a
- * name it cannot read throws a `TypeError` before any request is sent.
+ * name it cannot read throws a `TypeError` before any request is sent. So
+ * does a size the API would refuse: an empty file, over 20,000,000 bytes,
+ * or an SVG over 2,097,152 bytes.
  *
  * `options` applies to each request: `signal` cancels whichever one is
  * running (the call rejects with its `reason`), `timeoutMs` is each
  * attempt's deadline, response body included, and `maxRetries` /
- * `retryOnTimeout` set each one's retries. Without a `timeoutMs`, the
+ * `retryOnTimeout` set each one's retries (a `maxRetries` you pass also
+ * opts step 1 in). Without a `timeoutMs`, the
  * bytes POST gets at least {@link IMAGE_UPLOAD_BYTES_DEFAULT_TIMEOUT_MS}
  * and `addImage` at least its own default. `raw: true` returns the
  * `addImage` answer raw.
  *
+ * Step 1 is NOT retried unless you pass `maxRetries`: like
+ * `createImageUpload`, it is never replayed, so a retry after a lost answer
+ * would hold a second upload slot. If it fails, call `uploadImage` again.
  * The bytes POST IS retried under the client's normal policy (a dropped
  * connection, a timeout, `408`, `429`, 5xx): repeating it is safe, because
  * the URL names the one upload it fills and a repeat never replaces the
- * file that landed first. A failure after step 1 leaves the opened upload
- * to expire on its own (15 minutes).
+ * file that landed first. Its errors never carry the upload URL's token. A
+ * failure after step 1 leaves the opened upload to expire on its own (15
+ * minutes).
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<ContentAddImageResponse>` of the final `addImage` call.
@@ -159,6 +203,11 @@ export function createUploadImage(client: HttpClient) {
   > {
     const contentType = resolveContentType(input)
     const bytes = toBlob(input)
+    assertUploadableSize({
+      fileName: input.fileName,
+      contentType,
+      size: bytes.size,
+    })
     // Every step runs under the caller's signal, deadline and retry
     // settings; only the last answer is returned, raw or not.
     const steps: RequestOptions = { ...options, raw: false }

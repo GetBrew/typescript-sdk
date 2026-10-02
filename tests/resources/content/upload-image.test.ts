@@ -268,6 +268,73 @@ describe('content.uploadImage', () => {
   )
 
   it.each([
+    { case: 'an empty file', size: 0, fileName: 'logo.png', limit: 'empty' },
+    {
+      case: 'a file over 20,000,000 bytes',
+      size: 20_000_001,
+      fileName: 'photo.png',
+      limit: '20,000,000 bytes',
+    },
+    {
+      case: 'an SVG over 2,097,152 bytes',
+      size: 2_097_153,
+      fileName: 'mark.svg',
+      limit: '2,097,152 bytes',
+    },
+    {
+      case: 'an SVG by contentType over 2,097,152 bytes',
+      size: 2_097_153,
+      fileName: 'export.bin',
+      contentType: 'image/svg+xml' as const,
+      limit: '2,097,152 bytes',
+    },
+  ])(
+    'refuses $case before any request',
+    async ({ size, fileName, contentType, limit }) => {
+      const seen = useUploadFlow()
+      const { client } = makeTestHttpClient()
+
+      const error = await rejectionOf({
+        promise: createUploadImage(client)({
+          file: new Blob([new Uint8Array(size)]),
+          fileName,
+          ...(contentType === undefined ? {} : { contentType }),
+        }),
+      })
+
+      expect(error).toBeInstanceOf(TypeError)
+      expect((error as Error).message).toContain(JSON.stringify(fileName))
+      expect((error as Error).message).toContain(limit)
+      // Refused locally: no upload opened, so no slot held until it expires.
+      expect(seen.order).toEqual([])
+    }
+  )
+
+  it('accepts an SVG of exactly 2,097,152 bytes, and a PNG larger than that', async () => {
+    const seen = useUploadFlow()
+    const { client } = makeTestHttpClient()
+    const uploadImage = createUploadImage(client)
+
+    await uploadImage({
+      file: new Blob([new Uint8Array(2_097_152)]),
+      fileName: 'mark.svg',
+    })
+    await uploadImage({
+      file: new Blob([new Uint8Array(2_097_153)]),
+      fileName: 'photo.png',
+    })
+
+    expect(seen.order).toEqual([
+      'open',
+      'upload',
+      'add',
+      'open',
+      'upload',
+      'add',
+    ])
+  })
+
+  it.each([
     { status: 404, code: 'UPLOAD_NOT_FOUND' },
     { status: 413, code: 'PAYLOAD_TOO_LARGE' },
     { status: 400, code: 'INVALID_REQUEST' },
@@ -318,24 +385,31 @@ describe('content.uploadImage', () => {
     expect(result).toEqual(ADDED)
   })
 
-  it('throws an open refusal (429 RATE_LIMITED) and sends nothing', async () => {
-    const seen = useUploadFlow({
-      openAnswer: () => apiError({ code: 'RATE_LIMITED', status: 429 }),
-    })
-    const { client } = makeTestHttpClient({
-      configOverrides: { maxRetries: 0 },
-    })
+  it.each([
+    { code: 'RATE_LIMITED', status: 429 },
+    { code: 'SERVICE_UNAVAILABLE', status: 503 },
+  ])(
+    'throws an open refusal ($status $code) after one attempt and sends nothing',
+    async ({ code, status }) => {
+      const seen = useUploadFlow({
+        openAnswer: () => apiError({ code, status }),
+      })
+      // The client retries by default (maxRetries 2); opening an upload does
+      // not, because the API never replays it and a retry holds a second slot.
+      const { client } = makeTestHttpClient()
 
-    const error = await rejectionOf({
-      promise: createUploadImage(client)({
-        file: new Blob([PNG_BYTES]),
-        fileName: 'logo.png',
-      }),
-    })
+      const error = await rejectionOf({
+        promise: createUploadImage(client)({
+          file: new Blob([PNG_BYTES]),
+          fileName: 'logo.png',
+        }),
+      })
 
-    expect((error as BrewApiError).code).toBe('RATE_LIMITED')
-    expect(seen.order).toEqual(['open'])
-  })
+      expect((error as BrewApiError).code).toBe(code)
+      expect(seen.order).toEqual(['open'])
+      expect(seen.open[0]?.headers.get('idempotency-key')).toBeNull()
+    }
+  )
 
   it.each([
     { status: 409, code: 'UPLOAD_NOT_RECEIVED' },
