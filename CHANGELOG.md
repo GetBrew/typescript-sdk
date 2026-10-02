@@ -12,13 +12,13 @@ The API retired `POST /v1/data`, so the SDK drops the method that called it
   removed. `POST /v1/data` is retired, and the bundled spec and generated
   types no longer carry it (operation `runDataCommand`, schema
   `DataCommandResponse`).
-- Use the typed resources instead: `brew.emails.list()`,
-  `brew.emailGroups.list()`, `brew.contacts.search()`,
-  `brew.contacts.count()`, `brew.contacts.countBy()`, `brew.audiences.list()`,
-  `brew.audiences.get()`, `brew.automations.list()`,
-  `brew.automations.runs.list()`, `brew.domains.list()`, `brew.sends.list()`,
-  `brew.analytics.overview()`, `brew.analytics.events()` and
-  `brew.analytics.eventCounts()`. The full question-by-question mapping is in
+- Use the typed resources instead: `brew.emails.list`,
+  `brew.emailGroups.list`, `brew.contacts.search`,
+  `brew.contacts.count`, `brew.contacts.countBy`, `brew.audiences.list`,
+  `brew.audiences.get`, `brew.automations.list`,
+  `brew.automations.runs.list`, `brew.domains.list`, `brew.sends.list`,
+  `brew.analytics.overview`, `brew.analytics.events` and
+  `brew.analytics.eventCounts`. The full question-by-question mapping is in
   the API changelog (https://docs.brew.new/changelog/api).
   No equivalent: table discovery (`db ls`, `db schema`) and `jq` pipelines.
   Read the typed resource and filter its result; writes go through each
