@@ -7,7 +7,9 @@ export type { UpdateEmailGroupInput, UpdateEmailGroupResponse }
 
 /**
  * `PATCH /v1/email-groups/{groupId}` (scope: `emails`) — rename a named
- * folder. Ungrouped cannot be renamed (`400`). Unknown / cross-brand ids
+ * folder, move up to 50 designs into it (`emailIds`), or both; send at least
+ * one. A move answers `moved` and `notMoved` (each design left behind, with
+ * its reason). Ungrouped cannot be renamed (`400`). Unknown / cross-brand ids
  * are `404`. Duplicate names are `409 EMAIL_GROUP_NAME_CONFLICT`.
  *
  * Pass `{ raw: true }` in `options` to receive the full

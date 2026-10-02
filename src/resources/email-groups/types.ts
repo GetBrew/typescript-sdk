@@ -2,11 +2,20 @@ import type { components, operations } from '../../generated/openapi-types'
 
 /**
  * A named email folder: `groupId` (`grp_*`, or the `ungrouped`
- * sentinel), `groupName`, and the live `emailCount` (capped at 100).
- * Returned bare by `create` / `update`, and as each row of `list`'s
- * `{ data, pagination? }` envelope.
+ * sentinel), `groupName`, the live `emailCount` (capped at 100), and its
+ * creator when one was recorded. Each row of `list`'s `{ data, pagination? }`
+ * envelope, and the bare row `get` returns.
  */
 export type EmailGroup = components['schemas']['EmailGroupSummary']
+
+/**
+ * What `create` / `update` return: the folder row, plus — when the call sent
+ * `emailIds` — `moved` (how many designs landed in it) and `notMoved` (each
+ * design left where it was, with a reason: `not_found`, `generating`,
+ * `not_movable`, `folder_full` or `retry`).
+ */
+export type EmailGroupWriteResponse =
+  components['schemas']['EmailGroupWriteResponse']
 
 /** Envelope returned by `GET /v1/email-groups` — `{ data, pagination }`. */
 export type EmailGroupsListResponse =
@@ -19,26 +28,28 @@ export type ListEmailGroupsInput = NonNullable<
 
 /**
  * Body of `POST /v1/email-groups` — the new folder's display name
- * (1–60 chars). Reserved names (`Ungrouped` / `ungrouped` /
- * `__ungrouped__`) are rejected.
+ * (1–60 chars; reserved names `Ungrouped` / `ungrouped` / `__ungrouped__`
+ * are rejected), and optionally `emailIds`: up to 50 designs to move into it
+ * in the same call.
  */
 export type CreateEmailGroupInput =
   components['schemas']['EmailGroupCreateRequest']
 
-/** `POST /v1/email-groups` returns the bare created row (`emailCount: 0`). */
-export type CreateEmailGroupResponse = EmailGroup
+/** `POST /v1/email-groups` returns the created row, plus what a move did. */
+export type CreateEmailGroupResponse = EmailGroupWriteResponse
 
 /**
- * Input to `brew.emailGroups.update(...)` — the `groupId` (path) plus
- * the folder's new display name.
+ * Input to `brew.emailGroups.update(...)` — the `groupId` (path) plus a new
+ * display `name`, `emailIds` (up to 50 designs to move in), or both; at least
+ * one.
  */
 export type UpdateEmailGroupInput = {
   /** Named group id (`grp_*`) to rename. Ungrouped is not writable. */
   readonly groupId: string
 } & components['schemas']['EmailGroupPatchRequest']
 
-/** `PATCH /v1/email-groups/{groupId}` returns the renamed row. */
-export type UpdateEmailGroupResponse = EmailGroup
+/** `PATCH /v1/email-groups/{groupId}` returns the row, plus what a move did. */
+export type UpdateEmailGroupResponse = EmailGroupWriteResponse
 
 /** Input to `brew.emailGroups.delete(...)` — the folder to remove. */
 export type DeleteEmailGroupInput = {

@@ -20,6 +20,13 @@ removed or renamed.
   (`Retry-After: 300` is over the SDK's 60 s ceiling); retry without
   `semantic`.
 
+- **Move designs into a folder in one call** (GetBrew/brew-v2#1814).
+  `brew.emailGroups.create` and `.update` take `emailIds` (up to 50 designs),
+  and `update` no longer requires `name`, so a move alone is one call. Both
+  now return `EmailGroupWriteResponse`: the row plus `moved` and `notMoved`
+  (each design left where it was, with a reason: `not_found`, `generating`,
+  `not_movable`, `folder_full` or `retry`).
+
 ### Spec resync
 
 The bundled OpenAPI spec and generated types catch up with the API:
