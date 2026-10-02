@@ -106,6 +106,11 @@ for callers composing their own deadlines:
 | `emails.audit`          | 65 s    | `AUDIT_EMAIL_DEFAULT_TIMEOUT_MS`           |
 | `content.gif`           | 300 s   | `GIF_DEFAULT_TIMEOUT_MS`                   |
 | `content.generateImage` | 180 s   | `GENERATE_IMAGE_DEFAULT_TIMEOUT_MS`        |
+| `content.addImage`      | 300 s   | `ADD_IMAGE_DEFAULT_TIMEOUT_MS`             |
+| `content.uploadImage`†  | 120 s   | `IMAGE_UPLOAD_BYTES_DEFAULT_TIMEOUT_MS`    |
+
+† The step that POSTs the file's bytes to `uploadUrl`; the `addImage` step
+gets `addImage`'s own default.
 
 \* **Node's built-in `fetch` has its own 300-second ceiling.** It stops
 waiting after 300 s for the response headers, or after 300 s without a

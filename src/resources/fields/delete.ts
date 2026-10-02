@@ -15,7 +15,9 @@ export type DeleteFieldInput = { readonly fieldName: string }
  *
  * DELETE retries on transient failures by default. Idempotent:
  * re-deleting a field that no longer exists resolves with
- * `{ deleted: false }` rather than throwing.
+ * `{ deleted: false }` rather than throwing. The hidden field of an
+ * event-derived audience that is still building answers
+ * `409 AUDIENCE_BUILD_ACTIVE`; retry once the build finishes.
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<FieldsDeleteResponse>` instead of the unwrapped
