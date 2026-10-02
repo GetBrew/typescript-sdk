@@ -33,10 +33,6 @@ import {
   createContactsResource,
 } from './resources/contacts/resource'
 import {
-  createDataResource,
-  type DataResource,
-} from './resources/data/resource'
-import {
   type ContentResource,
   createContentResource,
 } from './resources/content/resource'
@@ -148,8 +144,6 @@ export type BrewClient = {
    */
   readonly chats: ChatsResource
   readonly contacts: ContactsResource
-  /** `POST /v1/data` — the unified `db …` command surface over brand data. */
-  readonly data: DataResource
   /** `POST /v1/content/*` — credit-metered media generation + image/render ops. */
   readonly content: ContentResource
   readonly domains: DomainsResource
@@ -266,7 +260,6 @@ function buildClient(
     brand: createBrandResource(httpClient),
     chats: createChatsResource(httpClient),
     contacts: createContactsResource(httpClient),
-    data: createDataResource(httpClient),
     content: createContentResource(httpClient),
     domains: createDomainsResource(httpClient),
     emailGroups: createEmailGroupsResource(httpClient),

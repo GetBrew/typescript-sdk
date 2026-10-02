@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased
+
+The API retired `POST /v1/data`, so the SDK drops the method that called it
+(GetBrew/brew-v2#TBD). This is a breaking change: the next release is a major.
+
+### Breaking: the data command is removed
+
+- `brew.data.run(...)` (the whole `brew.data` resource) and the
+  `DataResource`, `RunDataCommandInput` and `RunDataCommandResponse` types are
+  removed. `POST /v1/data` is retired, and the bundled spec and generated
+  types no longer carry it (operation `runDataCommand`, schema
+  `DataCommandResponse`).
+- Use the typed resources instead: `brew.emails.list`,
+  `brew.contacts.search` / `.count` / `.countBy`, `brew.audiences.list`,
+  `brew.automations.list`, `brew.domains.list`, and `brew.analytics.*`
+  (`overview`, `automations`, `events`, `eventCounts`).
+
 ## 11.4.0
 
 `brew.flows.list()` now says how many flows a query matches, so counting the
