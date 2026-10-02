@@ -33,6 +33,11 @@ The bundled OpenAPI spec and generated types catch up with the API:
 CONTRACT_LOCKED_BY_PUBLISHED_AUTOMATIONS`: a contract change a published
   automation reads must stay backward compatible.
 - A payload-contract dry run's issue codes gain `'invalid_email'`.
+- Creator attribution (GetBrew/brew-v2#1816): emails and email groups carry
+  `createdBy` / `createdByUserId`, and automations `createdByUserId`,
+  `publishedBy` / `publishedByUserId`. `createdBy` is the label Brew shows
+  (a name, `API`, `MCP` or `Name · MCP`); it is absent when the API cannot
+  confirm the creator may be named.
 - Field descriptions: a trigger condition's field may read the recipient
   contact (`contact.<name>`), and the subject-line rules on sends.
 
