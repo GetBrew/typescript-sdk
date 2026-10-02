@@ -12,10 +12,13 @@ The API retired `POST /v1/data`, so the SDK drops the method that called it
   removed. `POST /v1/data` is retired, and the bundled spec and generated
   types no longer carry it (operation `runDataCommand`, schema
   `DataCommandResponse`).
-- Use the typed resources instead: `brew.emails.list`,
-  `brew.contacts.search` / `.count` / `.countBy`, `brew.audiences.list`,
-  `brew.automations.list`, `brew.domains.list`, and `brew.analytics.*`
-  (`overview`, `automations`, `events`, `eventCounts`).
+- Use the typed resources instead: `brew.emails.list()`,
+  `brew.emailGroups.list()`, `brew.contacts.search()`, `count()` and
+  `countBy()`, `brew.audiences.list()` and `get()`, `brew.automations.list()`,
+  `brew.automations.runs.list()`, `brew.domains.list()`, `brew.sends.list()`,
+  and `brew.analytics.overview()`, `events()` and `eventCounts()`. The full
+  question-by-question mapping is in the API changelog
+  (https://docs.brew.new/changelog/api).
 
 ## 11.4.0
 
