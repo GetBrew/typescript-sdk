@@ -2,7 +2,12 @@ import type { components } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
-/** Raw email content accepted by `POST /v1/emails/audit`. */
+/**
+ * Body of `POST /v1/emails/audit`: exactly one source — rendered
+ * `emailHtml`, a React Email `emailJsx` module, or a saved design's
+ * `emailId` (plus `emailVersionId` to pin a version) — with the optional
+ * `subject`, `previewText` and `sendingPurpose`.
+ */
 export type EmailAuditRequest = components['schemas']['EmailAuditRequest']
 
 /** Input for `brew.emails.auditEmail(...)`. */
@@ -12,18 +17,21 @@ export type AuditEmailInput = EmailAuditRequest
 export type EmailAuditResponse = components['schemas']['EmailAuditResponse']
 
 /**
- * The server gives the independent provider lanes up to 50 seconds to
- * finish. This ceiling includes enough transport overhead to receive the
+ * The server runs every check in parallel within a 25-second budget. This
+ * ceiling adds room to render a JSX or saved-design source and receive the
  * bounded response while still allowing callers to lower it.
  *
  * It is a floor, never a cap: a longer client-wide `timeoutMs` is kept.
  */
-export const AUDIT_EMAIL_DEFAULT_TIMEOUT_MS = 65_000
+export const AUDIT_EMAIL_DEFAULT_TIMEOUT_MS = 40_000
 
 /**
- * `POST /v1/emails/audit` (scope: `emails`) lints raw email content for
- * production readiness. The audit covers compliance, links, images, loaded
- * size, accessibility, compatibility, markup, subject copy, and preview copy.
+ * `POST /v1/emails/audit` (scope: `emails`) audits an email for production
+ * readiness: links and images (fetched by Brew), unsubscribe and postal
+ * compliance, loaded size, email-client support, accessibility, markup, and
+ * link text, alt text, subject and preview copy judged by an evaluation
+ * model. Each finding's `evidence` names what supports it. Omit
+ * `sendingPurpose` and the audit infers it (`policy.source: 'inferred'`).
  *
  * Branch on `completion.status`. A complete result has a numeric score and
  * costs 5 credits. A partial result has `score: null`, costs 0 credits, and

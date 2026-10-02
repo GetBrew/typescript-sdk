@@ -39,7 +39,7 @@ export type EmailsResource = {
   readonly restore: ReturnType<typeof createRestoreEmail>
   /** `DELETE /v1/emails/{emailId}` — idempotent hard-delete of all versions (scope: `emails`). */
   readonly delete: ReturnType<typeof createDeleteEmail>
-  /** `POST /v1/emails/audit` — lint raw content for production readiness; complete results cost 5 credits and partial results cost 0 (scope: `emails`). */
+  /** `POST /v1/emails/audit` — audit HTML, JSX or a saved design for production readiness; complete results cost 5 credits and partial results cost 0 (scope: `emails`). */
   readonly auditEmail: ReturnType<typeof createAuditEmail>
   /** `GET /v1/emails/audits/{auditId}` — read a page of a saved audit's findings; free, never reruns (scope: `emails`). */
   readonly getAudit: ReturnType<typeof createGetEmailAudit>

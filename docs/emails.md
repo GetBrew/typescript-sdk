@@ -386,13 +386,19 @@ await brew.emails.edit(
 
 ## `auditEmail`
 
-Lint the exact HTML and inbox copy that you plan to send. The audit checks
-unsubscribe content, links, images, loaded size, accessibility, compatibility,
-markup, subject copy, and preview copy in parallel.
+Audit an email for production readiness before you send it. Name exactly one
+source — the rendered HTML, a React Email JSX module, or a saved design — plus
+the inbox copy you plan to send. The checks run in parallel: Brew fetches every
+link and image itself, checks email-client support, runs an accessibility pass,
+checks unsubscribe and postal-address compliance and loaded size, and asks an
+evaluation model about link text, alt text, subject and preview copy.
 
 ```ts
-type AuditEmailInput = {
-  readonly emailHtml: string
+type AuditEmailInput = (
+  | { readonly emailHtml: string }
+  | { readonly emailJsx: string }
+  | { readonly emailId: string; readonly emailVersionId?: string }
+) & {
   readonly subject?: string
   readonly previewText?: string
   readonly sendingPurpose?: 'marketing' | 'transactional'
@@ -408,6 +414,13 @@ Branch on `completion.status`. A complete result has a numeric score and costs
 5 credits. A partial result has `score: null`, costs 0 credits, and does not
 establish readiness.
 
+An omitted `subject` is not judged; an empty one is reported missing. A saved
+design (`emailId`) fills any omitted `subject` or `previewText` from the
+design. Omit `sendingPurpose` and the audit infers it: `policy.source` is
+`'inferred'` (with a `confidence`) when it judged one, otherwise `'defaulted'`
+to marketing. Each finding may carry `evidence`: an HTTP status, the email
+clients that lack support, or the probability behind a judgment.
+
 ```ts
 const audit = await brew.emails.auditEmail({
   emailHtml,
@@ -421,10 +434,19 @@ if (audit.completion.status === 'complete') {
 } else {
   console.log('Audit incomplete. Retry before claiming readiness.')
 }
+
+// A saved design, latest version (subject and preview come from the design):
+await brew.emails.auditEmail({ emailId: 'V1StGXR8_Z5jdHi6B-myT' })
+
+// React Email JSX, rendered by Brew with the renderer it sends with:
+await brew.emails.auditEmail({ emailJsx, subject: 'Welcome aboard' })
 ```
 
-The endpoint can run for up to 50 seconds. The SDK uses
-`AUDIT_EMAIL_DEFAULT_TIMEOUT_MS`, which is 65 seconds, unless the caller sets
+A module that does not render returns `422`. Sending none or two sources, or
+`emailVersionId` without `emailId`, returns `400 INVALID_REQUEST`.
+
+The checks share a 25-second budget. The SDK uses
+`AUDIT_EMAIL_DEFAULT_TIMEOUT_MS`, which is 40 seconds, unless the caller sets
 `RequestOptions.timeoutMs` or `RequestOptions.signal`. Pass `{ raw: true }` to
 read `X-Credit-Cost`.
 
