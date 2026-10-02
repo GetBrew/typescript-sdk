@@ -1,4 +1,5 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
+import { serializeInclude } from '../../core/url'
 import type { operations } from '../../generated/openapi-types'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
@@ -28,15 +29,6 @@ export type GetContactOptions = RequestOptions & {
  */
 export type GetContactResponse =
   operations['getContact']['responses'][200]['content']['application/json']
-
-/** Serialize the `include` option into the API's comma-separated form. */
-function serializeInclude(
-  include: GetContactOptions['include']
-): string | undefined {
-  if (include === undefined) return undefined
-  const joined = typeof include === 'string' ? include : include.join(',')
-  return joined.length > 0 ? joined : undefined
-}
 
 /**
  * `GET /v1/contacts/{email}` (scope: `contacts`) — one contact by email
@@ -74,7 +66,7 @@ export function createGetContact(client: HttpClient) {
     email: string,
     options?: GetContactOptions
   ): Promise<GetContactResponse | BrewRawResponse<GetContactResponse>> {
-    const include = serializeInclude(options?.include)
+    const include = serializeInclude({ include: options?.include })
     const response = await client.request<GetContactResponse>({
       method: 'GET',
       path: `/v1/contacts/${encodeURIComponent(email)}`,

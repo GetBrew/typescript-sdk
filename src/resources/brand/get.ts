@@ -1,4 +1,5 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
+import { serializeInclude } from '../../core/url'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
 import type { BrandGetResponse, BrandIncludeToken } from './types'
@@ -16,15 +17,6 @@ export type { BrandGetResponse, BrandIncludeToken }
  */
 export type GetBrandInput = {
   readonly include?: ReadonlyArray<BrandIncludeToken> | string
-}
-
-/** Serialize the `include` option into the API's comma-separated form. */
-function serializeInclude(
-  include: GetBrandInput['include']
-): string | undefined {
-  if (include === undefined) return undefined
-  const joined = typeof include === 'string' ? include : include.join(',')
-  return joined.length > 0 ? joined : undefined
 }
 
 /**
@@ -60,7 +52,7 @@ export function createGetBrand(client: HttpClient) {
     const response = await client.request<BrandGetResponse>({
       method: 'GET',
       path: '/v1/brand',
-      query: { include: serializeInclude(input.include) },
+      query: { include: serializeInclude({ include: input.include }) },
       ...(options ? { options } : {}),
     })
     return unwrapResponse(response, options)

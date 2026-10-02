@@ -1,5 +1,6 @@
 import { autoPaginate } from '../../../core/pagination'
 import { unwrapResponse, type HttpClient } from '../../../core/http'
+import { serializeInclude } from '../../../core/url'
 import type { BrewRawResponse, RequestOptions } from '../../../types'
 
 import type {
@@ -54,15 +55,6 @@ export type ListEmailCommentsInput =
 
 export type ListEmailCommentsResponse = EmailCommentsListResponse
 
-/** Serialize the `include` option into the API's comma-separated form. */
-function serializeInclude(
-  include: ListEmailCommentsInput['include']
-): string | undefined {
-  if (include === undefined) return undefined
-  const joined = typeof include === 'string' ? include : include.join(',')
-  return joined.length > 0 ? joined : undefined
-}
-
 /**
  * `GET /v1/emails/{emailId}/comments` (scope: `emails`) — one design's
  * open comment threads, newest activity first, under
@@ -110,7 +102,7 @@ export function createListEmailComments(client: HttpClient) {
       method: 'GET',
       path: `/v1/emails/${encodeURIComponent(input.emailId)}/comments`,
       query: {
-        include: serializeInclude(input.include),
+        include: serializeInclude({ include: input.include }),
         commentId: input.commentId,
         messagesCursor: input.messagesCursor,
         limit: input.limit,

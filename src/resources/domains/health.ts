@@ -1,4 +1,5 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
+import { serializeInclude } from '../../core/url'
 import type { operations } from '../../generated/openapi-types'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
@@ -49,15 +50,6 @@ export type DomainScoreRun = NonNullable<
   GetDomainHealthResponse['scoreRuns']
 >[number]
 
-/** Serialize the `include` option into the API's comma-separated form. */
-function serializeInclude(
-  include: GetDomainHealthInput['include']
-): string | undefined {
-  if (include === undefined) return undefined
-  const joined = typeof include === 'string' ? include : include.join(',')
-  return joined.length > 0 ? joined : undefined
-}
-
 /**
  * `GET /v1/domains/{domainId}/health` (scope: `domains`) — the domain's
  * deliverability health in one FREE read: a `verdict` (`healthy` /
@@ -93,7 +85,7 @@ export function createGetDomainHealth(client: HttpClient) {
     const response = await client.request<GetDomainHealthResponse>({
       method: 'GET',
       path: `/v1/domains/${encodeURIComponent(input.domainId)}/health`,
-      query: { include: serializeInclude(input.include) },
+      query: { include: serializeInclude({ include: input.include }) },
       ...(options ? { options } : {}),
     })
     return unwrapResponse(response, options)

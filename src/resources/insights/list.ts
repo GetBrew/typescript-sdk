@@ -1,4 +1,5 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
+import { serializeInclude } from '../../core/url'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
 import type { InsightsListResponse, ListInsightsQuery } from './types'
@@ -40,15 +41,6 @@ export type ListInsightsInput = Readonly<
 
 export type ListInsightsResponse = InsightsListResponse
 
-/** Serialize the `include` option into the API's comma-separated form. */
-function serializeInclude(
-  include: ListInsightsInput['include']
-): string | undefined {
-  if (include === undefined) return undefined
-  const joined = typeof include === 'string' ? include : include.join(',')
-  return joined.length > 0 ? joined : undefined
-}
-
 /**
  * `GET /v1/insights` (scope: `emails`) — the brand's Brew Insights as the
  * Insights page ranks them, most severe first and then by score, under
@@ -87,7 +79,7 @@ export function createListInsights(client: HttpClient) {
       query: {
         state: input.state,
         severity: input.severity,
-        include: serializeInclude(input.include),
+        include: serializeInclude({ include: input.include }),
         limit: input.limit,
         cursor: input.cursor,
       },
