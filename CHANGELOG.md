@@ -3,7 +3,7 @@
 ## Unreleased
 
 The API retired `POST /v1/data`, so the SDK drops the method that called it
-(GetBrew/brew-v2#TBD). This is a breaking change: the next release is a major.
+(GetBrew/brew-v2#1825). This is a breaking change: the next release is a major.
 
 ### Breaking: the data command is removed
 
