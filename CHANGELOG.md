@@ -36,10 +36,11 @@ CONTRACT_LOCKED_BY_PUBLISHED_AUTOMATIONS`: a contract change a published
 - Creator attribution (GetBrew/brew-v2#1816): emails and email groups carry
   `createdBy` / `createdByUserId`, and automations `createdByUserId`,
   `publishedBy` / `publishedByUserId`. `createdBy` is the label Brew shows:
-  a name, `API`, `MCP`, `Name · MCP`, or `Former member` for a creator who
-  left the brand; a group's is a name or `Former member` (a group made by an
-  organization API key has none). It is absent when the API cannot confirm
-  the creator may be named (GetBrew/brew-v2#1822 corrects the descriptions).
+  a name or `Former member` (a creator who left the brand), `API` or `MCP`,
+  or both joined (`Name · MCP`); a group's is a name or `Former member` (a
+  group made by an organization API key has none). It is absent when the
+  creator cannot be named, with `createdByUserId` still present
+  (GetBrew/brew-v2#1822).
 - Field descriptions: a trigger condition's field may read the recipient
   contact (`contact.<name>`), and the subject-line rules on sends.
 
