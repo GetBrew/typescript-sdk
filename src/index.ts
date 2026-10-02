@@ -298,11 +298,6 @@ export type {
   PatchContactResponse,
 } from './resources/contacts/patch'
 export type { ContactsResource } from './resources/contacts/resource'
-export type { DataResource } from './resources/data/resource'
-export type {
-  RunDataCommandInput,
-  RunDataCommandResponse,
-} from './resources/data/run'
 export type {
   SearchContactsInput,
   SearchContactsResponse,

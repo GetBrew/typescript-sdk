@@ -1,5 +1,31 @@
 # Changelog
 
+## Unreleased
+
+The API retired `POST /v1/data`, so the SDK drops the method that called it
+(GetBrew/brew-v2#1825). This is a breaking change: the next release is a major.
+
+### Breaking: the data command is removed
+
+- `brew.data.run(...)` (the whole `brew.data` resource) and the
+  `DataResource`, `RunDataCommandInput` and `RunDataCommandResponse` types are
+  removed. `POST /v1/data` is retired, and the bundled spec and generated
+  types no longer carry it (operation `runDataCommand`, schema
+  `DataCommandResponse`).
+- Use the typed resources instead: `brew.emails.list`,
+  `brew.emailGroups.list`, `brew.contacts.search`,
+  `brew.contacts.count`, `brew.contacts.countBy`, `brew.audiences.list`,
+  `brew.audiences.get`, `brew.automations.list`,
+  `brew.automations.runs.list`, `brew.domains.list`, `brew.sends.list`,
+  `brew.analytics.overview`, `brew.analytics.events` and
+  `brew.analytics.eventCounts`. The full question-by-question mapping is in
+  the API changelog (https://docs.brew.new/changelog/api).
+  No equivalent: table discovery (`db ls`, `db schema`) and `jq` pipelines.
+  Read the typed resource and filter its result; writes go through each
+  resource's own methods. Design comments, brand insights and
+  intelligence, notifications, domain-score history and per-contact open
+  profiles have no public read yet; chats are read by ID only.
+
 ## 11.5.0
 
 Images can now be uploaded from a local file and deleted from the brand
