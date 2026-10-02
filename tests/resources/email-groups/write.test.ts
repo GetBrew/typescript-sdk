@@ -76,4 +76,19 @@ describe('emailGroups writes', () => {
     expect(group.moved).toBe(2)
     expect(group.notMoved).toEqual([])
   })
+
+  it('refuses an empty update at compile time: name, emailIds, or both', () => {
+    const { client } = makeTestHttpClient()
+    const update = createUpdateEmailGroup(client)
+    // Type-level only: the API rejects a PATCH with neither field, so the
+    // input type must not accept one. Never called.
+    const empty = () =>
+      // @ts-expect-error -- an update needs `name`, `emailIds`, or both
+      update({ groupId: 'grp_1' })
+    const renameOnly = () => update({ groupId: 'grp_1', name: 'Launches' })
+    const moveOnly = () => update({ groupId: 'grp_1', emailIds: ['eml_1'] })
+    const both = () =>
+      update({ groupId: 'grp_1', name: 'Launches', emailIds: ['eml_1'] })
+    expect([empty, renameOnly, moveOnly, both]).toHaveLength(4)
+  })
 })

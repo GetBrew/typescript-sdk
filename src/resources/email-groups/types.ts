@@ -38,15 +38,23 @@ export type CreateEmailGroupInput =
 /** `POST /v1/email-groups` returns the created row, plus what a move did. */
 export type CreateEmailGroupResponse = EmailGroupWriteResponse
 
+type EmailGroupPatch = components['schemas']['EmailGroupPatchRequest']
+
 /**
  * Input to `brew.emailGroups.update(...)` — the `groupId` (path) plus a new
- * display `name`, `emailIds` (up to 50 designs to move in), or both; at least
- * one.
+ * display `name`, `emailIds` (up to 50 designs to move in), or both. The
+ * spec marks both optional, but the API refuses a PATCH with neither, so the
+ * type requires at least one: `update({ groupId })` does not compile.
  */
 export type UpdateEmailGroupInput = {
-  /** Named group id (`grp_*`) to rename. Ungrouped is not writable. */
+  /** Named group id (`grp_*`) to rename or move into. Ungrouped is not writable. */
   readonly groupId: string
-} & components['schemas']['EmailGroupPatchRequest']
+} & (
+  | (EmailGroupPatch & { readonly name: string })
+  | (EmailGroupPatch & {
+      readonly emailIds: NonNullable<EmailGroupPatch['emailIds']>
+    })
+)
 
 /** `PATCH /v1/email-groups/{groupId}` returns the row, plus what a move did. */
 export type UpdateEmailGroupResponse = EmailGroupWriteResponse
