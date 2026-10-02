@@ -11,14 +11,26 @@ export type TemplatesListResponse =
  */
 export type Template = TemplatesListResponse['data'][number]
 
+/** Every body `GET /v1/templates` answers `200` with. */
+type TemplatesListBody =
+  operations['listTemplates']['responses'][200]['content']['application/json']
+
+/**
+ * The API's count mode (`count: true`, optionally `groupBy`;
+ * brew-v2#1821): `{ count, groups? }` instead of rows. The SDK does not
+ * type that mode yet, so `ListTemplatesInput` leaves out `count` and
+ * `groupBy`.
+ */
+type TemplatesCountBody = Extract<TemplatesListBody, { count: number }>
+
 /**
  * Envelope returned by `GET /v1/templates?representation=summary`: rows
  * without `html`, each carrying `referenceEmailId` (pass it as
  * `referenceEmailId` to `emails.generate`) and the gallery `viewUrl`.
  */
 export type TemplateSummaryListResponse = Exclude<
-  operations['listTemplates']['responses'][200]['content']['application/json'],
-  TemplatesListResponse
+  TemplatesListBody,
+  TemplatesListResponse | TemplatesCountBody
 >
 
 /** One summary row (`representation: 'summary'`). */

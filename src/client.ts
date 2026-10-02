@@ -134,7 +134,7 @@ export type BrewClient = {
    * every inbound fire).
    */
   readonly automations: AutomationsResource
-  /** `GET/PATCH /v1/brand` — the key's brand: readiness, design system, identity, assets. */
+  /** `GET/PATCH /v1/brand` — the key's brand: readiness, design system, identity, assets (`getImages`, `deleteImage`). */
   readonly brand: BrandResource
   /**
    * `GET /v1/chats/{chatId}` (`chats.get`) — a free, read-only
@@ -144,7 +144,11 @@ export type BrewClient = {
    */
   readonly chats: ChatsResource
   readonly contacts: ContactsResource
-  /** `POST /v1/content/*` — credit-metered media generation + image/render ops. */
+  /**
+   * `POST /v1/content/*` — media generation and image/render ops
+   * (credit-metered), plus the free image library writes: `addImage`,
+   * `createImageUpload` and `uploadImage` (a local file in one call).
+   */
   readonly content: ContentResource
   readonly domains: DomainsResource
   /**

@@ -3,17 +3,21 @@ import type { HttpClient } from '../../core/http'
 import { createGenerateImage } from './generate-image'
 import { createGif } from './gif'
 import { createAddImage } from './add-image'
+import { createCreateImageUpload } from './create-image-upload'
 import { createHtmlToPng } from './html-to-png'
 import { createTransform } from './transform'
+import { createUploadImage } from './upload-image'
 
 /**
- * The public shape of `brew.content`. Every method wraps one
- * credit-metered `POST /v1/content/*` route. Each lives in its own file
- * under `resources/content/`, so a new endpoint is always one new file
+ * The public shape of `brew.content`. Each method wraps one
+ * `POST /v1/content/*` route — except `uploadImage`, which chains
+ * `createImageUpload`, the bytes POST and `addImage`. Each lives in its own
+ * file under `resources/content/`, so a new endpoint is always one new file
  * plus one new line here, never a diff inside an existing method.
  *
- * Every method is credit-metered and surfaces an exhausted balance as
- * `402 INSUFFICIENT_CREDITS`.
+ * `generateImage`, `gif`, `transform` and `htmlToPng` are credit-metered and
+ * surface an exhausted balance as `402 INSUFFICIENT_CREDITS`. `addImage`,
+ * `createImageUpload` and `uploadImage` are free.
  */
 export type ContentResource = {
   /** `POST /v1/content/generate-image` — text-to-image / image editing (scope: `emails`). */
@@ -24,8 +28,12 @@ export type ContentResource = {
   readonly transform: ReturnType<typeof createTransform>
   /** `POST /v1/content/html-to-png` — render HTML to a hosted PNG (scope: `emails`). */
   readonly htmlToPng: ReturnType<typeof createHtmlToPng>
-  /** `POST /v1/content/add-image` — mirror an image onto Brew-hosted storage (scope: `emails`). */
+  /** `POST /v1/content/add-image` — add an image (`imageUrl`, `imageUrls` batch, or an `uploadId`) to the brand library (free) (scope: `emails`). */
   readonly addImage: ReturnType<typeof createAddImage>
+  /** `POST /v1/content/image-uploads` — open a single-use upload for one local image file (free) (scope: `emails`). */
+  readonly createImageUpload: ReturnType<typeof createCreateImageUpload>
+  /** Upload one local image file into the brand library: `createImageUpload` → bytes to `uploadUrl` → `addImage` (free) (scope: `emails`). */
+  readonly uploadImage: ReturnType<typeof createUploadImage>
 }
 
 /**
@@ -40,5 +48,7 @@ export function createContentResource(client: HttpClient): ContentResource {
     transform: createTransform(client),
     htmlToPng: createHtmlToPng(client),
     addImage: createAddImage(client),
+    createImageUpload: createCreateImageUpload(client),
+    uploadImage: createUploadImage(client),
   }
 }

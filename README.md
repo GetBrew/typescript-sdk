@@ -54,6 +54,43 @@ an empty page — when the id is unknown.
 > tracks the public API v1 cleanup. Read the [CHANGELOG](./CHANGELOG.md) for
 > both migrations.
 
+## Images: upload, add, delete
+
+The brand image library is what the email agent searches when it designs.
+Adding and deleting images is free.
+
+```ts
+import { openAsBlob } from 'node:fs'
+
+// A local file, in one call: opens an upload, sends the bytes, adds it.
+const logo = await brew.content.uploadImage({
+  file: await openAsBlob('./assets/logo.png'), // or a Buffer / ArrayBuffer
+  fileName: 'logo.png', // contentType inferred from the extension
+})
+// → { url: 'https://cdn.brew.new/…', width, height, aspectRatio, assetId }
+
+// A public URL (or up to 100 with `imageUrls`, imported in the background).
+const hero = await brew.content.addImage({
+  imageUrl: 'https://acme.com/hero.jpg',
+})
+
+// Remove one from the library. Emails already using it keep rendering.
+await brew.brand.deleteImage(hero.assetId) // → { assetId, deleted: true }
+```
+
+`uploadImage` takes a `Blob`/`File`, an `ArrayBuffer` or a `Uint8Array`
+up to 20 MB (2 MB for SVG) as PNG, JPEG, GIF, WebP, AVIF, TIFF or SVG.
+Pass `contentType` when the file name has no such extension. An empty
+file, or one over those limits, throws a `TypeError` before any request.
+The bytes go straight to the upload's own URL without your API key, and
+that step is retried like any other (a repeat never replaces the first
+file). Opening the upload is not retried by default, because the API never
+replays it and each retry would hold one of the brand's 20 upload slots
+for 15 minutes; if it fails, call `uploadImage` again. To drive the steps
+yourself, call `brew.content.createImageUpload({ fileName, contentType,
+size })`, POST the raw bytes to its `uploadUrl` within 15 minutes, then
+`brew.content.addImage({ uploadId })`.
+
 ## Pointing at a different environment
 
 `baseUrl` is configurable. By default it points at production

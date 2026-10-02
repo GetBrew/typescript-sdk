@@ -190,12 +190,34 @@ describe('typed include tokens', () => {
 })
 
 describe('typed groupBy fields', () => {
+  /**
+   * Reviewed: an operation whose published `groupBy` the SDK does not type
+   * yet. Each entry names why; a stale entry fails below.
+   */
+  const KNOWN_UNTYPED_GROUP_BY: Readonly<Record<string, string>> = {
+    // `GET /v1/templates?count=true&groupBy=…` (brew-v2#1821) answers
+    // `{ count, groups }` instead of rows. `templates.list` does not type
+    // that mode yet, so its input leaves out `count` and `groupBy`
+    // (tests/resources/templates/list.test.ts).
+    listTemplates: 'templates.list does not type the count mode yet',
+  }
+
   it('types exactly the fields the spec publishes for events groupBy', () => {
     const published = readPublishedTokens('x-brew-group-by-tokens')
-    expect([...published.keys()]).toEqual(['getEventsAnalytics'])
+    expect(
+      [...published.keys()].filter(
+        (operationId) => !(operationId in KNOWN_UNTYPED_GROUP_BY)
+      )
+    ).toEqual(['getEventsAnalytics'])
     expect([...EVENTS_GROUP_BY_TOKENS].sort(byName)).toEqual(
       [...(published.get('getEventsAnalytics') ?? [])].sort(byName)
     )
+    // Staleness: an entry the spec no longer publishes must be deleted.
+    expect(
+      Object.keys(KNOWN_UNTYPED_GROUP_BY).filter(
+        (operationId) => !published.has(operationId)
+      )
+    ).toEqual([])
   })
 })
 

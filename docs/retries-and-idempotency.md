@@ -37,6 +37,20 @@ NOT retried (caller error or permanent):
 | `POST`   | Retried **only when an idempotency key is attached** (see below). |
 | `PATCH`  | **Never retried**, even with an idempotency key.                  |
 
+Two image-upload requests are exceptions:
+
+- `content.createImageUpload` (and the first step of `content.uploadImage`)
+  is sent **without** an idempotency key and **not retried by default**.
+  The API never replays it (its answer carries a one-time upload URL), so
+  a retry after a lost answer would open a second upload that holds one of
+  the brand's 20 upload slots for 15 minutes. The client-wide `maxRetries`
+  does not apply; a `maxRetries` passed on the request opts in.
+- `content.uploadImage` POSTs the file's bytes to the upload's own
+  `uploadUrl`, not to the API, and without an idempotency key. That POST is
+  still retried like a keyed one: the URL names the one upload it fills,
+  and a repeat never replaces the file that landed first. Its transport
+  errors leave the URL's token out of `url`, `message` and `cause`.
+
 ### Why PATCH is never retried
 
 `PATCH` is a partial-update primitive. The server's view of "current

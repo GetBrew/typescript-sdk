@@ -26,6 +26,87 @@ The API retired `POST /v1/data`, so the SDK drops the method that called it
   intelligence, notifications, domain-score history and per-contact open
   profiles have no public read yet; chats are read by ID only.
 
+## 11.5.0
+
+Images can now be uploaded from a local file and deleted from the brand
+library, matching the API's new routes (GetBrew/brew-v2#1817,
+GetBrew/brew-v2#1819). Additive: nothing is removed or renamed.
+
+### Added
+
+- **`brew.content.uploadImage({ file, fileName, contentType? })`** puts a
+  local image in the brand library in one call and returns what `addImage`
+  returns. `file` is a `Blob`/`File` (`fs.openAsBlob`), an `ArrayBuffer` or
+  a `Uint8Array` (a Node `Buffer`); `contentType` is inferred from the
+  extension (`.png`, `.jpg`/`.jpeg`, `.gif`, `.webp`, `.avif`,
+  `.tif`/`.tiff`, `.svg`), and a name it cannot read throws a `TypeError`
+  before any request. So does a size the API would refuse: an empty file,
+  over 20,000,000 bytes, or an SVG over 2,097,152 bytes. It opens an
+  upload, POSTs the bytes to its `uploadUrl` through your client's `fetch`
+  WITHOUT the API key or `X-Brand-Id` (the URL carries its own
+  credential), then adds the `uploadId`. `signal`, `timeoutMs`,
+  `maxRetries` and `retryOnTimeout` apply to every step. Opening the
+  upload is not retried by default (see `createImageUpload`); the bytes
+  POST is retried under the normal policy, since a repeat never replaces
+  the first file, and its errors never carry the upload URL's token. Its
+  refusals throw `BrewApiError` with the upload URL's `code`
+  (`404 UPLOAD_NOT_FOUND`, `413 PAYLOAD_TOO_LARGE`).
+- **`brew.content.createImageUpload({ fileName, contentType, size })`**
+  (`POST /v1/content/image-uploads`): the first step on its own. Returns
+  `201 { uploadId, uploadUrl, expiresAt, maxBytes }`; `429 RATE_LIMITED`
+  when the brand already has 20 uploads open. Free. It is sent without an
+  `Idempotency-Key` and NOT retried by default: the API never replays it,
+  so a retry after a lost answer would hold a second of the brand's 20
+  upload slots for 15 minutes. The client-wide `maxRetries` does not apply;
+  pass `maxRetries` on the request to opt in.
+- **`brew.brand.deleteImage(assetId)`** (`DELETE /v1/brand/images/{assetId}`)
+  removes one image from the library and from image search, as the Assets
+  page's Delete image does. Returns `{ assetId, deleted }`; an id not in the
+  library is `deleted: false`, and a logo is `400 INVALID_REQUEST`. The file
+  stays hosted, so emails already using it keep rendering. Free.
+- **`brew.content.addImage({ uploadId })`**, the third input next to
+  `imageUrl` and `imageUrls`. Its errors: `404 UPLOAD_NOT_FOUND`,
+  `409 UPLOAD_NOT_RECEIVED` (the bytes were never sent),
+  `409 UPLOAD_IN_PROGRESS` (another call is converting it),
+  `413 PAYLOAD_TOO_LARGE` and `422 CONTENT_OPERATION_FAILED` (not a PNG,
+  JPEG, GIF, WebP, AVIF, TIFF or SVG image). A repeated `uploadId` call
+  returns the same answer for 24 hours.
+- `assetId` on `ContentAddImageResponse`: the id `brand.getImages` rows
+  carry and `brand.deleteImage` takes.
+- Types `BrandImageDeleteResponse`, `ContentImageUploadCreateRequest`,
+  `ContentImageUploadCreateResponse`, `ContentImageUploadContentType`,
+  `ContentAddImageBatchResponse` and `UploadImageInput`; constants
+  `ADD_IMAGE_DEFAULT_TIMEOUT_MS` (300 s) and
+  `IMAGE_UPLOAD_BYTES_DEFAULT_TIMEOUT_MS` (120 s). `BrewErrorCode` gains
+  `UPLOAD_NOT_FOUND`, `UPLOAD_NOT_RECEIVED` and `UPLOAD_IN_PROGRESS`.
+
+### Fixed
+
+- **`content.addImage` is typed by its input.** An `imageUrls` batch now
+  types as the `202 { accepted, skipped, runId? }` it answers
+  (`ContentAddImageBatchResponse`) instead of the one-image row it never
+  returned; `imageUrl` and `uploadId` type as `ContentAddImageResponse`.
+- **`content.addImage` gets a 300 s per-attempt timeout floor** (the
+  route's own limit). Converting a large animation takes up to 120 s, so
+  on the 30 s default the call timed out while the server kept working. A
+  per-request `timeoutMs` still wins.
+- `content.addImage`'s doc comment said it was credit-metered and returned
+  `{ url }`. It is free and returns `{ url, width, height, aspectRatio,
+assetId }`. The `brew.content` docs now say which methods are metered.
+
+### Spec resync
+
+The bundled OpenAPI spec and generated types catch up with the API:
+
+- `GET /v1/templates` documents `count` and `groupBy`, which answer
+  `{ count, groups? }` instead of rows (GetBrew/brew-v2#1821).
+  `templates.list` does not type that mode yet, so `ListTemplatesInput`
+  leaves both out rather than typing a count as a page of rows.
+- `brew.fields.delete(...)` documents `409 AUDIENCE_BUILD_ACTIVE` for the
+  hidden field of an event-derived audience that is still building, and
+  the audience routes' `AUDIENCE_BUILD_ACTIVE` message says so
+  (GetBrew/brew-v2#1758).
+
 ## 11.4.0
 
 `brew.flows.list()` now says how many flows a query matches, so counting the

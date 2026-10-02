@@ -236,6 +236,7 @@ export type {
   Brand,
   BrandGetResponse,
   BrandIdentity,
+  BrandImageDeleteResponse,
   BrandImagesResponse,
   BrandIncludeToken,
   BrandLogo,
@@ -324,8 +325,13 @@ export type {
   ValidateContactsResponse,
 } from './resources/contacts/validate'
 export type { ContentResource } from './resources/content/resource'
+export { ADD_IMAGE_DEFAULT_TIMEOUT_MS } from './resources/content/add-image'
 export { GENERATE_IMAGE_DEFAULT_TIMEOUT_MS } from './resources/content/generate-image'
 export { GIF_DEFAULT_TIMEOUT_MS } from './resources/content/gif'
+export {
+  IMAGE_UPLOAD_BYTES_DEFAULT_TIMEOUT_MS,
+  type UploadImageInput,
+} from './resources/content/upload-image'
 // ---------- New v1 resource domain types ----------
 export type * from './resources/content/types'
 export type { AddDomainInput, AddDomainResponse } from './resources/domains/add'

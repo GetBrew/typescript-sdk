@@ -60,3 +60,27 @@ export function buildHeaders(input: BuildHeadersInput): Headers {
 
   return headers
 }
+
+export type BuildUploadHeadersInput = {
+  readonly userAgent: string
+  /** The body's media type, e.g. `image/png`. */
+  readonly contentType: string
+}
+
+/**
+ * The outbound header set for a request to a URL that carries its own
+ * credential — an image upload's `uploadUrl` (see `HttpClient.sendBytes`).
+ *
+ * `User-Agent`, `Accept: application/json` and the body's `Content-Type`,
+ * and deliberately nothing else: no `Authorization` (the API key never
+ * travels to a URL the API handed back), no `X-Brand-Id` (the URL names
+ * its upload, and with it the brand) and no `Idempotency-Key` (the URL
+ * names the one write it makes).
+ */
+export function buildUploadHeaders(input: BuildUploadHeadersInput): Headers {
+  const headers = new Headers()
+  headers.set('user-agent', input.userAgent)
+  headers.set('accept', 'application/json')
+  headers.set('content-type', input.contentType)
+  return headers
+}

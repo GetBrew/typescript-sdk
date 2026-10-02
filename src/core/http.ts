@@ -14,10 +14,16 @@ import {
   runtimeTimeoutCode,
 } from './errors'
 import { assertRetryCount, assertTimeoutMs } from './config'
-import { buildHeaders } from './headers'
+import { buildHeaders, buildUploadHeaders } from './headers'
 import { resolveIdempotencyKey } from './idempotency'
 import { computeBackoff, type RetryCause, shouldRetry } from './retry'
 import { cancelBody, readTextWithin } from './body'
+import {
+  credentialRedactor,
+  type Redactor,
+  redactThrown,
+  withoutQuery,
+} from './redact'
 import {
   combineCallerSignals,
   createAttemptSignal,
@@ -45,6 +51,20 @@ export type HttpRequestInput = {
    * default can raise a deadline the user configured but never shorten it.
    */
   readonly defaultTimeoutMs?: number
+  /**
+   * `'none'` for a route that never replays (`x-brew-idempotency:
+   * disabled`), such as one whose answer carries a one-time credential: no
+   * `Idempotency-Key` is sent, not even one the caller passed, because it
+   * would promise a replay that never happens. A retry is then a fresh
+   * request that may write again, so such a POST retries only as often as
+   * the request's own `maxRetries` says (default `defaultMaxRetries`).
+   */
+  readonly idempotency?: 'none'
+  /**
+   * A method's own default `maxRetries`. It replaces the client-wide
+   * setting; a per-request `maxRetries` still wins.
+   */
+  readonly defaultMaxRetries?: number
 }
 
 /**
@@ -70,8 +90,39 @@ export type HttpTuning = {
   }) => Promise<void>
 }
 
+/**
+ * Input to `HttpClient.sendBytes`: raw bytes POSTed to an absolute URL the
+ * API handed back, such as an image upload's `uploadUrl`.
+ */
+export type HttpBytesInput = {
+  /** The whole URL, query included. Never joined to `baseUrl`. */
+  readonly url: string
+  /**
+   * The bytes to send. A `Blob` is read afresh by every attempt, so a retry
+   * resends the whole file.
+   */
+  readonly bytes: Blob
+  /** Sent as `Content-Type`. */
+  readonly contentType: string
+  readonly options?: RequestOptions
+  /** As on `HttpRequestInput`: a per-attempt FLOOR, never a cap. */
+  readonly defaultTimeoutMs?: number
+}
+
 export type HttpClient = {
   request<T>(input: HttpRequestInput): Promise<BrewRawResponse<T>>
+  /**
+   * POST raw bytes to a URL that carries its own credential (an image
+   * upload's `uploadUrl`). The same transport as `request` — the client's
+   * `fetch`, the whole-attempt deadline, the caller's signals, the retry
+   * loop and the error mapping — WITHOUT the client's credentials: no
+   * `Authorization`, `X-Brand-Id` or `Idempotency-Key` (`buildUploadHeaders`).
+   *
+   * Retried like a keyed POST: the URL names the one write it makes, so a
+   * repeat cannot write twice. Transport errors report the URL without its
+   * query string, which is where such a URL keeps its credential.
+   */
+  sendBytes<T>(input: HttpBytesInput): Promise<BrewRawResponse<T>>
 }
 
 const DEFAULT_RETRY_BASE_MS = 100
@@ -95,7 +146,7 @@ const IDEMPOTENCY_IN_PROGRESS = 'IDEMPOTENCY_IN_PROGRESS'
 /**
  * Build an HTTP client bound to a resolved config. The returned client
  * holds the config + tuning in a closure, so resources only need to see
- * `{ request }` and never juggle config plumbing on their own.
+ * `{ request, sendBytes }` and never juggle config plumbing on their own.
  */
 export function createHttpClient(
   config: ResolvedBrewClientConfig,
@@ -106,32 +157,22 @@ export function createHttpClient(
   const random = tuning.random ?? Math.random
   const sleep = tuning.sleep ?? defaultSleep
 
+  // `async` so a bad input (a missing path param) rejects like every other
+  // failure instead of throwing synchronously.
   async function request<T>(
     input: HttpRequestInput
   ): Promise<BrewRawResponse<T>> {
     const options: RequestOptions = input.options ?? {}
-    if (options.maxRetries !== undefined) {
-      assertRetryCount({ value: options.maxRetries, name: 'maxRetries' })
-    }
-    if (options.timeoutMs !== undefined) {
-      assertTimeoutMs({ value: options.timeoutMs, name: 'timeoutMs' })
-    }
-    const maxRetries = options.maxRetries ?? config.maxRetries
-    const timeoutMs = normalizeTimeoutMs({
-      timeoutMs:
-        options.timeoutMs ??
-        Math.max(config.timeoutMs, input.defaultTimeoutMs ?? 0),
-    })
-    const shouldRetryOnTimeout = options.retryOnTimeout ?? config.retryOnTimeout
-
+    const isNeverReplayed = input.idempotency === 'none'
     // Resolved ONCE, before the loop: every attempt of this call carries
     // the same key, which is what lets the server replay instead of
     // re-running a write whose first attempt had an unknown outcome.
-    const idempotencyKey = resolveIdempotencyKey({
-      method: input.method,
-      provided: options.idempotencyKey,
-    })
-    const hasIdempotencyKey = idempotencyKey !== undefined
+    const idempotencyKey = isNeverReplayed
+      ? undefined
+      : resolveIdempotencyKey({
+          method: input.method,
+          provided: options.idempotencyKey,
+        })
     const hasBody = input.body !== undefined
 
     const url = buildUrl({
@@ -149,9 +190,59 @@ export function createHttpClient(
       ...(idempotencyKey !== undefined ? { idempotencyKey } : {}),
     })
 
-    const requestBody: string | null = hasBody
-      ? JSON.stringify(input.body)
-      : null
+    return send<T>({
+      method: input.method,
+      url,
+      reportedUrl: url,
+      headers,
+      body: hasBody ? JSON.stringify(input.body) : null,
+      options,
+      defaultTimeoutMs: input.defaultTimeoutMs,
+      defaultMaxRetries: input.defaultMaxRetries,
+      idempotencyKey,
+      mayRetryPost: idempotencyKey !== undefined || isNeverReplayed,
+      redact: undefined,
+    })
+  }
+
+  async function sendBytes<T>(
+    input: HttpBytesInput
+  ): Promise<BrewRawResponse<T>> {
+    return send<T>({
+      method: 'POST',
+      url: input.url,
+      reportedUrl: withoutQuery({ url: input.url }),
+      headers: buildUploadHeaders({
+        userAgent: config.userAgent,
+        contentType: input.contentType,
+      }),
+      body: input.bytes,
+      options: input.options ?? {},
+      defaultTimeoutMs: input.defaultTimeoutMs,
+      defaultMaxRetries: undefined,
+      idempotencyKey: undefined,
+      mayRetryPost: true,
+      redact: credentialRedactor({ url: input.url }),
+    })
+  }
+
+  /** The retry loop both `request` and `sendBytes` run. */
+  async function send<T>(exchange: Exchange): Promise<BrewRawResponse<T>> {
+    const { options, idempotencyKey } = exchange
+    if (options.maxRetries !== undefined) {
+      assertRetryCount({ value: options.maxRetries, name: 'maxRetries' })
+    }
+    if (options.timeoutMs !== undefined) {
+      assertTimeoutMs({ value: options.timeoutMs, name: 'timeoutMs' })
+    }
+    const maxRetries =
+      options.maxRetries ?? exchange.defaultMaxRetries ?? config.maxRetries
+    const timeoutMs = normalizeTimeoutMs({
+      timeoutMs:
+        options.timeoutMs ??
+        Math.max(config.timeoutMs, exchange.defaultTimeoutMs ?? 0),
+    })
+    const shouldRetryOnTimeout = options.retryOnTimeout ?? config.retryOnTimeout
 
     // The request's own signal and the client-wide one both mean "the
     // caller wants this stopped". Combined once per call, released once.
@@ -183,10 +274,10 @@ export function createHttpClient(
         try {
           const result = await runAttempt<T>({
             fetchImpl: config.fetch,
-            url,
-            method: input.method,
-            headers,
-            body: requestBody,
+            url: exchange.url,
+            method: exchange.method,
+            headers: exchange.headers,
+            body: exchange.body,
             signal: attemptSignal.signal,
           })
 
@@ -210,11 +301,13 @@ export function createHttpClient(
           }
 
           const isRetryable = shouldRetry({
-            method: input.method,
+            method: exchange.method,
             cause,
             attempt,
             maxRetries,
-            hasIdempotencyKey,
+            // A POST retries only when a repeat cannot write twice, or when
+            // the route never replays and the caller owns the retry count.
+            hasIdempotencyKey: exchange.mayRetryPost,
             shouldRetryOnTimeout,
           })
 
@@ -226,11 +319,12 @@ export function createHttpClient(
               callerSignal,
               unknownOutcome,
               request: {
-                method: input.method,
-                url,
+                method: exchange.method,
+                url: exchange.reportedUrl,
                 timeoutMs,
                 attempts: attempt + 1,
                 idempotencyKey,
+                redact: exchange.redact,
               },
             })
           }
@@ -292,7 +386,33 @@ export function createHttpClient(
     throw new Error('http: retry loop exited without a result')
   }
 
-  return { request }
+  return { request, sendBytes }
+}
+
+/** One logical request: what `send` puts on the wire, every attempt. */
+type Exchange = {
+  readonly method: BrewHttpMethod
+  readonly url: string
+  /** The URL errors report: `url`, or `url` without a credential-bearing query. */
+  readonly reportedUrl: string
+  readonly headers: Headers
+  readonly body: string | Blob | null
+  readonly options: RequestOptions
+  readonly defaultTimeoutMs: number | undefined
+  readonly defaultMaxRetries: number | undefined
+  readonly idempotencyKey: string | undefined
+  /**
+   * Gates retrying a POST: a repeat cannot write twice (the request carries
+   * an idempotency key, or its URL names the one write it makes), or the
+   * route never replays and `maxRetries` alone decides (`idempotency:
+   * 'none'`, which defaults it to `defaultMaxRetries`).
+   */
+  readonly mayRetryPost: boolean
+  /**
+   * Set when `url` carries a credential (`sendBytes`): transport errors
+   * redact it from their message and their `cause` chain.
+   */
+  readonly redact: Redactor | undefined
 }
 
 /** What one attempt produced. */
@@ -346,7 +466,7 @@ async function runAttempt<T>({
   readonly url: string
   readonly method: BrewHttpMethod
   readonly headers: Headers
-  readonly body: string | null
+  readonly body: string | Blob | null
   readonly signal: AbortSignal
 }): Promise<AttemptResult<T>> {
   let response: Response
@@ -447,6 +567,7 @@ type TerminalRequest = {
   readonly timeoutMs: number
   readonly attempts: number
   readonly idempotencyKey: string | undefined
+  readonly redact: Redactor | undefined
 }
 
 /** Build the error for the attempt the loop gives up on. */
@@ -528,13 +649,19 @@ function transportError({
   readonly request: TerminalRequest
   readonly isInProgress: boolean
 }): Error {
+  // The message quotes the cause, so a credential-bearing URL that a
+  // `fetch` named in its own error is redacted before either is built.
+  const cause =
+    request.redact === undefined
+      ? error
+      : redactThrown({ value: error, redact: request.redact })
   const shared = {
     method: request.method,
     url: request.url,
     attempts: request.attempts,
     idempotencyKey: request.idempotencyKey,
     inProgress: isInProgress,
-    cause: error,
+    cause,
   }
   if (kind === 'timeout') {
     return new BrewTimeoutError({ ...shared, timeoutMs: request.timeoutMs })

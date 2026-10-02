@@ -57,3 +57,10 @@ export type BrandImagesResponse = components['schemas']['BrandImagesResponse']
 export type ListBrandImagesInput = Readonly<
   NonNullable<paths['/v1/brand/images']['get']['parameters']['query']>
 >
+
+/**
+ * `{ assetId, deleted }` returned by `DELETE /v1/brand/images/{assetId}`.
+ * `deleted` is `false` when the id was not in the library (nothing changed).
+ */
+export type BrandImageDeleteResponse =
+  components['schemas']['BrandImageDeleteResponse']

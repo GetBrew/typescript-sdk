@@ -1,5 +1,6 @@
 import type { HttpClient } from '../../core/http'
 
+import { createDeleteBrandImage } from './delete-image'
 import { createGetBrand } from './get'
 import { createGetBrandImages } from './get-images'
 import { createUpdateBrand } from './patch'
@@ -13,6 +14,8 @@ export type BrandResource = {
   readonly update: ReturnType<typeof createUpdateBrand>
   /** `GET /v1/brand/images` — the brand's asset library (logos, brand images, images made with Brew): browse (free, `sort`) or semantic search via `q`; narrow with `kind` (scope: `emails`). */
   readonly getImages: ReturnType<typeof createGetBrandImages>
+  /** `DELETE /v1/brand/images/{assetId}` — remove one image from the library (free, idempotent; not logos) (scope: `emails`). */
+  readonly deleteImage: ReturnType<typeof createDeleteBrandImage>
 }
 
 export function createBrandResource(client: HttpClient): BrandResource {
@@ -22,5 +25,6 @@ export function createBrandResource(client: HttpClient): BrandResource {
     patch,
     update: patch,
     getImages: createGetBrandImages(client),
+    deleteImage: createDeleteBrandImage(client),
   }
 }

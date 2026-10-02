@@ -3,6 +3,7 @@ import { describe, expect, expectTypeOf, it } from 'vitest'
 
 import {
   createListTemplates,
+  type ListTemplatesInput,
   type TemplatesListResponse,
   type TemplateSummaryListResponse,
 } from '../../../src/resources/templates/list'
@@ -137,5 +138,17 @@ describe('templates.list representation typing', () => {
     expectTypeOf<
       Awaited<ReturnType<typeof bare>>['data'][number]
     >().toHaveProperty('html')
+  })
+
+  it('leaves the API count mode untyped rather than typing it as rows', () => {
+    // `count: true` (optionally with `groupBy`) answers `{ count, groups? }`
+    // instead of rows. Until `templates` types that mode, neither knob is
+    // on the input, so no call can be typed with the row envelope it does
+    // not return, and the summary envelope stays the rows-only branch.
+    expectTypeOf<NonNullable<ListTemplatesInput>>().not.toHaveProperty('count')
+    expectTypeOf<NonNullable<ListTemplatesInput>>().not.toHaveProperty(
+      'groupBy'
+    )
+    expectTypeOf<TemplateSummaryListResponse>().toHaveProperty('data')
   })
 })
