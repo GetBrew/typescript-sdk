@@ -217,7 +217,11 @@ export class BrewApiError extends Error {
  */
 export class BrewTransportError extends Error {
   readonly method: BrewHttpMethod
-  /** The full request URL, query string included. The `message` omits the query. */
+  /**
+   * The full request URL, query string included — except for a URL that
+   * keeps its credential in the query (an image upload's `uploadUrl`),
+   * which is reported without it. The `message` omits the query.
+   */
   readonly url: string
   /** How many HTTP attempts were made, retries included. */
   readonly attempts: number

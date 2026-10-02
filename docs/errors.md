@@ -265,7 +265,7 @@ see [retries-and-idempotency](./retries-and-idempotency.md)).
 ```ts
 class BrewTransportError extends Error {
   readonly method: string // 'GET', 'POST', …
-  readonly url: string // Full URL. The message leaves the query string out.
+  readonly url: string // Full URL (an upload URL's credential-bearing query is left out). The message leaves the query string out.
   readonly attempts: number // HTTP attempts made, retries included
   readonly idempotencyKey: string | undefined // Replay a write with this key
   readonly inProgress: boolean // A retry found the first attempt still running

@@ -2,6 +2,10 @@ import { describe, expect, it } from 'vitest'
 
 import type { HttpClient, HttpRequestInput } from '../../src/core/http'
 import {
+  ADD_IMAGE_DEFAULT_TIMEOUT_MS,
+  createAddImage,
+} from '../../src/resources/content/add-image'
+import {
   GENERATE_IMAGE_DEFAULT_TIMEOUT_MS,
   createGenerateImage,
 } from '../../src/resources/content/generate-image'
@@ -60,6 +64,8 @@ function recordingClient({
         requestId: undefined,
       })
     },
+    // None of these methods sends raw bytes.
+    sendBytes: () => Promise.reject(new Error('unexpected sendBytes call')),
   }
 }
 
@@ -80,6 +86,16 @@ const withTimeout = ({
 }): { timeoutMs?: number } => (timeoutMs === undefined ? {} : { timeoutMs })
 
 const CASES: ReadonlyArray<Case> = [
+  {
+    name: 'content.addImage',
+    defaultMs: ADD_IMAGE_DEFAULT_TIMEOUT_MS,
+    expectedMs: 300_000,
+    call: ({ client, timeoutMs }) =>
+      createAddImage(client)(
+        { uploadId: 'imgup_abcdefghijklmnopqrstu' },
+        withTimeout({ timeoutMs })
+      ),
+  },
   {
     name: 'content.gif',
     defaultMs: GIF_DEFAULT_TIMEOUT_MS,
@@ -190,6 +206,7 @@ describe('long-running methods — per-call timeout defaults', () => {
   })
 
   it('exports every default from the package entry point', () => {
+    expect(sdk.ADD_IMAGE_DEFAULT_TIMEOUT_MS).toBe(300_000)
     expect(sdk.GIF_DEFAULT_TIMEOUT_MS).toBe(300_000)
     expect(sdk.GENERATE_IMAGE_DEFAULT_TIMEOUT_MS).toBe(180_000)
     expect(sdk.IMPORT_EMAIL_DEFAULT_TIMEOUT_MS).toBe(300_000)

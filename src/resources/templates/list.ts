@@ -7,8 +7,18 @@ import type {
   TemplateSummaryListResponse,
 } from './types'
 
+/**
+ * The `GET /v1/templates` query, without the API's count mode
+ * (brew-v2#1821): `count` (and its `groupBy`) answer `{ count, groups? }`
+ * instead of rows, which this method does not type yet, so it does not
+ * accept them.
+ */
 export type ListTemplatesInput =
-  operations['listTemplates']['parameters']['query']
+  | Omit<
+      NonNullable<operations['listTemplates']['parameters']['query']>,
+      'count' | 'groupBy'
+    >
+  | undefined
 type TemplateFilters = Omit<NonNullable<ListTemplatesInput>, 'representation'>
 /** Filters for a page of full rows (the default representation). */
 export type ListFullTemplatesInput = TemplateFilters & {

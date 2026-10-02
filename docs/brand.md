@@ -6,11 +6,12 @@ brand, while an organization-scoped key uses the brand pinned with
 `withBrand(id)` or `brandId`. Use [`brew.brands`](./brands.md) to discover and
 manage brands.
 
-| Method                    | HTTP                   | Scope    |
-| ------------------------- | ---------------------- | -------- |
-| [`get`](#get)             | `GET /v1/brand`        | `emails` |
-| [`patch`](#patch)         | `PATCH /v1/brand`      | `emails` |
-| [`getImages`](#getimages) | `GET /v1/brand/images` | `emails` |
+| Method                        | HTTP                                | Scope    |
+| ----------------------------- | ----------------------------------- | -------- |
+| [`get`](#get)                 | `GET /v1/brand`                     | `emails` |
+| [`patch`](#patch)             | `PATCH /v1/brand`                   | `emails` |
+| [`getImages`](#getimages)     | `GET /v1/brand/images`              | `emails` |
+| [`deleteImage`](#deleteimage) | `DELETE /v1/brand/images/{assetId}` | `emails` |
 
 `patch` is also exported as `update` (same function).
 
@@ -93,3 +94,23 @@ const hits = await brew.brand.getImages({ q: 'team photo', kind: 'brand' })
 `kind` is `logo`, `brand` or `generated`; logos are not searchable. The
 `type` and `aspectRatio` filters were retired by the API, which answers
 `400` naming `kind`; every image still carries its `width` and `height`.
+
+To add images, use `brew.content.addImage({ imageUrl })` for a public URL
+or `brew.content.uploadImage({ file, fileName })` for a local file (see the
+[README](../README.md#images-upload-add-delete)). Both return the new
+row's `assetId`.
+
+## `deleteImage`
+
+Remove one image from the library and from image search, as Delete image
+on the Assets page does. Pass the `assetId` a `getImages` row carries. Free.
+
+```ts
+const { assetId, deleted } = await brew.brand.deleteImage('5bc912f9')
+```
+
+The file stays hosted at its URL, so emails already using it keep
+rendering; it is only no longer offered for new designs. An `assetId` not
+in the library resolves `deleted: false` and changes nothing, so repeating
+the call is safe. A logo answers `400 INVALID_REQUEST`: manage logos on
+the Assets page in Brew.

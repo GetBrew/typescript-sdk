@@ -46,12 +46,48 @@ export type ContentHtmlToPngRequest =
 export type ContentPngResponse = components['schemas']['ContentPngResponse']
 
 /**
- * Request body for `POST /v1/content/add-image`. Carries the source
- * `imageUrl` to mirror onto Brew-hosted storage.
+ * Request body for `POST /v1/content/add-image`: exactly one of
+ *   - `{ imageUrl }` — one public image URL, added synchronously;
+ *   - `{ imageUrls }` — 1 to 100 public URLs, a background batch import;
+ *   - `{ uploadId }` — a local file whose bytes were sent to the
+ *     `uploadUrl` from `POST /v1/content/image-uploads`.
  */
 export type ContentAddImageRequest =
   components['schemas']['ContentAddImageRequest']
 
-/** The Brew-hosted image url returned by `POST /v1/content/add-image`. */
+/**
+ * `{ url, width, height, aspectRatio, assetId }` returned by
+ * `POST /v1/content/add-image` for an `imageUrl` or an `uploadId`: the
+ * durable `cdn.brew.new` URL and the library row's `assetId`.
+ */
 export type ContentAddImageResponse =
   components['schemas']['ContentAddImageResponse']
+
+/**
+ * `{ accepted, skipped, runId? }` returned (`202`) by
+ * `POST /v1/content/add-image` for an `imageUrls` batch.
+ */
+export type ContentAddImageBatchResponse =
+  components['schemas']['ContentAddImageBatchResponse']
+
+/**
+ * Request body for `POST /v1/content/image-uploads`: the local file's
+ * `fileName`, `contentType` and `size` in bytes.
+ */
+export type ContentImageUploadCreateRequest =
+  components['schemas']['ContentImageUploadCreateRequest']
+
+/**
+ * `{ uploadId, uploadUrl, expiresAt, maxBytes }` returned (`201`) by
+ * `POST /v1/content/image-uploads`. `uploadUrl` carries its own
+ * credential: keep it private.
+ */
+export type ContentImageUploadCreateResponse =
+  components['schemas']['ContentImageUploadCreateResponse']
+
+/**
+ * The image types an upload accepts: `image/png`, `image/jpeg`,
+ * `image/gif`, `image/webp`, `image/avif`, `image/tiff`, `image/svg+xml`.
+ */
+export type ContentImageUploadContentType =
+  ContentImageUploadCreateRequest['contentType']

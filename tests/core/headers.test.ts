@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildHeaders } from '../../src/core/headers'
+import { buildHeaders, buildUploadHeaders } from '../../src/core/headers'
 
 describe('buildHeaders', () => {
   const baseInput = {
@@ -72,5 +72,27 @@ describe('buildHeaders', () => {
     const b = buildHeaders(baseInput)
     a.set('x-mutated', 'yes')
     expect(b.get('x-mutated')).toBeNull()
+  })
+})
+
+describe('buildUploadHeaders', () => {
+  const input = {
+    userAgent: 'brew.new-sdk/0.0.0',
+    contentType: 'image/png',
+  }
+
+  it('sends no credential: the upload URL carries its own', () => {
+    const headers = buildUploadHeaders(input)
+    expect(headers.get('authorization')).toBeNull()
+    expect(headers.get('x-api-key')).toBeNull()
+    expect(headers.get('x-brand-id')).toBeNull()
+    expect(headers.get('idempotency-key')).toBeNull()
+  })
+
+  it('names the body type, the SDK and the JSON answer it reads', () => {
+    const headers = buildUploadHeaders(input)
+    expect(headers.get('content-type')).toBe('image/png')
+    expect(headers.get('user-agent')).toBe('brew.new-sdk/0.0.0')
+    expect(headers.get('accept')).toBe('application/json')
   })
 })
