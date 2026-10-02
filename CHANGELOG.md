@@ -1,5 +1,32 @@
 # Changelog
 
+## 11.6.0
+
+`brew.emails.auditEmail` takes the audit's new sources and returns its new
+evidence, matching the rebuilt audit (GetBrew/brew-v2 email audit PR).
+Additive for callers: an `emailHtml` body is sent unchanged.
+
+### Added
+
+- **`auditEmail` takes exactly one source**: `emailHtml` (as before),
+  `emailJsx` (a React Email module Brew renders with the renderer it sends
+  with; one that does not render is `422`) or `emailId` with an optional
+  `emailVersionId` (a saved design, whose subject and preview fill any you
+  omit). `AuditEmailInput` is the generated union of the three.
+- **`policy.source: 'inferred'`** with `policy.confidence`: omit
+  `sendingPurpose` and the audit infers it from the content.
+- **`findings[].evidence`**: `{ kind: 'http', status, failure? }`,
+  `{ kind: 'clients', unsupported }` or
+  `{ kind: 'judgment', question, probability }`.
+
+### Changed
+
+- **`AUDIT_EMAIL_DEFAULT_TIMEOUT_MS` is 40 s** (was 65 s): the audit's checks
+  now share a 25-second budget. A longer client-wide `timeoutMs` is still
+  kept.
+- An omitted `subject` is no longer reported as missing (an empty one still
+  is).
+
 ## 11.5.0
 
 Images can now be uploaded from a local file and deleted from the brand

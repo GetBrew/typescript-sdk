@@ -149,7 +149,7 @@ const CASES: ReadonlyArray<Case> = [
   {
     name: 'emails.audit',
     defaultMs: AUDIT_EMAIL_DEFAULT_TIMEOUT_MS,
-    expectedMs: 65_000,
+    expectedMs: 40_000,
     call: ({ client, timeoutMs }) =>
       createAuditEmail(client)(
         { emailHtml: '<p>Hi</p>' },
@@ -213,7 +213,7 @@ describe('long-running methods — per-call timeout defaults', () => {
     expect(sdk.IMPORT_FIGMA_DEFAULT_TIMEOUT_MS).toBe(800_000)
     expect(sdk.GENERATE_EMAIL_DEFAULT_TIMEOUT_MS).toBe(240_000)
     expect(sdk.EDIT_EMAIL_DEFAULT_TIMEOUT_MS).toBe(240_000)
-    expect(sdk.AUDIT_EMAIL_DEFAULT_TIMEOUT_MS).toBe(65_000)
+    expect(sdk.AUDIT_EMAIL_DEFAULT_TIMEOUT_MS).toBe(40_000)
     expect(sdk.PREVIEW_EMAIL_CLIENTS_DEFAULT_TIMEOUT_MS).toBe(90_000)
   })
 

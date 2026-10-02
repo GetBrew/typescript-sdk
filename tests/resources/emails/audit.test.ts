@@ -53,7 +53,54 @@ describe('emails.auditEmail', () => {
   })
 
   it('uses a timeout above the server audit budget', () => {
-    expect(AUDIT_EMAIL_DEFAULT_TIMEOUT_MS).toBe(65_000)
+    expect(AUDIT_EMAIL_DEFAULT_TIMEOUT_MS).toBe(40_000)
+  })
+
+  it.each([
+    ['a React Email module', { emailJsx: '<Html><Text>Hi</Text></Html>' }],
+    ['a saved design', { emailId: 'email_1' }],
+    [
+      'a pinned saved-design version',
+      { emailId: 'email_1', emailVersionId: 'version_1' },
+    ],
+  ])('POSTs %s as the audit source', async (_label, source) => {
+    let capturedBody: unknown
+    server.use(
+      http.post('https://brew.new/api/v1/emails/audit', async ({ request }) => {
+        capturedBody = await request.json()
+        return HttpResponse.json({
+          ...COMPLETE_AUDIT,
+          policy: {
+            purpose: 'transactional',
+            source: 'inferred',
+            confidence: 0.97,
+            unsubscribe: 'not_required',
+          },
+        })
+      })
+    )
+
+    const { client } = makeTestHttpClient()
+    const result = await createAuditEmail(client)({
+      ...source,
+      subject: 'Your receipt',
+    })
+
+    expect(capturedBody).toEqual({ ...source, subject: 'Your receipt' })
+    expect(result.policy).toMatchObject({
+      source: 'inferred',
+      confidence: 0.97,
+    })
+  })
+
+  it('types the evidence behind a finding', () => {
+    const evidence: EmailAuditResponse['findings'][number]['evidence'] = {
+      kind: 'judgment',
+      question: 'linkUnclear',
+      probability: 0.91,
+    }
+
+    expect(evidence?.kind).toBe('judgment')
   })
 
   it('POSTs the exact raw email content to /v1/emails/audit', async () => {
