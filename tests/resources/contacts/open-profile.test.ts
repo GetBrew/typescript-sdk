@@ -2,11 +2,15 @@ import { http, HttpResponse } from 'msw'
 import { describe, expect, expectTypeOf, it } from 'vitest'
 
 import type {
+  Contact,
   ContactOpenProfile,
+  ContactSearchRow,
   ContactsIncludeToken,
   CountContactsInput,
   GetContactOptions,
+  GetContactResponse,
   SearchContactsInput,
+  SearchContactsResponse,
 } from '../../../src/index'
 import { createContactsResource } from '../../../src/resources/contacts/resource'
 import { makeTestHttpClient } from '../../helpers/http-client'
@@ -172,6 +176,27 @@ describe('contacts.search — include openProfile', () => {
     expect(page.pagination.limit).toBe(10)
   })
 
+  it('leaves an empty include out of the body (the API needs at least one token)', async () => {
+    let body: unknown
+    server.use(
+      http.post(
+        'https://brew.new/api/v1/contacts/search',
+        async ({ request }) => {
+          body = await request.json()
+          return HttpResponse.json({
+            data: [CONTACT],
+            pagination: { limit: 50, cursor: null, hasMore: false },
+          })
+        }
+      )
+    )
+
+    const { client } = makeTestHttpClient()
+    await createContactsResource(client).search({ search: 'jane', include: [] })
+
+    expect(body).toEqual({ search: 'jane', count: false })
+  })
+
   it('surfaces a key without the emails scope as 403 INSUFFICIENT_PERMISSIONS', async () => {
     server.use(
       http.post('https://brew.new/api/v1/contacts/search', () =>
@@ -239,5 +264,20 @@ describe('contacts.search — include openProfile', () => {
     expectTypeOf<ContactOpenProfile['histogram']>().toEqualTypeOf<
       Array<number>
     >()
+  })
+
+  it('carries openProfile on the get and search reads only, never on the shared Contact', () => {
+    expectTypeOf<Contact>().not.toHaveProperty('openProfile')
+    expectTypeOf<GetContactResponse['openProfile']>().toEqualTypeOf<
+      ContactOpenProfile | null | undefined
+    >()
+    // The page arm with profiles types every row, with or without include.
+    expectTypeOf<
+      SearchContactsResponse['data'][number]
+    >().toEqualTypeOf<ContactSearchRow>()
+    expectTypeOf<ContactSearchRow['openProfile']>().toEqualTypeOf<
+      ContactOpenProfile | null | undefined
+    >()
+    expectTypeOf<SearchContactsResponse>().not.toHaveProperty('count')
   })
 })

@@ -10,9 +10,12 @@ import { createNotificationsResource } from '../../../src/resources/notification
 import { makeTestHttpClient } from '../../helpers/http-client'
 import { server } from '../../msw/server'
 
-function notification(id: string, overrides: Record<string, unknown> = {}) {
+function notification(
+  notificationId: string,
+  overrides: Record<string, unknown> = {}
+) {
   return {
-    id,
+    notificationId,
     type: 'email_sent',
     status: 'completed',
     title: 'Spring launch sent',
@@ -114,7 +117,28 @@ describe('notifications.list', () => {
     })
 
     expect(raw.requestId).toBe('req_ntf')
-    expect(raw.data.data[0]?.id).toBe('ntf_raw')
+    expect(raw.data.data[0]?.notificationId).toBe('ntf_raw')
+  })
+
+  it('answers a type the key cannot see with an empty page, not an error', async () => {
+    let type: string | null | undefined
+    server.use(
+      http.get('https://brew.new/api/v1/notifications', ({ request }) => {
+        type = new URL(request.url).searchParams.get('type')
+        return HttpResponse.json({
+          data: [],
+          pagination: { limit: 100, cursor: null, hasMore: false },
+        })
+      })
+    )
+
+    const { client } = makeTestHttpClient()
+    const page = await createNotificationsResource(client).list({
+      type: 'send_limit_reached',
+    })
+
+    expect(type).toBe('send_limit_reached')
+    expect(page.data).toEqual([])
   })
 
   it('surfaces an unknown type as 400 INVALID_REQUEST', async () => {
@@ -148,6 +172,8 @@ describe('notifications.list', () => {
     expectTypeOf<{ type: 'bogus' }>().not.toExtend<ListNotificationsInput>()
     expectTypeOf<NotificationRow['type']>().toEqualTypeOf<NotificationType>()
     expectTypeOf<'gradual_send_paused'>().toExtend<NotificationType>()
+    expectTypeOf<NotificationRow['notificationId']>().toEqualTypeOf<string>()
+    expectTypeOf<NotificationRow>().not.toHaveProperty('id')
   })
 })
 
@@ -185,7 +211,7 @@ describe('notifications.listAll', () => {
     for await (const row of createNotificationsResource(client).listAll({
       type: 'email_sent',
     })) {
-      ids.push(row.id)
+      ids.push(row.notificationId)
     }
 
     expect(ids).toEqual(['ntf_1', 'ntf_2', 'ntf_3'])

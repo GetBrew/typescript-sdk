@@ -2,6 +2,7 @@ import { http, HttpResponse } from 'msw'
 import { describe, expect, expectTypeOf, it } from 'vitest'
 
 import type {
+  BrewErrorCode,
   EmailCommentMessage,
   EmailCommentThread,
   ListEmailCommentsInput,
@@ -290,6 +291,8 @@ describe('emails.comments.list', () => {
       include: ['graph']
     }>().not.toExtend<ListEmailCommentsInput>()
     expectTypeOf<EmailCommentThread['status']>().toEqualTypeOf<'open'>()
+    expectTypeOf<'COMMENT_NOT_FOUND'>().toExtend<BrewErrorCode>()
+    expectTypeOf<'EMAIL_NOT_FOUND'>().toExtend<BrewErrorCode>()
     expectTypeOf<EmailCommentMessage['author']>().toEqualTypeOf<{
       userId: string
       name: string

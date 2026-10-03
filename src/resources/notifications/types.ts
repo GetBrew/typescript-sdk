@@ -13,8 +13,8 @@ export type NotificationsListResponse =
  * One notification as the app's bell shows it: `type`, `status`, `title`,
  * `subtitle`, an optional `progressPercent`, a `url` into the app, the ids
  * it concerns (`chatId`, `emailId`, `domainId`, `domainName`),
- * `isPersonal` and its timestamps. Its id (`ntf_…`) is stable for the
- * row's life.
+ * `isPersonal` and its timestamps. `notificationId` (`ntf_` + 20 hex
+ * characters, a one-way hash) is stable for the row's life.
  *
  * Named `NotificationRow` rather than `Notification` so it never shadows
  * the DOM's global `Notification` (as `EventRow` avoids `Event`).

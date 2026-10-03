@@ -697,7 +697,7 @@ type EmailCommentThread = {
   readonly participantCount: number
   readonly messageCount: number
   readonly lastMessageAt: string // ISO-8601
-  readonly lastMessagePreview: string
+  readonly lastMessagePreview: string // shortened to 140 characters
   readonly url: string // the thread on the design in Brew
   // Only with include: 'messages':
   readonly messages?: ReadonlyArray<EmailCommentMessage> // oldest first
@@ -707,7 +707,7 @@ type EmailCommentThread = {
 type EmailCommentMessage = {
   readonly messageId: string // `cmm_…`
   readonly author: { userId: string; name: string }
-  readonly body: string // a mention reads `@Name-abcd`
+  readonly body: string // each mention reads `@Name`, the name `mentions` gives
   readonly mentions: ReadonlyArray<{ userId: string; name: string }>
   readonly createdAt: string
   readonly updatedAt: string

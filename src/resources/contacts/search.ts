@@ -39,7 +39,8 @@ export type SearchContactsInput = {
    * profile (`openProfile`, as on `get`; `null` when they have no opens
    * yet). Each row costs one profile read, so a page then holds at most 10
    * contacts (`pagination.limit` reports the size read). It needs the
-   * `emails` scope as well (`403 INSUFFICIENT_PERMISSIONS` without it).
+   * `emails` scope as well (`403 INSUFFICIENT_PERMISSIONS` without it). An
+   * empty array is left out of the request.
    */
   readonly include?: ReadonlyArray<
     NonNullable<ContactsSearchRequest['include']>[number]
@@ -109,10 +110,17 @@ export function createSearchContacts(client: HttpClient) {
     input: SearchContactsInput = {},
     options?: RequestOptions
   ): Promise<SearchContactsResponse | BrewRawResponse<SearchContactsResponse>> {
+    // The API takes at least one `include` token, so an empty array (say,
+    // `wantProfiles ? ['openProfile'] : []`) is left out, as `get` does.
+    const { include, ...rest } = input
     const response = await client.request<SearchContactsResponse>({
       method: 'POST',
       path: '/v1/contacts/search',
-      body: { ...input, count: false },
+      body: {
+        ...rest,
+        ...(include !== undefined && include.length > 0 ? { include } : {}),
+        count: false,
+      },
       ...(options ? { options } : {}),
     })
     return unwrapResponse(response, options)

@@ -16,7 +16,7 @@ read-only. Reading marks nothing read.
 
 ```ts
 type NotificationRow = {
-  readonly id: string // `ntf_…`, stable for the row's life
+  readonly notificationId: string // `ntf_…`, stable for the row's life
   readonly type: NotificationType // 'email_sent', 'import_job', 'domain_score_run', …
   readonly status: NotificationStatus // 'processing', 'completed', 'failed', …
   readonly title: string
@@ -39,14 +39,22 @@ DOM's global `Notification`.
 
 ### What a key sees
 
-The route needs no scope, but each row is shown only when its feature is
-within the key's scopes:
+The route needs no scope, but each row is shown only when the key may read
+its feature. **An empty page can mean nothing happened, or that this key
+cannot see that kind of row.** A `type` the key cannot see is an empty
+page, not an error.
 
-- A `contacts` key sees import and validation rows.
-- An `emails` key sees chats, sends and domains.
-- Brand-wide rows (brand extraction, image imports) need no scope.
-- A comment mention or reply (`isPersonal: true`) reaches only the person
-  it is addressed to, so an API key never sees one.
+| Types                                                                                                                         | Who sees them                                                                        |
+| ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `chat_stream`, `preview_email`                                                                                                | the `emails` scope                                                                   |
+| `email_sent`, `email_scheduled`, `email_send_failed`, `gradual_send_paused`, `gradual_send_completed`, `send_review_rejected` | `sends` (`emails` implies it)                                                        |
+| `domain_status`, `domain_score_run`                                                                                           | `domains` (`emails` implies it)                                                      |
+| `import_job`, `validation_job`                                                                                                | `contacts`                                                                           |
+| `automation_pause_window_closed`                                                                                              | `automations`                                                                        |
+| `brand_extracted`, `brand_image_import`                                                                                       | every key on the brand                                                               |
+| `api_key_created`                                                                                                             | the `all` scope                                                                      |
+| `send_limit_reached`                                                                                                          | organization admins only (an organization-wide key holding `all`), never a brand key |
+| `comment_mention`, `comment_reply` (`isPersonal: true`)                                                                       | only the person addressed, never an API key                                          |
 
 ---
 

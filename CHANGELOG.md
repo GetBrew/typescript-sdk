@@ -41,10 +41,11 @@ is removed or renamed.
   Resume one with `brew.chats.get(chatId)`.
 - **`brew.notifications.list(input?)` and `brew.notifications.listAll(input?)`**
   (`GET /v1/notifications`): the app's bell as a read, filterable by `type`.
-  Any key can call it, and each row is shown only when its feature is within
-  the key's scopes. **A page can hold fewer rows than `limit`, even none,
-  while `hasMore` is `true`**; `listAll` follows `hasMore`, not the row
-  count.
+  Rows are keyed by `notificationId` (`ntf_…`). Any key can call it, and each
+  row is shown only when the key may read its feature, so a `type` the key
+  cannot see is an empty page, not an error. **A page can hold fewer rows
+  than `limit`, even none, while `hasMore` is `true`**; `listAll` follows
+  `hasMore`, not the row count.
 - **`include` on `brew.domains.health({ domainId, include })`**:
   `'scoreHistory'` attaches up to 50 saved score snapshots, newest first;
   `'scoreRuns'` attaches the last 5 automated domain score runs.

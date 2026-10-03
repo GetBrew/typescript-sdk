@@ -243,7 +243,8 @@ if (pagination.hasMore && pagination.cursor) {
 [`get`](#include-openprofile). New in 11.6.0. Each row costs one profile
 read, so a page then holds **at most 10 contacts**, whatever `limit` you
 pass. `pagination.limit` reports the size used. [`searchAll`](#searchall)
-carries the include on every page.
+carries the include on every page. An empty `include: []` is left out of
+the request (the API needs at least one token).
 
 ```ts
 const { data } = await brew.contacts.search({

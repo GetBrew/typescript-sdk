@@ -27,7 +27,8 @@ export type EmailCommentTarget = EmailCommentThread['target']
 
 /**
  * One message of a thread (`include: 'messages'`): `messageId` (`cmm_…`),
- * `author`, `body` (a mention reads `@Name-abcd` in it), `mentions`,
+ * `author`, `body` (each mention reads `@` + the name `mentions` gives;
+ * other `@` text is as typed), `mentions`,
  * `createdAt` and `updatedAt`.
  */
 export type EmailCommentMessage = NonNullable<
