@@ -13,7 +13,8 @@ import type { operations } from '../../generated/openapi-types'
 /**
  * The page `GET /v1/insights` returns: `{ data, pagination, freshness }`
  * plus `pulse`, `report`, `suggestions` and `memo` when `include` asks for
- * them (each `null` until it exists).
+ * them. `pulse`, `report` and `memo` are `null` until they exist;
+ * `suggestions` is an empty array.
  */
 export type InsightsListResponse =
   operations['listInsights']['responses'][200]['content']['application/json']

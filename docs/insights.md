@@ -96,7 +96,8 @@ for (const finding of data) {
 ### The intelligence layer (`include`)
 
 `include` adds what the Insights page shows beside the findings, as
-top-level keys of the page. Each is `null` until it exists.
+top-level keys of the page. `pulse`, `report` and `memo` are `null` until
+they exist; `suggestions` is an empty array.
 
 | Token           | Key           | What it is                                                     |
 | --------------- | ------------- | -------------------------------------------------------------- |

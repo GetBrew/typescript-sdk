@@ -16,7 +16,8 @@ is removed or renamed.
   findings as the Insights page ranks them, most severe first, under
   `{ data, pagination, freshness }`. Filter with `state` (`open` by default,
   or `all`) and `severity`. `include` adds the page-level `pulse`, `report`,
-  `suggestions` and `memo`, each `null` until it exists. `freshness` is on
+  `suggestions` and `memo`. `pulse`, `report` and `memo` are `null` until
+  they exist; `suggestions` is an empty array. `freshness` is on
   every page; `latestAttempt.status: 'failed'` means the findings may be
   stale.
 - **`brew.insights.get(insightId)`** (`GET /v1/insights/{insightId}`): one

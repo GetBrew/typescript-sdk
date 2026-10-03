@@ -31,7 +31,8 @@ export type ListInsightsInput = Readonly<
      * `'pulse'` (the last 7 days against the 7 before), `'report'` (the
      * latest report the analysis agent published), `'suggestions'` (its
      * proposed and launched suggestions, up to 25) and `'memo'` (the
-     * agent's memory across runs). Each answers `null` until it exists.
+     * agent's memory across runs). `pulse`, `report` and `memo` are `null`
+     * until they exist; `suggestions` is an empty array.
      * They are page-level keys, not row fields, so ask for them on the
      * first page only. Accepts an array of tokens or a comma string.
      */
