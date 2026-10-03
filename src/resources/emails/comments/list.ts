@@ -1,4 +1,4 @@
-import { autoPaginate } from '../../../core/pagination'
+import { autoPaginate, pageReadOptions } from '../../../core/pagination'
 import { unwrapResponse, type HttpClient } from '../../../core/http'
 import { serializeInclude } from '../../../core/url'
 import type { BrewRawResponse, RequestOptions } from '../../../types'
@@ -160,7 +160,7 @@ export function createListAllEmailCommentMessages(client: HttpClient) {
             include: 'messages',
             ...(messagesCursor !== null ? { messagesCursor } : {}),
           },
-          options
+          pageReadOptions({ options })
         )
         const thread = response.data[0]
         const next = thread?.messagesCursor ?? null

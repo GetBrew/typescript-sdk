@@ -1,3 +1,5 @@
+import type { RequestOptions } from '../types'
+
 /**
  * Shared cursor-pagination primitives.
  *
@@ -83,4 +85,20 @@ export async function* autoPaginate<TItem>(
     cursor = next.cursor
   }
   /* eslint-enable no-await-in-loop */
+}
+
+/**
+ * The options an auto-pager passes to each page read: the caller's options
+ * with `raw` forced to `false`. A caller's `{ raw: true }` would otherwise
+ * reach the wrapped `list` / `search`, which would then return a
+ * `BrewRawResponse` the iterator cannot read as a page. The iterator yields
+ * rows, so `raw` has nothing to apply to; every other option (`signal`,
+ * `timeoutMs`, `maxRetries`, …) still applies to every page.
+ */
+export function pageReadOptions({
+  options,
+}: {
+  readonly options: RequestOptions | undefined
+}): RequestOptions | undefined {
+  return options === undefined ? undefined : { ...options, raw: false }
 }

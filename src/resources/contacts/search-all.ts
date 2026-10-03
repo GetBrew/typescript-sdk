@@ -1,4 +1,4 @@
-import { autoPaginate } from '../../core/pagination'
+import { autoPaginate, pageReadOptions } from '../../core/pagination'
 import type { HttpClient } from '../../core/http'
 import type { RequestOptions } from '../../types'
 
@@ -64,7 +64,7 @@ export function createSearchAllContacts(client: HttpClient) {
           ...input,
           ...(cursor !== null ? { cursor } : {}),
         }
-        const response = await search(pageInput, options)
+        const response = await search(pageInput, pageReadOptions({ options }))
         return { items: response.data, pagination: response.pagination }
       },
       options?.signal ? { signal: options.signal } : undefined

@@ -79,6 +79,18 @@ is removed or renamed.
   `ContactSearchRow`. `BrewErrorCode` gains `INSIGHT_NOT_FOUND` and
   `COMMENT_NOT_FOUND`.
 
+### Fixed
+
+- **Auto-pagers ignore `{ raw: true }`.** `contacts.searchAll`,
+  `sends.listAll`, `analytics.eventsAll` and
+  `automations.triggerInstances.listAll` passed the caller's options to
+  each page read, so `raw: true` made the read return a `BrewRawResponse`
+  and the iterator threw (`page.items is not iterable`) instead of yielding
+  rows. The page reads now always unwrap; `signal`, `timeoutMs`,
+  `maxRetries` and `retryOnTimeout` still apply to every page. The new
+  iterators (`chats.listAll`, `notifications.listAll`,
+  `emails.comments.listAllMessages`) behave the same.
+
 ### Changed
 
 - `GetContactResponse`, `SearchContactsResponse` and
