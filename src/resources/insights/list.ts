@@ -54,8 +54,16 @@ export type ListInsightsResponse = InsightsListResponse
  * the findings is, and `latestAttempt.status: 'failed'` means they may be
  * stale. `include` adds `pulse`, `report`, `suggestions` and `memo`.
  *
+ * A `cursor` continues only the walk that returned it: the same `state`
+ * and `severity`, and only while the findings it already returned are
+ * still the rows before it. When the findings changed since it was issued
+ * (the engine re-ran, or a finding was snoozed, dismissed or changed state)
+ * or it was issued for another `state` or `severity`, the call throws a
+ * `BrewApiError` with `code: 'INVALID_REQUEST'` and `param: 'cursor'`:
+ * read the list again from the first page, without `cursor`.
+ *
  * One finding in full is `brew.insights.get(insightId)`. An unknown query
- * value or `include` token, or a malformed `cursor`, is
+ * value or `include` token, or a malformed `cursor`, is also
  * `400 INVALID_REQUEST`.
  *
  * Pass `{ raw: true }` in `options` to receive the full

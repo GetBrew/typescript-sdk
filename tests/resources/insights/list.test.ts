@@ -6,6 +6,7 @@ import type {
   InsightSummary,
   ListInsightsInput,
 } from '../../../src/index'
+import { BrewApiError } from '../../../src/core/errors'
 import { createInsightsResource } from '../../../src/resources/insights/resource'
 import { makeTestHttpClient } from '../../helpers/http-client'
 import { server } from '../../msw/server'
@@ -190,6 +191,106 @@ describe('insights.list', () => {
       code: 'INVALID_REQUEST',
       param: 'include',
     })
+  })
+
+  it.each([
+    [
+      'the findings changed since it was issued',
+      'The findings changed since this cursor was issued, so its next page would skip or repeat some. Read the list again from the first page, without cursor.',
+      { cursor: 'b2Zmc2V0OjEwMA' },
+    ],
+    [
+      'it was issued for another state or severity',
+      'This cursor does not continue this list: it was issued for a different state or severity.',
+      { severity: 'critical' as const, cursor: 'b2Zmc2V0OjEwMA' },
+    ],
+  ])(
+    'surfaces a refused cursor (%s) as BrewApiError INVALID_REQUEST, param cursor, without retrying',
+    async (_case, message, input) => {
+      let calls = 0
+      server.use(
+        http.get('https://brew.new/api/v1/insights', () => {
+          calls += 1
+          return HttpResponse.json(
+            {
+              error: {
+                code: 'INVALID_REQUEST',
+                type: 'invalid_request',
+                message,
+                param: 'cursor',
+                suggestion: 'Read the list again from the first page.',
+                docs: 'https://docs.brew.new/api-reference/api/errors',
+              },
+            },
+            { status: 400, headers: { 'x-request-id': 'req_cursor' } }
+          )
+        })
+      )
+
+      const { client } = makeTestHttpClient()
+      const error = await createInsightsResource(client)
+        .list(input)
+        .catch((caught: unknown) => caught)
+
+      expect(error).toBeInstanceOf(BrewApiError)
+      expect(error).toMatchObject({
+        status: 400,
+        code: 'INVALID_REQUEST',
+        type: 'invalid_request',
+        param: 'cursor',
+        message,
+        requestId: 'req_cursor',
+      })
+      expect(calls).toBe(1)
+    }
+  )
+
+  it('restarts from the first page after a refused cursor (the documented recovery)', async () => {
+    const seen: Array<string | null> = []
+    server.use(
+      http.get('https://brew.new/api/v1/insights', ({ request }) => {
+        const cursor = new URL(request.url).searchParams.get('cursor')
+        seen.push(cursor)
+        if (cursor !== null) {
+          return HttpResponse.json(
+            {
+              error: {
+                code: 'INVALID_REQUEST',
+                type: 'invalid_request',
+                message: 'The findings changed since this cursor was issued.',
+                param: 'cursor',
+                suggestion: 'Read the list again from the first page.',
+                docs: 'https://docs.brew.new/api-reference/api/errors',
+              },
+            },
+            { status: 400 }
+          )
+        }
+        return HttpResponse.json({
+          data: [ROW],
+          pagination: { limit: 100, cursor: null, hasMore: false },
+          freshness: FRESHNESS,
+        })
+      })
+    )
+
+    const { client } = makeTestHttpClient()
+    const insights = createInsightsResource(client)
+    const list = async () => {
+      try {
+        return await insights.list({ cursor: 'stale' })
+      } catch (error) {
+        if (error instanceof BrewApiError && error.param === 'cursor') {
+          return insights.list()
+        }
+        throw error
+      }
+    }
+
+    const page = await list()
+
+    expect(page.data[0]?.insightId).toBe(ROW.insightId)
+    expect(seen).toEqual(['stale', null])
   })
 
   it('types the include tokens, the rows and the expansions', () => {
