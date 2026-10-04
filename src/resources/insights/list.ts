@@ -60,7 +60,8 @@ export type ListInsightsResponse = InsightsListResponse
  * (the engine re-ran, or a finding was snoozed, dismissed or changed state)
  * or it was issued for another `state` or `severity`, the call throws a
  * `BrewApiError` with `code: 'INVALID_REQUEST'` and `param: 'cursor'`:
- * read the list again from the first page, without `cursor`.
+ * read the list again from the first page with the same `state` and
+ * `severity`, dropping only `cursor`.
  *
  * One finding in full is `brew.insights.get(insightId)`. An unknown query
  * value or `include` token, or a malformed `cursor`, is also

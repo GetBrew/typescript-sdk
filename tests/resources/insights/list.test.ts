@@ -245,12 +245,13 @@ describe('insights.list', () => {
     }
   )
 
-  it('restarts from the first page after a refused cursor (the documented recovery)', async () => {
-    const seen: Array<string | null> = []
+  it('restarts from the first page with the same filters after a refused cursor (the documented recovery)', async () => {
+    const seen: Array<Record<string, string>> = []
     server.use(
       http.get('https://brew.new/api/v1/insights', ({ request }) => {
-        const cursor = new URL(request.url).searchParams.get('cursor')
-        seen.push(cursor)
+        const params = new URL(request.url).searchParams
+        seen.push(Object.fromEntries(params))
+        const cursor = params.get('cursor')
         if (cursor !== null) {
           return HttpResponse.json(
             {
@@ -276,21 +277,26 @@ describe('insights.list', () => {
 
     const { client } = makeTestHttpClient()
     const insights = createInsightsResource(client)
-    const list = async () => {
+    // The walk's filters, kept for the restart: only `cursor` is dropped.
+    const filters: ListInsightsInput = { state: 'all', severity: 'warning' }
+    const nextPage = async ({ cursor }: { cursor: string }) => {
       try {
-        return await insights.list({ cursor: 'stale' })
+        return await insights.list({ ...filters, cursor })
       } catch (error) {
         if (error instanceof BrewApiError && error.param === 'cursor') {
-          return insights.list()
+          return insights.list(filters)
         }
         throw error
       }
     }
 
-    const page = await list()
+    const page = await nextPage({ cursor: 'stale' })
 
     expect(page.data[0]?.insightId).toBe(ROW.insightId)
-    expect(seen).toEqual(['stale', null])
+    expect(seen).toEqual([
+      { state: 'all', severity: 'warning', cursor: 'stale' },
+      { state: 'all', severity: 'warning' },
+    ])
   })
 
   it('types the include tokens, the rows and the expansions', () => {

@@ -132,17 +132,22 @@ When the findings change under a cursor (the engine re-ran, or a finding
 was snoozed, dismissed or changed state), or the cursor was issued for
 another `state` or `severity`, the next call throws a `BrewApiError` with
 `code: 'INVALID_REQUEST'` and `param: 'cursor'`. Read the list again from
-the first page, without `cursor`:
+the first page with the same `state` and `severity`, dropping only
+`cursor`:
 
 ```ts
-import { BrewApiError } from '@brew.new/sdk'
+import { BrewApiError, type ListInsightsInput } from '@brew.new/sdk'
 
-async function nextPage(cursor: string) {
+// The walk's filters, kept for the restart: only `cursor` is dropped.
+const filters: ListInsightsInput = { state: 'all', severity: 'warning' }
+
+async function nextPage({ cursor }: { cursor: string }) {
   try {
-    return await brew.insights.list({ cursor })
+    return await brew.insights.list({ ...filters, cursor })
   } catch (error) {
     if (error instanceof BrewApiError && error.param === 'cursor') {
-      return brew.insights.list() // the findings changed: start over
+      // The findings changed: start over from the first page, same filters.
+      return brew.insights.list(filters)
     }
     throw error
   }
@@ -155,7 +160,7 @@ The SDK does not retry this `400`.
 
 - **`400 INVALID_REQUEST`** with `param: 'cursor'`: the findings changed
   since the cursor was issued, or it was issued for another `state` or
-  `severity`. Re-list from the first page.
+  `severity`. Re-list from the first page with the same filters.
 - **`400 INVALID_REQUEST`**: an unknown query value or `include` token, or
   a malformed `cursor`.
 

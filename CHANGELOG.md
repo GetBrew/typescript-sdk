@@ -24,8 +24,8 @@ is removed or renamed.
   (GetBrew/brew-v2#1860): when the findings changed since the cursor was
   issued, or it was issued for another `state` or `severity`, the call
   throws a `BrewApiError` with `code: 'INVALID_REQUEST'` and
-  `param: 'cursor'`. Read the list again from the first page, without
-  `cursor`. A walk that finishes returns each finding of the list, as it
+  `param: 'cursor'`. Read the list again from the first page with the same
+  `state` and `severity`, dropping only `cursor`. A walk that finishes returns each finding of the list, as it
   stands at the last page, exactly once.
 - **`brew.insights.get(insightId)`** (`GET /v1/insights/{insightId}`): one
   finding in full, with frozen `metrics`, `evidence`, `subject`, the
