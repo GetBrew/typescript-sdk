@@ -1,5 +1,5 @@
 import type { operations } from '../../generated/openapi-types'
-import { autoPaginate } from '../../core/pagination'
+import { autoPaginate, pageReadOptions } from '../../core/pagination'
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
@@ -100,7 +100,7 @@ export function createEventsAnalyticsAll(client: HttpClient) {
           ...input,
           ...(cursor !== null ? { cursor } : {}),
         }
-        const response = await events(pageInput, options)
+        const response = await events(pageInput, pageReadOptions({ options }))
         return { items: response.data, pagination: response.pagination }
       },
       options?.signal ? { signal: options.signal } : undefined

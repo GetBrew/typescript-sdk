@@ -60,6 +60,43 @@ const contact = await brew.contacts.get('jane@example.com')
 console.log(contact.subscribed, contact.customFields)
 ```
 
+### `include: 'openProfile'`
+
+Pass `include: 'openProfile'` to attach the contact's smart-send open-time
+profile. New in 11.6.0.
+
+```ts
+const contact = await brew.contacts.get('jane@example.com', {
+  include: 'openProfile',
+})
+const profile = contact.openProfile // ContactOpenProfile | null | undefined
+if (profile?.bestSendMinuteUtc !== undefined) {
+  const hour = Math.floor(profile.bestSendMinuteUtc / 60)
+  console.log(`Best send hour: ${hour}:00 UTC`)
+}
+```
+
+```ts
+type ContactOpenProfile = {
+  readonly totalOpens: number
+  readonly lastOpenedAt: string // ISO-8601
+  readonly histogram: ReadonlyArray<number> // 48 UTC half-hour open counts
+  // Once there is enough history:
+  readonly bestOpenMinuteUtc?: number // minutes after UTC midnight, 0–1439
+  readonly bestSendMinuteUtc?: number
+  readonly confidence?: number // 0–1
+}
+```
+
+`openProfile` is `null` when the contact has no opens folded yet, and
+absent when you did not ask for it. It is not bot detection: machine opens
+cannot be told apart in it (per-event classification is on
+`brew.analytics.events`).
+
+The include needs the `emails` scope as well as `contacts`. Without it the
+whole call fails with **`403 INSUFFICIENT_PERMISSIONS`**; an unknown token
+is `400 INVALID_REQUEST`.
+
 ## Shared types
 
 ```ts
@@ -167,6 +204,7 @@ type SearchContactsInput = Readonly<{
   order?: 'asc' | 'desc' // default 'desc'
   limit?: number // 1–100, default 50
   cursor?: string // opaque, from previous response
+  include?: ReadonlyArray<'openProfile'> // per-row open-time profile
 }>
 
 type SearchContactsResponse = {
@@ -198,6 +236,34 @@ if (pagination.hasMore && pagination.cursor) {
   })
 }
 ```
+
+### Open-time profiles on a page
+
+`include: ['openProfile']` attaches each row's `openProfile`, as on
+[`get`](#include-openprofile). New in 11.6.0. Each row costs one profile
+read, so a page then holds **at most 10 contacts**, whatever `limit` you
+pass. `pagination.limit` reports the size used. [`searchAll`](#searchall)
+carries the include on every page. An empty `include: []` is left out of
+the request (the API needs at least one token).
+
+```ts
+const { data } = await brew.contacts.search({
+  audienceId: 'aud_123',
+  include: ['openProfile'],
+})
+for (const contact of data) {
+  console.log(contact.email, contact.openProfile?.bestSendMinuteUtc)
+}
+```
+
+Errors:
+
+- **`403 INSUFFICIENT_PERMISSIONS`**: the key lacks the `emails` scope the
+  include needs as well as `contacts`.
+- **`400 INVALID_REQUEST`** (`param: 'include'`): the API refuses `include`
+  with `count: true`. `search` always sends `count: false`, and the
+  [`count`](#count) / [`countBy`](#countby) inputs have no `include`, so
+  the SDK cannot send that combination.
 
 ### Look up a single contact by email
 

@@ -125,6 +125,33 @@ for (const signal of health.signals) {
 }
 ```
 
+`include` adds the score's history. New in 11.6.0.
+
+| Token            | Key            | What it is                                                                                                                                        |
+| ---------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `'scoreHistory'` | `scoreHistory` | Up to 50 saved score snapshots, newest first: `score`, `grade`, `confidence`, the event that saved it (`trigger`), and each pillar's score/weight |
+| `'scoreRuns'`    | `scoreRuns`    | The last 5 automated domain score runs: `status`, the score it ended on (`scoreAfter`), `creditsCharged`, and every variant's placement test      |
+
+```ts
+const health = await brew.domains.health({
+  domainId: 'domain_123',
+  include: ['scoreHistory', 'scoreRuns'],
+})
+
+for (const snapshot of health.scoreHistory ?? []) {
+  console.log(snapshot.computedAt, snapshot.score, snapshot.trigger)
+}
+const lastRun = health.scoreRuns?.[0]
+console.log(lastRun?.status, lastRun?.scoreAfter?.grade)
+```
+
+Only snapshots saved under this brand count, and they are searched among
+the domain's newest 500, so a domain that moved between brands can show
+fewer than 50.
+
+Errors: `404 DOMAIN_NOT_FOUND` for an unknown domain, and
+`400 INVALID_REQUEST` for an unknown `include` token.
+
 ---
 
 ## `unsubscribes`

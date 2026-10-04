@@ -103,6 +103,13 @@ if (error.code === 'ORG_SCOPE_REQUIRED') {
 }
 ```
 
+A key without a scope the operation needs gets
+`403 INSUFFICIENT_PERMISSIONS`. An `include` can need a second scope:
+`contacts.get(email, { include: 'openProfile' })` and
+`contacts.search({ include: ['openProfile'] })` need `emails` as well as
+`contacts`, and without it the whole call fails rather than leaving the
+profile out. Retry without the include, or use a key with both scopes.
+
 ## The catch pattern
 
 ```ts

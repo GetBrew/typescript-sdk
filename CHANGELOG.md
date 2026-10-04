@@ -1,9 +1,9 @@
 # Changelog
 
-## Unreleased
+## 12.0.0
 
-The API retired `POST /v1/data`, so the SDK drops the method that called it
-(GetBrew/brew-v2#1825). This is a breaking change: the next release is a major.
+The API retired `POST /v1/data` (GetBrew/brew-v2#1825), so the SDK drops the
+method that called it. This is a breaking change.
 
 ### Breaking: the data command is removed
 
@@ -20,11 +20,146 @@ The API retired `POST /v1/data`, so the SDK drops the method that called it
   `brew.analytics.overview`, `brew.analytics.events` and
   `brew.analytics.eventCounts`. The full question-by-question mapping is in
   the API changelog (https://docs.brew.new/changelog/api).
-  No equivalent: table discovery (`db ls`, `db schema`) and `jq` pipelines.
+- The reads only the data command used to serve have typed methods since
+  11.6.0:
+  - design comments: `brew.emails.comments.list({ emailId })`, and
+    `brew.emails.comments.listAllMessages({ emailId, commentId })` for one
+    thread's older messages;
+  - brand insights and intelligence: `brew.insights.list(input?)`, whose
+    `include` adds `pulse`, `report`, `suggestions` and `memo`, and
+    `brew.insights.get(insightId)`;
+  - notifications: `brew.notifications.list(input?)` /
+    `brew.notifications.listAll(input?)`;
+  - chats: `brew.chats.list(input?)` / `brew.chats.listAll(input?)`, then
+    `brew.chats.get(chatId)` for one;
+  - domain-score history:
+    `brew.domains.health({ domainId, include: ['scoreHistory', 'scoreRuns'] })`;
+  - contact open profiles:
+    `brew.contacts.get(email, { include: ['openProfile'] })` and
+    `brew.contacts.search({ include: ['openProfile'] })`.
+- No equivalent: table discovery (`db ls`, `db schema`) and `jq` pipelines.
   Read the typed resource and filter its result; writes go through each
-  resource's own methods. Design comments, brand insights and
-  intelligence, notifications, domain-score history and per-contact open
-  profiles have no public read yet; chats are read by ID only.
+  resource's own methods.
+
+### Added
+
+- **Intelligent Send** (GetBrew/brew-v2#1827), from the regenerated spec:
+  `brew.emails.send` takes `smartSend: true` on a campaign send, which sends
+  each recipient with past opens or clicks at the upcoming hour (within 24
+  hours) their own history makes them most likely to open, and everyone
+  else right away. It composes with `scheduledAt`, not with `gradualSend`.
+  `Send` rows from `brew.sends.get` / `brew.sends.list` carry `smartSend` on
+  such a send: the deadline `windowEndsAt` and, once planned, the split
+  (`assignedViaModel`, `assignedImmediately`, `modelFallbacks`).
+
+## 11.6.0
+
+Typed reads for what `brew.data.run` (`POST /v1/data`) used to be the only
+way to read: Brew Insights, a design's comment threads, chats,
+notifications, a domain's score history and runs, and a contact's open-time
+profile (GetBrew/brew-v2#1828, GetBrew/brew-v2#1830, GetBrew/brew-v2#1831).
+The API is retiring the data command, so move those reads to these methods
+now. `brew.data.run` itself is unchanged in this release. Additive: nothing
+is removed or renamed.
+
+### Added
+
+- **`brew.insights.list(input?)`** (`GET /v1/insights`): the brand's
+  findings as the Insights page ranks them, most severe first, under
+  `{ data, pagination, freshness }`. Filter with `state` (`open` by default,
+  or `all`) and `severity`. `include` adds the page-level `pulse`, `report`,
+  `suggestions` and `memo`. `pulse`, `report` and `memo` are `null` until
+  they exist; `suggestions` is an empty array. `freshness` is on
+  every page; `latestAttempt.status: 'failed'` means the findings may be
+  stale.
+- **`brew.insights.list` refuses a stale cursor**
+  (GetBrew/brew-v2#1860): when the findings changed since the cursor was
+  issued, or it was issued for another `state` or `severity`, the call
+  throws a `BrewApiError` with `code: 'INVALID_REQUEST'` and
+  `param: 'cursor'`. Read the list again from the first page with the same
+  `state` and `severity`, dropping only `cursor`. A walk that finishes returns each finding of the list, as it
+  stands at the last page, exactly once.
+- **`brew.insights.get(insightId)`** (`GET /v1/insights/{insightId}`): one
+  finding in full, with frozen `metrics`, `evidence`, `subject`, the
+  detector's `method` and `generatedBy`. An unknown, malformed or
+  other-brand id is `404 INSIGHT_NOT_FOUND`, and the cases cannot be told
+  apart.
+- **`brew.emails.comments.list({ emailId, ... })`**
+  (`GET /v1/emails/{emailId}/comments`): a design's open comment threads,
+  newest activity first. `include: 'messages'` adds each thread's newest
+  messages and caps the page at 3 threads. `commentId` reads one thread, and
+  that thread's `messagesCursor` reads its older messages. The input type
+  rejects the combinations the API answers with `400` (`cursor` with
+  `commentId`, `messagesCursor` without it). An unknown or other-brand
+  design is `404 EMAIL_NOT_FOUND`, and a `commentId` that is not an open
+  thread is `404 COMMENT_NOT_FOUND`.
+- **`brew.emails.comments.listAllMessages({ emailId, commentId })`**: walks
+  one thread's `messagesCursor` and yields its messages newest first.
+- **`brew.chats.list(input?)` and `brew.chats.listAll(input?)`**
+  (`GET /v1/chats`): the brand's chats, most recently active first, with
+  title, opening prompt, latest reply, run `status`, `origin` and link.
+  Resume one with `brew.chats.get(chatId)`.
+- **`brew.notifications.list(input?)` and `brew.notifications.listAll(input?)`**
+  (`GET /v1/notifications`): the app's bell as a read, filterable by `type`.
+  Rows are keyed by `notificationId` (`ntf_…`). Any key can call it, and each
+  row is shown only when the key may read its feature, so a `type` the key
+  cannot see is an empty page, not an error. **A page can hold fewer rows
+  than `limit`, even none, while `hasMore` is `true`**; `listAll` follows
+  `hasMore`, not the row count.
+- **`include` on `brew.domains.health({ domainId, include })`**:
+  `'scoreHistory'` attaches up to 50 saved score snapshots, newest first;
+  `'scoreRuns'` attaches the last 5 automated domain score runs.
+- **`include` on `brew.contacts.get(email, { include: 'openProfile' })` and
+  `brew.contacts.search({ include: ['openProfile'] })`**: the contact's
+  smart-send open-time profile (`openProfile`: a 48-slot UTC half-hour
+  histogram, `totalOpens`, `lastOpenedAt`, and once there is enough history
+  `bestOpenMinuteUtc`, `bestSendMinuteUtc` and `confidence`), or `null` when
+  no opens are folded yet. It needs the `emails` scope as well as
+  `contacts` (`403 INSUFFICIENT_PERMISSIONS` without it). A search page with
+  it holds at most 10 contacts. `searchAll` carries it on every page. The
+  API refuses it with `count: true`, and `count` / `countBy` take no
+  `include`.
+- Types: `Insight`, `InsightSummary`, `InsightsListResponse`,
+  `ListInsightsInput`, `ListInsightsResponse`, `GetInsightResponse`,
+  `InsightsIncludeToken`, `InsightAction`, `InsightFreshness`,
+  `InsightMetric`, `InsightPulse`, `InsightReport`, `InsightSuggestion`,
+  `InsightMemo`, `InsightSeverity`, `InsightState`, `InsightsResource`;
+  `EmailCommentThread`, `EmailCommentMessage`, `EmailCommentTarget`,
+  `EmailCommentPerson`, `EmailCommentsListResponse`,
+  `ListEmailCommentsInput`, `ListEmailCommentsResponse`,
+  `ListAllEmailCommentMessagesInput`, `EmailCommentsIncludeToken`,
+  `EmailCommentsResource`; `ChatSummary`, `ChatStatus`,
+  `ChatsListResponse`, `ListChatsInput`, `ListAllChatsInput`;
+  `NotificationRow` (not `Notification`, which would shadow the DOM
+  global), `NotificationType`, `NotificationStatus`,
+  `NotificationsListResponse`, `ListNotificationsInput`,
+  `ListAllNotificationsInput`, `NotificationsResource`;
+  `DomainHealthIncludeToken`, `DomainScoreSnapshot`, `DomainScoreRun`;
+  `ContactOpenProfile`, `ContactsIncludeToken`, `GetContactOptions`,
+  `ContactSearchRow`. `BrewErrorCode` gains `INSIGHT_NOT_FOUND` and
+  `COMMENT_NOT_FOUND`.
+
+### Fixed
+
+- **Auto-pagers ignore `{ raw: true }`.** `contacts.searchAll`,
+  `sends.listAll`, `analytics.eventsAll` and
+  `automations.triggerInstances.listAll` passed the caller's options to
+  each page read, so `raw: true` made the read return a `BrewRawResponse`
+  and the iterator threw (`page.items is not iterable`) instead of yielding
+  rows. The page reads now always unwrap; `signal`, `timeoutMs`,
+  `maxRetries` and `retryOnTimeout` still apply to every page. The new
+  iterators (`chats.listAll`, `notifications.listAll`,
+  `emails.comments.listAllMessages`) behave the same.
+
+### Changed
+
+- `GetContactResponse`, `SearchContactsResponse` and
+  `GetDomainHealthResponse` are now derived from their operations'
+  responses rather than from the shared `Contact` / `ContactsListResponse`
+  / `DomainHealth` components, so they carry the include-only fields
+  (`openProfile`, `scoreHistory`, `scoreRuns`). `searchAll` yields
+  `ContactSearchRow`, the search page's row. These are the same shapes
+  plus optional fields, so existing code compiles unchanged.
 
 ## 11.5.0
 

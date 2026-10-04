@@ -1,4 +1,5 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
+import { serializeInclude } from '../../core/url'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
 import type { Automation } from './types'
@@ -23,15 +24,6 @@ export type GetAutomationOptions = RequestOptions & {
 
 /** `GET /v1/automations/{automationId}` returns the BARE `AutomationRow`. */
 export type GetAutomationResponse = Automation
-
-/** Serialize the `include` option into the API's comma-separated form. */
-function serializeInclude(
-  include: GetAutomationOptions['include']
-): string | undefined {
-  if (include === undefined) return undefined
-  const joined = typeof include === 'string' ? include : include.join(',')
-  return joined.length > 0 ? joined : undefined
-}
 
 /**
  * `GET /v1/automations/{automationId}` (scope: `automations`) — one
@@ -58,7 +50,7 @@ export function createGetAutomation(client: HttpClient) {
     automationId: string,
     options?: GetAutomationOptions
   ): Promise<GetAutomationResponse | BrewRawResponse<GetAutomationResponse>> {
-    const include = serializeInclude(options?.include)
+    const include = serializeInclude({ include: options?.include })
     const response = await client.request<GetAutomationResponse>({
       method: 'GET',
       path: `/v1/automations/${encodeURIComponent(automationId)}`,

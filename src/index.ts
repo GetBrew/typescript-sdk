@@ -259,13 +259,19 @@ export type {
   ListBrandsResponse,
 } from './resources/brands/list'
 export type { BrandsResource } from './resources/brands/resource'
+export type { ListAllChatsInput } from './resources/chats/list'
 export type { ChatsResource } from './resources/chats/resource'
 // ---------- Chats: domain types ----------
-// (Exposed as `client.chats.get(chatId)` against /v1/chats/{chatId}.)
+// (Exposed as `client.chats.list()` / `.listAll()` against /v1/chats and
+// `client.chats.get(chatId)` against /v1/chats/{chatId}.)
 export type {
   ChatArtifact,
   ChatContextResponse,
   ChatMessage,
+  ChatsListResponse,
+  ChatStatus,
+  ChatSummary,
+  ListChatsInput,
 } from './resources/chats/types'
 // ---------- Contacts: method inputs + outputs ----------
 export type { CountContactsInput } from './resources/contacts/count'
@@ -273,7 +279,11 @@ export type {
   CountContactsByInput,
   CountContactsByResponse,
 } from './resources/contacts/count-by'
-export type { GetContactResponse } from './resources/contacts/get'
+export type {
+  ContactsIncludeToken,
+  GetContactOptions,
+  GetContactResponse,
+} from './resources/contacts/get'
 export type {
   ImportCsvContactsInput,
   ImportCsvContactsResponse,
@@ -299,6 +309,7 @@ export type {
 } from './resources/contacts/patch'
 export type { ContactsResource } from './resources/contacts/resource'
 export type {
+  ContactSearchRow,
   SearchContactsInput,
   SearchContactsResponse,
 } from './resources/contacts/search'
@@ -308,6 +319,7 @@ export type {
   Contact,
   ContactConsentInput,
   ContactCustomFields,
+  ContactOpenProfile,
   ContactsFilter,
 } from './resources/contacts/types'
 export type {
@@ -340,6 +352,9 @@ export type {
   DeleteDomainResponse,
 } from './resources/domains/delete'
 export type {
+  DomainHealthIncludeToken,
+  DomainScoreRun,
+  DomainScoreSnapshot,
   GetDomainHealthInput,
   GetDomainHealthResponse,
 } from './resources/domains/health'
@@ -398,6 +413,22 @@ export type {
   CloneEmailInput,
   CloneEmailResponse,
 } from './resources/emails/clone'
+// ---------- Emails › comments: a design's comment threads ----------
+// (`client.emails.comments.*` against /v1/emails/{emailId}/comments.)
+export type {
+  EmailCommentsIncludeToken,
+  ListAllEmailCommentMessagesInput,
+  ListEmailCommentsInput,
+  ListEmailCommentsResponse,
+} from './resources/emails/comments/list'
+export type { EmailCommentsResource } from './resources/emails/comments/resource'
+export type {
+  EmailCommentMessage,
+  EmailCommentPerson,
+  EmailCommentsListResponse,
+  EmailCommentTarget,
+  EmailCommentThread,
+} from './resources/emails/comments/types'
 export type {
   DeleteEmailInput,
   DeleteEmailResponse,
@@ -501,8 +532,42 @@ export type { GetHealthResponse, HealthResponse } from './resources/health/get'
 export type { HealthResource } from './resources/health/resource'
 export type { GetHelpResponse, HelpResponse } from './resources/help/get'
 export type { HelpResource } from './resources/help/resource'
+// ---------- Insights: Brew Insights findings + intelligence ----------
+// (`client.insights.list` / `.get` against /v1/insights.)
+export type { GetInsightResponse } from './resources/insights/get'
+export type {
+  InsightsIncludeToken,
+  ListInsightsInput,
+  ListInsightsResponse,
+} from './resources/insights/list'
+export type { InsightsResource } from './resources/insights/resource'
+export type {
+  Insight,
+  InsightAction,
+  InsightFreshness,
+  InsightMemo,
+  InsightMetric,
+  InsightPulse,
+  InsightReport,
+  InsightSeverity,
+  InsightState,
+  InsightsListResponse,
+  InsightSuggestion,
+  InsightSummary,
+} from './resources/insights/types'
 export type { IntegrationsResource } from './resources/integrations/resource'
 export type * from './resources/integrations/types'
+// ---------- Notifications: the app's bell, as a read ----------
+// (`client.notifications.list` / `.listAll` against /v1/notifications.)
+export type { ListAllNotificationsInput } from './resources/notifications/list'
+export type { NotificationsResource } from './resources/notifications/resource'
+export type {
+  ListNotificationsInput,
+  NotificationRow,
+  NotificationsListResponse,
+  NotificationStatus,
+  NotificationType,
+} from './resources/notifications/types'
 export type {
   InferPayloadContractInput,
   PayloadContractInferResponse,

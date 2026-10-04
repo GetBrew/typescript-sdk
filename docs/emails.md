@@ -21,6 +21,7 @@ is not campaign-specific, so the send action lives here on `emails`. Send
 | [`previewClients`](#previewclients)             | `POST /v1/emails/{emailId}/client-previews`             | `emails` |
 | [`getClientPreview`](#getclientpreview)         | `GET /v1/emails/client-previews/{previewId}`            | `emails` |
 | [`inboxPlacementTests.*`](#inboxplacementtests) | `/v1/emails/{emailId}/inbox-placement-tests[/{testId}]` | `emails` |
+| [`comments.*`](#comments)                       | `GET /v1/emails/{emailId}/comments`                     | `emails` |
 | [`send`](#send)                                 | `POST /v1/sends`                                        | `sends`  |
 
 > **Changed in 11.0.0.** `previewClients` starts a rendering job and
@@ -674,6 +675,106 @@ separate `phase` field (`sending` | `collecting`) that says what a
 running test is busy with.
 
 An unverified or cross-brand `domainId` is `422 DOMAIN_NOT_READY`.
+
+---
+
+## `comments`
+
+A design's open comment threads, as the canvas pins show them. Read them
+before editing a design to see what teammates asked for. Both methods are
+free. New in 11.6.0: the typed replacement for reading comments through
+`brew.data.run`, which 12.0.0 removes (the API retired `POST /v1/data`).
+
+```ts
+type EmailCommentThread = {
+  readonly commentId: string // `cmt_…`
+  readonly emailId: string
+  readonly status: 'open' // resolving a thread deletes it
+  readonly target:
+    | { kind: 'email' }
+    | { kind: 'element'; elementId?: string; nodeType?: string }
+  readonly participants: ReadonlyArray<{ userId: string; name: string }> // the 12 most recent
+  readonly participantCount: number
+  readonly messageCount: number
+  readonly lastMessageAt: string // ISO-8601
+  readonly lastMessagePreview: string // shortened to 140 characters
+  readonly url: string // the thread on the design in Brew
+  // Only with include: 'messages':
+  readonly messages?: ReadonlyArray<EmailCommentMessage> // oldest first
+  readonly messagesCursor?: string | null // older messages; null when none remain
+}
+
+type EmailCommentMessage = {
+  readonly messageId: string // `cmm_…`
+  readonly author: { userId: string; name: string }
+  readonly body: string // each mention reads `@Name`, the name `mentions` gives
+  readonly mentions: ReadonlyArray<{ userId: string; name: string }>
+  readonly createdAt: string
+  readonly updatedAt: string
+}
+```
+
+`comments.list` returns one page of threads, newest activity first, under
+`{ data, pagination }`:
+
+```ts
+// The threads, without messages (up to 100 a page).
+const { data: threads } = await brew.emails.comments.list({ emailId })
+
+// With each thread's newest messages: the page caps at 3 threads, which
+// share a fixed size budget.
+const { data } = await brew.emails.comments.list({
+  emailId,
+  include: 'messages',
+})
+
+// One thread by id; send back its messagesCursor for older messages.
+const commentId = 'cmt_V1StGXR8_Z5jdHi6B-myT'
+const thread = await brew.emails.comments.list({
+  emailId,
+  commentId,
+  include: 'messages',
+})
+const messagesCursor = thread.data[0]?.messagesCursor
+if (messagesCursor) {
+  const older = await brew.emails.comments.list({
+    emailId,
+    commentId,
+    messagesCursor, // implies include: 'messages'
+  })
+}
+```
+
+The input is either a page (`cursor`) or one thread (`commentId`, with an
+optional `messagesCursor`), never both. The type rejects the combinations
+the API refuses: `cursor` with `commentId`, and `messagesCursor` without
+`commentId`.
+
+`comments.listAllMessages` does the `messagesCursor` walk for one thread
+and yields its messages **newest first**. Break out of the loop to stop
+early. The API returns each slice oldest first; the iterator reverses it.
+
+```ts
+for await (const message of brew.emails.comments.listAllMessages({
+  emailId,
+  commentId: 'cmt_V1StGXR8_Z5jdHi6B-myT',
+})) {
+  console.log(`${message.author.name}: ${message.body}`)
+}
+```
+
+An email with no open threads returns an empty page.
+
+### Errors
+
+- **`404 EMAIL_NOT_FOUND`**: the design is unknown or belongs to another
+  brand.
+- **`404 COMMENT_NOT_FOUND`**: the `commentId` is not an open thread on the
+  design. Resolving a thread deletes it, so a thread resolved while
+  `listAllMessages` walks it throws this partway through.
+- **`400 INVALID_REQUEST`**: an unknown `include` token; a malformed
+  cursor; a `messagesCursor` without its `commentId` or from another thread;
+  or `cursor` with `commentId`.
 
 ---
 

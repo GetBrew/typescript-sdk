@@ -1,4 +1,5 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
+import { serializeInclude } from '../../core/url'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
 import type { Flow } from './types'
@@ -23,15 +24,6 @@ export type GetFlowOptions = RequestOptions & {
 
 /** `GET /v1/flows/{slug}` returns the BARE flow, with `anchor` and `steps[]`. */
 export type GetFlowResponse = Flow
-
-/** Serialize the `include` option into the API's comma-separated form. */
-function serializeInclude(
-  include: GetFlowOptions['include']
-): string | undefined {
-  if (include === undefined) return undefined
-  const joined = typeof include === 'string' ? include : include.join(',')
-  return joined.length > 0 ? joined : undefined
-}
 
 /**
  * `GET /v1/flows/{slug}` — one public flow, returned as the BARE row. The
@@ -62,7 +54,7 @@ export function createGetFlow(client: HttpClient) {
     slug: string,
     options?: GetFlowOptions
   ): Promise<GetFlowResponse | BrewRawResponse<GetFlowResponse>> {
-    const include = serializeInclude(options?.include)
+    const include = serializeInclude({ include: options?.include })
     const response = await client.request<GetFlowResponse>({
       method: 'GET',
       path: `/v1/flows/${encodeURIComponent(slug)}`,

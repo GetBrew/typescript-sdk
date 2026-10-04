@@ -115,6 +115,14 @@ describe('createBrewClient — end-to-end', () => {
     expect(typeof brew.emailGroups.get).toBe('function')
     expect(typeof brew.emails.get).toBe('function')
     expect(typeof brew.emails.inboxPlacementTests.get).toBe('function')
+    // Typed reads that replaced the data command's tables.
+    expect(Object.keys(brew.insights).sort()).toEqual(['get', 'list'])
+    expect(Object.keys(brew.chats).sort()).toEqual(['get', 'list', 'listAll'])
+    expect(Object.keys(brew.notifications).sort()).toEqual(['list', 'listAll'])
+    expect(Object.keys(brew.emails.comments).sort()).toEqual([
+      'list',
+      'listAllMessages',
+    ])
     expect(typeof brew.fields.get).toBe('function')
 
     // Removed: no top-level me/account resources. The send ACTION still

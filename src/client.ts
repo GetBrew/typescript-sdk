@@ -61,9 +61,17 @@ import {
   type HelpResource,
 } from './resources/help/resource'
 import {
+  createInsightsResource,
+  type InsightsResource,
+} from './resources/insights/resource'
+import {
   createIntegrationsResource,
   type IntegrationsResource,
 } from './resources/integrations/resource'
+import {
+  createNotificationsResource,
+  type NotificationsResource,
+} from './resources/notifications/resource'
 import {
   createPayloadContractsResource,
   type PayloadContractsResource,
@@ -137,10 +145,12 @@ export type BrewClient = {
   /** `GET/PATCH /v1/brand` — the key's brand: readiness, design system, identity, assets (`getImages`, `deleteImage`). */
   readonly brand: BrandResource
   /**
-   * `GET /v1/chats/{chatId}` (`chats.get`) — a free, read-only
-   * brand-scoped digest of a Brew chat (identity, the emails/automations
-   * it created/referenced, trigger events, and a trimmed transcript tail)
-   * for resuming the conversation in an external agent.
+   * The brand's Brew chats: `chats.list()` / `chats.listAll()` (`GET
+   * /v1/chats`, most recently active first) to find one, and
+   * `chats.get(chatId)` (`GET /v1/chats/{chatId}`) — a free, read-only
+   * digest of one chat (identity, the emails/automations it
+   * created/referenced, trigger events, and a trimmed transcript tail) for
+   * resuming the conversation in an external agent.
    */
   readonly chats: ChatsResource
   readonly contacts: ContactsResource
@@ -169,8 +179,20 @@ export type BrewClient = {
   readonly health: HealthResource
   /** `GET /v1/help` — the no-auth machine-readable API catalog. */
   readonly help: HelpResource
+  /**
+   * Brew Insights (`GET /v1/insights`, `GET /v1/insights/{insightId}`): the
+   * findings the Insights page ranks, with `freshness`, plus the pulse,
+   * report, suggestions and memo on request. Free and read-only.
+   */
+  readonly insights: InsightsResource
   /** `GET /v1/integrations` — the product integration catalog for the brand in scope, with a `connected` flag per provider. */
   readonly integrations: IntegrationsResource
+  /**
+   * `GET /v1/notifications` — the brand's notifications as the app's bell
+   * shows them (`list`, `listAll`). Each row needs its feature's scope.
+   * Free and read-only; reading marks nothing read.
+   */
+  readonly notifications: NotificationsResource
   /**
    * Sends read and write at their own root in v1. `sends.list(query)`
    * and `sends.get(sendId, { include: 'events' })` are the reads that
@@ -271,7 +293,9 @@ function buildClient(
     fields: createFieldsResource(httpClient),
     health: createHealthResource(organizationHttpClient),
     help: createHelpResource(organizationHttpClient),
+    insights: createInsightsResource(httpClient),
     integrations: createIntegrationsResource(httpClient),
+    notifications: createNotificationsResource(httpClient),
     sends: createSendsResource(httpClient),
     templates: createTemplatesResource(organizationHttpClient),
     flows: createFlowsResource(organizationHttpClient),

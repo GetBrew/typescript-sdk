@@ -1,4 +1,5 @@
 import { unwrapResponse, type HttpClient } from '../../../core/http'
+import { serializeInclude } from '../../../core/url'
 import type { BrewRawResponse, RequestOptions } from '../../../types'
 
 import type { Trigger } from './types'
@@ -21,15 +22,6 @@ export type GetTriggerOptions = RequestOptions & {
 
 /** `GET /v1/automations/triggers/{triggerEventId}` returns the BARE row. */
 export type GetTriggerResponse = Trigger
-
-/** Serialize the `include` option into the API's comma-separated form. */
-function serializeInclude(
-  include: GetTriggerOptions['include']
-): string | undefined {
-  if (include === undefined) return undefined
-  const joined = typeof include === 'string' ? include : include.join(',')
-  return joined.length > 0 ? joined : undefined
-}
 
 /**
  * `GET /v1/automations/triggers/{triggerEventId}` (scope: `automations`)
@@ -56,7 +48,7 @@ export function createGetTrigger(client: HttpClient) {
     triggerEventId: string,
     options?: GetTriggerOptions
   ): Promise<GetTriggerResponse | BrewRawResponse<GetTriggerResponse>> {
-    const include = serializeInclude(options?.include)
+    const include = serializeInclude({ include: options?.include })
     const response = await client.request<GetTriggerResponse>({
       method: 'GET',
       path: `/v1/automations/triggers/${encodeURIComponent(triggerEventId)}`,

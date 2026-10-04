@@ -9,8 +9,12 @@ import { AUTOMATIONS_INCLUDE_TOKENS } from '../src/resources/automations/get'
 import { AUTOMATION_RUNS_INCLUDE_TOKENS } from '../src/resources/automations/runs/get'
 import { TRIGGERS_INCLUDE_TOKENS } from '../src/resources/automations/triggers/get'
 import { BRAND_INCLUDE_TOKENS } from '../src/resources/brand/types'
+import { CONTACTS_INCLUDE_TOKENS } from '../src/resources/contacts/get'
+import { DOMAIN_HEALTH_INCLUDE_TOKENS } from '../src/resources/domains/health'
+import { EMAIL_COMMENTS_INCLUDE_TOKENS } from '../src/resources/emails/comments/list'
 import { EMAILS_INCLUDE_TOKENS } from '../src/resources/emails/get'
 import { FLOWS_INCLUDE_TOKENS } from '../src/resources/flows/get'
+import { INSIGHTS_INCLUDE_TOKENS } from '../src/resources/insights/list'
 import { SENDS_INCLUDE_TOKENS } from '../src/resources/sends/get'
 import { TEMPLATES_INCLUDE_TOKENS } from '../src/resources/templates/get'
 
@@ -164,11 +168,15 @@ describe('typed include tokens', () => {
     getAutomation: AUTOMATIONS_INCLUDE_TOKENS,
     getAutomationRun: AUTOMATION_RUNS_INCLUDE_TOKENS,
     getBrand: BRAND_INCLUDE_TOKENS,
+    getContact: CONTACTS_INCLUDE_TOKENS,
+    getDomainHealth: DOMAIN_HEALTH_INCLUDE_TOKENS,
     getEmail: EMAILS_INCLUDE_TOKENS,
     getFlow: FLOWS_INCLUDE_TOKENS,
     getSend: SENDS_INCLUDE_TOKENS,
     getTemplate: TEMPLATES_INCLUDE_TOKENS,
     getTrigger: TRIGGERS_INCLUDE_TOKENS,
+    listEmailComments: EMAIL_COMMENTS_INCLUDE_TOKENS,
+    listInsights: INSIGHTS_INCLUDE_TOKENS,
     // `ListFieldsInput` is the generated query type, `include` enum and all.
     listContactFields: 'generated',
   }

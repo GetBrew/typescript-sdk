@@ -1,5 +1,6 @@
 import type { components } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
+import { serializeInclude } from '../../core/url'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
 /** Expansions `GET /v1/emails/{emailId}` accepts. */
@@ -48,15 +49,6 @@ export type GetEmailOptions = RequestOptions & {
  */
 export type GetEmailResponse = components['schemas']['EmailDetail']
 
-/** Serialize the `include` option into the API's comma-separated form. */
-function serializeInclude(
-  include: GetEmailOptions['include']
-): string | undefined {
-  if (include === undefined) return undefined
-  const joined = typeof include === 'string' ? include : include.join(',')
-  return joined.length > 0 ? joined : undefined
-}
-
 /**
  * `GET /v1/emails/{emailId}` (scope: `emails`) — one email design,
  * returned as the BARE row. Pass `include: 'html'` for the rendered HTML
@@ -87,7 +79,7 @@ export function createGetEmail(client: HttpClient) {
     emailId: string,
     options?: GetEmailOptions
   ): Promise<GetEmailResponse | BrewRawResponse<GetEmailResponse>> {
-    const include = serializeInclude(options?.include)
+    const include = serializeInclude({ include: options?.include })
     const query = {
       ...(include !== undefined ? { include } : {}),
       ...(options?.emailVersionId !== undefined
