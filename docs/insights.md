@@ -120,8 +120,47 @@ for (const item of report?.insights ?? []) {
 The expansions belong to the page, not the rows, so every page that asks
 for them recomputes them. Ask on the first page only.
 
+### Paging and stale cursors
+
+A `cursor` continues only the walk that returned it: the same `state` and
+`severity`, and only while the findings it already returned are still the
+rows before it. A finding added, removed or moved further down is served
+when its page comes, so a walk that finishes returns each finding of the
+list, as it stands at the last page, exactly once.
+
+When the findings change under a cursor (the engine re-ran, or a finding
+was snoozed, dismissed or changed state), or the cursor was issued for
+another `state` or `severity`, the next call throws a `BrewApiError` with
+`code: 'INVALID_REQUEST'` and `param: 'cursor'`. Read the list again from
+the first page with the same `state` and `severity`, dropping only
+`cursor`:
+
+```ts
+import { BrewApiError, type ListInsightsInput } from '@brew.new/sdk'
+
+// The walk's filters, kept for the restart: only `cursor` is dropped.
+const filters: ListInsightsInput = { state: 'all', severity: 'warning' }
+
+async function nextPage({ cursor }: { cursor: string }) {
+  try {
+    return await brew.insights.list({ ...filters, cursor })
+  } catch (error) {
+    if (error instanceof BrewApiError && error.param === 'cursor') {
+      // The findings changed: start over from the first page, same filters.
+      return brew.insights.list(filters)
+    }
+    throw error
+  }
+}
+```
+
+The SDK does not retry this `400`.
+
 ### Errors
 
+- **`400 INVALID_REQUEST`** with `param: 'cursor'`: the findings changed
+  since the cursor was issued, or it was issued for another `state` or
+  `severity`. Re-list from the first page with the same filters.
 - **`400 INVALID_REQUEST`**: an unknown query value or `include` token, or
   a malformed `cursor`.
 
