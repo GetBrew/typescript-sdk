@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { autoPaginate, type Page } from '../../src/core/pagination'
+import {
+  autoPaginate,
+  type Page,
+  pageReadOptions,
+} from '../../src/core/pagination'
 
 describe('autoPaginate', () => {
   it('yields every row across pages, following the cursor', async () => {
@@ -56,5 +60,36 @@ describe('autoPaginate', () => {
 
     expect(calls).toBe(1)
     expect(out).toEqual([1])
+  })
+})
+
+describe('pageReadOptions', () => {
+  it('forces raw: false and keeps every other option', () => {
+    const controller = new AbortController()
+    expect(
+      pageReadOptions({
+        options: {
+          raw: true,
+          timeoutMs: 5_000,
+          maxRetries: 1,
+          signal: controller.signal,
+        },
+      })
+    ).toEqual({
+      raw: false,
+      timeoutMs: 5_000,
+      maxRetries: 1,
+      signal: controller.signal,
+    })
+  })
+
+  it('returns undefined for no options, so a read takes the client defaults', () => {
+    expect(pageReadOptions({ options: undefined })).toBeUndefined()
+  })
+
+  it('does not mutate the caller options', () => {
+    const options = { raw: true } as const
+    pageReadOptions({ options })
+    expect(options).toEqual({ raw: true })
   })
 })

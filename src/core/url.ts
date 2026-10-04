@@ -89,6 +89,26 @@ function joinBaseAndPath({
 }
 
 /**
+ * Serialize an `include` option into the single comma-separated value the
+ * API's `?include=` takes. Every detail read that accepts expansions types
+ * `include` as an array of its tokens or a pre-joined comma string; this
+ * joins an array with commas and passes a string through unchanged. An
+ * empty array or string returns `undefined`, so the request sends no
+ * `include` at all (the query builder skips `undefined`). Tokens are not
+ * trimmed, deduplicated or validated: the API answers an unknown token with
+ * `400 INVALID_REQUEST`.
+ */
+export function serializeInclude({
+  include,
+}: {
+  readonly include: ReadonlyArray<string> | string | undefined
+}): string | undefined {
+  if (include === undefined) return undefined
+  const joined = typeof include === 'string' ? include : include.join(',')
+  return joined.length > 0 ? joined : undefined
+}
+
+/**
  * Serialize a query object into an `application/x-www-form-urlencoded`
  * string. Skips `undefined`/`null` values, serializes arrays as repeated
  * keys, and defers encoding to `URLSearchParams` for correctness.

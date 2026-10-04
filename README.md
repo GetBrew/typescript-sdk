@@ -124,11 +124,14 @@ config options (`timeoutMs`, `maxRetries`, `retryOnTimeout`, `signal`,
 | Audiences resource                 | [`docs/audiences.md`](./docs/audiences.md)                             |
 | Brand resource                     | [`docs/brand.md`](./docs/brand.md)                                     |
 | Brands (lifecycle)                 | [`docs/brands.md`](./docs/brands.md)                                   |
+| Chats resource                     | [`docs/chats.md`](./docs/chats.md)                                     |
 | Client configuration               | [`docs/configuration.md`](./docs/configuration.md)                     |
 | Contacts resource                  | [`docs/contacts.md`](./docs/contacts.md)                               |
 | Domains resource                   | [`docs/domains.md`](./docs/domains.md)                                 |
 | Emails resource (+ send)           | [`docs/emails.md`](./docs/emails.md)                                   |
 | Fields resource                    | [`docs/fields.md`](./docs/fields.md)                                   |
+| Insights resource                  | [`docs/insights.md`](./docs/insights.md)                               |
+| Notifications resource             | [`docs/notifications.md`](./docs/notifications.md)                     |
 | Error handling                     | [`docs/errors.md`](./docs/errors.md)                                   |
 | Retries + idempotency              | [`docs/retries-and-idempotency.md`](./docs/retries-and-idempotency.md) |
 | Sends resource (reads + lifecycle) | [`docs/sends.md`](./docs/sends.md)                                     |

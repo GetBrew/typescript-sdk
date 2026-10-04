@@ -26,9 +26,9 @@ import { createValidateContacts } from './validate'
 export type ContactsResource = {
   /** `GET /v1/contacts` — the brand's contacts, newest first; free-text `search`, `audienceId` scope, `sort` + `order`, cursor pagination (scope: `contacts`). */
   readonly list: ReturnType<typeof createListContacts>
-  /** `GET /v1/contacts/{email}` — one contact as the bare row; `404 CONTACT_NOT_FOUND` when the address has none (scope: `contacts`). */
+  /** `GET /v1/contacts/{email}` — one contact as the bare row; `include: 'openProfile'` attaches its open-time profile (needs `emails` too); `404 CONTACT_NOT_FOUND` when the address has none (scope: `contacts`). */
   readonly get: ReturnType<typeof createGetContact>
-  /** `POST /v1/contacts/search` — the structured contacts read: typed `filters` combined by `logic`, optional `audienceId` scope, cursor pagination (scope: `contacts`). */
+  /** `POST /v1/contacts/search` — the structured contacts read: typed `filters` combined by `logic`, optional `audienceId` scope, cursor pagination; `include: ['openProfile']` attaches open-time profiles, ≤10 rows a page (needs `emails` too) (scope: `contacts`). */
   readonly search: ReturnType<typeof createSearchContacts>
   /** Async-iterate every contact matching a `search` query (scope: `contacts`). */
   readonly searchAll: ReturnType<typeof createSearchAllContacts>

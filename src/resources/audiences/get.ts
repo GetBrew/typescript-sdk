@@ -1,4 +1,5 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
+import { serializeInclude } from '../../core/url'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
 import type { Audience } from './types'
@@ -25,15 +26,6 @@ export type GetAudienceOptions = RequestOptions & {
 /** `GET /v1/audiences/{audienceId}` returns the BARE `Audience` row. */
 export type GetAudienceResponse = Audience
 
-/** Serialize the `include` option into the API's comma-separated form. */
-function serializeInclude(
-  include: GetAudienceOptions['include']
-): string | undefined {
-  if (include === undefined) return undefined
-  const joined = typeof include === 'string' ? include : include.join(',')
-  return joined.length > 0 ? joined : undefined
-}
-
 /**
  * `GET /v1/audiences/{audienceId}` (scope: `audiences`) — one saved
  * audience, returned as the BARE row. Pass `include: 'count'` to make
@@ -59,7 +51,7 @@ export function createGetAudience(client: HttpClient) {
     audienceId: string,
     options?: GetAudienceOptions
   ): Promise<GetAudienceResponse | BrewRawResponse<GetAudienceResponse>> {
-    const include = serializeInclude(options?.include)
+    const include = serializeInclude({ include: options?.include })
     const response = await client.request<GetAudienceResponse>({
       method: 'GET',
       path: `/v1/audiences/${encodeURIComponent(audienceId)}`,
