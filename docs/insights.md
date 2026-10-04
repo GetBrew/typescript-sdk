@@ -10,7 +10,8 @@ free and read-only.
 | [`get`](#get)   | `GET /v1/insights/{insightId}` | `emails` |
 
 > **New in 11.6.0.** The typed replacement for reading insights through
-> `brew.data.run`, which the API is retiring.
+> `brew.data.run`, which 12.0.0 removes (the API retired
+> `POST /v1/data`).
 
 ## Shared types
 

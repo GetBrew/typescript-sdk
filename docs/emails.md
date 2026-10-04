@@ -683,7 +683,7 @@ An unverified or cross-brand `domainId` is `422 DOMAIN_NOT_READY`.
 A design's open comment threads, as the canvas pins show them. Read them
 before editing a design to see what teammates asked for. Both methods are
 free. New in 11.6.0: the typed replacement for reading comments through
-`brew.data.run`, which the API is retiring.
+`brew.data.run`, which 12.0.0 removes (the API retired `POST /v1/data`).
 
 ```ts
 type EmailCommentThread = {

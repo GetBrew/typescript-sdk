@@ -1,5 +1,57 @@
 # Changelog
 
+## 12.0.0
+
+The API retired `POST /v1/data` (GetBrew/brew-v2#1825), so the SDK drops the
+method that called it. This is a breaking change.
+
+### Breaking: the data command is removed
+
+- `brew.data.run(...)` (the whole `brew.data` resource) and the
+  `DataResource`, `RunDataCommandInput` and `RunDataCommandResponse` types are
+  removed. `POST /v1/data` is retired, and the bundled spec and generated
+  types no longer carry it (operation `runDataCommand`, schema
+  `DataCommandResponse`).
+- Use the typed resources instead: `brew.emails.list`,
+  `brew.emailGroups.list`, `brew.contacts.search`,
+  `brew.contacts.count`, `brew.contacts.countBy`, `brew.audiences.list`,
+  `brew.audiences.get`, `brew.automations.list`,
+  `brew.automations.runs.list`, `brew.domains.list`, `brew.sends.list`,
+  `brew.analytics.overview`, `brew.analytics.events` and
+  `brew.analytics.eventCounts`. The full question-by-question mapping is in
+  the API changelog (https://docs.brew.new/changelog/api).
+- The reads only the data command used to serve have typed methods since
+  11.6.0:
+  - design comments: `brew.emails.comments.list({ emailId })`, and
+    `brew.emails.comments.listAllMessages({ emailId, commentId })` for one
+    thread's older messages;
+  - brand insights and intelligence: `brew.insights.list(input?)`, whose
+    `include` adds `pulse`, `report`, `suggestions` and `memo`, and
+    `brew.insights.get(insightId)`;
+  - notifications: `brew.notifications.list(input?)` /
+    `brew.notifications.listAll(input?)`;
+  - chats: `brew.chats.list(input?)` / `brew.chats.listAll(input?)`, then
+    `brew.chats.get(chatId)` for one;
+  - domain-score history:
+    `brew.domains.health({ domainId, include: ['scoreHistory', 'scoreRuns'] })`;
+  - contact open profiles:
+    `brew.contacts.get(email, { include: ['openProfile'] })` and
+    `brew.contacts.search({ include: ['openProfile'] })`.
+- No equivalent: table discovery (`db ls`, `db schema`) and `jq` pipelines.
+  Read the typed resource and filter its result; writes go through each
+  resource's own methods.
+
+### Added
+
+- **Intelligent Send** (GetBrew/brew-v2#1827), from the regenerated spec:
+  `brew.emails.send` takes `smartSend: true` on a campaign send, which sends
+  each recipient with past opens or clicks at the upcoming hour (within 24
+  hours) their own history makes them most likely to open, and everyone
+  else right away. It composes with `scheduledAt`, not with `gradualSend`.
+  `Send` rows from `brew.sends.get` / `brew.sends.list` carry `smartSend` on
+  such a send: the deadline `windowEndsAt` and, once planned, the split
+  (`assignedViaModel`, `assignedImmediately`, `modelFallbacks`).
+
 ## 11.6.0
 
 Typed reads for what `brew.data.run` (`POST /v1/data`) used to be the only

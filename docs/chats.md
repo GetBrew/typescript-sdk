@@ -10,7 +10,8 @@ agent with `get`. Free and read-only.
 | [`get`](#get)         | `GET /v1/chats/{chatId}` | `emails` |
 
 > **New in 11.6.0.** `list` and `listAll` are the typed replacement for
-> reading chats through `brew.data.run`, which the API is retiring.
+> reading chats through `brew.data.run`, which 12.0.0 removes (the API
+> retired `POST /v1/data`).
 
 ---
 

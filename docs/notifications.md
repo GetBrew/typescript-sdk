@@ -10,7 +10,8 @@ read-only. Reading marks nothing read.
 | [`listAll`](#listall) | `GET /v1/notifications` (paged) | any   |
 
 > **New in 11.6.0.** The typed replacement for reading notifications through
-> `brew.data.run`, which the API is retiring.
+> `brew.data.run`, which 12.0.0 removes (the API retired
+> `POST /v1/data`).
 
 ## Shared types
 
