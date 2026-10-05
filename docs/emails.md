@@ -387,17 +387,15 @@ await brew.emails.edit(
 
 ## `auditEmail`
 
-Lint the exact HTML and inbox copy that you plan to send. The audit checks
+Audit HTML, React Email JSX, or a saved email. Choose exactly one of
+`emailHtml`, `emailJsx`, or `emailId`. For a saved email, omit `emailVersionId`
+to audit its latest version or supply a version ID to audit that version.
+`emailVersionId` is accepted only with `emailId`. The audit checks
 unsubscribe content, links, images, loaded size, accessibility, compatibility,
 markup, subject copy, and preview copy in parallel.
 
 ```ts
-type AuditEmailInput = {
-  readonly emailHtml: string
-  readonly subject?: string
-  readonly previewText?: string
-  readonly sendingPurpose?: 'marketing' | 'transactional'
-}
+import type { AuditEmailInput } from '@brew.new/sdk'
 
 auditEmail(
   input: AuditEmailInput,
@@ -422,6 +420,12 @@ if (audit.completion.status === 'complete') {
 } else {
   console.log('Audit incomplete. Retry before claiming readiness.')
 }
+
+const jsxAudit = await brew.emails.auditEmail({ emailJsx })
+const savedAudit = await brew.emails.auditEmail({
+  emailId: 'email_123',
+  emailVersionId: 'version_123',
+})
 ```
 
 The endpoint can run for up to 50 seconds. The SDK uses
