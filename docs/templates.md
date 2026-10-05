@@ -33,7 +33,7 @@ can use the returned `emailId` as `referenceEmailId` in
 List public templates with optional filters.
 
 ```ts
-type ListTemplatesInput = {
+type ListTemplateRowsInput = {
   readonly brand?: string
   readonly category?: string
   readonly semantic?: string // vector-ranked matches
@@ -58,10 +58,17 @@ type TemplateSummaryListResponse = {
   readonly pagination: TemplatesListResponse['pagination']
 }
 
+// Counts use a separate input and response, without a data array.
+// Import the count types from @brew.new/sdk; grouped counts alone accept cursor.
+import type { ListTemplateCountsInput, TemplatesCountResponse } from '@brew.new/sdk'
+type ListTemplatesInput = ListTemplateRowsInput | ListTemplateCountsInput
+
 // Overloads, most specific first (TypeScript picks the first that matches):
-list(input: ListTemplatesInput & { representation: 'summary' }): Promise<TemplateSummaryListResponse>
-list(input?: ListTemplatesInput & { representation?: 'full' }): Promise<TemplatesListResponse>
-list(input?: ListTemplatesInput): Promise<TemplatesListResponse | TemplateSummaryListResponse>
+list(input: ListTemplateCountsInput): Promise<TemplatesCountResponse>
+list(input: ListTemplateRowsInput & { representation: 'summary' }): Promise<TemplateSummaryListResponse>
+list(input?: ListTemplateRowsInput & { representation?: 'full' }): Promise<TemplatesListResponse>
+list(input?: ListTemplateRowsInput): Promise<TemplatesListResponse | TemplateSummaryListResponse>
+list(input?: ListTemplatesInput): Promise<TemplatesListResponse | TemplateSummaryListResponse | TemplatesCountResponse>
 ```
 
 The return type follows the representation: summary rows when you pass
@@ -85,6 +92,18 @@ const { data: picks } = await brew.templates.list({
   representation: 'summary',
 })
 console.log(picks[0]?.viewUrl, picks[0]?.referenceEmailId)
+```
+
+With `count: true`, the response is `{ count }`. Add `groupBy: 'brand'` or
+`'category'` for `groups`, `groupCount`, `ungroupedCount`, and group
+pagination. Continue grouped counts with the returned cursor; a plain count
+accepts no cursor. Counts support `brand` and
+`category` filters; `query` and `semantic` require row mode. Raw mode keeps
+the count response type as well.
+
+```ts
+const counts = await brew.templates.list({ count: true, groupBy: 'category' })
+console.log(counts.count, counts.groups)
 ```
 
 ---

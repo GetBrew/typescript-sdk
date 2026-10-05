@@ -8,7 +8,7 @@ manage brands.
 
 | Method                        | HTTP                                | Scope    |
 | ----------------------------- | ----------------------------------- | -------- |
-| [`get`](#get)                 | `GET /v1/brand`                     | `emails` |
+| [`get`](#get)                 | `GET /v1/brand`                     | none     |
 | [`patch`](#patch)             | `PATCH /v1/brand`                   | `emails` |
 | [`getImages`](#getimages)     | `GET /v1/brand/images`              | `emails` |
 | [`deleteImage`](#deleteimage) | `DELETE /v1/brand/images/{assetId}` | `emails` |

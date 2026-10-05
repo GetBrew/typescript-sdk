@@ -17,6 +17,12 @@ An audience is the recipient target for `brew.emails.send(...)`.
 > row. The `audienceId` and `include` query filters on `GET /v1/audiences`
 > are gone — they now `400`.
 
+Omitted filter types use the brand's field registry before counting and
+saving. A registered numeric `tier` compares numerically, so `not_equals`
+with `value: 10` excludes tier 10. Unknown fields retain string comparisons;
+explicit types remain supported. Date range operands require `type: 'date'`
+for request validation.
+
 ## Shared types
 
 ```ts

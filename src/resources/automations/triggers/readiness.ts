@@ -21,8 +21,8 @@ export type TriggerReadinessBlocker =
  * start.
  *
  * `ready: false` with a `NO_PUBLISHED_AUTOMATION` blocker (and
- * `counts.automations: 0`) means fires are accepted and logged but start
- * no runs until a wired automation is published.
+ * `counts.automations: 0`) means a fire is refused with
+ * `422 NO_PUBLISHED_AUTOMATION` until a wired automation is published.
  *
  * This replaced the old `GET …/fire` preflight, which overloaded the
  * fire path and answered in the fire envelope.

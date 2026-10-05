@@ -17,6 +17,11 @@ export type CreateAudienceResponse = AudienceWriteResult
  * `POST /v1/audiences` — create a saved audience from a filter set.
  * Requires the `audiences` scope. Returns the created `Audience` row.
  *
+ * Omitted filter types are resolved from the brand's field registry before
+ * counting and saving. A registered numeric tier uses numeric comparisons;
+ * unknown fields retain string comparisons. Explicit types are supported.
+ * Date range operands require `type: 'date'` for request validation.
+ *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<CreateAudienceResponse>` instead of the unwrapped row.
  */

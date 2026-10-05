@@ -4,6 +4,7 @@ import { describe, expect, expectTypeOf, it } from 'vitest'
 import {
   createListTemplates,
   type ListTemplatesInput,
+  type TemplatesCountResponse,
   type TemplatesListResponse,
   type TemplateSummaryListResponse,
 } from '../../../src/resources/templates/list'
@@ -140,15 +141,53 @@ describe('templates.list representation typing', () => {
     >().toHaveProperty('html')
   })
 
-  it('leaves the API count mode untyped rather than typing it as rows', () => {
-    // `count: true` (optionally with `groupBy`) answers `{ count, groups? }`
-    // instead of rows. Until `templates` types that mode, neither knob is
-    // on the input, so no call can be typed with the row envelope it does
-    // not return, and the summary envelope stays the rows-only branch.
-    expectTypeOf<NonNullable<ListTemplatesInput>>().not.toHaveProperty('count')
-    expectTypeOf<NonNullable<ListTemplatesInput>>().not.toHaveProperty(
-      'groupBy'
+  it('types counts separately from rows, including raw mode', async () => {
+    let capturedRequest: Request | undefined
+    const body = {
+      count: 42,
+      groupBy: 'category',
+      groups: [{ value: 'newsletter', count: 42 }],
+      pagination: { limit: 20, cursor: null, hasMore: false },
+    }
+    server.use(
+      http.get('https://brew.new/api/v1/templates', ({ request }) => {
+        capturedRequest = request
+        return HttpResponse.json(body)
+      })
     )
-    expectTypeOf<TemplateSummaryListResponse>().toHaveProperty('data')
+    const { client } = makeTestHttpClient()
+    const list = createListTemplates(client)
+    const counted = await list({ count: true, groupBy: 'category' })
+    expectTypeOf(counted).toEqualTypeOf<TemplatesCountResponse>()
+    expectTypeOf(counted).not.toHaveProperty('data')
+    expect(counted).toEqual(body)
+    const url = new URL(capturedRequest!.url)
+    expect(url.searchParams.get('count')).toBe('true')
+    expect(url.searchParams.get('groupBy')).toBe('category')
+    const raw = await list({ count: 'true' }, { raw: true })
+    expectTypeOf(raw.data).toEqualTypeOf<TemplatesCountResponse>()
+    expect(raw.data.count).toBe(42)
+  })
+
+  it('keeps dynamic count queries honest and refuses grouping without counts', () => {
+    const { client } = makeTestHttpClient()
+    const list = createListTemplates(client)
+    const dynamic = (input: ListTemplatesInput) => list(input)
+    expectTypeOf(dynamic).returns.resolves.toEqualTypeOf<
+      | TemplatesListResponse
+      | TemplateSummaryListResponse
+      | TemplatesCountResponse
+    >()
+    const invalid = [
+      // @ts-expect-error -- grouping requires count mode
+      () => list({ groupBy: 'brand' }),
+      // @ts-expect-error -- only grouped counts have a cursor
+      () => list({ count: true, cursor: 'next' }),
+      // @ts-expect-error -- count mode cannot use semantic ranking
+      () => list({ count: true, semantic: 'welcome' }),
+      // @ts-expect-error -- count mode cannot use text search
+      () => list({ count: true, query: 'welcome' }),
+    ]
+    expect(invalid).toHaveLength(4)
   })
 })
