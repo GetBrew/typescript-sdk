@@ -116,6 +116,11 @@ tracking posture, active gradual sends, recent volume, bounce and complaint
 signals, workspace reputation, recent inbox-placement tests, and prioritized
 remediation signals.
 
+`domainActivity` includes up to 25 sends on this domain from the brand's
+newest 100 campaign and 100 automation sends, excluding placement seeds.
+Event automation rows can cover one recipient; audience-run automation and
+campaign rows can cover many. It is a sample, not a time-window total.
+
 ```ts
 const health = await brew.domains.health({ domainId: 'domain_123' })
 

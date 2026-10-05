@@ -604,6 +604,8 @@ export type {
 } from './resources/templates/get'
 export type {
   ListFullTemplatesInput,
+  ListTemplateCountsInput,
+  ListTemplateRowsInput,
   ListTemplateSummariesInput,
   ListTemplatesInput,
   ListTemplatesResponse,
@@ -618,6 +620,7 @@ export type {
   Template,
   TemplateSummary,
   TemplatesListResponse,
+  TemplatesCountResponse,
 } from './resources/templates/types'
 // Public email flows (`client.flows.*` against /v1/flows): organization-wide,
 // the sequence view of the same gallery `templates` lists.

@@ -23,7 +23,7 @@ export type GetBrandInput = {
  * `GET /v1/brand` — the brand selected for this request, plus its extraction
  * readiness. Singleton (no list / no id): a brand-scoped key uses its bound
  * brand, while an organization-scoped key uses the client's `brandId` pin.
- * Requires the `emails` scope.
+ * Requires a credential, without a feature scope.
  *
  * Returns the brand row FLAT (there is no `{ brand: … }` wrapper in
  * v1). Pass `include` (e.g. `['identity', 'logos']`) to embed any of

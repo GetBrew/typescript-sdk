@@ -6,7 +6,7 @@ import { createGetBrandImages } from './get-images'
 import { createUpdateBrand } from './patch'
 
 export type BrandResource = {
-  /** `GET /v1/brand` — the key's brand + extraction readiness; pass `include` to embed `identity`/`emailDesign`/`imageStyle`/`logos` (scope: `emails`). */
+  /** `GET /v1/brand` — the key's brand + extraction readiness; pass `include` to embed `identity`/`emailDesign`/`imageStyle`/`logos` (no feature scope required). */
   readonly get: ReturnType<typeof createGetBrand>
   /** `PATCH /v1/brand` — update `identity` (shallow-merge) and/or the `emailDesign`/`imageStyle` markdown (scope: `emails`). */
   readonly patch: ReturnType<typeof createUpdateBrand>

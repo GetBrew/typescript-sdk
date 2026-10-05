@@ -2,8 +2,18 @@ import type { components } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
-/** Raw email content accepted by `POST /v1/emails/audit`. */
-export type EmailAuditRequest = components['schemas']['EmailAuditRequest']
+type GeneratedAuditRequest = components['schemas']['EmailAuditRequest']
+type UnionKeys<T> = T extends unknown ? keyof T : never
+type ExclusiveAuditRequest<T = GeneratedAuditRequest> =
+  T extends GeneratedAuditRequest
+    ? T &
+        Partial<
+          Record<Exclude<UnionKeys<GeneratedAuditRequest>, keyof T>, never>
+        >
+    : never
+
+/** Exactly one HTML, JSX, or saved-email source accepted by `POST /v1/emails/audit`. */
+export type EmailAuditRequest = ExclusiveAuditRequest
 
 /** Input for `brew.emails.auditEmail(...)`. */
 export type AuditEmailInput = EmailAuditRequest
@@ -21,9 +31,11 @@ export type EmailAuditResponse = components['schemas']['EmailAuditResponse']
 export const AUDIT_EMAIL_DEFAULT_TIMEOUT_MS = 65_000
 
 /**
- * `POST /v1/emails/audit` (scope: `emails`) lints raw email content for
+ * `POST /v1/emails/audit` (scope: `emails`) audits HTML, JSX, or a saved email for
  * production readiness. The audit covers compliance, links, images, loaded
  * size, accessibility, compatibility, markup, subject copy, and preview copy.
+ * Choose exactly one of `emailHtml`, `emailJsx`, or `emailId`. Only saved
+ * emails accept `emailVersionId`; omitting it selects their latest version.
  *
  * Branch on `completion.status`. A complete result has a numeric score and
  * costs 5 credits. A partial result has `score: null`, costs 0 credits, and

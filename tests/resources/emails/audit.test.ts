@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import {
   AUDIT_EMAIL_DEFAULT_TIMEOUT_MS,
   createAuditEmail,
+  type AuditEmailInput,
   type EmailAuditResponse,
 } from '../../../src/resources/emails/audit'
 import { makeTestHttpClient } from '../../helpers/http-client'
@@ -44,6 +45,65 @@ const COMPLETE_AUDIT = {
 }
 
 describe('emails.auditEmail', () => {
+  it('accepts exactly one content source and versions only saved emails', () => {
+    const inputs: Array<AuditEmailInput> = [
+      { emailHtml: '<p>Hello</p>' },
+      { emailJsx: '<Text>Hello</Text>' },
+      { emailId: 'email_123', emailVersionId: 'version_123' },
+    ]
+    // @ts-expect-error HTML and JSX cannot be selected together.
+    const mixedContent: AuditEmailInput = {
+      emailHtml: '<p>Hello</p>',
+      emailJsx: '<Text>Hello</Text>',
+    }
+    // @ts-expect-error Saved emails cannot also supply raw content.
+    const mixedSaved: AuditEmailInput = {
+      emailId: 'email_123',
+      emailHtml: '<p>Hello</p>',
+    }
+    // @ts-expect-error Versions apply only to saved emails.
+    const versionedHtml: AuditEmailInput = {
+      emailHtml: '<p>Hello</p>',
+      emailVersionId: 'version_123',
+    }
+    // @ts-expect-error Versions apply only to saved emails.
+    const versionedJsx: AuditEmailInput = {
+      emailJsx: '<Text>Hello</Text>',
+      emailVersionId: 'version_123',
+    }
+    // @ts-expect-error An audit requires a content source.
+    const missingSource: AuditEmailInput = { subject: 'Hello' }
+
+    expect(inputs).toHaveLength(3)
+    expect([
+      mixedContent,
+      mixedSaved,
+      versionedHtml,
+      versionedJsx,
+      missingSource,
+    ]).toHaveLength(5)
+  })
+
+  it.each([
+    { emailJsx: '<Text>Hello</Text>', subject: 'JSX content' },
+    {
+      emailId: 'email_123',
+      emailVersionId: 'version_123',
+      subject: 'Saved content',
+    },
+  ])('forwards the content selector unchanged: %j', async (input) => {
+    let capturedBody: unknown
+    server.use(
+      http.post('https://brew.new/api/v1/emails/audit', async ({ request }) => {
+        capturedBody = await request.json()
+        return HttpResponse.json(COMPLETE_AUDIT)
+      })
+    )
+    const { client } = makeTestHttpClient()
+    await createAuditEmail(client)(input)
+    expect(capturedBody).toEqual(input)
+  })
+
   it('keeps ruleset versions forward-compatible and types occurrence counts', () => {
     const futureRuleset: EmailAuditResponse['rulesetVersion'] = 'future-ruleset'
     const occurrenceCount: EmailAuditResponse['findings'][number]['occurrenceCount'] = 3

@@ -17,8 +17,8 @@ export type { BrandPatchResponse, UpdateBrandInput }
  * - `imageStyle` — the `image-style.md` markdown document (replaces the
  *   whole document).
  *
- * Requires the `emails` scope. Returns the same `{ brand, ... }` envelope
- * as `GET /v1/brand`, echoing only the touched fields.
+ * Requires the `emails` scope. Returns the bare brand row,
+ * echoing only the touched fields.
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<BrandPatchResponse>` instead of the unwrapped payload.

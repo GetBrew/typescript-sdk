@@ -15,13 +15,11 @@ export type Template = TemplatesListResponse['data'][number]
 type TemplatesListBody =
   operations['listTemplates']['responses'][200]['content']['application/json']
 
-/**
- * The API's count mode (`count: true`, optionally `groupBy`;
- * brew-v2#1821): `{ count, groups? }` instead of rows. The SDK does not
- * type that mode yet, so `ListTemplatesInput` leaves out `count` and
- * `groupBy`.
- */
-type TemplatesCountBody = Extract<TemplatesListBody, { count: number }>
+/** Counts matching templates, optionally grouped by brand or category. */
+export type TemplatesCountResponse = Extract<
+  TemplatesListBody,
+  { count: number }
+>
 
 /**
  * Envelope returned by `GET /v1/templates?representation=summary`: rows
@@ -30,7 +28,7 @@ type TemplatesCountBody = Extract<TemplatesListBody, { count: number }>
  */
 export type TemplateSummaryListResponse = Exclude<
   TemplatesListBody,
-  TemplatesListResponse | TemplatesCountBody
+  TemplatesListResponse | TemplatesCountResponse
 >
 
 /** One summary row (`representation: 'summary'`). */

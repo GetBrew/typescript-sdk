@@ -32,6 +32,11 @@ export type UpdateAudienceResponse = AudienceWriteResult
  * `removeEmails`). Requires the `audiences` scope. Returns the updated
  * row, with a `membership` report for an address edit.
  *
+ * Omitted filter types are resolved from the brand's field registry before
+ * counting and saving. A registered numeric tier uses numeric comparisons;
+ * unknown fields retain string comparisons. Explicit types are supported.
+ * Date range operands require `type: 'date'` for request validation.
+ *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<UpdateAudienceResponse>` instead of the unwrapped row.
  */
