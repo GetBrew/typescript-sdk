@@ -214,6 +214,7 @@ export type {
 } from './resources/automations/triggers/get'
 export type {
   TriggerReadinessBlocker,
+  TriggerReadinessDelivery,
   TriggerReadinessResponse,
 } from './resources/automations/triggers/readiness'
 // ---------- Nested resource shapes ----------

@@ -4,14 +4,28 @@ import type { BrewRawResponse, RequestOptions } from '../../../types'
 
 /**
  * The BARE readiness body — `{ triggerEventId, ready, blockers[],
- * publishedAutomations[], counts }` plus the payload contract. No fire
- * envelope wrapped around it any more.
+ * publishedAutomations[], counts, delivery? }` plus the payload contract. No
+ * fire envelope wrapped around it any more.
  */
 export type TriggerReadinessResponse = components['schemas']['TriggerReadiness']
 
 /** One reason a fire would start nothing (today: `NO_PUBLISHED_AUTOMATION`). */
 export type TriggerReadinessBlocker =
   TriggerReadinessResponse['blockers'][number]
+
+/**
+ * Integration triggers only (Clerk, RevenueCat, Shopify, Stytch, Supabase,
+ * WorkOS): whether Brew has received this trigger's event from the source's
+ * current connection. `status` is `received`, `never_received`,
+ * `none_recent` (nothing in the 90-day receipt window) or
+ * `waiting_for_test_event`; `sourceEvent` is the provider's own name for the
+ * event (Shopify Admin: "Customer update"); `message` says what to set up.
+ * It never changes `ready`, and it is absent for custom, Stripe and Framer
+ * triggers, for a disconnected integration, and whenever the read fails.
+ */
+export type TriggerReadinessDelivery = NonNullable<
+  TriggerReadinessResponse['delivery']
+>
 
 /**
  * `GET /v1/automations/triggers/{triggerEventId}/readiness` (scope:

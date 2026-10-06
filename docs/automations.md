@@ -138,6 +138,32 @@ if (!readiness.ready) {
 }
 ```
 
+For an integration trigger (Clerk, RevenueCat, Shopify, Stytch, Supabase,
+WorkOS) the answer also carries `delivery`: whether Brew has received that
+event from the integration's current connection. A source sends only the
+events set up at its end (a Shopify shop sends a topic only to a webhook made
+for it), so a trigger can be `ready` while its automation would wait forever.
+`delivery` never changes `ready`, and it is absent for custom, Stripe and
+Framer triggers, for a disconnected integration, and when the read fails.
+
+```ts
+const { delivery } = await brew.automations.triggers.readiness(
+  'shopify:customers/update'
+)
+
+// status: received | never_received | none_recent | waiting_for_test_event
+if (delivery && delivery.status !== 'received') {
+  // e.g. 'In Shopify, add a webhook for Customer update.'
+  console.log(delivery.sourceEvent, delivery.message)
+}
+```
+
+Publishing such an automation (`brew.automations.publish`, or
+`brew.automations.patch` with `published: true`) still succeeds when its event
+has not arrived; the returned row's `warnings[]` carries
+`TRIGGER_EVENT_NOT_RECEIVED` (`field: 'triggerEventId'`) saying what to set
+up.
+
 `readiness` is its own route (`GET …/readiness`) answering the bare readiness
 body. It replaced `triggers.ready`, which overloaded `GET …/fire` and wrapped
 its answer in the fire envelope.
