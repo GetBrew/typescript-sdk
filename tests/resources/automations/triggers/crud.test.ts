@@ -1,6 +1,7 @@
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it } from 'vitest'
 
+import type { TriggerReadinessDelivery } from '../../../../src'
 import { createTriggersResource } from '../../../../src/resources/automations/triggers/resource'
 import { makeTestHttpClient } from '../../../helpers/http-client'
 import { server } from '../../../msw/server'
@@ -146,6 +147,38 @@ describe('automations.triggers resource — POST/GET/PATCH/DELETE wiring', () =>
     expect(readiness.ready).toBe(false)
     expect(readiness.blockers[0]?.code).toBe('NO_PUBLISHED_AUTOMATION')
     expect(readiness.counts.automations).toBe(0)
+  })
+
+  it('readiness returns the integration trigger delivery status without changing ready (brew-v2#1897)', async () => {
+    const delivery = {
+      status: 'never_received',
+      sourceEvent: 'Customer update',
+      message:
+        'Brew has not received this event. In Shopify, add a webhook for Customer update.',
+    } satisfies TriggerReadinessDelivery
+    server.use(
+      http.get(
+        'https://brew.new/api/v1/automations/triggers/shopify:customers%2Fupdate/readiness',
+        () =>
+          HttpResponse.json({
+            triggerEventId: 'shopify:customers/update',
+            ready: true,
+            blockers: [],
+            publishedAutomations: [{ automationId: 'auto_abc' }],
+            counts: { automations: 1, skipped: 0 },
+            delivery,
+          })
+      )
+    )
+    const { client } = makeTestHttpClient()
+    const triggers = createTriggersResource(client)
+    const readiness = await triggers.readiness('shopify:customers/update')
+
+    expect(readiness.ready).toBe(true)
+    expect(readiness.delivery).toEqual(delivery)
+    const status: TriggerReadinessDelivery['status'] | undefined =
+      readiness.delivery?.status
+    expect(status).toBe('never_received')
   })
 
   it('does not surface enable / disable methods (triggers are always on; gated by automation.published)', () => {
