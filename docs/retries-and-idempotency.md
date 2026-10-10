@@ -226,7 +226,10 @@ to 15 minutes), and answers any other request with that key
 after a timeout or dropped connection, it throws the original
 `BrewTimeoutError` / `BrewConnectionError` with `inProgress: true` — the
 work is still running — rather than a conflict. Wait, then replay with
-the same key. A completed key replays its stored result for 24 hours.
+the same key. The shared response cache replays a completed result for 24
+hours. Trigger fires also match the stored receipt, so they replay the
+original run IDs while that receipt remains stored (90 days). Use one key
+per business action; see the [API idempotency contract](https://docs.brew.new/api-reference/api/idempotency).
 
 The replay guarantee needs the API's idempotency store. While it is
 degraded, real sends refuse with a retryable `503` rather than risk sending

@@ -362,16 +362,11 @@ for callers that want to compose their own timeouts.
 
 ### Idempotency
 
-PATCH requests do not auto-attach an `Idempotency-Key`, but you can opt
-in via `RequestOptions.idempotencyKey` to make replays safe across the
-24-hour window the server caches them for:
-
-```ts
-await brew.emails.edit(
-  { emailId: 'email_123', prompt: 'Tighten the headline.' },
-  { idempotencyKey: `edit-${dailyJobRunId}` }
-)
-```
+PATCH edits do not support server response replay, and the SDK does not
+automatically retry them. Passing an idempotency key does not make a
+prompt edit safe to repeat. After a timeout or connection failure, read
+the design and its version or generation status before deciding whether
+to submit another edit; the first call may already have created a version.
 
 ### Errors
 
