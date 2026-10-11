@@ -24,6 +24,7 @@ scope.
 | `triggers.get`                                             | `GET /v1/automations/triggers/{triggerEventId}`           |
 | [`triggers.ensureBrewEvent`](#unsubscribe-triggers)        | `POST /v1/automations/triggers/brew-events`               |
 | [`triggers.fire`](#transactional-email--firing-triggers)   | `POST /v1/automations/triggers/{triggerEventId}/fire`     |
+| [`triggers.fireByKey`](#trigger-keys)                      | `POST /v1/automations/triggers/by-key/{triggerKey}/fire`  |
 | `triggers.readiness`                                       | `GET /v1/automations/triggers/{triggerEventId}/readiness` |
 | `triggers.getContract` / `putContract` / `validatePayload` | `/v1/automations/triggers/{triggerEventId}/contract[…]`   |
 
@@ -127,6 +128,46 @@ Payloads support arbitrarily nested JSON; the email reads them as
 original run ids instead of firing duplicates (the response says
 `status: 'replayed'`). Firing a trigger with zero published automations
 returns `422 NO_PUBLISHED_AUTOMATION`.
+
+### Trigger keys
+
+A trigger can carry a stable developer `key` (`order.paid`,
+`auth.password-reset`) so your code names it instead of storing the minted
+`triggerEventId`. The same code then works in every brand and environment
+that has a trigger with that key. Set it on `create` or `patch`
+(`key: null` clears it), and read it back as `key` on every trigger row:
+
+```ts
+await brew.automations.triggers.patch({
+  triggerEventId: 'tri_8fK2mQ4pLx',
+  key: 'order.paid',
+})
+
+await brew.automations.triggers.fireByKey<OrderCompletedPayload>(
+  {
+    triggerKey: 'order.paid',
+    payload: { email: 'customer@acme.com', orderId: 'ord_1042', total: 42.5 },
+  },
+  { idempotencyKey: 'ord_1042' }
+)
+
+// The one-line form, typed by `BrewTriggerKeyRegistry` (see send.md):
+await brew.send('order.paid', {
+  email: 'customer@acme.com',
+  orderId: 'ord_1042',
+  total: 42.5,
+})
+```
+
+`fireByKey` answers the `fire` body plus `triggerKey`. An unknown key is
+`404 TRIGGER_KEY_NOT_FOUND`; a key another trigger in the brand holds is
+`409 TRIGGER_KEY_TAKEN` on `create` / `patch`; `kit`, `by-key`, `brew.*` and
+`auth.*` keys outside the starter kit are `400 TRIGGER_KEY_RESERVED`. An
+idempotency key matches the resolved trigger, so a by-key and a by-id fire
+of one trigger with the same key replay each other. A row whose key was
+wired by an app-email setup also carries `appEmail: { automationId,
+emailId, starterId?, starterVersion? }`. See [`send.md`](./send.md) for
+`brew.send`.
 
 ### Pre-flight with `readiness`
 
