@@ -1,5 +1,16 @@
 import type { BrewErrorType, BrewHttpMethod } from '../types'
 
+/** Invalid local request configuration; no request has been sent. */
+export class BrewInputError extends Error {
+  readonly param: string
+
+  constructor(input: { readonly param: string; readonly message: string }) {
+    super(input.message)
+    this.name = 'BrewInputError'
+    this.param = input.param
+  }
+}
+
 /**
  * Input shape for the `BrewApiError` constructor. Mirrors the public
  * surface of the class — every field is required and explicit, callers

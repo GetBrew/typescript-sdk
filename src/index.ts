@@ -16,6 +16,7 @@ export { type BrewClient, createBrewClient } from './client'
 export {
   BrewApiError,
   BrewConnectionError,
+  BrewInputError,
   BrewParseError,
   BrewTimeoutError,
   BrewTransportError,
