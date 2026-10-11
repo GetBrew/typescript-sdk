@@ -51,7 +51,7 @@ export type AutomationsResource = {
   readonly unpublish: ReturnType<typeof createUnpublishAutomation>
   /** `DELETE /v1/automations/{automationId}` — cascade (scope: `automations`). */
   readonly delete: ReturnType<typeof createDeleteAutomation>
-  /** `/v1/automations/triggers(/{triggerEventId}(/fire))` — trigger CRUD + fire. */
+  /** `/v1/automations/triggers(/{triggerEventId}(/fire))` — trigger CRUD + fire, and `fireByKey` (`/by-key/{triggerKey}/fire`). */
   readonly triggers: TriggersResource
   /** `/v1/automations/runs` — run history, the per-run detail read, and `cancel` for one in-flight run. */
   readonly runs: AutomationRunsResource

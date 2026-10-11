@@ -1151,7 +1151,9 @@ export interface paths {
         put?: never;
         /**
          * Create a trigger
-         * @description Creates a custom trigger event definition — the contract automations subscribe to. Body carries `{ title, description?, payloadSchema }`; the server mints `triggerEventId` and hardcodes `provider: "brew_api"`. Integration triggers (clerk, stripe, shopify, …) are provisioned by the corresponding integration only.
+         * @description Creates a custom trigger event definition — the contract automations subscribe to. Body carries `{ title, description?, key?, payloadSchema }`; the server mints `triggerEventId` and hardcodes `provider: "brew_api"`. Integration triggers (clerk, stripe, shopify, …) are provisioned by the corresponding integration only.
+         *
+         *     `key` is an optional stable developer name (`order.paid`) for identifying the trigger; `POST /v1/automations/triggers/by-key/{triggerKey}/fire` fires by it. The key is unique in the brand (`409 TRIGGER_KEY_TAKEN`), and `kit`, `by-key`, `brew.*` and non-starter-kit `auth.*` keys are reserved (`400 TRIGGER_KEY_RESERVED`).
          *
          *     `payloadSchema.fields` MUST declare `{ key: "email", type: "string", required: true }` so downstream automations can resolve a recipient. Returns `201` with the bare trigger row.
          */
@@ -1195,7 +1197,7 @@ export interface paths {
         head?: never;
         /**
          * Update a trigger
-         * @description Updates one or more editable fields (`title`, `description`, `payloadSchema`). Whether a trigger fires is governed solely by `automation.published` on each wired automation — there is no per-trigger off-switch. Integration-provisioned triggers are immutable here (`422 TRIGGER_IMMUTABLE`). While a published automation uses the trigger, a `payloadSchema` change that would stop it from running (removing or retyping a field it reads, or declaring the shape of an open object or list so one of its merge tags no longer resolves) is refused with `409 CONTRACT_LOCKED_BY_PUBLISHED_AUTOMATIONS`. Returns the bare updated row.
+         * @description Updates one or more editable fields (`title`, `description`, `key`, `payloadSchema`). `key: null` clears the key; a key another trigger in the brand holds is `409 TRIGGER_KEY_TAKEN`. Whether a trigger fires is governed solely by `automation.published` on each wired automation — there is no per-trigger off-switch. Integration-provisioned triggers are immutable here (`422 TRIGGER_IMMUTABLE`). While a published automation uses the trigger, a `payloadSchema` change that would stop it from running (removing or retyping a field it reads, or declaring the shape of an open object or list so one of its merge tags no longer resolves) is refused with `409 CONTRACT_LOCKED_BY_PUBLISHED_AUTOMATIONS`. Returns the bare updated row.
          */
         patch: operations["updateTrigger"];
         trace?: never;
@@ -1256,6 +1258,38 @@ export interface paths {
          *     **See also** `checkTriggerReady`, `getTriggerInstance`, `listAutomationRuns`.
          */
         post: operations["fireTrigger"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/automations/triggers/by-key/{triggerKey}/fire": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Fire a trigger by key
+         * @description Fires the trigger whose developer `key` matches, exactly as `fireTrigger` does by id: validates the payload, upserts the contact, then starts one run per published automation attached to the trigger. Use it when the same code fires the same trigger in several brands or environments, where each trigger has its own minted id but shares the key.
+         *
+         *     **Use when** your code names triggers by key (`order.paid`, `auth.password-reset`) instead of storing `triggerEventId`s.
+         *
+         *     **Input** `{ payload }`, validated against the trigger’s `payloadSchema`, as for `fireTrigger`.
+         *
+         *     **Returns** the `fireTrigger` response plus `triggerKey`: `202 { triggerInstanceId, triggerEventId, triggerKey, status, automationRunIds[], notStarted[], publishedAutomations[], counts, warnings[], receivedAt }`.
+         *
+         *     **Idempotency** send a stable `Idempotency-Key` header on every retry. The key is matched against the stored trigger receipt of the RESOLVED trigger, so a by-key and a by-id fire of one trigger with the same key replay each other, for as long as the receipt is kept (90 days).
+         *
+         *     **Errors** `404 TRIGGER_KEY_NOT_FOUND` when no trigger in the brand has the key (a sibling brand’s key never resolves); otherwise the `fireTrigger` errors: `400 INVALID_PAYLOAD`, `422 NO_PUBLISHED_AUTOMATION`, `409 IDEMPOTENCY_CONFLICT`.
+         *
+         *     **See also** `fireTrigger`, `listTriggers`, `updateTrigger` (to set a key).
+         */
+        post: operations["fireTriggerByKey"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3598,6 +3632,19 @@ export interface components {
         };
         TriggerRow: {
             triggerEventId: string;
+            /** @description Stable developer key your code names this trigger by; unique in the brand. Fire by it with `POST /v1/automations/triggers/by-key/{triggerKey}/fire`. Absent when the trigger has none. */
+            key?: string;
+            /** @description Present when an app-email setup wired this keyed trigger to an automation and design. */
+            appEmail?: {
+                /** @description The automation that sends this app email. */
+                automationId: string;
+                /** @description The email design it sends. */
+                emailId: string;
+                /** @description The starter-kit template the design came from, if any. */
+                starterId?: string;
+                /** @description Version of that starter template. */
+                starterVersion?: number;
+            };
             title: string;
             description?: string;
             /** @enum {string} */
@@ -4421,7 +4468,7 @@ export interface components {
             };
         };
         /** @enum {string} */
-        ApiErrorCode: "ACCOUNT_SUSPENDED" | "API_KEY_REVOKED" | "AUDIENCE_BUILD_ACTIVE" | "AUDIENCE_BUILD_ALREADY_ACTIVE" | "AUDIENCE_EDIT_CONFLICT" | "AUDIENCE_MEMBERSHIP_NOT_EXPRESSIBLE" | "AUDIENCE_NOT_FOUND" | "AUDIENCE_RUN_NOT_FOUND" | "AUDIT_NOT_FOUND" | "AUTHENTICATION_REQUIRED" | "AUTOMATION_GRAPH_INVALID" | "AUTOMATION_NOT_FOUND" | "AUTOMATION_NOT_PAUSABLE" | "AUTOMATION_NOT_PUBLISHED" | "AUTOMATION_RUN_NOT_FOUND" | "AUTOMATION_VERSION_CONFLICT" | "AUTOMATION_VERSION_NOT_FOUND" | "BATCH_TOO_LARGE" | "BRAND_DOMAIN_CONFLICT" | "BRAND_ID_REQUIRED" | "BRAND_LIMIT_REACHED" | "BRAND_NOT_FOUND" | "BRAND_NOT_READY" | "BRAND_SCOPE_MISMATCH" | "CHAT_NOT_FOUND" | "COMMENT_NOT_FOUND" | "CONSENT_REQUIRED" | "CONTACT_NOT_FOUND" | "CONTENT_OPERATION_FAILED" | "CONTRACT_LOCKED_BY_PUBLISHED_AUTOMATIONS" | "CORE_FIELD_IMMUTABLE" | "DOMAIN_ALREADY_EXISTS" | "DOMAIN_CLAIMED_ELSEWHERE" | "DOMAIN_NOT_FOUND" | "DOMAIN_NOT_READY" | "DOMAIN_OTHER_BRAND" | "DOMAIN_PROVIDER_ERROR" | "DOMAIN_PURPOSE_NOT_ALLOWED" | "DOMAIN_VERIFICATION_FAILED" | "DOMAIN_VERIFIED_ELSEWHERE" | "EMAIL_GENERATION_FAILED" | "EMAIL_GROUP_NAME_CONFLICT" | "EMAIL_GROUP_NOT_FOUND" | "EMAIL_IMAGES_MISSING" | "EMAIL_IMPORT_FAILED" | "EMAIL_IN_PROGRESS" | "EMAIL_IN_USE_BY_AUTOMATION" | "EMAIL_NOT_FOUND" | "EMAIL_NOT_READY" | "EMAIL_RESULT_UNAVAILABLE" | "EMAIL_RUN_AMBIGUOUS" | "EMAIL_TEMPLATE_INVALID" | "EMAIL_VERSION_NOT_FOUND" | "EXPORT_PROVIDER_ERROR" | "EXPORT_UNSUPPORTED" | "FIELD_NOT_FOUND" | "FIELD_TYPE_MISMATCH" | "FIGMA_ACCESS_DENIED" | "FIGMA_CONVERSION_FAILED" | "FIGMA_FRAME_NOT_FOUND" | "FIGMA_NOT_CONNECTED" | "FIGMA_UNAVAILABLE" | "FIGMA_URL_INVALID" | "FLOW_NOT_FOUND" | "IDEMPOTENCY_CONFLICT" | "IDEMPOTENCY_IN_PROGRESS" | "INSIGHT_NOT_FOUND" | "INSUFFICIENT_CREDITS" | "INSUFFICIENT_PERMISSIONS" | "INSUFFICIENT_ROLE" | "INTEGRATION_NOT_CONNECTED" | "INTERNAL_ERROR" | "INVALID_API_KEY" | "INVALID_EMAIL" | "INVALID_PAYLOAD" | "INVALID_REQUEST" | "LIQUID_RENDER_ERROR" | "METHOD_NOT_ALLOWED" | "MISSING_EMAIL" | "NO_ELIGIBLE_RECIPIENTS" | "NO_PUBLISHED_AUTOMATION" | "NOT_FOUND" | "NOT_IMPLEMENTED" | "ORG_SCOPE_REQUIRED" | "PAYLOAD_SCHEMA_EMAIL_REQUIRED" | "PAYLOAD_TOO_LARGE" | "PREVIEW_NOT_FOUND" | "PUBLISH_VALIDATION_FAILED" | "RATE_LIMITED" | "RECIPIENT_UNSUBSCRIBED" | "REFERENCE_EMAIL_NOT_FOUND" | "RESUBSCRIBE_NOT_ALLOWED" | "RUN_IN_PROGRESS" | "RUN_NOT_CANCELLABLE" | "RUN_NOT_PAUSABLE" | "RUN_NOT_PAUSED" | "RUN_NOT_RESUMABLE" | "RUN_START_FAILED" | "RUN_STOP_FAILED" | "SEND_NOT_CANCELLABLE" | "SEND_NOT_FOUND" | "SEND_NOT_PAUSABLE" | "SEND_NOT_RESUMABLE" | "SEND_QUOTA_EXCEEDED" | "SERVICE_UNAVAILABLE" | "TEMPLATE_NOT_FOUND" | "TRIGGER_ALREADY_EXISTS" | "TRIGGER_EVENT_NOT_FOUND" | "TRIGGER_HAS_DEPENDENT_AUTOMATIONS" | "TRIGGER_IMMUTABLE" | "TRIGGER_INSTANCE_NOT_FOUND" | "TRIGGER_LIMIT_REACHED" | "TRIGGER_NOT_FIREABLE" | "UPLOAD_IN_PROGRESS" | "UPLOAD_NOT_FOUND" | "UPLOAD_NOT_RECEIVED";
+        ApiErrorCode: "ACCOUNT_SUSPENDED" | "API_KEY_REVOKED" | "AUDIENCE_BUILD_ACTIVE" | "AUDIENCE_BUILD_ALREADY_ACTIVE" | "AUDIENCE_EDIT_CONFLICT" | "AUDIENCE_MEMBERSHIP_NOT_EXPRESSIBLE" | "AUDIENCE_NOT_FOUND" | "AUDIENCE_RUN_NOT_FOUND" | "AUDIT_NOT_FOUND" | "AUTHENTICATION_REQUIRED" | "AUTOMATION_GRAPH_INVALID" | "AUTOMATION_NOT_FOUND" | "AUTOMATION_NOT_PAUSABLE" | "AUTOMATION_NOT_PUBLISHED" | "AUTOMATION_RUN_NOT_FOUND" | "AUTOMATION_VERSION_CONFLICT" | "AUTOMATION_VERSION_NOT_FOUND" | "BATCH_TOO_LARGE" | "BRAND_DOMAIN_CONFLICT" | "BRAND_ID_REQUIRED" | "BRAND_LIMIT_REACHED" | "BRAND_NOT_FOUND" | "BRAND_NOT_READY" | "BRAND_SCOPE_MISMATCH" | "CHAT_NOT_FOUND" | "COMMENT_NOT_FOUND" | "CONSENT_REQUIRED" | "CONTACT_NOT_FOUND" | "CONTENT_OPERATION_FAILED" | "CONTRACT_LOCKED_BY_PUBLISHED_AUTOMATIONS" | "CORE_FIELD_IMMUTABLE" | "DOMAIN_ALREADY_EXISTS" | "DOMAIN_CLAIMED_ELSEWHERE" | "DOMAIN_NOT_FOUND" | "DOMAIN_NOT_READY" | "DOMAIN_OTHER_BRAND" | "DOMAIN_PROVIDER_ERROR" | "DOMAIN_PURPOSE_NOT_ALLOWED" | "DOMAIN_VERIFICATION_FAILED" | "DOMAIN_VERIFIED_ELSEWHERE" | "EMAIL_GENERATION_FAILED" | "EMAIL_GROUP_NAME_CONFLICT" | "EMAIL_GROUP_NOT_FOUND" | "EMAIL_IMAGES_MISSING" | "EMAIL_IMPORT_FAILED" | "EMAIL_IN_PROGRESS" | "EMAIL_IN_USE_BY_AUTOMATION" | "EMAIL_NOT_FOUND" | "EMAIL_NOT_READY" | "EMAIL_RESULT_UNAVAILABLE" | "EMAIL_RUN_AMBIGUOUS" | "EMAIL_TEMPLATE_INVALID" | "EMAIL_VERSION_NOT_FOUND" | "EXPORT_PROVIDER_ERROR" | "EXPORT_UNSUPPORTED" | "FIELD_NOT_FOUND" | "FIELD_TYPE_MISMATCH" | "FIGMA_ACCESS_DENIED" | "FIGMA_CONVERSION_FAILED" | "FIGMA_FRAME_NOT_FOUND" | "FIGMA_NOT_CONNECTED" | "FIGMA_UNAVAILABLE" | "FIGMA_URL_INVALID" | "FLOW_NOT_FOUND" | "IDEMPOTENCY_CONFLICT" | "IDEMPOTENCY_IN_PROGRESS" | "INSIGHT_NOT_FOUND" | "INSUFFICIENT_CREDITS" | "INSUFFICIENT_PERMISSIONS" | "INSUFFICIENT_ROLE" | "INTEGRATION_NOT_CONNECTED" | "INTERNAL_ERROR" | "INVALID_API_KEY" | "INVALID_EMAIL" | "INVALID_PAYLOAD" | "INVALID_REQUEST" | "LIQUID_RENDER_ERROR" | "METHOD_NOT_ALLOWED" | "MISSING_EMAIL" | "NO_ELIGIBLE_RECIPIENTS" | "NO_PUBLISHED_AUTOMATION" | "NOT_FOUND" | "NOT_IMPLEMENTED" | "ORG_SCOPE_REQUIRED" | "PAYLOAD_SCHEMA_EMAIL_REQUIRED" | "PAYLOAD_TOO_LARGE" | "PREVIEW_NOT_FOUND" | "PUBLISH_VALIDATION_FAILED" | "RATE_LIMITED" | "RECIPIENT_UNSUBSCRIBED" | "REFERENCE_EMAIL_NOT_FOUND" | "RESUBSCRIBE_NOT_ALLOWED" | "RUN_IN_PROGRESS" | "RUN_NOT_CANCELLABLE" | "RUN_NOT_PAUSABLE" | "RUN_NOT_PAUSED" | "RUN_NOT_RESUMABLE" | "RUN_START_FAILED" | "RUN_STOP_FAILED" | "SEND_NOT_CANCELLABLE" | "SEND_NOT_FOUND" | "SEND_NOT_PAUSABLE" | "SEND_NOT_RESUMABLE" | "SEND_QUOTA_EXCEEDED" | "SERVICE_UNAVAILABLE" | "TEMPLATE_NOT_FOUND" | "TRIGGER_ALREADY_EXISTS" | "TRIGGER_EVENT_NOT_FOUND" | "TRIGGER_HAS_DEPENDENT_AUTOMATIONS" | "TRIGGER_IMMUTABLE" | "TRIGGER_INSTANCE_NOT_FOUND" | "TRIGGER_KEY_NOT_FOUND" | "TRIGGER_KEY_RESERVED" | "TRIGGER_KEY_TAKEN" | "TRIGGER_LIMIT_REACHED" | "TRIGGER_NOT_FIREABLE" | "UPLOAD_IN_PROGRESS" | "UPLOAD_NOT_FOUND" | "UPLOAD_NOT_RECEIVED";
         EmailGenerateTextResponse: {
             response: string;
         };
@@ -6746,6 +6793,19 @@ export interface components {
         };
         BrewEventTriggerSaved: {
             triggerEventId: string;
+            /** @description Stable developer key your code names this trigger by; unique in the brand. Absent when the trigger has none. */
+            key?: string;
+            /** @description Present when an app-email setup wired this keyed trigger to an automation and design. */
+            appEmail?: {
+                /** @description The automation that sends this app email. */
+                automationId: string;
+                /** @description The email design it sends. */
+                emailId: string;
+                /** @description The starter-kit template the design came from, if any. */
+                starterId?: string;
+                /** @description Version of that starter template. */
+                starterVersion?: number;
+            };
             title: string;
             description?: string;
             /** @enum {string} */
@@ -6795,6 +6855,8 @@ export interface components {
         TriggersPostRequest: {
             title: string;
             description?: string;
+            /** @description Stable developer key for identifying this trigger, unique in the brand (for example `order.paid`). A fire can name the trigger by this key or by the returned `triggerEventId`. Lowercase letters, digits, `.`, `_` and `-`, up to 64 characters. `kit`, `by-key`, `brew.*` and `auth.*` keys other than the starter-kit auth keys are reserved. */
+            key?: string;
             payloadSchema: {
                 /** @enum {string} */
                 type: "object";
@@ -6804,6 +6866,19 @@ export interface components {
         TriggersListResponse: {
             data: {
                 triggerEventId: string;
+                /** @description Stable developer key your code names this trigger by; unique in the brand. Fire by it with `POST /v1/automations/triggers/by-key/{triggerKey}/fire`. Absent when the trigger has none. */
+                key?: string;
+                /** @description Present when an app-email setup wired this keyed trigger to an automation and design. */
+                appEmail?: {
+                    /** @description The automation that sends this app email. */
+                    automationId: string;
+                    /** @description The email design it sends. */
+                    emailId: string;
+                    /** @description The starter-kit template the design came from, if any. */
+                    starterId?: string;
+                    /** @description Version of that starter template. */
+                    starterVersion?: number;
+                };
                 title: string;
                 description?: string;
                 /** @enum {string} */
@@ -6843,6 +6918,8 @@ export interface components {
         TriggersPatchRequest: {
             title?: string;
             description?: string;
+            /** @description Set or rename the developer key; `null` clears it (and the app-email link that depends on it). Omit to keep the current key. */
+            key?: string | null;
             payloadSchema?: {
                 /** @enum {string} */
                 type: "object";
@@ -6899,6 +6976,8 @@ export interface components {
             /** @description The persisted inbound row — `GET /v1/automations/trigger-instances/{triggerInstanceId}` for its match state. */
             triggerInstanceId: string;
             triggerEventId: string;
+            /** @description Present on a by-key fire: the developer key the trigger was named by. */
+            triggerKey?: string;
             /**
              * @description `triggered` = this call accepted and matched the event; `automationRunIds` lists the runs it started and `notStarted` any it could not. `replayed` = the same `Idempotency-Key` already fired; nothing ran twice.
              * @enum {string}
@@ -18515,6 +18594,8 @@ export interface operations {
              *     `INVALID_REQUEST`: The body or query failed validation: an unknown key, a wrong type, or a missing required field. `param` names the offender.
              *
              *     `PAYLOAD_SCHEMA_EMAIL_REQUIRED`: A trigger payload schema must declare a required string `email` field.
+             *
+             *     `TRIGGER_KEY_RESERVED`: That trigger key is reserved by Brew: `kit`, `by-key`, `brew.*`, or an `auth.*` key outside the starter kit.
              */
             400: {
                 headers: {
@@ -18579,6 +18660,8 @@ export interface operations {
              *     `IDEMPOTENCY_IN_PROGRESS`: A request with this Idempotency-Key is still executing.
              *
              *     `TRIGGER_ALREADY_EXISTS`: A trigger with that id already exists in the brand.
+             *
+             *     `TRIGGER_KEY_TAKEN`: Another trigger in the brand already uses that key.
              *
              *     `TRIGGER_LIMIT_REACHED`: The brand already holds the maximum number of trigger events.
              */
@@ -19019,6 +19102,8 @@ export interface operations {
              * @description `BRAND_ID_REQUIRED`: An organization-scoped credential called a brand-scoped operation without naming the brand.
              *
              *     `INVALID_REQUEST`: The body or query failed validation: an unknown key, a wrong type, or a missing required field. `param` names the offender.
+             *
+             *     `TRIGGER_KEY_RESERVED`: That trigger key is reserved by Brew: `kit`, `by-key`, `brew.*`, or an `auth.*` key outside the starter kit.
              */
             400: {
                 headers: {
@@ -19081,7 +19166,11 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description `CONTRACT_LOCKED_BY_PUBLISHED_AUTOMATIONS`: A published automation consumes this trigger, so the contract change must stay backward compatible: enforcement cannot tighten, a referenced field cannot be removed, retyped, or made required without a fallback, and an open object or list cannot gain a shape that drops a field a published automation reads. */
+            /**
+             * @description `CONTRACT_LOCKED_BY_PUBLISHED_AUTOMATIONS`: A published automation consumes this trigger, so the contract change must stay backward compatible: enforcement cannot tighten, a referenced field cannot be removed, retyped, or made required without a fallback, and an open object or list cannot gain a shape that drops a field a published automation reads.
+             *
+             *     `TRIGGER_KEY_TAKEN`: Another trigger in the brand already uses that key.
+             */
             409: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -19501,6 +19590,260 @@ export interface operations {
              *     `IDEMPOTENCY_IN_PROGRESS`: A request with this Idempotency-Key is still executing.
              *
              *     `TRIGGER_NOT_FIREABLE`: Brew starts this trigger itself when its event happens, so it cannot be fired over the API.
+             */
+            409: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description `NO_PUBLISHED_AUTOMATION`: The trigger fired, but no published automation listens for it, so nothing would run. */
+            422: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description `RATE_LIMITED`: The credential exhausted the rolling window for this route policy; Retry-After is when the oldest recorded request leaves, and the refused request does not take a slot. */
+            429: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds when the oldest recorded request leaves the rolling window. */
+                    "X-RateLimit-Reset": number;
+                    /** @description Seconds to wait before retrying the request. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description `INTERNAL_ERROR`: An unexpected failure; the x-request-id header identifies it. */
+            500: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /** @description `SERVICE_UNAVAILABLE`: A dependency the operation must consult (billing, the idempotency store) is temporarily unavailable, so the request was refused rather than run unmetered. */
+            503: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Seconds to wait before retrying the request. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+        };
+    };
+    fireTriggerByKey: {
+        parameters: {
+            query?: never;
+            header?: {
+                /**
+                 * @description Optional idempotency key for safe retries of the same trigger fire and request body. The shared response cache defaults to 24 hours; the trigger receipt replays the original run ids for as long as it is stored (90 days). Use one key per business action and never reuse it for a different fire.
+                 * @example api-request-2026-04-08-001
+                 */
+                "Idempotency-Key"?: string;
+                /**
+                 * @description The brand this request acts on. REQUIRED for organization-scoped credentials (otherwise `400 BRAND_ID_REQUIRED` — there is no default brand); list ids with `GET /v1/brands`. Brand-scoped credentials may omit it, and sending a different brand returns `403 BRAND_SCOPE_MISMATCH`. A brand outside your organization returns `404 BRAND_NOT_FOUND`.
+                 * @example kx7b3s7fapqz8mjm12ekz1kxdx87yceg
+                 */
+                "X-Brand-Id"?: string;
+            };
+            path: {
+                /** @description The developer key set on the trigger (`key` on the trigger row). Resolved inside the brand the credential acts for. */
+                triggerKey: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "payload": {
+                 *         "email": "jane@example.com",
+                 *         "orderId": "ord_1042"
+                 *       }
+                 *     }
+                 */
+                "application/json": components["schemas"]["TriggerFireRequest"];
+            };
+        };
+        responses: {
+            /** @description Idempotent replay: this `Idempotency-Key` already fired this trigger. The ids are the original run’s. */
+            200: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds when the oldest recorded request leaves the rolling window. */
+                    "X-RateLimit-Reset": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "triggerInstanceId": "tin_4fZ2kQ9pLm7xR1tV8wYcD",
+                     *       "triggerEventId": "Hq2LmP4xR7vB1nC5zKdWa",
+                     *       "triggerKey": "order.paid",
+                     *       "status": "replayed",
+                     *       "automationRunIds": [
+                     *         "jh7acthhe99pq4448xh83gn54x8eennb"
+                     *       ],
+                     *       "publishedAutomations": [
+                     *         {
+                     *           "automationId": "M3nRk8LqW2xT5vBp9YcZd",
+                     *           "name": "Receipt flow"
+                     *         }
+                     *       ],
+                     *       "counts": {
+                     *         "automations": 1,
+                     *         "skipped": 0
+                     *       },
+                     *       "warnings": [],
+                     *       "receivedAt": "2026-04-08T12:34:56.789Z"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["TriggerFireAccepted"];
+                };
+            };
+            /** @description Accepted: one run started per matched published automation. */
+            202: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    /** @description Requests allowed in the current rolling rate limit window. */
+                    "X-RateLimit-Limit": number;
+                    /** @description Requests remaining in the current rolling rate limit window. */
+                    "X-RateLimit-Remaining": number;
+                    /** @description Unix timestamp in seconds when the oldest recorded request leaves the rolling window. */
+                    "X-RateLimit-Reset": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "triggerInstanceId": "tin_4fZ2kQ9pLm7xR1tV8wYcD",
+                     *       "triggerEventId": "Hq2LmP4xR7vB1nC5zKdWa",
+                     *       "triggerKey": "order.paid",
+                     *       "status": "triggered",
+                     *       "automationRunIds": [
+                     *         "jh7acthhe99pq4448xh83gn54x8eennb"
+                     *       ],
+                     *       "publishedAutomations": [
+                     *         {
+                     *           "automationId": "M3nRk8LqW2xT5vBp9YcZd",
+                     *           "name": "Receipt flow"
+                     *         }
+                     *       ],
+                     *       "counts": {
+                     *         "automations": 1,
+                     *         "skipped": 0
+                     *       },
+                     *       "warnings": [],
+                     *       "receivedAt": "2026-04-08T12:34:56.789Z"
+                     *     }
+                     */
+                    "application/json": components["schemas"]["TriggerFireAccepted"];
+                };
+            };
+            /**
+             * @description `BRAND_ID_REQUIRED`: An organization-scoped credential called a brand-scoped operation without naming the brand.
+             *
+             *     `INVALID_PAYLOAD`: The test payload does not match the trigger’s payload schema.
+             *
+             *     `INVALID_REQUEST`: The body or query failed validation: an unknown key, a wrong type, or a missing required field. `param` names the offender.
+             */
+            400: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /**
+             * @description `API_KEY_REVOKED`: The API key was revoked.
+             *
+             *     `AUTHENTICATION_REQUIRED`: No API key or session accompanied the request.
+             *
+             *     `INVALID_API_KEY`: The API key is malformed or unknown.
+             */
+            401: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /**
+             * @description `ACCOUNT_SUSPENDED`: The organization behind the credential is suspended.
+             *
+             *     `BRAND_SCOPE_MISMATCH`: A brand-scoped credential named a brand other than the one it is bound to.
+             *
+             *     `INSUFFICIENT_PERMISSIONS`: The credential lacks the permission scope the operation needs.
+             *
+             *     `INSUFFICIENT_ROLE`: The caller lacks the access the operation needs: `param` names `member` (access to the brand) or `org_admin` (the organization role).
+             */
+            403: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /**
+             * @description `BRAND_NOT_FOUND`: The named or bound brand does not exist in this organization (unknown, deleting, or another organization).
+             *
+             *     `TRIGGER_KEY_NOT_FOUND`: No trigger in the brand has that key.
+             */
+            404: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
+            /**
+             * @description `IDEMPOTENCY_CONFLICT`: The same Idempotency-Key was reused with a different request body.
+             *
+             *     `IDEMPOTENCY_IN_PROGRESS`: A request with this Idempotency-Key is still executing.
              */
             409: {
                 headers: {

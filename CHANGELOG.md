@@ -1,5 +1,48 @@
 # Changelog
 
+## 13.1.0 (not released yet)
+
+App email by trigger key (GetBrew/brew-v2#2013, GetBrew/brew-v2#2017).
+Additive: nothing is removed or renamed. This is a minor release after
+13.0.0, the canvas `revoke` change listed under Unreleased below; cut that
+first. Publish only once both API pull requests are deployed and the live
+spec matches the vendored one: until then
+`POST /v1/automations/triggers/by-key/{triggerKey}/fire` answers `404`. The
+spec is brew-v2 `main` at `8c7020e535` plus the operations and schemas from
+#2013 (`d556eaf50d`) and #2017 (`104d635e70`).
+
+### Added
+
+- **`brew.send(key, payload, options?)`**: send the app email behind a
+  trigger key in one call, for example
+  `brew.send('auth.password-reset', { email, confirmationUrl, appName })`.
+  `payload.email` is the recipient; the other fields are the email's
+  `{{ trigger.* }}` data, and a field set to `undefined` is left out of the
+  body. Resolves to the accepted fire (`triggerInstanceId`,
+  `automationRunIds`, and `triggerKey`, always present on a by-key fire). On every
+  client, including `withBrand(...)` clients. Not `emails.send`, which sends
+  a saved design to an audience or as a test. See `docs/send.md`.
+- **`brew.automations.triggers.fireByKey({ triggerKey, payload }, options?)`**
+  (`POST /v1/automations/triggers/by-key/{triggerKey}/fire`): the object
+  form of `send`, generic over the payload like `fire`, with `{ raw: true }`.
+  An unknown key throws `BrewApiError` `404 TRIGGER_KEY_NOT_FOUND`. An
+  empty, `.` or `..` key throws a `TypeError` before any request.
+- **`BrewTriggerKeyRegistry`**: augment it with
+  `declare module '@brew.new/sdk'` to type-check `brew.send` keys and
+  payloads. Empty (the default), `send` takes any string key and an
+  `{ email, …JSON }` payload whose other fields may be `undefined`. A key
+  typed as a union must carry a payload that fits every key in it. New
+  types: `BrewSend`, `BrewSendKey`, `BrewSendPayload<K>`,
+  `BrewSendPayloadFor<K>`, `BrewSendResponse`, `BrewDefaultSendPayload`,
+  `FireTriggerByKeyInput`, `FireTriggerByKeyResponse`.
+- **Trigger keys** from the regenerated spec: `triggers.create` takes
+  `key`, `triggers.patch` takes `key` (`null` clears it), and trigger rows
+  (`list`, `get`, `create`, `patch`) carry `key` and, when an app-email setup
+  wired the trigger, `appEmail: { automationId, emailId, starterId?,
+starterVersion? }`. The fire body gains `triggerKey` on a by-key fire.
+  New error codes: `TRIGGER_KEY_NOT_FOUND`, `TRIGGER_KEY_RESERVED`,
+  `TRIGGER_KEY_TAKEN`.
+
 ## 13.0.0
 
 ### Breaking
@@ -84,6 +127,24 @@ Needs the API from GetBrew/brew-v2#2071: triggers Brew starts itself.
   `422 TRIGGER_IMMUTABLE`. Try its automation with `automations.test`: the
   test runs on the trigger's sample, with any `payload` fields you pass laid
   over it, and writes no contact.
+
+## 12.1.0
+
+Additive (GetBrew/typescript-sdk#50).
+
+- **`templates.list` count mode**: `count: true` returns `{ count }` for the
+  `brand` / `category` filters, and `groupBy: 'brand' | 'category'` adds
+  grouped counts with cursor pagination. New types `ListTemplateRowsInput`,
+  `ListTemplateCountsInput`, `TemplatesCountResponse`; count mode refuses
+  `query` and `semantic` at compile time.
+- **`emails.audit`** takes exactly one source: `emailHtml`, `emailJsx`, or
+  `emailId` (with an optional `emailVersionId`). Passing two no longer
+  type-checks.
+- Doc comments follow the API: `brand.patch` returns the bare brand row, a
+  trigger with no published automation refuses a fire with
+  `422 NO_PUBLISHED_AUTOMATION`, `domains.health` samples `domainActivity`,
+  and audience filters resolve omitted field types from the brand's field
+  registry.
 
 ## 12.0.0
 
