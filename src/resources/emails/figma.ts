@@ -61,9 +61,11 @@ export const IMPORT_FIGMA_DEFAULT_TIMEOUT_MS = 800_000
  * it.
  *
  * Set `format` to `jsx` (default) or `html`; the selected representation is
- * returned in `content`. Figma carries no link data, so button hrefs default
- * to `#`; `warningCount` reports how many placeholders to fill in with a
- * follow-up `brew.emails.edit(...)`. Supply `options.idempotencyKey` to make
+ * returned in `content`. Authored Figma text/CTA links are retained. Supply
+ * `hrefMap` to override destinations by Figma text or CTA node id; linked
+ * subtrees stay editable instead of being flattened into artwork. Missing
+ * CTA links default to `#` and contribute to `warningCount`. Supply
+ * `options.idempotencyKey` to make
  * retries safe; one is generated automatically otherwise.
  *
  * Pass `{ raw: true }` in `options` to receive the full

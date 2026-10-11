@@ -38,6 +38,7 @@ describe('emails.importFigma', () => {
       figmaUrl: 'https://www.figma.com/design/abc123/Launch-email?node-id=1-2',
       title: 'Launch email',
       format: 'html',
+      hrefMap: { '1:3': 'https://example.com/buy' },
     })
 
     expect(capturedRequest?.method).toBe('POST')
@@ -46,6 +47,7 @@ describe('emails.importFigma', () => {
       figmaUrl: 'https://www.figma.com/design/abc123/Launch-email?node-id=1-2',
       title: 'Launch email',
       format: 'html',
+      hrefMap: { '1:3': 'https://example.com/buy' },
     })
     expect(result).toMatchObject({
       emailId: 'email_123',
