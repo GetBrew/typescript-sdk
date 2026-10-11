@@ -8,6 +8,16 @@
 
 // ---------- Client ----------
 export { type BrewClient, createBrewClient } from './client'
+// ---------- brew.send: app email by trigger key ----------
+// `BrewTriggerKeyRegistry` is augmentable with `declare module '@brew.new/sdk'`.
+export type {
+  BrewDefaultSendPayload,
+  BrewSend,
+  BrewSendKey,
+  BrewSendPayload,
+  BrewSendResponse,
+  BrewTriggerKeyRegistry,
+} from './send-registry'
 
 // ---------- Errors ----------
 // `BrewApiError`: the server answered non-2xx. The transport family —
@@ -205,6 +215,10 @@ export type {
   FireTriggerInput,
   FireTriggerResponse,
 } from './resources/automations/triggers/fire'
+export type {
+  FireTriggerByKeyInput,
+  FireTriggerByKeyResponse,
+} from './resources/automations/triggers/fire-by-key'
 export type {
   ListTriggersInput,
   ListTriggersResponse,

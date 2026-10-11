@@ -60,6 +60,9 @@ string in `{ emailId }` would make every detail read read worse than the REST
 call it stands for. Anything with a request body or a query still takes the
 object.
 
+`brew.send(key, payload)` is the one exception
+([why](docs/development.md#the-brewsend-exception)).
+
 ## Async patterns
 
 - Prefer parallel execution with `Promise.all` when all calls must succeed,
