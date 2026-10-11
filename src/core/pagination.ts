@@ -90,8 +90,9 @@ export async function* autoPaginate<TItem>(
   const fetched = new Set<string>()
   let pagesFetched = 0
   let itemsYielded = 0
+  const isAborted = () => options?.signal?.aborted === true
   while (true) {
-    if (options?.signal?.aborted === true) {
+    if (isAborted()) {
       return
     }
 
@@ -103,6 +104,12 @@ export async function* autoPaginate<TItem>(
     for (const item of page.items) {
       itemsYielded += 1
       yield item
+    }
+
+    // A caller may abort while consuming the page. Preserve quiet termination
+    // between pages even if the server also returned a cyclic next cursor.
+    if (isAborted()) {
+      return
     }
 
     const next = page.pagination

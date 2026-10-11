@@ -352,7 +352,7 @@ from an in-flight request propagates that request's signal reason.
 import { BrewPaginationError } from '@brew.new/sdk'
 
 try {
-  for await (const contact of brew.contacts.listAll()) {
+  for await (const contact of brew.contacts.searchAll()) {
     // Consume each contact.
   }
 } catch (error) {

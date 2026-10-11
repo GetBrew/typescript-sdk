@@ -122,6 +122,31 @@ describe('autoPaginate', () => {
     expect(calls).toBe(1)
     expect(out).toEqual([1])
   })
+
+  it('finishes the fetched page and stops quietly when an abort coincides with a cursor cycle', async () => {
+    const controller = new AbortController()
+    const requested: Array<string | null> = []
+    const output: Array<number> = []
+
+    for await (const item of autoPaginate<number>(
+      (cursor) => {
+        requested.push(cursor)
+        return Promise.resolve({
+          items: cursor === null ? [1] : [2, 3],
+          pagination: { limit: 2, cursor: 'a', hasMore: true },
+        })
+      },
+      { signal: controller.signal }
+    )) {
+      output.push(item)
+      if (item === 2) {
+        controller.abort()
+      }
+    }
+
+    expect(requested).toEqual([null, 'a'])
+    expect(output).toEqual([1, 2, 3])
+  })
 })
 
 describe('pageReadOptions', () => {
