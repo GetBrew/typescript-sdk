@@ -9,7 +9,8 @@ A thin, ergonomic, open source TypeScript client on top of the Brew public
 API. The API is the source of truth — this SDK is a consumer of it.
 
 See `README.md` for the product-level overview and the external design doc
-(`public-api-sdk-oss-plan.md`) for the full rationale.
+(`public-api-sdk-oss-plan.md`) for historical rationale. Current contracts
+live in `src/`, the OpenAPI mirror, and `docs/`.
 
 For shipping a new version (iterate loop, validation, npm publish, the
 tag-driven release workflow, and token rotation), read [`RELEASING.md`](./RELEASING.md)
@@ -45,16 +46,8 @@ API integration coverage.
 
 ## Function signatures
 
-Every function takes a single object parameter, even if it only needs one
-value. This keeps call sites self-documenting and type-safe:
-
-```ts
-// Good
-function getContact({ email }: { email: string }) { ... }
-
-// Bad
-function getContact(email: string) { ... }
-```
+Prefer object parameters for internal functions when they clarify related inputs.
+Preserve public resource signatures and their URL identity contract.
 
 Public SDK methods take `(input, options?)` where `input` is the domain
 object and `options` is `RequestOptions`, with one deliberate exception: a
@@ -137,7 +130,7 @@ Resource clients live in `src/resources/`. They expose ergonomic method
 names even when the raw API is more flexible. Example:
 
 ```ts
-brew.contacts.getByEmail(...)
+brew.contacts.get(email)
 brew.contacts.upsert(...)
 brew.contacts.upsertMany(...)
 ```
@@ -160,17 +153,21 @@ should look like a short list of method definitions.
 
 ## After completing work
 
-Run all four checks before handing work back:
+Run checks appropriate to the change; CI runs the full gate set. Documentation
+changes need formatting and link/example validation. For code changes, run
+lint and relevant tests; run the typecheck for types, contracts, dependencies,
+or uncertain compiler impact. Report checks run and anything deferred to CI.
 
 ```bash
-bun install   # if deps changed
-bun tsc
-bun lint
-bun run format
-bun run test   # NOT `bun test` — that runs Bun's built-in runner and bypasses vitest
+bun install              # only if dependencies changed
+bun run tsc              # typecheck
+bun run lint             # lint
+bun run format:check     # read-only formatting check
+bun run test -- tests/<file>.test.ts  # relevant tests
 ```
 
-All four must pass cleanly. No warnings, no skipped checks.
+Use `bun run format` only as an intentional formatting write. Generated types
+are regenerated from the vendored spec, never edited by hand.
 
 > **Trap**: `bun test` (without `run`) invokes Bun's built-in test runner,
 > which ignores `vitest.config.ts` and `tests/setup.ts`, so MSW never
@@ -178,37 +175,9 @@ All four must pass cleanly. No warnings, no skipped checks.
 
 ## What lives where
 
-```
-src/
-  index.ts          Public entrypoint. Everything public is re-exported here.
-  client.ts         createBrewClient factory.
-  types.ts          Public SDK types (client config, request options, etc.)
-  core/
-    auth.ts         Builds auth headers from API key.
-    config.ts       Defaults + config resolution.
-    errors.ts       BrewApiError and error mapping.
-    headers.ts      Shared header helpers.
-    http.ts         The transport layer: fetch + retries + error mapping.
-    idempotency.ts  Idempotency key generation and handling.
-    retry.ts        Retry policy.
-    response.ts     Parsing + raw response mode.
-    url.ts          URL + query param construction.
-  resources/
-    contacts.ts     brew.contacts.* methods.
-    fields.ts       brew.fields.* methods.
-  generated/
-    openapi-types.ts  Generated from the public OpenAPI spec. Do not edit.
-
-tests/
-  msw/              MSW handlers + server (added later).
-  *.test.ts         Vitest test files.
-```
-
-Files under `src/generated/` are produced from the OpenAPI spec in the app
-repo. Never hand-edit them.
-
-## Design doc
-
-The full design rationale (DX bar, resource surface, retry matrix, testing
-strategy, release flow) lives in `public-api-sdk-oss-plan.md` at the repo
-root. Read that before making architectural changes.
+`src/index.ts` owns public exports; `src/client.ts` composes the resources.
+`src/core/` owns transport, retries, deadlines, errors, and pagination.
+`src/resources/` owns thin resource methods. `tests/` owns hermetic Vitest/MSW
+and deliberate loopback tests. The [development guide](docs/development.md)
+explains generation and the contribution workflow. Never hand-edit
+`src/generated/`; regenerate it from the vendored OpenAPI spec.
