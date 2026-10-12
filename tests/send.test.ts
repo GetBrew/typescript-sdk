@@ -61,6 +61,30 @@ describe('brew.send(key, payload, options?)', () => {
     expect(result.triggerKey).toBe('auth.password-reset')
   })
 
+  it('leaves an undefined optional field out of the body', async () => {
+    let body: unknown
+    server.use(
+      http.post(
+        `${baseUrl}/v1/automations/triggers/by-key/lifecycle.welcome/fire`,
+        async ({ request }) => {
+          body = await request.json()
+          return HttpResponse.json(accepted('lifecycle.welcome'), {
+            status: 202,
+          })
+        }
+      )
+    )
+    const userName: string | undefined = undefined
+
+    await brewClient().send('lifecycle.welcome', {
+      email: 'jane@example.com',
+      userName,
+    })
+
+    expect(body).toEqual({ payload: { email: 'jane@example.com' } })
+    expect(JSON.stringify(body)).not.toContain('userName')
+  })
+
   it('passes options through: idempotencyKey becomes the header', async () => {
     let captured: Request | undefined
     server.use(
@@ -114,7 +138,8 @@ describe('brew.send(key, payload, options?)', () => {
                 code: 'TRIGGER_KEY_NOT_FOUND',
                 type: 'not_found',
                 message: 'No trigger in the brand has that key.',
-                suggestion: 'Set one up with `npx brew.new init`.',
+                suggestion:
+                  'List triggers with GET /v1/automations/triggers and check each row’s `key`, or set one with PATCH /v1/automations/triggers/{triggerEventId}.',
                 docs: 'https://docs.brew.new/api-reference/api/errors',
               },
             },

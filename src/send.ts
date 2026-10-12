@@ -2,7 +2,7 @@ import type { createFireTriggerByKey } from './resources/automations/triggers/fi
 import type {
   BrewSend,
   BrewSendKey,
-  BrewSendPayload,
+  BrewSendPayloadFor,
   BrewSendResponse,
 } from './send-registry'
 import type { BrewRawResponse, RequestOptions } from './types'
@@ -20,12 +20,12 @@ export function createSend(
 ): BrewSend {
   function send<TKey extends BrewSendKey>(
     key: TKey,
-    payload: BrewSendPayload<TKey>,
+    payload: BrewSendPayloadFor<TKey>,
     options: RequestOptions & { readonly raw: true }
   ): Promise<BrewRawResponse<BrewSendResponse>>
   function send<TKey extends BrewSendKey>(
     key: TKey,
-    payload: BrewSendPayload<TKey>,
+    payload: BrewSendPayloadFor<TKey>,
     options?: RequestOptions
   ): Promise<BrewSendResponse>
   async function send(

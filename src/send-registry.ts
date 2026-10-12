@@ -4,9 +4,9 @@ import type { BrewRawResponse, RequestOptions } from './types'
 
 /**
  * The trigger keys your app sends, each mapped to its payload type. Empty
- * by default, so `brew.send` takes any string key. Augment it once (by
- * hand, or with the file `brew-cli` writes) and every `brew.send` call site
- * is checked: an unknown key or a wrong payload stops compiling.
+ * by default, so `brew.send` takes any string key. Augment it once and
+ * every `brew.send` call site is checked: an unknown key or a wrong payload
+ * stops compiling.
  *
  * ```ts
  * // brew-keys.d.ts
@@ -16,8 +16,10 @@ import type { BrewRawResponse, RequestOptions } from './types'
  *   interface BrewTriggerKeyRegistry {
  *     'auth.password-reset': {
  *       email: string
- *       confirmationUrl: string
  *       appName?: string
+ *       userName?: string
+ *       confirmationUrl?: string
+ *       expiresInMinutes?: number
  *     }
  *   }
  * }
@@ -42,11 +44,13 @@ export type BrewSendKey = IsRegistryEmpty extends true
 
 /**
  * A send payload without a registry: the recipient `email` plus any JSON
- * values the email reads as `{{ trigger.* }}`. The same value type as
- * `automations.triggers.fire`, so nothing the wire rejects type-checks.
+ * values the email reads as `{{ trigger.* }}`. A field may be `undefined`
+ * (an optional value straight from app state, such as `userName`):
+ * `JSON.stringify` leaves it out of the body, so the trigger sees it as
+ * absent. Nothing else the wire rejects type-checks.
  */
 export type BrewDefaultSendPayload = { email: string } & {
-  [key: string]: SendPayloadValue
+  [key: string]: SendPayloadValue | undefined
 }
 
 /**
@@ -63,20 +67,46 @@ export type BrewSendPayload<TKey extends BrewSendKey> =
 /** What `brew.send` resolves to: the by-key fire body. */
 export type BrewSendResponse = FireTriggerByKeyResponse
 
+/** `true` when `T` is a union of two or more members. */
+type IsUnion<T, TAll = T> = T extends unknown
+  ? [TAll] extends [T]
+    ? false
+    : true
+  : never
+
+type UnionToIntersection<TUnion> = (
+  TUnion extends unknown ? (value: TUnion) => void : never
+) extends (value: infer TIntersection) => void
+  ? TIntersection
+  : never
+
+/**
+ * The payload a `brew.send(key, …)` call must carry for a key of type
+ * `TKey`. A literal key takes its own payload. A key typed as a union
+ * (`'auth.password-reset' | 'order.paid'`) can be any member at runtime, so
+ * the payload must satisfy every member's payload: a password-reset payload
+ * no longer type-checks for a key that might be `order.paid`.
+ */
+export type BrewSendPayloadFor<TKey extends BrewSendKey> =
+  IsUnion<TKey> extends true
+    ? UnionToIntersection<BrewSendPayload<TKey>>
+    : BrewSendPayload<TKey>
+
 /**
  * `brew.send(key, payload, options?)`: send the app email (or run any
  * automation) behind a trigger key. Two positionals is a deliberate
- * exception to the SDK's `(input, options?)` rule (see AGENTS.md).
+ * exception to the SDK's `(input, options?)` rule (see
+ * `docs/development.md`).
  */
 export type BrewSend = {
   <TKey extends BrewSendKey>(
     key: TKey,
-    payload: BrewSendPayload<TKey>,
+    payload: BrewSendPayloadFor<TKey>,
     options: RequestOptions & { readonly raw: true }
   ): Promise<BrewRawResponse<BrewSendResponse>>
   <TKey extends BrewSendKey>(
     key: TKey,
-    payload: BrewSendPayload<TKey>,
+    payload: BrewSendPayloadFor<TKey>,
     options?: RequestOptions
   ): Promise<BrewSendResponse>
 }

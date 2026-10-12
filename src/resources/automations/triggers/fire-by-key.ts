@@ -31,10 +31,14 @@ export type FireTriggerByKeyInput<
  * The fire body, plus `triggerKey`: `{ triggerInstanceId, triggerEventId,
  * triggerKey, status, automationRunIds, notStarted, publishedAutomations,
  * counts, warnings, receivedAt }`. `status: 'replayed'` (HTTP 200) when the
- * same `Idempotency-Key` already fired the resolved trigger.
+ * same `Idempotency-Key` already fired the resolved trigger. The shared
+ * schema marks `triggerKey` optional because a by-id fire omits it; a by-key
+ * fire (accepted or replayed) always carries it.
  */
-export type FireTriggerByKeyResponse =
-  components['schemas']['TriggerFireAccepted']
+export type FireTriggerByKeyResponse = Omit<
+  components['schemas']['TriggerFireAccepted'],
+  'triggerKey'
+> & { triggerKey: string }
 
 /**
  * `.` and `..` survive `encodeURIComponent` and a URL resolves them as
