@@ -119,7 +119,10 @@ describe('chats.list', () => {
   })
 
   it('types the rows', () => {
-    expectTypeOf<ChatSummary['origin']>().toEqualTypeOf<'slack' | null>()
+    expectTypeOf<'slack' | 'teams' | 'telegram' | 'whatsapp'>().toExtend<
+      ChatSummary['origin']
+    >()
+    expectTypeOf<null>().toExtend<ChatSummary['origin']>()
     expectTypeOf<{ limit: 10; cursor: 'c' }>().toExtend<ListChatsInput>()
   })
 })
