@@ -37,11 +37,15 @@ await brew.send('auth.password-reset', {
 `brew.send(key, payload)` sends the app email behind a trigger key: the
 key's published automation holds the design, the subject and the sender,
 and `payload` carries the recipient (`email`) plus the data the email reads
-(`{{ trigger.confirmationUrl }}`). Run `npx brew.new init` to set up the
-keys (auth emails, welcome, receipts) in your brand. Pass
-`{ idempotencyKey }` as the third argument when the call itself can repeat,
-and augment `BrewTriggerKeyRegistry` to type-check every key and payload.
-See [`docs/send.md`](./docs/send.md).
+(`{{ trigger.confirmationUrl }}`). A key is a trigger in your brand with
+that `key` set: the auth emails (`auth.verify-email`, `auth.magic-link`,
+`auth.otp`, `auth.password-reset`, …), lifecycle emails such as
+`lifecycle.welcome`, or a key of your own. The auth emails share one
+payload: `email` plus optional `appName`, `userName`, `confirmationUrl`,
+`otp` and the rest listed in [`docs/send.md`](./docs/send.md#starter-kit-keys).
+Pass `{ idempotencyKey }` as the third argument when the call itself can
+repeat, and augment `BrewTriggerKeyRegistry` to type-check every key and
+payload. See [`docs/send.md`](./docs/send.md).
 
 `brew.send` is not `brew.emails.send`: `emails.send` sends a saved design to
 an audience (a campaign) or as one test delivery.

@@ -1,6 +1,6 @@
 # `brew.send`
 
-Send an app email (a password reset, a magic link, an order receipt) by its
+Send an app email (a password reset, a magic link, a welcome email) by its
 trigger key:
 
 ```ts
@@ -24,6 +24,12 @@ await brew.send(
 | `brew.send(key, payload, options?)`                            | `POST /v1/automations/triggers/by-key/{triggerKey}/fire`   | `automations` |
 | `brew.automations.triggers.fireByKey({ triggerKey, payload })` | the same route; the object form, with a `TPayload` generic | `automations` |
 
+> **Availability.** The by-key route and trigger keys ship in the Brew
+> platform release that deploys GetBrew/brew-v2#2013 (trigger keys) and
+> GetBrew/brew-v2#2017 (fire by key). SDK 12.2.0 is not released before
+> that deploy: until then the route answers `404` and trigger rows carry no
+> `key`.
+
 ## How it works
 
 A key names a trigger in your brand. The trigger starts a published
@@ -33,13 +39,14 @@ and the sender. `brew.send` fires that trigger with your `payload`:
 - `payload.email` is the recipient (required on every send).
 - Every other field is data for the email. The design reads it as
   `{{ trigger.confirmationUrl }}` and so on. Nested objects and arrays are
-  fine (JSON only, up to 64 KiB).
+  fine (JSON only, up to 64 KiB). A field set to `undefined` is left out of
+  the body, so an optional value such as `userName` can come straight from
+  app state.
 - The key resolves inside the brand the API key acts for. An
   organization-scoped key names the brand: `brew.withBrand(brandId).send(…)`.
 
-`npx brew.new init` sets the keys up for you: it creates each trigger with
-its key, the email design, and the published automation. To wire one by
-hand, create a trigger with a `key`
+Each key needs a trigger with that `key` and a published automation that
+sends the email. To wire one, create a trigger with a `key`
 (`brew.automations.triggers.create({ title, key: 'order.paid', payloadSchema })`,
 or `patch` an existing one), attach an automation to it, and publish.
 
@@ -53,7 +60,7 @@ Keys are lowercase letters, digits, `.`, `_` and `-`, up to 64 characters
 | ------------------ | -------------------------------------------------- | --------------------------------------------------- |
 | Sends              | the app email behind a trigger key, to one person  | a saved design to an audience, or one test delivery |
 | Content comes from | the published automation (design, subject, sender) | the design you name                                 |
-| Typical use        | auth emails, receipts, lifecycle emails from code  | campaigns and test sends                            |
+| Typical use        | auth and lifecycle emails from your code           | campaigns and test sends                            |
 
 ## Response
 
@@ -61,10 +68,11 @@ Keys are lowercase letters, digits, `.`, `_` and `-`, up to 64 characters
 `automations.triggers.fire` plus `triggerKey`:
 
 ```ts
-const result = await brew.send('order.paid', {
+const result = await brew.send('lifecycle.welcome', {
   email: 'kim@example.com',
-  orderId: 'ord_1042',
+  userName: 'Kim',
 })
+result.triggerKey // 'lifecycle.welcome', on every by-key response
 result.triggerInstanceId // read it back: automations.triggerInstances.get(id)
 result.automationRunIds // the runs it started
 result.notStarted // matched automations that could not start, with `reason`
@@ -103,7 +111,7 @@ try {
   await brew.send('auth.magic-link', { email, confirmationUrl })
 } catch (error) {
   if (error instanceof BrewApiError && error.code === 'TRIGGER_KEY_NOT_FOUND') {
-    // run `npx brew.new init`, or set `key` on the trigger
+    // no trigger in this brand has the key yet: set `key` on one
   }
   throw error
 }
@@ -111,9 +119,10 @@ try {
 
 ## Typed keys and payloads
 
-`brew.send` accepts any string key and an `{ email, …JSON }` payload until
-you declare your keys. Augment `BrewTriggerKeyRegistry` once and every call
-site is checked: an unknown key or a wrong payload stops compiling.
+`brew.send` accepts any string key and an `{ email, …JSON }` payload (any
+field but `email` may be `undefined`) until you declare your keys. Augment
+`BrewTriggerKeyRegistry` once and every call site is checked: an unknown
+key or a wrong payload stops compiling.
 
 ```ts
 // brew-keys.d.ts (any .d.ts or .ts file your tsconfig includes)
@@ -123,9 +132,12 @@ declare module '@brew.new/sdk' {
   interface BrewTriggerKeyRegistry {
     'auth.password-reset': {
       email: string
-      confirmationUrl: string
       appName?: string
+      userName?: string
+      confirmationUrl?: string
+      expiresInMinutes?: number
     }
+    // A key of your own:
     'order.paid': { email: string; orderId: string; total: number }
   }
 }
@@ -137,15 +149,22 @@ await brew.send('order.payed', { email }) // error: not a registered key
 await brew.send('order.paid', { email, orderId }) // error: `total` missing
 ```
 
-`BrewSendKey` and `BrewSendPayload<K>` expose the same types for your own
+A key typed as a union (`'auth.password-reset' | 'order.paid'`) could be
+either key at runtime, so its payload must fit every key in the union.
+Narrow the key first to send one key's payload.
+
+`BrewSendKey`, `BrewSendPayload<K>` and `BrewSendPayloadFor<K>` (the payload
+a call with key type `K` must carry) expose the same types for your own
 helpers.
 
 ## Starter-kit keys
 
-The starter kit (`npx brew.new init`) uses these keys. The auth emails share
-one payload: `email`, `appName`, and as each email needs them `userName`,
+Brew's app email starter kit uses these keys. The auth emails share one
+payload: `email` (required) and the optional `appName`, `userName`,
 `confirmationUrl`, `otp`, `expiresInMinutes`, `newEmail`, `inviterName`,
-`organizationName` and `noticeType`.
+`organizationName` and `noticeType`, each sent when that email needs it.
+The lifecycle emails take `email`, optional `userName` and `appName`, and
+fields of their own.
 
 | Key                        | Sent when                                         |
 | -------------------------- | ------------------------------------------------- |
