@@ -22,19 +22,35 @@ describe('BrewTriggerKeyRegistry: empty (the default)', () => {
   it('accepts any string key with an email-carrying JSON payload', () => {
     expectTypeOf<BrewSendKey>().toEqualTypeOf<string>()
     expectTypeOf<BrewSendPayload<'anything.at-all'>>().toEqualTypeOf<
-      { email: string } & { [key: string]: SendPayloadValue }
+      { email: string } & { [key: string]: SendPayloadValue | undefined }
     >()
     expectTypeOf<BrewSendResponse>().toEqualTypeOf<FireTriggerByKeyResponse>()
+    // A by-key fire always names the key it resolved.
+    expectTypeOf<
+      FireTriggerByKeyResponse['triggerKey']
+    >().toEqualTypeOf<string>()
+    expectTypeOf<
+      object extends Pick<FireTriggerByKeyResponse, 'triggerKey'> ? true : false
+    >().toEqualTypeOf<false>()
 
     // Compile-only: never called.
-    const calls = async (brew: BrewClient) => {
+    const calls = async (brew: BrewClient, userName: string | undefined) => {
       await brew.send('auth.password-reset', {
         email: 'jane@example.com',
         confirmationUrl: 'https://app.example.com/reset',
         nested: { plan: 'pro', seats: [1, 2] },
       })
+      // An optional field straight from app state: `undefined` is left out
+      // of the JSON body, so it type-checks without a registry.
+      await brew.send('lifecycle.welcome', {
+        email: 'jane@example.com',
+        userName,
+        appName: undefined,
+      })
       // @ts-expect-error: `email` is required on every send.
       await brew.send('order.paid', { orderId: 'ord_1' })
+      // @ts-expect-error: `email` must be a string, never `undefined`.
+      await brew.send('order.paid', { email: userName })
       await brew.send('order.paid', {
         email: 'jane@example.com',
         // @ts-expect-error: payload values must be JSON (no functions).
