@@ -313,6 +313,27 @@ export class BrewParseError extends Error {
   }
 }
 
+/** A list returned a cursor that would fetch the same page again. */
+export class BrewPaginationError extends Error {
+  readonly cursor: string
+  readonly pagesFetched: number
+  readonly itemsYielded: number
+
+  constructor(init: {
+    readonly cursor: string
+    readonly pagesFetched: number
+    readonly itemsYielded: number
+  }) {
+    super(
+      'Pagination stopped because the API returned a cursor that did not advance. Restart the list without a cursor.'
+    )
+    this.name = 'BrewPaginationError'
+    this.cursor = init.cursor
+    this.pagesFetched = init.pagesFetched
+    this.itemsYielded = init.itemsYielded
+  }
+}
+
 type BrewTransportErrorInit = {
   readonly message: string
   readonly method: BrewHttpMethod
