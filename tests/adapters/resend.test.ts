@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto'
+
 import { HttpResponse, http } from 'msw'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -73,6 +75,20 @@ describe('@brew.new/sdk/resend emails.send', () => {
       payload: { email: 'jane@example.com', total: 42 },
     })
   })
+
+  it.each(['constructor', 'toString', '__proto__'])(
+    'reads only your own `templates` entries: an unmapped `%s` is its own trigger key',
+    async (id) => {
+      const fires = captureFires()
+
+      const result = await resend({
+        templates: { tmpl_reset: 'auth.password-reset' },
+      }).emails.send({ to: 'jane@example.com', template: { id } })
+
+      expect(result.error).toBeNull()
+      expect(fires.map((fire) => fire.key)).toEqual([id])
+    }
+  )
 
   it('ignores `from` and `subject` with one warning, however many sends carry them', async () => {
     captureFires()
@@ -325,6 +341,57 @@ describe('@brew.new/sdk/resend batch.send', () => {
       ['b@example.com', 'signin-batch:1'],
       ['c@example.com', 'signin-batch:2'],
     ])
+  })
+
+  it('keeps every per-email key within the 100-character limit for a long idempotencyKey', async () => {
+    const fires = captureFires()
+    const emails = [
+      { to: 'a@example.com', template: { id: 'auth.magic-link' } },
+      { to: 'b@example.com', template: { id: 'auth.magic-link' } },
+    ]
+    // 100 characters: valid on its own, too long once `:${index}` is added.
+    const longKey = `orders-2026-10-13:${'x'.repeat(82)}`
+    // Shares the first 99 characters with `longKey`.
+    const otherKey = `${longKey.slice(0, -1)}y`
+    const digest = (key: string) =>
+      createHash('sha256').update(key).digest('hex')
+
+    const [first, retry] = [
+      await resend().batch.send(emails, { idempotencyKey: longKey }),
+      await resend().batch.send(emails, { idempotencyKey: longKey }),
+    ]
+    const other = await resend().batch.send(emails, {
+      idempotencyKey: otherKey,
+    })
+
+    expect([first.error, retry.error, other.error]).toEqual([null, null, null])
+    const keys = fires.map((fire) => fire.idempotencyKey ?? '')
+    expect(keys.slice(0, 2)).toEqual([
+      `${longKey.slice(0, 32)}:${digest(longKey)}:0`,
+      `${longKey.slice(0, 32)}:${digest(longKey)}:1`,
+    ])
+    // A retry of the same batch replays: the same keys, in the same order.
+    expect(keys.slice(2, 4)).toEqual(keys.slice(0, 2))
+    // Another key that shares the prefix gets keys of its own.
+    expect(keys.slice(4)).toEqual([
+      `${otherKey.slice(0, 32)}:${digest(otherKey)}:0`,
+      `${otherKey.slice(0, 32)}:${digest(otherKey)}:1`,
+    ])
+    for (const key of keys) {
+      expect(key.length).toBeLessThanOrEqual(100)
+    }
+  })
+
+  it('keeps `${idempotencyKey}:${index}` for a key of up to 97 characters, room for index 99', async () => {
+    const fires = captureFires()
+    const key = 'k'.repeat(97)
+
+    await resend().batch.send(
+      [{ to: 'a@example.com', template: { id: 'auth.magic-link' } }],
+      { idempotencyKey: key }
+    )
+
+    expect(fires[0]?.idempotencyKey).toBe(`${key}:0`)
   })
 
   it('checks every email before sending any', async () => {

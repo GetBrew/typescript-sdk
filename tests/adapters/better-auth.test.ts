@@ -322,4 +322,59 @@ describe('@brew.new/sdk/better-auth brewAuthEmails', () => {
 
     await expect(sending).rejects.toThrow('BREW_API_KEY is not set')
   })
+
+  it('an onError that throws changes no outcome: a send still rejects with its own error, the others still resolve', async () => {
+    captureFires(() => apiError(422, 'NO_PUBLISHED_AUTOMATION'))
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const reporterFailure = new Error('reporter down')
+    const onError = () => {
+      throw reporterFailure
+    }
+    const handed: Array<Promise<unknown>> = []
+
+    const rejected: unknown = await brewAuthEmails({
+      client: testClient(),
+      onError,
+    })
+      .sendResetPassword({ user, url: 'u', token: 'r6' })
+      .catch((caught: unknown) => caught)
+    const welcome = brewAuthEmails({
+      client: testClient(),
+      onError,
+    }).onUserCreated(user)
+    await brewAuthEmails({
+      client: testClient(),
+      onError,
+      waitUntil: (promise) => handed.push(promise),
+    }).sendMagicLink({ email: 'a@example.com', url: 'u', token: 'm6' })
+
+    expect(rejected).toBeInstanceOf(BrewApiError)
+    await expect(welcome).resolves.toBeUndefined()
+    await expect(handed[0]).resolves.toBeUndefined()
+    expect(consoleError).toHaveBeenCalledTimes(3)
+    expect(consoleError).toHaveBeenCalledWith(
+      '[@brew.new/sdk/better-auth] onError threw',
+      reporterFailure
+    )
+  })
+
+  it('an async onError that rejects is logged, never left as an unhandled rejection', async () => {
+    captureFires(() => apiError(422, 'NO_PUBLISHED_AUTOMATION'))
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const reporterFailure = new Error('reporter down')
+
+    await expect(
+      brewAuthEmails({
+        client: testClient(),
+        onError: vi.fn().mockRejectedValue(reporterFailure),
+      }).onUserCreated(user)
+    ).resolves.toBeUndefined()
+
+    await vi.waitFor(() => {
+      expect(consoleError).toHaveBeenCalledWith(
+        '[@brew.new/sdk/better-auth] onError threw',
+        reporterFailure
+      )
+    })
+  })
 })

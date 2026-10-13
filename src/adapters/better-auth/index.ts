@@ -39,6 +39,7 @@ import {
   compactPayload,
   idempotencyKeyFor,
   lazyClient,
+  reportSafely,
   resolveKey,
 } from '../shared/auth'
 
@@ -81,7 +82,9 @@ export type BrewAuthEmailsOptions = {
   /**
    * Called with every failed send. Default: `console.error` for a send
    * nothing awaits (a `waitUntil` send, and `onUserCreated`); otherwise
-   * nothing, because the rejection reaches Better Auth, which logs it.
+   * nothing, because the rejection reaches Better Auth, which logs it. A
+   * reporter that throws (or rejects) is logged and changes nothing: the
+   * send still rejects with its own error, or still resolves.
    */
   readonly onError?: (
     error: unknown,
@@ -157,8 +160,10 @@ type Dispatch = {
   readonly shouldReject: boolean
 }
 
+const LOG_LABEL = '[@brew.new/sdk/better-auth]'
+
 function consoleError(error: unknown, context: BrewAuthEmailErrorContext) {
-  console.error(`[@brew.new/sdk/better-auth] ${context.key} failed`, error)
+  console.error(`${LOG_LABEL} ${context.key} failed`, error)
 }
 
 /**
@@ -195,9 +200,10 @@ export function brewAuthEmails(options: BrewAuthEmailsOptions): BrewAuthEmails {
         { idempotencyKey }
       )
     })()
+    const context = { key, kind }
     const report = (error: unknown) => {
       const onError = options.onError ?? consoleError
-      onError(error, { key, kind })
+      reportSafely(LOG_LABEL, () => onError(error, context))
     }
     if (options.waitUntil) {
       options.waitUntil(sending.catch(report))
@@ -207,7 +213,10 @@ export function brewAuthEmails(options: BrewAuthEmailsOptions): BrewAuthEmails {
       return sending.catch(report)
     }
     return sending.catch((error: unknown) => {
-      options.onError?.(error, { key, kind })
+      const { onError } = options
+      if (onError !== undefined) {
+        reportSafely(LOG_LABEL, () => onError(error, context))
+      }
       throw error
     })
   }

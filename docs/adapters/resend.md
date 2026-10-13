@@ -81,6 +81,9 @@ Sends up to 100 emails one at a time, in order, and answers
   rest are not; `error.message` says how far it got.
 - With `idempotencyKey`, email `i` is sent with `${idempotencyKey}:${i}`,
   so retrying the same batch replays the sent emails and sends the rest.
+  A key longer than 97 characters is first shortened to its first 32
+  characters and its SHA-256, so every key fits the API's 100-character
+  limit.
 
 ## Errors
 

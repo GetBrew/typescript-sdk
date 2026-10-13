@@ -4,6 +4,8 @@
 // ONE `BrewApiError` class at runtime.
 import type { BrewClient } from '@brew.new/sdk'
 
+import { IDEMPOTENCY_KEY_MAX_LENGTH, sha256Hex } from './idempotency'
+
 /** The starter-kit trigger keys each auth email fires by default. */
 export const DEFAULT_AUTH_EMAIL_KEYS = {
   verifyEmail: 'auth.verify-email',
@@ -106,20 +108,6 @@ export function compactPayload(
   return compact
 }
 
-/** Lowercase hex SHA-256 of `text`, via WebCrypto (Node 20+, Deno, edge). */
-export async function sha256Hex(text: string): Promise<string> {
-  const digest = await globalThis.crypto.subtle.digest(
-    'SHA-256',
-    new TextEncoder().encode(text)
-  )
-  return [...new Uint8Array(digest)]
-    .map((byte) => byte.toString(16).padStart(2, '0'))
-    .join('')
-}
-
-/** The API's `Idempotency-Key` length limit. */
-const IDEMPOTENCY_KEY_MAX_LENGTH = 100
-
 /**
  * `${key}:${sha256(parts)}`: one idempotency key per email, derived from
  * the secret that makes it unique (a link token, or recipient + code for a
@@ -134,4 +122,24 @@ export async function idempotencyKeyFor(
 ): Promise<string> {
   const digest = await sha256Hex(parts.join('\n'))
   return `${key}:${digest.slice(0, IDEMPOTENCY_KEY_MAX_LENGTH - key.length - 1)}`
+}
+
+/**
+ * Call the app's `onError` without letting it change what the adapter
+ * promised: a reporter that throws, or returns a promise that rejects, is
+ * logged with `console.error` and the adapter goes on as documented (a
+ * failed send still rejects with its own error, `onUserCreated` still
+ * resolves, the Supabase hook still answers its error response). Left
+ * alone, an async reporter's rejection would be unhandled, which ends a
+ * Node process.
+ */
+export function reportSafely(label: string, report: () => unknown): void {
+  const reporterFailed = (failure: unknown) => {
+    console.error(`${label} onError threw`, failure)
+  }
+  try {
+    void Promise.resolve(report()).catch(reporterFailed)
+  } catch (failure) {
+    reporterFailed(failure)
+  }
 }

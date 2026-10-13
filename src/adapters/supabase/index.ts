@@ -25,6 +25,7 @@ import {
   compactPayload,
   idempotencyKeyFor,
   lazyClient,
+  reportSafely,
   resolveKey,
 } from '../shared/auth'
 
@@ -96,8 +97,10 @@ export type PlanSupabaseSendsOptions = {
   readonly verification?: SupabaseVerificationStyle
   readonly confirmationUrl?: (input: SupabaseConfirmationUrlInput) => string
   /**
-   * The request's `webhook-id`, hashed into the idempotency key of a code
-   * or a notice (they carry no token hash).
+   * The request's `webhook-id`, hashed into the idempotency key of an
+   * email that carries a code instead of a link, and of a notice. A code
+   * repeats across requests; the delivery id keeps two requests that drew
+   * the same code apart.
    */
   readonly webhookId?: string
 }
@@ -132,7 +135,11 @@ export type CreateSupabaseSendEmailHookOptions = {
    * `/auth/confirm?token_hash=…&type=…`).
    */
   readonly confirmationUrl?: (input: SupabaseConfirmationUrlInput) => string
-  /** Called with each failure the hook answers with an error. Default `console.error`. */
+  /**
+   * Called with each failure the hook answers with an error. Default
+   * `console.error`. A reporter that throws (or rejects) is logged, and
+   * the hook still answers its error response.
+   */
   readonly onError?: (error: unknown) => void
 }
 
@@ -154,6 +161,8 @@ const LINK_KIND_BY_ACTION: Readonly<Record<string, AuthEmailKind>> = {
 }
 
 const NOTIFICATION_SUFFIX = '_notification'
+
+const LOG_LABEL = '[@brew.new/sdk/supabase]'
 
 /**
  * Supabase's verify link, as its Send Email Hook guide builds it:
@@ -177,6 +186,12 @@ export function defaultSupabaseConfirmationUrl({
     redirect_to: redirectTo,
   })
   return `${verify}?${query.toString()}`
+}
+
+/** What a planned email carries, and what its idempotency key hashes. */
+type EmailContent = {
+  readonly fields: { confirmationUrl?: string; otp?: string }
+  readonly unique: string
 }
 
 function text(value: unknown): string | undefined {
@@ -236,39 +251,51 @@ export function planSupabaseSends(
     const value = text(token)
     return value === undefined ? {} : { otp: value }
   }
-  // A link email: the verify link from `tokenHash`, plus the code when the
-  // hook sends codes or no link can be built (so the email still works).
-  const linkOf = (
+  // A code email: the code, keyed by the code AND the delivery id. A
+  // six-digit code repeats, and two requests that drew the same one must
+  // each send.
+  const codeEmail = (token: string | undefined): EmailContent => ({
+    fields: codeOf(token),
+    unique: `${text(token) ?? ''}:${webhookId}`,
+  })
+  // A link email: the verify link from `tokenHash` (plus the code when the
+  // hook sends codes), keyed by the token hash. With no link to build, it
+  // sends the code instead (so the email still works), keyed as a code.
+  const linkEmail = (
     tokenHash: string | undefined,
     token: string | undefined
-  ): { confirmationUrl?: string; otp?: string } => {
+  ): EmailContent => {
     const hash = text(tokenHash)
     const siteUrl = text(data.site_url)
     if (hash === undefined || siteUrl === undefined) {
-      return codeOf(token)
+      return codeEmail(token)
     }
     return {
-      confirmationUrl: confirmationUrl({
-        siteUrl,
-        tokenHash: hash,
-        type: action,
-        redirectTo: data.redirect_to ?? '',
-      }),
-      ...(verification === 'code' ? codeOf(token) : {}),
+      fields: {
+        confirmationUrl: confirmationUrl({
+          siteUrl,
+          tokenHash: hash,
+          type: action,
+          redirectTo: data.redirect_to ?? '',
+        }),
+        ...(verification === 'code' ? codeOf(token) : {}),
+      },
+      unique: hash,
     }
   }
 
   const linkKind = LINK_KIND_BY_ACTION[action]
   if (linkKind !== undefined) {
+    const link = linkEmail(data.token_hash, data.token)
     return [
       {
         kind: linkKind,
         payload: {
           email: requireAddress(user.email),
           ...shared,
-          ...linkOf(data.token_hash, data.token),
+          ...link.fields,
         },
-        unique: text(data.token_hash) ?? text(data.token) ?? webhookId,
+        unique: link.unique,
       },
     ]
   }
@@ -281,6 +308,8 @@ export function planSupabaseSends(
     // with `token` + `token_hash_new`, the NEW one with `token_new` +
     // `token_hash`.
     if (text(data.token_hash_new) !== undefined && text(user.email)) {
+      const current = linkEmail(data.token_hash_new, data.token)
+      const next = linkEmail(data.token_hash, data.token_new)
       return [
         {
           kind: 'emailChange',
@@ -288,9 +317,9 @@ export function planSupabaseSends(
             email: requireAddress(user.email),
             ...shared,
             ...newEmailField,
-            ...linkOf(data.token_hash_new, data.token),
+            ...current.fields,
           },
-          unique: data.token_hash_new ?? '',
+          unique: current.unique,
         },
         {
           kind: 'emailChange',
@@ -298,14 +327,15 @@ export function planSupabaseSends(
             email: requireAddress(newEmail),
             ...shared,
             ...newEmailField,
-            ...linkOf(data.token_hash, data.token_new),
+            ...next.fields,
           },
-          unique: text(data.token_hash) ?? text(data.token_new) ?? webhookId,
+          unique: next.unique,
         },
       ]
     }
     // One confirmation, to the new address: `token_hash` with `token` (or
     // `token_new`, whichever Supabase filled).
+    const link = linkEmail(data.token_hash, text(data.token) ?? data.token_new)
     return [
       {
         kind: 'emailChange',
@@ -313,25 +343,24 @@ export function planSupabaseSends(
           email: requireAddress(newEmail ?? user.email),
           ...shared,
           ...newEmailField,
-          ...linkOf(data.token_hash, text(data.token) ?? data.token_new),
+          ...link.fields,
         },
-        unique: text(data.token_hash) ?? text(data.token) ?? webhookId,
+        unique: link.unique,
       },
     ]
   }
 
   if (action === 'reauthentication' || action === 'email') {
+    const code = codeEmail(data.token)
     return [
       {
         kind: action === 'email' ? 'otp' : 'reauthentication',
         payload: {
           email: requireAddress(user.email),
           ...shared,
-          ...codeOf(data.token),
+          ...code.fields,
         },
-        // A six-digit code repeats; the delivery id keeps two requests
-        // that drew the same code apart.
-        unique: `${data.token ?? ''}:${webhookId}`,
+        unique: code.unique,
       },
     ]
   }
@@ -392,8 +421,10 @@ function errorResponse(status: number, message: string): Response {
  * Answers `200 {}` when every email was accepted, otherwise
  * `{ error: { http_code, message } }` with that status: 401 for a bad
  * signature, 400 for a body it cannot use, 500 when Brew refused or could
- * not be reached (Supabase then reports the send as failed). Idempotency
- * keys hash each email's token, so a retried hook never sends twice.
+ * not be reached (Supabase then reports the send as failed). Each send's
+ * idempotency key hashes its token hash (a link email) or its code and the
+ * request's `webhook-id` (a code email, a notice), so the client's retries
+ * of a send never email twice.
  */
 export function createSupabaseSendEmailHook(
   options: CreateSupabaseSendEmailHookOptions
@@ -401,7 +432,7 @@ export function createSupabaseSendEmailHook(
   const onError =
     options.onError ??
     ((error: unknown) =>
-      console.error('[@brew.new/sdk/supabase] send email hook failed', error))
+      console.error(`${LOG_LABEL} send email hook failed`, error))
   const getClient = lazyClient(options.client)
 
   return async (request: Request): Promise<Response> => {
@@ -444,7 +475,7 @@ export function createSupabaseSendEmailHook(
       )
       return jsonResponse(200, {})
     } catch (error) {
-      onError(error)
+      reportSafely(LOG_LABEL, () => onError(error))
       if (error instanceof WebhookVerificationError) {
         return error.reason === 'invalid_secret'
           ? errorResponse(500, error.message)
