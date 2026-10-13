@@ -12,9 +12,9 @@ See `README.md` for the product-level overview and the external design doc
 (`public-api-sdk-oss-plan.md`) for historical rationale. Current contracts
 live in `src/`, the OpenAPI mirror, and `docs/`.
 
-For shipping a new version (iterate loop, validation, npm publish, the
-tag-driven release workflow, and token rotation), read [`RELEASING.md`](./RELEASING.md)
-end-to-end before touching `package.json#version` or pushing a `v*` tag.
+Read [`RELEASING.md`](./RELEASING.md) (validation, npm publish, tag-driven
+release, token rotation) end-to-end before touching `package.json#version`
+or pushing a `v*` tag.
 
 ## Testing
 
@@ -130,13 +130,8 @@ request via `RequestOptions.idempotencyKey`.
 ## Resource design
 
 Resource clients live in `src/resources/`. They expose ergonomic method
-names even when the raw API is more flexible. Example:
-
-```ts
-brew.contacts.get(email)
-brew.contacts.upsert(...)
-brew.contacts.upsertMany(...)
-```
+names (`contacts.get(email)`, `contacts.upsertMany(...)`) even when the raw
+API is more flexible.
 
 Resource files should be thin. All shared behavior (URL building, auth,
 retries, error mapping, response parsing) lives in `src/core/`. Resources
@@ -179,7 +174,10 @@ Use `bun run format` only as an intentional formatting write.
 
 `src/index.ts` owns public exports; `src/client.ts` composes the resources.
 `src/core/` owns transport, retries, deadlines, errors, and pagination.
-`src/resources/` owns thin resource methods. `tests/` owns hermetic Vitest/MSW
-and deliberate loopback tests. The [development guide](docs/development.md)
-explains generation and the contribution workflow. Never hand-edit
-`src/generated/`; regenerate it from the vendored OpenAPI spec.
+`src/resources/` owns thin resource methods; `src/adapters/` the subpaths,
+which load the SDK only as `@brew.new/sdk`
+([why](docs/development.md#subpath-adapters)). `tests/` owns hermetic
+Vitest/MSW and deliberate loopback tests. The
+[development guide](docs/development.md) explains generation and the
+contribution workflow. Never hand-edit `src/generated/`; regenerate it from
+the vendored OpenAPI spec.

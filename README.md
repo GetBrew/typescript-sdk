@@ -51,6 +51,29 @@ payload. See [`docs/send.md`](./docs/send.md).
 `brew.send` is not `brew.emails.send`: `emails.send` sends a saved design to
 an audience (a campaign) or as one test delivery.
 
+## Adapters
+
+Subpath exports that wire `brew.send` into the libraries apps already use.
+No extra install and no peer dependencies; each works on Node 20+, and
+`/supabase` on Deno and edge runtimes.
+
+| Import                                             | For                                                                        | Guide                                                            |
+| -------------------------------------------------- | -------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `@brew.new/sdk/resend`                             | Resend-shaped `emails.send({ template })` and `batch.send`; never throws   | [`docs/adapters/resend.md`](./docs/adapters/resend.md)           |
+| `@brew.new/sdk/better-auth`                        | Better Auth email callbacks (verify, reset, change email, magic link, OTP) | [`docs/adapters/better-auth.md`](./docs/adapters/better-auth.md) |
+| `@brew.new/sdk/next-auth`, `@brew.new/sdk/auth-js` | Auth.js email provider (`BrewEmail`), v4 and v5                            | [`docs/adapters/auth-js.md`](./docs/adapters/auth-js.md)         |
+| `@brew.new/sdk/supabase`                           | Supabase Auth Send Email Hook for Edge Functions, Standard Webhooks verify | [`docs/adapters/supabase.md`](./docs/adapters/supabase.md)       |
+
+```ts
+import { Resend } from '@brew.new/sdk/resend'
+
+const resend = new Resend() // reads BREW_API_KEY
+const { data, error } = await resend.emails.send({
+  to: 'jane@example.com',
+  template: { id: 'auth.password-reset', variables: { confirmationUrl } },
+})
+```
+
 ## Quick start
 
 ```ts
@@ -155,6 +178,10 @@ controller is available from `@brew.new/sdk/embed`.
 | Topic                              | File                                                                   |
 | ---------------------------------- | ---------------------------------------------------------------------- |
 | `brew.send` (app email by key)     | [`docs/send.md`](./docs/send.md)                                       |
+| Resend adapter                     | [`docs/adapters/resend.md`](./docs/adapters/resend.md)                 |
+| Better Auth adapter                | [`docs/adapters/better-auth.md`](./docs/adapters/better-auth.md)       |
+| Auth.js (next-auth) adapter        | [`docs/adapters/auth-js.md`](./docs/adapters/auth-js.md)               |
+| Supabase Send Email Hook           | [`docs/adapters/supabase.md`](./docs/adapters/supabase.md)             |
 | Analytics resource                 | [`docs/analytics.md`](./docs/analytics.md)                             |
 | Automations resource               | [`docs/automations.md`](./docs/automations.md)                         |
 | Audiences resource                 | [`docs/audiences.md`](./docs/audiences.md)                             |

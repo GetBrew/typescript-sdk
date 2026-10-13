@@ -1,0 +1,96 @@
+# `@brew.new/sdk/better-auth`
+
+Better Auth's email callbacks, sent with [`brew.send`](../send.md) to the
+starter kit's auth keys. Written against Better Auth 1.7; no dependency on
+`better-auth` (the types are structural).
+
+```ts
+import { createBrewClient } from '@brew.new/sdk'
+import { brewAuthEmails } from '@brew.new/sdk/better-auth'
+import { betterAuth } from 'better-auth'
+import { emailOTP, magicLink } from 'better-auth/plugins'
+
+const emails = brewAuthEmails({
+  client: () => createBrewClient({ apiKey: process.env.BREW_API_KEY! }),
+  appName: 'Acme', // optional: the starter designs fall back to the brand name
+})
+
+export const auth = betterAuth({
+  emailVerification: { sendVerificationEmail: emails.sendVerificationEmail },
+  emailAndPassword: {
+    enabled: true,
+    sendResetPassword: emails.sendResetPassword,
+  },
+  user: {
+    changeEmail: {
+      enabled: true,
+      sendChangeEmailConfirmation: emails.sendChangeEmailConfirmation,
+    },
+  },
+  plugins: [
+    magicLink({ sendMagicLink: emails.sendMagicLink }),
+    emailOTP({ sendVerificationOTP: emails.sendVerificationOTP }),
+  ],
+  databaseHooks: { user: { create: { after: emails.onUserCreated } } },
+})
+```
+
+## What each callback sends
+
+| Callback                                                      | Key                   | Payload                                                                    |
+| ------------------------------------------------------------- | --------------------- | -------------------------------------------------------------------------- |
+| `sendVerificationEmail({ user, url, token })`                 | `auth.verify-email`   | `email`, `userName`, `confirmationUrl`                                     |
+| `sendResetPassword({ user, url, token })`                     | `auth.password-reset` | `email`, `userName`, `confirmationUrl`                                     |
+| `sendChangeEmailConfirmation({ user, newEmail, url, token })` | `auth.email-change`   | to the CURRENT address: `email`, `userName`, `newEmail`, `confirmationUrl` |
+| `sendMagicLink({ email, url, token })`                        | `auth.magic-link`     | `email`, `confirmationUrl`                                                 |
+| `sendVerificationOTP({ email, otp, type })`                   | `auth.otp`            | `email`, `otp`, `purpose: type`                                            |
+| `sendVerificationOTP({ email, otp, type: 'change-email' })`   | `auth.email-change`   | to the new address: `email`, `newEmail`, `otp`                             |
+| `onUserCreated(user)`                                         | `lifecycle.welcome`   | `email`, `userName`                                                        |
+
+Every payload also carries `appName` when you set it. `userName` is the
+user's `name` when there is one. Rename a key with `keys`:
+`brewAuthEmails({ client, keys: { passwordReset: 'acme.reset' } })`.
+
+`purpose` is not a starter-kit field: the kit's `auth.otp` design does not
+read it, and the API drops it unless your trigger declares it. Declare it
+to word the email per purpose (`sign-in`, `email-verification`,
+`forget-password`).
+
+## Waiting for the send
+
+Without `waitUntil`, each callback returns the send itself. Better Auth
+awaits it, or hands it to its own background handler when you set
+`advanced.backgroundTasks.handler`. A failed send rejects, and Better Auth
+reports it.
+
+With `waitUntil`, each callback hands the send to it and returns at once,
+so the response does not wait for Brew:
+
+```ts
+import { waitUntil } from '@vercel/functions'
+
+const emails = brewAuthEmails({ client, waitUntil })
+```
+
+`onError(error, { key, kind })` is called with every failed send. Its
+default is `console.error` for a send nothing awaits (a `waitUntil` send,
+and `onUserCreated`), and nothing otherwise. `onUserCreated` never
+rejects: a failed welcome email must not fail the sign-up.
+
+## Retries never send twice
+
+Every send carries an idempotency key, `${key}:${sha256(secret)}`:
+
+- link emails hash the `token`, so a retried callback replays the first
+  send;
+- codes hash the recipient, the `type` and the code, so two users who
+  draw the same code still get one email each;
+- the welcome email hashes the user id.
+
+The token or code itself never leaves your server in the key. A custom
+key long enough to pass the API's 100-character limit keeps a shorter
+prefix of the digest.
+
+`client` takes a client or a function that returns one. A function runs
+on the first send (so a missing environment variable fails that send,
+not the import), and its client is reused after that.
