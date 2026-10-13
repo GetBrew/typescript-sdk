@@ -75,7 +75,9 @@ const emails = brewAuthEmails({ client, waitUntil })
 `onError(error, { key, kind })` is called with every failed send. Its
 default is `console.error` for a send nothing awaits (a `waitUntil` send,
 and `onUserCreated`), and nothing otherwise. `onUserCreated` never
-rejects: a failed welcome email must not fail the sign-up.
+rejects: a failed welcome email must not fail the sign-up. An `onError`
+that throws or rejects is logged with `console.error` and changes
+nothing: the send still rejects with its own error, or still resolves.
 
 ## Retries never send twice
 

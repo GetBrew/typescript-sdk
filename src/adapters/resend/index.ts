@@ -14,7 +14,8 @@
  * })
  * ```
  *
- * Each send is `brew.send(templates[id] ?? id, { ...variables, email: to })`.
+ * Each send is `brew.send(templates[id] ?? id, { ...variables, email: to })`,
+ * reading only `templates`' own entries.
  * Methods never throw: they answer `{ data, error }` like Resend.
  */
 import {
@@ -22,6 +23,8 @@ import {
   createBrewClient,
   type SendPayloadValue,
 } from '@brew.new/sdk'
+
+import { IDEMPOTENCY_KEY_MAX_LENGTH, sha256Hex } from '../shared/idempotency'
 
 import { type ResendCompatError, resendError, toResendError } from './errors'
 
@@ -243,11 +246,40 @@ function prepare(
   ]
   return {
     ok: true,
-    key: templates[template.id] ?? template.id,
+    key: templateKey(templates, template.id),
     // The recipient wins over a `variables.email`.
     payload: { ...template.variables, email: recipient },
     ignored,
   }
+}
+
+/**
+ * The trigger key for a template id: its `templates` entry, else the id.
+ * Own entries only, so an id like `constructor` or `__proto__` is not read
+ * off `Object.prototype`.
+ */
+function templateKey(
+  templates: Readonly<Record<string, string>>,
+  id: string
+): string {
+  return Object.hasOwn(templates, id) ? (templates[id] ?? id) : id
+}
+
+/**
+ * What batch email `i` is keyed by: `${base}:${i}`. The base is the
+ * caller's key when that fits the API's limit with room for the largest
+ * index (`:99`), so up to 97 characters. A longer key keeps its first 32
+ * characters and ends in its full SHA-256, so every email's key fits, a
+ * retry derives the same keys, and two keys that share a prefix stay apart.
+ */
+async function batchIdempotencyKeyBase(key: string): Promise<string> {
+  const room =
+    IDEMPOTENCY_KEY_MAX_LENGTH - `:${RESEND_COMPAT_BATCH_LIMIT - 1}`.length
+  if (key.length <= room) {
+    return key
+  }
+  const digest = await sha256Hex(key)
+  return `${key.slice(0, room - digest.length - 1)}:${digest}`
 }
 
 function readEnvironmentApiKey(): string | undefined {
@@ -283,7 +315,9 @@ export class Resend {
      * Send up to 100 emails, one at a time, in order. NOT atomic: when one
      * fails, the ones before it were sent and the rest are not; the error
      * says how far it got. Every email is checked before the first is sent.
-     * With `idempotencyKey`, email `i` sends with `${idempotencyKey}:${i}`,
+     * With `idempotencyKey`, email `i` sends with `${idempotencyKey}:${i}`
+     * (a key over 97 characters is first shortened to its first 32
+     * characters and its SHA-256, to fit the API's 100-character limit),
      * so retrying the same batch replays the sent ones and sends the rest.
      */
     readonly send: (
@@ -409,12 +443,14 @@ export class Resend {
           return failure(brew)
         }
         warnIgnored(prepared.flatMap((one) => one.ignored))
+        const keyBase =
+          requestOptions.idempotencyKey === undefined
+            ? undefined
+            : await batchIdempotencyKeyBase(requestOptions.idempotencyKey)
         const ids: Array<ResendCompatSendResult> = []
         for (const [index, one] of prepared.entries()) {
           const idempotencyKey =
-            requestOptions.idempotencyKey === undefined
-              ? undefined
-              : `${requestOptions.idempotencyKey}:${index}`
+            keyBase === undefined ? undefined : `${keyBase}:${index}`
           try {
             // Sequential on purpose: the batch reports how far it got, and a
             // retry with the same idempotencyKey resumes in the same order.
