@@ -2,6 +2,14 @@ import { describe, expect, it } from 'vitest'
 
 import type { HttpClient, HttpRequestInput } from '../../src/core/http'
 import {
+  SET_UP_APP_EMAIL_KIT_DEFAULT_TIMEOUT_MS,
+  createSetUpAppEmailKit,
+} from '../../src/resources/app-emails/set-up-kit'
+import {
+  UPSERT_APP_EMAIL_DEFAULT_TIMEOUT_MS,
+  createUpsertAppEmail,
+} from '../../src/resources/app-emails/upsert'
+import {
   ADD_IMAGE_DEFAULT_TIMEOUT_MS,
   createAddImage,
 } from '../../src/resources/content/add-image'
@@ -97,6 +105,26 @@ const CASES: ReadonlyArray<Case> = [
     call: ({ client, timeoutMs }) =>
       createExportEmail(client)(
         { emailId: 'email_1', provider: 'loops' },
+        withTimeout({ timeoutMs })
+      ),
+  },
+  {
+    name: 'appEmails.upsert',
+    defaultMs: UPSERT_APP_EMAIL_DEFAULT_TIMEOUT_MS,
+    expectedMs: 300_000,
+    call: ({ client, timeoutMs }) =>
+      createUpsertAppEmail(client)(
+        { triggerKey: 'auth.password-reset' },
+        withTimeout({ timeoutMs })
+      ),
+  },
+  {
+    name: 'appEmails.setUpKit',
+    defaultMs: SET_UP_APP_EMAIL_KIT_DEFAULT_TIMEOUT_MS,
+    expectedMs: 300_000,
+    call: ({ client, timeoutMs }) =>
+      createSetUpAppEmailKit(client)(
+        { sets: ['auth'] },
         withTimeout({ timeoutMs })
       ),
   },
@@ -230,6 +258,8 @@ describe('long-running methods — per-call timeout defaults', () => {
     expect(sdk.EXPORT_EMAIL_DEFAULT_TIMEOUT_MS).toBe(800_000)
     expect(sdk.AUDIT_EMAIL_DEFAULT_TIMEOUT_MS).toBe(65_000)
     expect(sdk.PREVIEW_EMAIL_CLIENTS_DEFAULT_TIMEOUT_MS).toBe(90_000)
+    expect(sdk.UPSERT_APP_EMAIL_DEFAULT_TIMEOUT_MS).toBe(300_000)
+    expect(sdk.SET_UP_APP_EMAIL_KIT_DEFAULT_TIMEOUT_MS).toBe(300_000)
   })
 
   it('exports the transport error family from the package entry point', () => {
