@@ -27,7 +27,13 @@
     "exactOptionalPropertyTypes": true,
     "erasableSyntaxOnly": true,
 
-    "ignoreDeprecations": "6.0"
+    "ignoreDeprecations": "6.0",
+
+    // Adapters (src/adapters/*) import the SDK by its package name so the
+    // published subpaths share the root bundle; resolve it to the source.
+    "paths": {
+      "@brew.new/sdk": ["./src/index.ts"]
+    }
   },
   "include": [
     "src",
