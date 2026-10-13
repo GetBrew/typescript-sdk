@@ -2,11 +2,15 @@
 import { cleanup, render, waitFor } from '@testing-library/react'
 import { createElement } from 'react'
 import { afterEach, expect, it, vi } from 'vitest'
-import { BrewEmbedError } from '../dist/embed.js'
-import { EmailCanvas } from '../dist/react.js'
 
 afterEach(cleanup)
 it('preserves typed errors across the React and browser package entries', async () => {
+  const { BrewEmbedError }: typeof import('../src/embed/index') = await import(
+    new URL('../dist/embed.js', import.meta.url).pathname
+  )
+  const { EmailCanvas }: typeof import('../src/react/index') = await import(
+    new URL('../dist/react.js', import.meta.url).pathname
+  )
   const onError = vi.fn()
   render(
     createElement(EmailCanvas, {
