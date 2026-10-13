@@ -30,6 +30,16 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
+    },
+    "./embed": {
+      "types": "./dist/embed.d.ts",
+      "import": "./dist/embed.js",
+      "require": "./dist/embed.cjs"
+    },
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "import": "./dist/react.js",
+      "require": "./dist/react.cjs"
     }
   },
   "files": [
@@ -55,20 +65,36 @@
     "test:watch": "vitest",
     "clean": "rm -rf dist",
     "generate:types": "node scripts/generate-types.mjs",
-    "prepublishOnly": "bun run clean && bun run generate:types && bun tsc && bun lint && bun run test && bun run build"
+    "prepublishOnly": "bun run clean && bun run generate:types && bun tsc && bun lint && bun run test && bun run build",
+    "sync:embed": "node scripts/sync-embed-contracts.mjs",
+    "sync:embed:check": "node scripts/sync-embed-contracts.mjs --check"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@testing-library/react": "^16.3.3",
     "@types/bun": "latest",
     "@types/node": "^25.5.0",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.4",
     "eslint": "^10.1.0",
     "globals": "^17.4.0",
+    "jsdom": "^30.1.2",
     "msw": "^2.13.2",
     "openapi-typescript": "7.13.0",
     "prettier": "^3.8.1",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
     "tsup": "^8.5.0",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.58.0",
     "vitest": "^4.1.2"
+  },
+  "peerDependencies": {
+    "react": ">=18.2.0 <20"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
   }
 }

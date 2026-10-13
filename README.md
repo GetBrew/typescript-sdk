@@ -117,6 +117,10 @@ config options (`timeoutMs`, `maxRetries`, `retryOnTimeout`, `signal`,
 
 ## Documentation
 
+Embed a group or single email in your app with [`EmailCanvas`](docs/embed.md),
+the React component from `@brew.new/sdk/react`. A plain JavaScript iframe
+controller is available from `@brew.new/sdk/embed`.
+
 | Topic                              | File                                                                   |
 | ---------------------------------- | ---------------------------------------------------------------------- |
 | Analytics resource                 | [`docs/analytics.md`](./docs/analytics.md)                             |
