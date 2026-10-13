@@ -170,6 +170,87 @@ describe('createSupabaseSendEmailHook', () => {
   })
 
   it.each([
+    {
+      name: 'a link email with no token hash',
+      user: USER,
+      data: emailData('magiclink', { token_hash: '' }),
+      expected: (id: string) => [
+        expectedIdempotencyKey(
+          'auth.magic-link',
+          'jane@example.com',
+          'magiclink',
+          `123456:${id}`
+        ),
+      ],
+    },
+    {
+      name: 'a link email with no site_url',
+      user: USER,
+      data: emailData('recovery', { site_url: '' }),
+      expected: (id: string) => [
+        expectedIdempotencyKey(
+          'auth.password-reset',
+          'jane@example.com',
+          'recovery',
+          `123456:${id}`
+        ),
+      ],
+    },
+    {
+      name: 'an email change with no token hash',
+      user: { ...USER, new_email: 'jane@new.example.com' },
+      data: emailData('email_change', { token_hash: '' }),
+      expected: (id: string) => [
+        expectedIdempotencyKey(
+          'auth.email-change',
+          'jane@new.example.com',
+          'email_change',
+          `123456:${id}`
+        ),
+      ],
+    },
+    {
+      name: 'a secure email change whose new address has no token hash',
+      user: { ...USER, new_email: 'jane@new.example.com' },
+      data: emailData('email_change', {
+        token: '111111',
+        token_hash: '',
+        token_new: '222222',
+        token_hash_new: 'hash_for_current',
+      }),
+      expected: (id: string) => [
+        expectedIdempotencyKey(
+          'auth.email-change',
+          'jane@example.com',
+          'email_change',
+          'hash_for_current'
+        ),
+        expectedIdempotencyKey(
+          'auth.email-change',
+          'jane@new.example.com',
+          'email_change',
+          `222222:${id}`
+        ),
+      ],
+    },
+  ])(
+    'keys the code sent in place of a link by the code and the webhook-id: $name',
+    async ({ user, data, expected }) => {
+      const fires = captureFires()
+      const body = { user, email_data: data }
+
+      await hook()(await signedRequest(body, { id: 'msg_a' }))
+      await hook()(await signedRequest(body, { id: 'msg_b' }))
+
+      // Two requests that drew the same code each send: a fresh request is
+      // never replayed as the earlier one.
+      expect(new Set(fires.map((fire) => fire.idempotencyKey))).toEqual(
+        new Set([...expected('msg_a'), ...expected('msg_b')])
+      )
+    }
+  )
+
+  it.each([
     ['email', 'auth.otp'],
     ['reauthentication', 'auth.reauthentication'],
   ])('sends the %s code to %s as `otp`', async (action, key) => {
@@ -404,5 +485,30 @@ describe('createSupabaseSendEmailHook', () => {
           'Brew could not send the email: NO_PUBLISHED_AUTOMATION from the test server.',
       },
     })
+  })
+
+  it('still answers its error response when onError throws', async () => {
+    captureFires(() => apiError(422, 'NO_PUBLISHED_AUTOMATION'))
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const reporterFailure = new Error('reporter down')
+
+    const response = await hook({
+      onError: () => {
+        throw reporterFailure
+      },
+    })(await signedRequest({ user: USER, email_data: emailData('recovery') }))
+
+    expect(response.status).toBe(500)
+    await expect(response.json()).resolves.toEqual({
+      error: {
+        http_code: 500,
+        message:
+          'Brew could not send the email: NO_PUBLISHED_AUTOMATION from the test server.',
+      },
+    })
+    expect(consoleError).toHaveBeenCalledWith(
+      '[@brew.new/sdk/supabase] onError threw',
+      reporterFailure
+    )
   })
 })

@@ -49,12 +49,14 @@ which next-auth v4's type requires; the sender lives on the automation).
 brew.send(key, {
   email: identifier,
   confirmationUrl: url,
-  expiresInMinutes, // from `expires`, or `maxAge`
+  expiresInMinutes, // the link lifetime, `maxAge` / 60
   appName, // when set
 })
 ```
 
-with the idempotency key `${key}:${sha256(token)}`, so a retried request
-never sends a second link. A failed send throws (a `BrewApiError` or a
+with the idempotency key `${key}:${sha256(token)}`. The body is the same
+on every retry (`expiresInMinutes` is the lifetime, not a countdown to
+`expires`), so a retried request replays instead of sending a second
+link. A failed send throws (a `BrewApiError` or a
 transport error), so Auth.js shows its error page instead of "check your
 email".
