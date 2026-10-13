@@ -50,6 +50,39 @@ payload. See [`docs/send.md`](./docs/send.md).
 `brew.send` is not `brew.emails.send`: `emails.send` sends a saved design to
 an audience (a campaign) or as one test delivery.
 
+## Set up app emails in one call
+
+A key needs a trigger, a design and a published automation before
+`brew.send` can use it. `brew.appEmails` sets all of that up in one
+idempotent call:
+
+```ts
+// The auth + lifecycle starter kit, narrowed to the keys Better Auth sends:
+const { results, stack } = await brew.appEmails.setUpKit({
+  stack: 'better-auth',
+})
+
+// One key of your own, from your own React Email (or HTML, MJML) source:
+await brew.appEmails.upsert({
+  triggerKey: 'order.shipped',
+  source: { format: 'jsx', content: orderShippedJsx },
+  subject: 'Your order shipped',
+})
+
+// What is set up, and whether each key sends now:
+const { data } = await brew.appEmails.list()
+const reset = await brew.appEmails.get('auth.password-reset')
+reset.readiness // { ready, teamOnly, blockers }
+```
+
+Run it again any time: a re-run changes only what differs, and a design
+someone edited in Brew is kept (`409 APP_EMAIL_EDITED_IN_BREW`) until you
+pass `overwrite: true`. Until a sending domain verifies, app emails send
+from a team-only sandbox (members of your organization, under a daily
+cap). The setup calls need the `automations` and `emails` scopes and
+default to a 5-minute timeout. They ship with Brew platform release
+GetBrew/brew-v2#2066. See [`docs/app-emails.md`](./docs/app-emails.md).
+
 ## Adapters
 
 Subpath exports that wire `brew.send` into the libraries apps already use.
@@ -177,6 +210,7 @@ controller is available from `@brew.new/sdk/embed`.
 | Topic                              | File                                                                   |
 | ---------------------------------- | ---------------------------------------------------------------------- |
 | `brew.send` (app email by key)     | [`docs/send.md`](./docs/send.md)                                       |
+| App emails (set up by key)         | [`docs/app-emails.md`](./docs/app-emails.md)                           |
 | Resend adapter                     | [`docs/adapters/resend.md`](./docs/adapters/resend.md)                 |
 | Better Auth adapter                | [`docs/adapters/better-auth.md`](./docs/adapters/better-auth.md)       |
 | Auth.js (next-auth) adapter        | [`docs/adapters/auth-js.md`](./docs/adapters/auth-js.md)               |
