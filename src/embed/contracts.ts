@@ -13,7 +13,7 @@ export type CanvasSession = Readonly<{
   sessionId: string
   embedUrl: string
   bootstrapToken: string
-  expiresAt: number
+  expiresAt: string
   target: CanvasTarget
 }>
 export type CreateCanvasSessionInput = Readonly<{
@@ -121,8 +121,9 @@ export function isCanvasSession(value: unknown): value is CanvasSession {
     isString(value.sessionId) &&
     isString(value.embedUrl) &&
     isString(value.bootstrapToken) &&
-    typeof value.expiresAt === 'number' &&
-    Number.isFinite(value.expiresAt) &&
+    isString(value.expiresAt) &&
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value.expiresAt) &&
+    Number.isFinite(Date.parse(value.expiresAt)) &&
     isCanvasTarget(value.target)
   )
 }

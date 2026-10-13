@@ -8,7 +8,7 @@ describe('host session provider', () => {
       target: { type: 'email', emailId: 'email_a' },
       embedUrl: 'https://brew.new/embed/canvas/session_a',
       bootstrapToken: 'secret',
-      expiresAt: Date.now() + 60000,
+      expiresAt: new Date(Date.now() + 60000).toISOString(),
     }
     const fetcher = vi
       .fn<typeof fetch>()

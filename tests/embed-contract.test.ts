@@ -1,8 +1,20 @@
 import { describe, expect, it } from 'vitest'
 
 import { resolveCanvasTarget } from '../src/embed/target'
+import { isCanvasSession } from '../src/embed/contracts'
 
 describe('email canvas target', () => {
+  it('accepts an ISO session expiry and rejects invalid dates', () => {
+    const session = {
+      sessionId: 'session_a',
+      embedUrl: 'https://brew.new/embed/canvas/session_a',
+      bootstrapToken: 'token',
+      target: { type: 'email', emailId: 'email_a' },
+      expiresAt: '2026-10-13T22:00:00.000Z',
+    }
+    expect(isCanvasSession(session)).toBe(true)
+    expect(isCanvasSession({ ...session, expiresAt: 'invalid' })).toBe(false)
+  })
   it('accepts exactly one group target', () => {
     expect(resolveCanvasTarget({ groupId: 'grp_example' })).toEqual({
       type: 'group',

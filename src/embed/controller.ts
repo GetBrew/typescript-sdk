@@ -131,7 +131,7 @@ export function createEmailCanvas(
       if (
         !isCanvasSession(next) ||
         !sameCanvasTarget(next.target, target) ||
-        next.expiresAt <= Date.now()
+        Date.parse(next.expiresAt) <= Date.now()
       ) {
         throw new BrewEmbedError(
           'AUTHENTICATION_FAILED',

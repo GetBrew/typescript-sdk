@@ -45,7 +45,7 @@ describe('React email canvas', () => {
       target: { type: 'email' as const, emailId: 'e' },
       embedUrl: 'https://brew.new/embed/canvas/s',
       bootstrapToken: 'test',
-      expiresAt: Date.now() + 60_000,
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
     }
     const getSession = vi.fn(() => Promise.resolve(session))
     const rendered = render(

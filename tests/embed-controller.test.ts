@@ -12,7 +12,7 @@ const session = {
   target: { type: 'group' as const, groupId: 'grp_a' },
   embedUrl: 'https://brew.new/embed/canvas/session_a',
   bootstrapToken: 'secret',
-  expiresAt: Date.now() + 60000,
+  expiresAt: new Date(Date.now() + 60000).toISOString(),
 }
 describe('iframe controller', () => {
   it('reports a stalled initial connection and aborts its session request', async () => {
@@ -70,7 +70,7 @@ describe('iframe controller', () => {
     const iframe = container.querySelector('iframe')!
     const send = vi.spyOn(iframe.contentWindow!, 'postMessage')
     const instanceId = new URL(iframe.src).searchParams.get('instanceId')!
-    vi.spyOn(Date, 'now').mockReturnValue(session.expiresAt - 1000)
+    vi.spyOn(Date, 'now').mockReturnValue(Date.parse(session.expiresAt) - 1000)
     window.dispatchEvent(
       new MessageEvent('message', {
         origin: 'https://brew.new',
