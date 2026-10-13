@@ -94,8 +94,11 @@ with no token hash to build a link from carries the code either way.
 
 On an error Supabase reports the email as not sent. Each send carries an
 idempotency key hashed from its token hash (or, for codes and notices,
-the code and the `webhook-id`), so a redelivered hook never sends twice.
-`onError(error)` sees every failure (default `console.error`).
+the code and the `webhook-id`), so the client's retries of a send never
+email twice. A code repeats across requests, so a code email, including
+a link email sent as a code because no link could be built, is keyed per
+request. `onError(error)` sees every failure (default `console.error`);
+one that throws is logged, and the hook still answers its error.
 
 ## Options
 

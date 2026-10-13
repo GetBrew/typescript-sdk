@@ -55,8 +55,10 @@ export type BrewEmailOptions = {
 export type BrewEmailVerificationRequest = {
   readonly identifier: string
   readonly url: string
+  /** Not read: `expiresInMinutes` comes from the lifetime, `maxAge`. */
   readonly expires?: Date
   readonly token?: string
+  /** Its `maxAge`, when a number, is the link lifetime. */
   readonly provider?: unknown
 }
 
@@ -78,9 +80,22 @@ export type BrewEmailProvider<TId extends string = 'brew'> = {
   ) => Promise<void>
 }
 
-function minutesUntil(expires: Date | undefined, maxAge: number): number {
+/**
+ * The link lifetime in minutes (at least 1): the `maxAge` of the provider
+ * Auth.js passes (Auth.js sets `expires` to now + that `maxAge`), else
+ * this provider's own. Not a countdown to `expires`: a retry of the same
+ * request must send the same body under the same idempotency key, or Brew
+ * answers `IDEMPOTENCY_CONFLICT` instead of replaying the first send.
+ */
+function lifetimeMinutes(provider: unknown, maxAge: number): number {
   const seconds =
-    expires instanceof Date ? (expires.getTime() - Date.now()) / 1000 : maxAge
+    typeof provider === 'object' &&
+    provider !== null &&
+    'maxAge' in provider &&
+    typeof provider.maxAge === 'number' &&
+    provider.maxAge > 0
+      ? provider.maxAge
+      : maxAge
   return Math.max(1, Math.round(seconds / 60))
 }
 
@@ -88,7 +103,8 @@ function minutesUntil(expires: Date | undefined, maxAge: number): number {
  * `sendVerificationRequest` awaits `brew.send(key, { email, confirmationUrl,
  * appName, expiresInMinutes })` and lets a failure throw, so Auth.js shows
  * its sign-in error page instead of "check your email". The idempotency key
- * hashes the token: a retried request never sends a second link.
+ * hashes the token and the body is the same on every retry, so a retried
+ * request replays instead of sending a second link.
  */
 export function BrewEmail(
   options: BrewEmailOptions & { readonly id?: undefined }
@@ -110,14 +126,14 @@ export function BrewEmail(
     server: '',
     from: '',
     options: {},
-    async sendVerificationRequest({ identifier, url, expires, token }) {
+    async sendVerificationRequest({ identifier, url, token, provider }) {
       const idempotencyKey = await idempotencyKeyFor(key, [token ?? url])
       await getClient().send(
         key,
         compactPayload({
           email: identifier,
           confirmationUrl: url,
-          expiresInMinutes: minutesUntil(expires, maxAge),
+          expiresInMinutes: lifetimeMinutes(provider, maxAge),
           ...(options.appName === undefined
             ? {}
             : { appName: options.appName }),

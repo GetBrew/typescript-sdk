@@ -37,8 +37,13 @@ describe('@brew.new/sdk/next-auth BrewEmail', () => {
       toFake: ['Date'],
     })
     const fires = captureFires()
-    const provider = BrewEmail({ client: () => testClient(), appName: 'Acme' })
+    const provider = BrewEmail({
+      client: () => testClient(),
+      appName: 'Acme',
+      maxAge: 30 * 60,
+    })
 
+    // Auth.js sets `expires` to now + the provider's `maxAge`.
     await provider.sendVerificationRequest({
       identifier: 'jane@example.com',
       url: 'https://app.test/api/auth/callback/brew?token=tok_1',
@@ -82,6 +87,46 @@ describe('@brew.new/sdk/next-auth BrewEmail', () => {
         'https://app.test/cb?token=abc'
       ),
     })
+  })
+
+  it('sends the same body for the same token however late the retry: the expiry is the link lifetime', async () => {
+    vi.useFakeTimers({
+      now: new Date('2026-10-13T08:00:00.000Z'),
+      toFake: ['Date'],
+    })
+    const fires = captureFires()
+    const provider = BrewEmail({ client: testClient(), maxAge: 30 * 60 })
+    const request = {
+      identifier: 'jane@example.com',
+      url: 'https://app.test/api/auth/callback/brew?token=tok_retry',
+      expires: new Date('2026-10-13T08:30:00.000Z'),
+      token: 'tok_retry',
+      provider,
+    }
+
+    await provider.sendVerificationRequest(request)
+    vi.setSystemTime(new Date('2026-10-13T08:02:45.000Z'))
+    await provider.sendVerificationRequest(request)
+
+    // Same key, same body: Brew replays the first send instead of answering
+    // IDEMPOTENCY_CONFLICT.
+    expect(fires).toHaveLength(2)
+    expect(fires[1]).toEqual(fires[0])
+    expect(fires[0]?.payload['expiresInMinutes']).toBe(30)
+  })
+
+  it('reads the lifetime from the provider Auth.js passes, so a maxAge set over the provider wins', async () => {
+    const fires = captureFires()
+    const provider = BrewEmail({ client: testClient() })
+
+    await provider.sendVerificationRequest({
+      identifier: 'jane@example.com',
+      url: 'https://app.test/cb?token=tok_2',
+      token: 'tok_2',
+      provider: { ...provider, maxAge: 10 * 60 },
+    })
+
+    expect(fires[0]?.payload['expiresInMinutes']).toBe(10)
   })
 
   it('throws when Brew refuses, so Auth.js shows its error page', async () => {
