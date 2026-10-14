@@ -41,7 +41,8 @@ async function Content() {
       <main className="welcome">
         <h1>You're signed in.</h1>
         <p>
-          Ask the app owner to add your Clerk user ID to DEMO_ALLOWED_USER_IDS.
+          Your account does not have access to this workspace yet. Ask the app
+          owner for access, or sign in with a different account.
         </p>
         <SignOutButton>
           <button type="button">Use a different account</button>

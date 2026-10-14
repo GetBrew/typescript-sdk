@@ -16,7 +16,7 @@ test('real iframe manual edits persist through save, revoke, and reopen', async 
   await page.getByRole('button', { name: /Single email/ }).click()
   await expect(page.getByRole('button', { name: 'Save now' })).toBeEnabled()
   const frame = page.frameLocator('iframe')
-  await frame.locator('[data-embed-email="email_validation"]').dblclick()
+  await frame.locator('[data-embed-email="email_validation"]').click()
   const editor = frame.locator('.tiptap[contenteditable="true"]').first()
   await expect(editor).toBeVisible()
   await expect(
