@@ -81,3 +81,7 @@ A session is scoped to one brand and exactly one target. It lasts one hour and c
 Multiplayer provides live presence, selections, synchronized saved content, and an exclusive renewable editing lease per email. Two viewers cannot save concurrently; the second sees an editing conflict and can retry after the first releases the document. It is not character-level collaborative editing.
 
 The embedded inspector supports file uploads and cropping through scoped authentication. Existing durable Brew image URLs can be reused. Workspace media search, logos, Giphy, and AI image generation require separate capabilities and are omitted from this surface.
+
+## Runnable example
+
+Use the [MIT-licensed Next.js demo](../examples/embedded-email-canvas/README.md) for a complete Clerk-authenticated host with server-approved targets, ownership-bound renewal and revocation, save-before-navigation and sign-out, and group/single-email views. Its README covers local setup, the unreleased SDK build, production deployment, use cases, and validation. The public example is generated from the canonical `brew-v2` source and has its own typecheck, Biome, unit tests, browser tests, and build workflow.

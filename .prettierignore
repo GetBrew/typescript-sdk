@@ -11,3 +11,5 @@ openapi/public-api-v1.yaml
 bun.lock
 bun.lockb
 LICENSE
+# Generated from brew-v2's licensed source; its own Biome check owns formatting.
+examples/embedded-email-canvas
