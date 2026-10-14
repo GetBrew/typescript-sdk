@@ -19,12 +19,14 @@ export type EmailCanvasProps = EmailCanvasOptions & {
   readonly style?: CSSProperties
 }
 export type EmailCanvasHandle = Omit<EmailCanvasController, 'destroy'>
+const useCommittedEffect =
+  typeof window === 'undefined' ? useEffect : useLayoutEffect
 export const EmailCanvas = forwardRef<EmailCanvasHandle, EmailCanvasProps>(
   function EmailCanvas(props, ref) {
     const container = useRef<HTMLDivElement>(null)
     const controller = useRef<EmailCanvasController | null>(null)
     const latest = useRef(props)
-    useLayoutEffect(() => {
+    useCommittedEffect(() => {
       latest.current = props
     })
     useImperativeHandle(ref, () => {
