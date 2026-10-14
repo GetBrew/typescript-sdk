@@ -1,3 +1,4 @@
+import { anySignal } from '../core/signals'
 import {
   BrewEmbedError,
   CANVAS_PROTOCOL,
@@ -121,12 +122,30 @@ export function createEmailCanvas(
   async function getSession(isRenewal: boolean): Promise<void> {
     if (isRefreshing || isDestroyed) return
     isRefreshing = true
+    const deadline = new AbortController()
+    const combined = anySignal({ signals: [abort.signal, deadline.signal] })
+    const timeoutError = new BrewEmbedError(
+      'CONNECTION_FAILED',
+      'Canvas session renewal timed out. Retry to reconnect.'
+    )
+    const timer = isRenewal
+      ? setTimeout(() => deadline.abort(timeoutError), 30_000)
+      : undefined
+    let rejectInterrupted: (error: BrewEmbedError) => void = () => {}
+    const interrupted = new Promise<never>((_resolve, reject) => {
+      rejectInterrupted = reject
+    })
+    const onAbort = () => rejectInterrupted(timeoutError)
+    combined.signal.addEventListener('abort', onAbort, { once: true })
     try {
-      const next = await options.getSession({
-        target,
-        signal: abort.signal,
-        ...(session ? { sessionId: session.sessionId } : {}),
-      })
+      const next = await Promise.race([
+        options.getSession({
+          target,
+          signal: combined.signal,
+          ...(session ? { sessionId: session.sessionId } : {}),
+        }),
+        interrupted,
+      ])
       if (isDestroyed || abort.signal.aborted) return
       if (
         !isCanvasSession(next) ||
@@ -185,6 +204,9 @@ export function createEmailCanvas(
               )
         )
     } finally {
+      clearTimeout(timer)
+      combined.signal.removeEventListener('abort', onAbort)
+      combined.release?.()
       isRefreshing = false
     }
   }
@@ -221,7 +243,7 @@ export function createEmailCanvas(
         options.onDirtyChange?.(message.hasUnsavedEdits)
         break
       case 'error':
-        isReady = false
+        if (message.code !== 'COMMAND_FAILED') isReady = false
         report(new BrewEmbedError(message.code, message.message))
         break
       case 'result': {

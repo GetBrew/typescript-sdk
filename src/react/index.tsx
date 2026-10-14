@@ -3,6 +3,7 @@ import {
   forwardRef,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useRef,
   type CSSProperties,
 } from 'react'
@@ -23,7 +24,9 @@ export const EmailCanvas = forwardRef<EmailCanvasHandle, EmailCanvasProps>(
     const container = useRef<HTMLDivElement>(null)
     const controller = useRef<EmailCanvasController | null>(null)
     const latest = useRef(props)
-    latest.current = props
+    useLayoutEffect(() => {
+      latest.current = props
+    })
     useImperativeHandle(ref, () => {
       function current(): EmailCanvasController {
         if (!controller.current)

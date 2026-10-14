@@ -27,19 +27,34 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     },
     "./embed": {
-      "types": "./dist/embed.d.ts",
-      "import": "./dist/embed.js",
-      "require": "./dist/embed.cjs"
+      "import": {
+        "types": "./dist/embed.d.ts",
+        "default": "./dist/embed.js"
+      },
+      "require": {
+        "types": "./dist/embed.d.cts",
+        "default": "./dist/embed.cjs"
+      }
     },
     "./react": {
-      "types": "./dist/react.d.ts",
-      "import": "./dist/react.js",
-      "require": "./dist/react.cjs"
+      "import": {
+        "types": "./dist/react.d.ts",
+        "default": "./dist/react.js"
+      },
+      "require": {
+        "types": "./dist/react.d.cts",
+        "default": "./dist/react.cjs"
+      }
     }
   },
   "files": [
@@ -78,7 +93,7 @@
     "@types/react-dom": "19.2.4",
     "eslint": "^10.1.0",
     "globals": "^17.4.0",
-    "jsdom": "^30.1.2",
+    "jsdom": "^26.1.0",
     "msw": "^2.13.2",
     "openapi-typescript": "7.13.0",
     "prettier": "^3.8.1",
