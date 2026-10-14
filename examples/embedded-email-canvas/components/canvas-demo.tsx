@@ -29,6 +29,7 @@ function CanvasView({
   const canvas = useRef<EmailCanvasHandle>(null)
   // The bridge is effect-owned: React Strict Mode gets a fresh instance after cleanup.
   const bridge = useRef<ReturnType<typeof createSessionBridge> | null>(null)
+  const bridges = useRef(new Set<ReturnType<typeof createSessionBridge>>())
   const [isReady, setIsReady] = useState(false)
   const [isDirty, setIsDirty] = useState(false)
   const [isBusy, setIsBusy] = useState(false)
@@ -38,9 +39,10 @@ function CanvasView({
   useEffect(() => {
     const owned = bridge.current ?? createSessionBridge(item.target)
     bridge.current = owned
+    bridges.current.add(owned)
     return () => {
       bridge.current = null
-      void owned.close().catch(() => undefined)
+      void owned.destroy().catch(() => undefined)
     }
   }, [item.target])
   useEffect(() => {
@@ -65,7 +67,7 @@ function CanvasView({
           await canvas.current?.flush()
         }
         if (action === 'leave' || action === 'sign-out') {
-          await bridge.current?.close()
+          await Promise.all([...bridges.current].map((owned) => owned.close()))
           if (action === 'sign-out') {
             await onSignOut?.()
           }
@@ -182,6 +184,7 @@ function CanvasView({
         style={{ height: 'calc(100dvh - 230px)', minHeight: 420 }}
         getSession={(request) => {
           bridge.current ??= createSessionBridge(item.target)
+          bridges.current.add(bridge.current)
           return bridge.current.getSession(request)
         }}
         onReady={() => {

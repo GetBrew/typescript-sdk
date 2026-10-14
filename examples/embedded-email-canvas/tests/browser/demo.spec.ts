@@ -5,6 +5,53 @@ test.beforeEach(async ({ context }) => {
     { name: 'demo-user', value: 'alice', url: 'http://localhost:3501' },
   ])
 })
+test('a failed revoke keeps the canvas usable and permits renewal before retrying exit', async ({
+  page,
+}) => {
+  test.skip(
+    Boolean(process.env.DEMO_E2E_BREW_ORIGIN),
+    'Protocol failure injection.'
+  )
+  await page.goto('/')
+  await page.getByRole('button', { name: /Campaign group/ }).click()
+  await expect(page.getByRole('button', { name: 'Save now' })).toBeEnabled()
+  const currentSession = new URL(
+    (await page.locator('iframe').getAttribute('src')) ?? ''
+  ).pathname
+    .split('/')
+    .pop()
+  let hasFailedRevoke = false
+  await page.route('**/api/canvas-session', async (route) => {
+    if (
+      route.request().method() === 'DELETE' &&
+      route.request().postDataJSON().sessionId === currentSession &&
+      !hasFailedRevoke
+    ) {
+      hasFailedRevoke = true
+      await route.fulfill({ status: 503 })
+    } else {
+      await route.continue()
+    }
+  })
+  await page.getByRole('button', { name: 'Back to workspaces' }).click()
+  await expect(page.getByRole('alert')).toContainText('Could not close')
+  const renewed = page.waitForResponse(
+    (response) =>
+      response.request().method() === 'POST' &&
+      response.url().endsWith('/api/canvas-session') &&
+      Boolean(response.request().postDataJSON().sessionId)
+  )
+  await page
+    .frameLocator('iframe')
+    .getByRole('button', { name: 'Renew' })
+    .click()
+  expect((await renewed).status()).toBe(200)
+  await expect(page.getByRole('button', { name: 'Save now' })).toBeEnabled()
+  await page.getByRole('button', { name: 'Back to workspaces' }).click()
+  await expect(
+    page.getByRole('button', { name: /Campaign group/ })
+  ).toBeVisible()
+})
 test('real iframe manual edits persist through save, revoke, and reopen', async ({
   page,
 }) => {

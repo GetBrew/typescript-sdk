@@ -5,7 +5,7 @@
   "license": "MIT",
   "type": "module",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.18.0"
   },
   "packageManager": "pnpm@11.25.0",
   "scripts": {
@@ -16,7 +16,7 @@
     "lint": "biome check --config-path=biome.example.jsonc .",
     "test": "vitest run",
     "test:browser": "playwright test",
-    "doctor": "node --env-file-if-exists=.env.local scripts/doctor.mjs"
+    "doctor": "node --experimental-strip-types --env-file-if-exists=.env.local scripts/doctor.mjs"
   },
   "dependencies": {
     "@brew.new/sdk": "file:vendor/brew-sdk.tgz",

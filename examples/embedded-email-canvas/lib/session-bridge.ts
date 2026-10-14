@@ -1,5 +1,6 @@
 import {
   BrewEmbedError,
+  type CanvasSession,
   type CanvasTarget,
   createCanvasSessionProvider,
 } from '@brew.new/sdk/embed'
@@ -11,6 +12,9 @@ export function createSessionBridge(
 ) {
   const owners = new Map<string, string>()
   let isClosed = false
+  let isDestroyed = false
+  const pending = new Set<Promise<CanvasSession>>()
+  let closing: Promise<void> | null = null
   const endpoint = '/api/canvas-session'
   async function revoke(sessionId: string, ownershipToken: string) {
     const response = await fetcher(endpoint, {
@@ -30,7 +34,7 @@ export function createSessionBridge(
     }
     owners.delete(sessionId)
   }
-  const getSession = createCanvasSessionProvider(endpoint, {
+  const provider = createCanvasSessionProvider(endpoint, {
     fetch: async (url, init) => {
       const input: unknown = JSON.parse(String(init?.body))
       const sessionId =
@@ -82,9 +86,6 @@ export function createSessionBridge(
           /^[a-f0-9]{64}$/.test(grant.ownershipToken)
         ) {
           owners.set(grant.sessionId, grant.ownershipToken)
-          if (isClosed) {
-            await revoke(grant.sessionId, grant.ownershipToken)
-          }
         } else {
           throw new BrewEmbedError(
             'AUTHENTICATION_FAILED',
@@ -95,11 +96,47 @@ export function createSessionBridge(
       return response
     },
   })
-  return {
-    getSession,
-    close: async () => {
-      isClosed = true
+  async function close() {
+    if (isClosed) {
+      return
+    }
+    if (closing) {
+      return closing
+    }
+    const attempt = (async () => {
+      await Promise.allSettled([...pending])
       await Promise.all(Array.from(owners, ([id, proof]) => revoke(id, proof)))
+      isClosed = true
+    })()
+    closing = attempt
+    try {
+      await attempt
+    } finally {
+      if (closing === attempt) {
+        closing = null
+      }
+    }
+  }
+  return {
+    getSession: async (request: Parameters<typeof provider>[0]) => {
+      if (closing) {
+        await closing.catch(() => undefined)
+      }
+      if (isClosed || isDestroyed) {
+        throw new BrewEmbedError('DESTROYED', 'The workspace is closed.')
+      }
+      const acquisition = provider(request)
+      pending.add(acquisition)
+      try {
+        return await acquisition
+      } finally {
+        pending.delete(acquisition)
+      }
+    },
+    close,
+    destroy: async () => {
+      isDestroyed = true
+      await close()
     },
   }
 }

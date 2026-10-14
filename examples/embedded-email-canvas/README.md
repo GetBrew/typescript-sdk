@@ -8,7 +8,7 @@ The app includes a group workspace, optional single-email workspace, live update
 
 ## Requirements
 
-- Node.js 22 and pnpm 11.25 (`corepack enable` if needed).
+- Node.js 22.18 or newer and pnpm 11.25 (`corepack enable` if needed).
 - A Clerk application and at least one allowed Clerk user ID.
 - A Brew API key with the `emails` scope, an accessible brand, and a group or email in that brand.
 - A Brew deployment containing the embedded canvas endpoints and an SDK build containing `@brew.new/sdk/embed` and `@brew.new/sdk/react`.

@@ -7,21 +7,28 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { StrictMode } from 'react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CanvasDemo } from '../components/canvas-demo'
 
 const mock = vi.hoisted(() => ({
   flush: vi.fn(async () => undefined),
   close: vi.fn(async () => undefined),
+  destroy: vi.fn(async () => undefined),
   props: null as EmailCanvasProps | null,
   getSession: vi.fn(),
+  createBridge: vi.fn(),
 }))
 vi.mock('../lib/session-bridge', () => ({
-  createSessionBridge: () => ({
+  createSessionBridge: mock.createBridge,
+}))
+beforeEach(() => {
+  mock.createBridge.mockImplementation(() => ({
     getSession: mock.getSession,
     close: mock.close,
-  }),
-}))
+    destroy: mock.destroy,
+  }))
+})
 vi.mock('@brew.new/sdk/react', async () => {
   const { forwardRef, useEffect, useImperativeHandle } = await import('react')
   return {
@@ -57,6 +64,35 @@ const props = {
   canEdit: true,
 }
 describe('Customer workspace flow', () => {
+  it('waits for a previous Strict Mode bridge to finish cleanup before sign-out', async () => {
+    let finish: (() => void) | undefined
+    const previousCleanup = new Promise<void>((resolve) => {
+      finish = resolve
+    })
+    const oldClose = vi.fn(() => previousCleanup)
+    mock.createBridge.mockImplementationOnce(() => ({
+      getSession: mock.getSession,
+      close: oldClose,
+      destroy: () => previousCleanup,
+    }))
+    const signOut = vi.fn(async () => undefined)
+    render(
+      <StrictMode>
+        <CanvasDemo {...props} onSignOut={signOut} />
+      </StrictMode>
+    )
+    fireEvent.click(screen.getByRole('button', { name: /Campaign group/ }))
+    act(() => mock.props?.onReady?.())
+    fireEvent.click(screen.getByRole('button', { name: 'Sign out' }))
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    try {
+      expect(signOut).not.toHaveBeenCalled()
+    } finally {
+      finish?.()
+    }
+    await waitFor(() => expect(signOut).toHaveBeenCalledOnce())
+    expect(oldClose).toHaveBeenCalled()
+  })
   it('saves and revokes before signing out', async () => {
     const signOut = vi.fn(async () => undefined)
     render(<CanvasDemo {...props} onSignOut={signOut} />)

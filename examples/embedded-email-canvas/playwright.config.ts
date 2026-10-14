@@ -17,7 +17,7 @@ export default defineConfig({
     },
   },
   webServer: {
-    command: 'node tests/browser-server.ts',
+    command: 'node --experimental-strip-types tests/browser-server.ts',
     url: 'http://localhost:3501',
     reuseExistingServer: false,
   },
