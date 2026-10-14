@@ -1,12 +1,12 @@
 import { SignIn, SignOutButton } from '@clerk/nextjs'
 import { auth } from '@clerk/nextjs/server'
+import { connection } from 'next/server'
 import { Suspense } from 'react'
 import { AuthenticatedDemo } from '../components/authenticated-demo'
 import { missingConfiguration, readConfig } from '../lib/config'
 
-export const dynamic = 'force-dynamic'
-
 async function Content() {
+  await connection()
   const missing = missingConfiguration(process.env)
   if (missing.length) {
     return (
