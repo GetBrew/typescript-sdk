@@ -67,7 +67,13 @@ function CanvasView({
           await canvas.current?.flush()
         }
         if (action === 'leave' || action === 'sign-out') {
-          await Promise.all([...bridges.current].map((owned) => owned.close()))
+          const active = bridge.current
+          await Promise.all(
+            [...bridges.current]
+              .filter((owned) => owned !== active)
+              .map((owned) => owned.close())
+          )
+          await active?.close()
           if (action === 'sign-out') {
             await onSignOut?.()
           }
@@ -175,27 +181,29 @@ function CanvasView({
           <p>{recoveryText}</p>
         </div>
       ) : null}
-      <EmailCanvas
-        {...targetProps}
-        ref={canvas}
-        embedOrigin={embedOrigin}
-        title={item.label}
-        className="canvas"
-        style={{ height: 'calc(100dvh - 230px)', minHeight: 420 }}
-        getSession={(request) => {
-          bridge.current ??= createSessionBridge(item.target)
-          bridges.current.add(bridge.current)
-          return bridge.current.getSession(request)
-        }}
-        onReady={() => {
-          setIsReady(true)
-          setError(null)
-        }}
-        onDirtyChange={setIsDirty}
-        onSelectionChange={(ids) => setSelected(ids.length)}
-        onSaved={() => setSaved(new Date().toLocaleTimeString())}
-        onError={report}
-      />
+      <div inert={isBusy}>
+        <EmailCanvas
+          {...targetProps}
+          ref={canvas}
+          embedOrigin={embedOrigin}
+          title={item.label}
+          className="canvas"
+          style={{ height: 'calc(100dvh - 230px)', minHeight: 420 }}
+          getSession={(request) => {
+            bridge.current ??= createSessionBridge(item.target)
+            bridges.current.add(bridge.current)
+            return bridge.current.getSession(request)
+          }}
+          onReady={() => {
+            setIsReady(true)
+            setError(null)
+          }}
+          onDirtyChange={setIsDirty}
+          onSelectionChange={(ids) => setSelected(ids.length)}
+          onSaved={() => setSaved(new Date().toLocaleTimeString())}
+          onError={report}
+        />
+      </div>
       <p className="hint">
         {canEdit
           ? 'Select an email to edit its text or open the properties panel. Other viewers see saved changes live; one person edits each email at a time.'

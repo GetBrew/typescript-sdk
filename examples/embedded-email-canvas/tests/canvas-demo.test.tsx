@@ -64,6 +64,27 @@ const props = {
   canEdit: true,
 }
 describe('Customer workspace flow', () => {
+  it('keeps the active canvas open when an earlier Strict Mode cleanup fails', async () => {
+    const oldClose = vi.fn(async () => {
+      throw new Error('Earlier session cleanup failed')
+    })
+    mock.createBridge.mockImplementationOnce(() => ({
+      getSession: mock.getSession,
+      close: oldClose,
+      destroy: oldClose,
+    }))
+    render(
+      <StrictMode>
+        <CanvasDemo {...props} />
+      </StrictMode>
+    )
+    fireEvent.click(screen.getByRole('button', { name: /Campaign group/ }))
+    act(() => mock.props?.onReady?.())
+    fireEvent.click(screen.getByRole('button', { name: 'Back to workspaces' }))
+    await screen.findByRole('alert')
+    expect(mock.close).not.toHaveBeenCalled()
+    expect(screen.getByTestId('canvas')).toBeTruthy()
+  })
   it('waits for a previous Strict Mode bridge to finish cleanup before sign-out', async () => {
     let finish: (() => void) | undefined
     const previousCleanup = new Promise<void>((resolve) => {
