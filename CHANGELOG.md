@@ -1,6 +1,6 @@
 # Changelog
 
-## 12.4.0
+## 12.2.0
 
 Needs the API from GetBrew/brew-v2#2071: triggers Brew starts itself.
 
@@ -20,8 +20,9 @@ Needs the API from GetBrew/brew-v2#2071: triggers Brew starts itself.
 - The error code `TRIGGER_NOT_FIREABLE`. On a Brew-event trigger,
   `triggers.fire` and `triggers.readiness` answer `409 TRIGGER_NOT_FIREABLE`,
   and `triggers.patch` and `triggers.putContract` answer
-  `422 TRIGGER_IMMUTABLE`. Try its automation with `automations.test`; with
-  no `payload`, the test runs on the trigger's sample.
+  `422 TRIGGER_IMMUTABLE`. Try its automation with `automations.test`: the
+  test runs on the trigger's sample, with any `payload` fields you pass laid
+  over it, and writes no contact.
 
 ## 12.0.0
 

@@ -202,13 +202,14 @@ domain's trigger, if the contact was still on its list. The payload is
 Wire the `triggerEventId` into `automations.create`. Brew owns the row:
 `patch` and `putContract` answer `422 TRIGGER_IMMUTABLE`, and `fire` and
 `readiness` answer `409 TRIGGER_NOT_FIREABLE`. Try a flow with
-`automations.test({ automationId })`; without a `payload`, the test runs on
-the trigger's sample and writes no contact.
+`automations.test({ automationId })`: the test runs on the trigger's sample,
+with any `payload` fields you pass laid over it, and writes no contact.
 
 The run emails only the contact who just opted out. Send what they need, such
-as a confirmation of the unsubscribe, from a transactional domain, or mail
-from another marketing domain they are still on; never a promotion.
-Publishing refuses a flow none of whose emails could reach them.
+as a confirmation of the unsubscribe, from a transactional domain; never a
+promotion. Mail from another marketing domain reaches them only while they are
+still on its list, never after an unsubscribe from all. Publishing refuses a
+flow none of whose emails could reach them.
 
 Refusals: `400 INVALID_REQUEST` when `domainId` is missing for
 `scope: 'domain'` or sent for `scope: 'all'`; `404 DOMAIN_NOT_FOUND`;
