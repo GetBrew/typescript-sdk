@@ -80,6 +80,7 @@
     "test:watch": "vitest",
     "clean": "rm -rf dist",
     "generate:types": "node scripts/generate-types.mjs",
+    "prepare": "npm run build",
     "prepublishOnly": "bun run clean && bun run generate:types && bun tsc && bun lint && bun run test && bun run build",
     "sync:embed": "node scripts/sync-embed-contracts.mjs",
     "sync:embed:check": "node scripts/sync-embed-contracts.mjs --check"
