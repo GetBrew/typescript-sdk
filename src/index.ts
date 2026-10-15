@@ -183,6 +183,7 @@ export type {
   PayloadContractField,
   PayloadContractGetResponse,
   PayloadContractPutRequest,
+  PayloadContractPutResponse,
   PayloadContractValidateResponse,
   PutTriggerContractInput,
   ValidateTriggerPayloadInput,

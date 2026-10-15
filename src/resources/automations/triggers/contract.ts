@@ -21,6 +21,8 @@ export type PayloadContractField =
   components['schemas']['PayloadContractFieldNode']
 export type PayloadContractPutRequest =
   components['schemas']['PayloadContractPutRequest']
+export type PayloadContractPutResponse =
+  components['schemas']['PayloadContractPutResponse']
 export type PayloadContractValidateResponse =
   components['schemas']['PayloadContractValidateResponse']
 
@@ -79,28 +81,27 @@ export function createGetTriggerContract(client: HttpClient) {
 /**
  * `PUT /v1/automations/triggers/{triggerEventId}/contract` (scope:
  * `automations`) — declare (or replace) the stored contract. The tree is
- * validated before any write (trigger contracts keep a top-level
- * required `email` string; nested fields need the Liquid engine); the
- * version bumps only on behavioral change. Responds with the same body a
- * follow-up `getContract` would return.
+ * validated before any write. Trigger contracts keep a top-level required
+ * `email` string. The version bumps only on behavioral change. Returns the
+ * JSON contract with write warnings.
  */
 export function createPutTriggerContract(client: HttpClient) {
   function putContract(
     input: PutTriggerContractInput,
     options: RequestOptions & { readonly raw: true }
-  ): Promise<BrewRawResponse<PayloadContractGetResponse>>
+  ): Promise<BrewRawResponse<PayloadContractPutResponse>>
   function putContract(
     input: PutTriggerContractInput,
     options?: RequestOptions
-  ): Promise<PayloadContractGetResponse>
+  ): Promise<PayloadContractPutResponse>
   async function putContract(
     input: PutTriggerContractInput,
     options?: RequestOptions
   ): Promise<
-    PayloadContractGetResponse | BrewRawResponse<PayloadContractGetResponse>
+    PayloadContractPutResponse | BrewRawResponse<PayloadContractPutResponse>
   > {
     const { triggerEventId, ...body } = input
-    const response = await client.request<PayloadContractGetResponse>({
+    const response = await client.request<PayloadContractPutResponse>({
       method: 'PUT',
       path: `/v1/automations/triggers/${encodeURIComponent(triggerEventId)}/contract`,
       body,

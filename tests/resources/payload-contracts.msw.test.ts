@@ -1,5 +1,5 @@
 import { HttpResponse, http } from 'msw'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, expectTypeOf, it } from 'vitest'
 
 import { createTriggersResource } from '../../src/resources/automations/triggers/resource'
 import { createPayloadContractsResource } from '../../src/resources/payload-contracts/resource'
@@ -14,7 +14,7 @@ const STORED_CONTRACT = {
   contractHash: 'a'.repeat(64),
   version: 2,
   enforcement: 'prune',
-  enforced: false,
+  format: 'json',
   fields: [
     { key: 'email', type: 'string', required: true },
     {
@@ -51,6 +51,8 @@ describe('payload contract methods', () => {
     })
     expect(url?.searchParams.get('format')).toBe('ts')
     expect(body.format).toBe('ts')
+    if (body.format === 'json') throw new Error('Expected a text contract')
+    expectTypeOf(body.content).toEqualTypeOf<string>()
     expect(body.content).toContain('UserSignedUpPayload')
   })
 
@@ -61,7 +63,7 @@ describe('payload contract methods', () => {
         'https://brew.new/api/v1/automations/triggers/tri_signup/contract',
         async ({ request }) => {
           sent = await request.json()
-          return HttpResponse.json(STORED_CONTRACT)
+          return HttpResponse.json({ ...STORED_CONTRACT, warnings: [] })
         }
       )
     )
@@ -77,6 +79,9 @@ describe('payload contract methods', () => {
     })
     expect(body.version).toBe(2)
     expect(body.contractHash).toBe('a'.repeat(64))
+    expectTypeOf(body.format).toEqualTypeOf<'json'>()
+    expectTypeOf(body.fields).not.toBeNullable()
+    expect(body.warnings).toEqual([])
   })
 
   it('validatePayload resolves (not throws) on an invalid payload', async () => {
