@@ -38,7 +38,7 @@ npx --yes bun@1.3.10 install --frozen-lockfile
 npx --yes bun@1.3.10 run build
 cd examples/embedded-email-canvas
 node scripts/use-local-sdk.mjs ../..
-pnpm add ./vendor/brew-sdk.tgz --save-exact --no-frozen-lockfile
+pnpm add ./vendor/brew-sdk.tgz --save-exact
 ```
 
 This intentionally changes the example's dependency and lockfile to use the ignored local tarball. Keep those development-only changes out of commits.
