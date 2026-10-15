@@ -654,3 +654,9 @@ export type {
 
 // ---------- Metadata ----------
 export { SDK_NAME, SDK_VERSION } from './version'
+export type {
+  CanvasSession,
+  CanvasTarget,
+  CanvasPermission,
+  CreateCanvasSessionInput,
+} from './embed/contracts'

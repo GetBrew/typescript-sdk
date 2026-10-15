@@ -1,0 +1,39 @@
+{
+  "name": "brew-embedded-email-canvas-demo",
+  "version": "1.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "packageManager": "pnpm@11.25.0",
+  "scripts": {
+    "dev": "next dev --port 3500",
+    "build": "next build",
+    "start": "next start --port 3500",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check --config-path=biome.example.jsonc .",
+    "test": "vitest run",
+    "test:browser": "playwright test",
+    "doctor": "node --experimental-strip-types --env-file-if-exists=.env.local scripts/doctor.mjs"
+  },
+  "dependencies": {
+    "@brew.new/sdk": "file:vendor/brew-sdk.tgz",
+    "next": "16.3.8",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.12",
+    "@playwright/test": "1.62.1",
+    "@testing-library/react": "16.3.2",
+    "@types/node": "22.19.15",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.4",
+    "jsdom": "26.1.0",
+    "typescript": "6.0.2",
+    "vitest": "4.1.11",
+    "vite": "8.3.4"
+  }
+}

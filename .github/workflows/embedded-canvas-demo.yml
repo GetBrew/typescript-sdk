@@ -1,0 +1,60 @@
+name: Embedded Canvas Demo
+on:
+  pull_request:
+    paths:
+      - 'examples/embedded-email-canvas/**'
+      - 'src/embed/**'
+      - 'src/react/**'
+      - '.github/workflows/embedded-canvas-demo.yml'
+  push:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: embedded-canvas-demo-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: examples/embedded-email-canvas
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: examples/embedded-email-canvas/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: examples/embedded-email-canvas/.nvmrc
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.10'
+      - name: Build SDK
+        working-directory: .
+        run: |
+          bun install --frozen-lockfile
+          bun run build
+      - name: Install demo
+        run: |
+          node scripts/use-local-sdk.mjs ../..
+          pnpm install --no-frozen-lockfile
+          pnpm exec playwright install --with-deps chromium
+      - name: Validate demo
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+        run: |
+          pnpm typecheck
+          pnpm lint
+          pnpm test
+          pnpm test:browser
+          pnpm build
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: embedded-canvas-demo-traces
+          path: examples/embedded-email-canvas/test-results/
+          retention-days: 7
