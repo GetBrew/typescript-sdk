@@ -22,7 +22,8 @@ try {
   symlinkSync(
     join(root, 'node_modules'),
     join(workspace, 'node_modules'),
-    'dir'
+    // Junctions use absolute paths and need no symlink privilege on Windows.
+    'junction'
   )
   execFileSync(
     process.execPath,

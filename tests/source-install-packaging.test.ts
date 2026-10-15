@@ -29,11 +29,11 @@ describe('Git source package boundary', () => {
       ]) {
         cpSync(join(repository, file), join(sdk, file), { recursive: true })
       }
-      symlinkSync(dependencies, join(sdk, 'node_modules'), 'dir')
+      symlinkSync(dependencies, join(sdk, 'node_modules'), 'junction')
       symlinkSync(
         join(dependencies, '@types'),
         join(root, 'node_modules/@types'),
-        'dir'
+        'junction'
       )
       execFileSync(
         process.execPath,
