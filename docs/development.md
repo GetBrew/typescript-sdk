@@ -77,6 +77,10 @@ copies only the distribution back. Coordinated consumer PRs can pin an
 immutable SDK commit before its registry release. Switch those consumers to the
 published version and regenerate their lockfiles before release.
 
+Preparation logs go to stderr so `npm pack --json` stays machine-readable.
+Package-boundary setup checks this before running tests in parallel, because
+packing can run preparation and rebuild the distribution.
+
 ---
 
 ## End-to-end: shipping a new endpoint

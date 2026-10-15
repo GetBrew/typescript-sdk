@@ -3,8 +3,12 @@ on:
   pull_request:
     paths:
       - 'examples/embedded-email-canvas/**'
-      - 'src/embed/**'
-      - 'src/react/**'
+      - 'src/**'
+      - 'package.json'
+      - 'bun.lock'
+      - 'tsup.config.ts'
+      - 'scripts/build-source-package.mjs'
+      - 'tests/build-package.ts'
       - '.github/workflows/embedded-canvas-demo.yml'
   push:
     branches: [main]
