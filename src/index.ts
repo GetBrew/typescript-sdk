@@ -445,6 +445,7 @@ export type {
   ExportEmailResponse,
   ExportProvider,
 } from './resources/emails/export'
+export { EXPORT_EMAIL_DEFAULT_TIMEOUT_MS } from './resources/emails/export'
 export type {
   ImportFigmaDesignInput,
   ImportFigmaDesignResponse,

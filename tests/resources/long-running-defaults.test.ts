@@ -26,6 +26,10 @@ import {
   createEditEmail,
 } from '../../src/resources/emails/edit'
 import {
+  EXPORT_EMAIL_DEFAULT_TIMEOUT_MS,
+  createExportEmail,
+} from '../../src/resources/emails/export'
+import {
   IMPORT_FIGMA_DEFAULT_TIMEOUT_MS,
   createImportFigmaDesign,
 } from '../../src/resources/emails/figma'
@@ -86,6 +90,16 @@ const withTimeout = ({
 }): { timeoutMs?: number } => (timeoutMs === undefined ? {} : { timeoutMs })
 
 const CASES: ReadonlyArray<Case> = [
+  {
+    name: 'emails.export',
+    defaultMs: EXPORT_EMAIL_DEFAULT_TIMEOUT_MS,
+    expectedMs: 800_000,
+    call: ({ client, timeoutMs }) =>
+      createExportEmail(client)(
+        { emailId: 'email_1', provider: 'loops' },
+        withTimeout({ timeoutMs })
+      ),
+  },
   {
     name: 'content.addImage',
     defaultMs: ADD_IMAGE_DEFAULT_TIMEOUT_MS,
@@ -213,6 +227,7 @@ describe('long-running methods — per-call timeout defaults', () => {
     expect(sdk.IMPORT_FIGMA_DEFAULT_TIMEOUT_MS).toBe(800_000)
     expect(sdk.GENERATE_EMAIL_DEFAULT_TIMEOUT_MS).toBe(240_000)
     expect(sdk.EDIT_EMAIL_DEFAULT_TIMEOUT_MS).toBe(240_000)
+    expect(sdk.EXPORT_EMAIL_DEFAULT_TIMEOUT_MS).toBe(800_000)
     expect(sdk.AUDIT_EMAIL_DEFAULT_TIMEOUT_MS).toBe(65_000)
     expect(sdk.PREVIEW_EMAIL_CLIENTS_DEFAULT_TIMEOUT_MS).toBe(90_000)
   })
