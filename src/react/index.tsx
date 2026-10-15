@@ -15,6 +15,7 @@ import {
   type EmailCanvasOptions,
   type CanvasSessionRequest,
 } from '../embed/index'
+import { validateCanvasAuthentication } from '../embed/controller'
 export type EmailCanvasProps = EmailCanvasOptions & {
   readonly className?: string
   readonly style?: CSSProperties
@@ -24,6 +25,7 @@ const useCommittedEffect =
   typeof window === 'undefined' ? useEffect : useLayoutEffect
 export const EmailCanvas = forwardRef<EmailCanvasHandle, EmailCanvasProps>(
   function EmailCanvas(props, ref) {
+    validateCanvasAuthentication(props)
     const container = useRef<HTMLDivElement>(null)
     const controller = useRef<EmailCanvasController | null>(null)
     const latest = useRef(props)

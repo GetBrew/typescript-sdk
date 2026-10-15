@@ -2,7 +2,7 @@
 import { cleanup, render, waitFor } from '@testing-library/react'
 import { StrictMode } from 'react'
 import { afterEach, expect, it, vi } from 'vitest'
-import { EmailCanvas } from '../src/react/index'
+import { EmailCanvas, type EmailCanvasProps } from '../src/react/index'
 import { createEmailCanvas } from '../src/embed/controller'
 
 const clientId = 'brew_client_0123456789abcdef0123456789abcdef'
@@ -68,6 +68,21 @@ it('rejects API keys and missing client IDs synchronously in the controller', ()
   ).toThrow(expect.objectContaining({ code: 'INVALID_ARGUMENT' }))
   // @ts-expect-error Browser authentication is required.
   expect(() => createEmailCanvas(node, { groupId: 'grp_a' })).toThrow(
+    expect.objectContaining({ code: 'INVALID_ARGUMENT' })
+  )
+})
+it('rejects conflicting authentication props instead of dropping a per-user authorization callback', () => {
+  const fetcher = vi
+    .fn<typeof fetch>()
+    .mockResolvedValue(new Response(null, { status: 403 }))
+  vi.stubGlobal('fetch', fetcher)
+  // @ts-expect-error Deliberately model a JavaScript host passing both authentication options.
+  const invalid: EmailCanvasProps = {
+    clientId,
+    emailId: 'email_a',
+    getSession: vi.fn(),
+  }
+  expect(() => render(<EmailCanvas {...invalid} />)).toThrow(
     expect.objectContaining({ code: 'INVALID_ARGUMENT' })
   )
 })

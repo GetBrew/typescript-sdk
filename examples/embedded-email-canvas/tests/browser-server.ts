@@ -54,7 +54,9 @@ server.middlewares.use(async (request, response, next) => {
     }
     try {
       const chunks: Array<Buffer> = []
-      for await (const chunk of request) chunks.push(Buffer.from(chunk))
+      for await (const chunk of request) {
+        chunks.push(Buffer.from(chunk))
+      }
       const body = JSON.parse(Buffer.concat(chunks).toString()) as {
         sessionId?: string
         clientSessionToken: string
