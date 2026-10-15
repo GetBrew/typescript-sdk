@@ -70,7 +70,10 @@ older system Node `20.10.0`.
 
 Git source installs require Bun. The `prepare` script installs the SDK's locked
 build dependencies without lifecycle scripts, then builds every distribution
-entry point, including React declarations. Coordinated consumer PRs can pin an
+entry point, including React declarations, in a temporary workspace. TypeScript
+does not emit declarations for source files inside `node_modules`, where Git
+dependencies can be prepared. The temporary build avoids that restriction and
+copies only the distribution back. Coordinated consumer PRs can pin an
 immutable SDK commit before its registry release. Switch those consumers to the
 published version and regenerate their lockfiles before release.
 
