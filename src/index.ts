@@ -188,6 +188,10 @@ export type {
   ValidateTriggerPayloadInput,
 } from './resources/automations/triggers/contract'
 export type {
+  EnsureBrewEventTriggerInput,
+  EnsureBrewEventTriggerResponse,
+} from './resources/automations/triggers/brew-events'
+export type {
   CreateTriggerInput,
   CreateTriggerResponse,
 } from './resources/automations/triggers/create'
@@ -221,6 +225,7 @@ export type {
 export type { TriggersResource } from './resources/automations/triggers/resource'
 // ---------- Automations › triggers: domain types ----------
 export type {
+  BrewEventTriggerConfig,
   Trigger,
   TriggersListResponse,
 } from './resources/automations/triggers/types'

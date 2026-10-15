@@ -1,5 +1,29 @@
 # Changelog
 
+## 12.2.0
+
+Needs the API from GetBrew/brew-v2#2071: triggers Brew starts itself.
+
+### Added
+
+- `brew.automations.triggers.ensureBrewEvent({ event, scope, domainId? })`
+  (`POST /v1/automations/triggers/brew-events`) gets or creates the brand's
+  trigger for one Brew-event scope and says which with `created`. The first
+  Brew event is `contact.unsubscribed`, a contact unsubscribing with an
+  email's link or their mail app's one-click button. Use `scope: 'domain'`
+  with a marketing `domainId` from `brew.domains.list()`, or `scope: 'all'`
+  for every email the brand sends. New types: `EnsureBrewEventTriggerInput`,
+  `EnsureBrewEventTriggerResponse` and `BrewEventTriggerConfig`.
+- Trigger rows can carry `provider: 'brew_event'` and a `brewEvent` config,
+  and trigger instances `source: 'brew_event'`. A `switch` over either union
+  that covers every value needs the new case.
+- The error code `TRIGGER_NOT_FIREABLE`. On a Brew-event trigger,
+  `triggers.fire` and `triggers.readiness` answer `409 TRIGGER_NOT_FIREABLE`,
+  and `triggers.patch` and `triggers.putContract` answer
+  `422 TRIGGER_IMMUTABLE`. Try its automation with `automations.test`: the
+  test runs on the trigger's sample, with any `payload` fields you pass laid
+  over it, and writes no contact.
+
 ## 12.0.0
 
 The API retired `POST /v1/data` (GetBrew/brew-v2#1825), so the SDK drops the
