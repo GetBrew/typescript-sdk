@@ -68,10 +68,11 @@ Use a modern Node 20 or newer runtime for SDK development. On this
 machine, Vitest worked with Node `20.19.2` and newer, but failed on the
 older system Node `20.10.0`.
 
-Git source installs run `prepare` to build the distribution files. Coordinated
-consumer PRs can pin an immutable SDK commit before its registry release. Switch
-those consumers to the published version and regenerate their lockfiles before
-release.
+Git source installs require Bun. The `prepare` script installs the SDK's locked
+build dependencies without lifecycle scripts, then builds every distribution
+entry point, including React declarations. Coordinated consumer PRs can pin an
+immutable SDK commit before its registry release. Switch those consumers to the
+published version and regenerate their lockfiles before release.
 
 ---
 
