@@ -4,47 +4,31 @@ import type { BrewEmbedError } from '@brew.new/sdk/embed'
 import { EmailCanvas, type EmailCanvasHandle } from '@brew.new/sdk/react'
 import { useEffect, useRef, useState } from 'react'
 import type { DemoTarget } from '../lib/config'
-import { createSessionBridge } from '../lib/session-bridge'
 
 type Props = Readonly<{
   targets: ReadonlyArray<DemoTarget>
   embedOrigin: string
-  canEdit: boolean
-  onSignOut?: () => Promise<void>
+  clientId: string
 }>
 
 function CanvasView({
   item,
   embedOrigin,
-  canEdit,
+  clientId,
   onLeave,
-  onSignOut,
 }: Readonly<{
   item: DemoTarget
   embedOrigin: string
-  canEdit: boolean
+  clientId: string
   onLeave: () => void
-  onSignOut?: () => Promise<void>
 }>) {
   const canvas = useRef<EmailCanvasHandle>(null)
-  // The bridge is effect-owned: React Strict Mode gets a fresh instance after cleanup.
-  const bridge = useRef<ReturnType<typeof createSessionBridge> | null>(null)
-  const bridges = useRef(new Set<ReturnType<typeof createSessionBridge>>())
   const [isReady, setIsReady] = useState(false)
   const [isDirty, setIsDirty] = useState(false)
   const [isBusy, setIsBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState<string | null>(null)
   const [selected, setSelected] = useState(0)
-  useEffect(() => {
-    const owned = bridge.current ?? createSessionBridge(item.target)
-    bridge.current = owned
-    bridges.current.add(owned)
-    return () => {
-      bridge.current = null
-      void owned.destroy().catch(() => undefined)
-    }
-  }, [item.target])
   useEffect(() => {
     if (!isDirty) {
       return
@@ -56,7 +40,7 @@ function CanvasView({
     window.addEventListener('beforeunload', warn)
     return () => window.removeEventListener('beforeunload', warn)
   }, [isDirty])
-  async function perform(action: 'save' | 'fit' | 'leave' | 'sign-out') {
+  async function perform(action: 'save' | 'fit' | 'leave') {
     setIsBusy(true)
     setError(null)
     try {
@@ -66,17 +50,7 @@ function CanvasView({
         if (isReady || isDirty) {
           await canvas.current?.flush()
         }
-        if (action === 'leave' || action === 'sign-out') {
-          const active = bridge.current
-          await Promise.all(
-            [...bridges.current]
-              .filter((owned) => owned !== active)
-              .map((owned) => owned.close())
-          )
-          await active?.close()
-          if (action === 'sign-out') {
-            await onSignOut?.()
-          }
+        if (action === 'leave') {
           onLeave()
         }
       }
@@ -132,9 +106,7 @@ function CanvasView({
     <>
       <header className="toolbar">
         <div>
-          <p className="eyebrow">
-            {canEdit ? 'Shared email workspace' : 'Review workspace'}
-          </p>
+          <p className="eyebrow">Shared email workspace</p>
           <h1>{item.label}</h1>
         </div>
         <div className="actions">
@@ -145,15 +117,6 @@ function CanvasView({
           >
             Fit canvas
           </button>
-          {onSignOut ? (
-            <button
-              type="button"
-              disabled={isBusy || (!isReady && isDirty)}
-              onClick={() => void perform('sign-out')}
-            >
-              Sign out
-            </button>
-          ) : null}
           <button
             type="button"
             disabled={!isReady || isBusy}
@@ -189,11 +152,7 @@ function CanvasView({
           title={item.label}
           className="canvas"
           style={{ height: 'calc(100dvh - 230px)', minHeight: 420 }}
-          getSession={(request) => {
-            bridge.current ??= createSessionBridge(item.target)
-            bridges.current.add(bridge.current)
-            return bridge.current.getSession(request)
-          }}
+          clientId={clientId}
           onReady={() => {
             setIsReady(true)
             setError(null)
@@ -205,52 +164,32 @@ function CanvasView({
         />
       </div>
       <p className="hint">
-        {canEdit
-          ? 'Select an email to edit its text or open the properties panel. Other viewers see saved changes live; one person edits each email at a time.'
-          : 'Browse the emails and review updates live. Editing is disabled by the host app.'}
+        Select an email to edit its text or open the properties panel when
+        editing is enabled. Other viewers see saved changes live; one person
+        edits each email at a time.
       </p>
     </>
   )
 }
 
-export function CanvasDemo({
-  targets,
-  embedOrigin,
-  canEdit,
-  onSignOut,
-}: Props) {
+export function CanvasDemo({ targets, embedOrigin, clientId }: Props) {
   const [active, setActive] = useState<DemoTarget | null>(null)
-  const [accountError, setAccountError] = useState<string | null>(null)
   return (
     <main className="workspace">
       {active ? (
         <CanvasView
           item={active}
           embedOrigin={embedOrigin}
-          canEdit={canEdit}
+          clientId={clientId}
           onLeave={() => setActive(null)}
-          onSignOut={onSignOut}
         />
       ) : (
         <>
           <p className="eyebrow">Brew SDK example</p>
-          {onSignOut ? (
-            <button
-              type="button"
-              onClick={() => {
-                void onSignOut().catch(() =>
-                  setAccountError('Could not sign out. Please try again.')
-                )
-              }}
-            >
-              Sign out
-            </button>
-          ) : null}
-          {accountError ? <p role="alert">{accountError}</p> : null}
           <h1>Your email workspace, inside your app.</h1>
           <p className="intro">
             Choose a campaign to review together, or focus on a single email.
-            Your app controls who can view and edit it.
+            Access uses your client ID and its allowed domains.
           </p>
           <div className="cards">
             {targets.map((item) => (

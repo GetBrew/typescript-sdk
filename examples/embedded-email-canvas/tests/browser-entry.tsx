@@ -7,7 +7,7 @@ import type { DemoTarget } from '../lib/config'
 const configuration: {
   targets: Array<DemoTarget>
   embedOrigin: string
-  canEdit: boolean
+  clientId: string
 } = await fetch('/fixture-config').then((response) => response.json())
 const root = document.getElementById('root')
 if (!root) {

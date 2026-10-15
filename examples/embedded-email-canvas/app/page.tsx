@@ -1,8 +1,6 @@
-import { SignIn, SignOutButton } from '@clerk/nextjs'
-import { auth } from '@clerk/nextjs/server'
 import { connection } from 'next/server'
 import { Suspense } from 'react'
-import { AuthenticatedDemo } from '../components/authenticated-demo'
+import { CanvasDemo } from '../components/canvas-demo'
 import { missingConfiguration, readConfig } from '../lib/config'
 
 async function Content() {
@@ -14,49 +12,16 @@ async function Content() {
         <p className="eyebrow">Brew SDK example</p>
         <h1>Your email workspace, inside your app.</h1>
         <p>
-          Copy .env.example to .env.local and run pnpm doctor to finish setup.
+          Create a client ID in Brew Settings → API → Client apps. Add this
+          app’s exact origin, then copy .env.example to .env.local and run pnpm
+          doctor.
         </p>
         <p>Still needed: {missing.join(', ')}.</p>
         <a href="https://github.com/GetBrew/typescript-sdk">Explore the SDK</a>
       </main>
     )
   }
-  const { userId } = await auth()
-  if (!userId) {
-    return (
-      <main className="welcome">
-        <p className="eyebrow">Brew SDK example</p>
-        <h1>Sign in to your email workspace.</h1>
-        <p>
-          Review a campaign together, edit its emails, and see new content
-          appear live.
-        </p>
-        <SignIn routing="hash" fallbackRedirectUrl="/" />
-      </main>
-    )
-  }
-  const config = readConfig(process.env)
-  if (!config.allowedUserIds.includes(userId)) {
-    return (
-      <main className="welcome">
-        <h1>You're signed in.</h1>
-        <p>
-          Your account does not have access to this workspace yet. Ask the app
-          owner for access, or sign in with a different account.
-        </p>
-        <SignOutButton>
-          <button type="button">Use a different account</button>
-        </SignOutButton>
-      </main>
-    )
-  }
-  return (
-    <AuthenticatedDemo
-      targets={config.targets}
-      embedOrigin={config.embedOrigin}
-      canEdit={config.canEdit}
-    />
-  )
+  return <CanvasDemo {...readConfig(process.env)} />
 }
 export default function Page() {
   return (

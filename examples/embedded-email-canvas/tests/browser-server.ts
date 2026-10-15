@@ -1,11 +1,8 @@
 import { randomUUID } from 'node:crypto'
-import { createBrewClient } from '@brew.new/sdk'
 import type { CanvasSession } from '@brew.new/sdk/embed'
 import { createServer } from 'vite'
 import { readConfig } from '../lib/config.ts'
-import { handleSession } from '../lib/session-handler.ts'
 
-// A test-only identity adapter. The production Next adapter always uses Clerk.
 const realOrigin = process.env.DEMO_E2E_BREW_ORIGIN
 if (
   realOrigin &&
@@ -14,53 +11,15 @@ if (
   throw new Error('Real backend browser tests require synthetic loopback data.')
 }
 const config = readConfig({
-  APP_ORIGIN: 'http://localhost:3501',
+  NEXT_PUBLIC_BREW_CLIENT_ID:
+    process.env.DEMO_E2E_CLIENT_ID ??
+    'brew_client_0123456789abcdef0123456789abcdef',
   BREW_EMBED_ORIGIN: realOrigin ?? 'http://127.0.0.1:3501',
-  CLERK_SECRET_KEY: 'test-only',
-  NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: 'test-only',
-  DEMO_ALLOWED_USER_IDS: 'alice,bob',
-  CANVAS_SESSION_SECRET: 'test-only-'.repeat(8),
-  BREW_API_KEY: 'brew_embed_validation_00000000000000000000000000000000',
-  BREW_BRAND_ID: process.env.DEMO_E2E_BRAND_ID ?? 'brand-fixture',
   BREW_GROUP_ID: 'grp_validation',
   BREW_EMAIL_ID: 'email_validation',
 })
-const grants = new Map<string, CanvasSession>()
-const stub = {
-  create: async (
-    input: Parameters<
-      ReturnType<typeof createBrewClient>['canvas']['sessions']['create']
-    >[0]
-  ) => {
-    const sessionId = randomUUID()
-    const grant = {
-      sessionId,
-      target: input.target,
-      bootstrapToken: 'fixture-only',
-      expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
-      embedUrl: `${config.embedOrigin}/embed/canvas/${sessionId}`,
-    }
-    grants.set(sessionId, grant)
-    return grant
-  },
-  refresh: async (id: string) => {
-    const grant = grants.get(id)
-    if (!grant) {
-      throw new Error('Revoked')
-    }
-    return grant
-  },
-  revoke: async (id: string) => {
-    grants.delete(id)
-  },
-}
-const sessions = realOrigin
-  ? createBrewClient({
-      apiKey: config.apiKey,
-      brandId: config.brandId,
-      baseUrl: `${realOrigin}/api`,
-    }).canvas.sessions
-  : stub
+const grants = new Map<string, { grant: CanvasSession; owner: string }>()
+const endpoint = `/api/embed/canvas/clients/${config.clientId}/sessions`
 const server = await createServer({
   server: { host: '0.0.0.0', port: 3501, strictPort: true },
   appType: 'custom',
@@ -72,51 +31,71 @@ server.middlewares.use(async (request, response, next) => {
     response.end(
       await server.transformIndexHtml(
         '/',
-        '<!doctype html><html><head><title>Hermetic demo fixture</title></head><body><div id="root"></div><script type="module" src="/tests/browser-entry.tsx"></script></body></html>'
+        '<!doctype html><html><head><title>Client ID demo fixture</title></head><body><div id="root"></div><script type="module" src="/tests/browser-entry.tsx"></script></body></html>'
       )
     )
   } else if (path === '/fixture-config') {
     response.setHeader('Content-Type', 'application/json')
-    response.end(
-      JSON.stringify({
-        targets: config.targets,
-        embedOrigin: config.embedOrigin,
-        canEdit: config.canEdit,
-      })
-    )
-  } else if (path === '/api/canvas-session') {
+    response.end(JSON.stringify(config))
+  } else if (path === endpoint) {
+    if (request.headers.origin !== 'http://localhost:3501') {
+      response.writeHead(403)
+      response.end()
+      return
+    }
+    response.setHeader('Access-Control-Allow-Origin', 'http://localhost:3501')
+    response.setHeader('Access-Control-Allow-Methods', 'POST, DELETE')
+    response.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+    response.setHeader('Cache-Control', 'no-store')
+    if (request.method === 'OPTIONS') {
+      response.writeHead(204)
+      response.end()
+      return
+    }
     try {
       const chunks: Array<Buffer> = []
-      for await (const chunk of request) {
-        chunks.push(Buffer.from(chunk))
+      for await (const chunk of request) chunks.push(Buffer.from(chunk))
+      const body = JSON.parse(Buffer.concat(chunks).toString()) as {
+        sessionId?: string
+        clientSessionToken: string
+        target?: CanvasSession['target']
       }
-      const user = /(?:^|;\s*)demo-user=(alice|bob)/.exec(
-        request.headers.cookie ?? ''
-      )?.[1]
-      const result = await handleSession(
-        new Request(`${config.appOrigin}${path}`, {
-          method: request.method,
-          headers: new Headers(
-            Object.entries(request.headers).flatMap(([key, value]) =>
-              typeof value === 'string' ? [[key, value]] : []
-            )
-          ),
-          body: Buffer.concat(chunks).toString(),
-        }),
-        {
-          config,
-          sessions,
-          authenticate: async () =>
-            user
-              ? { userId: user, loginSessionId: `fixture-${user}`, name: user }
-              : null,
+      if (body.sessionId) {
+        const owned = grants.get(body.sessionId)
+        if (!owned || owned.owner !== body.clientSessionToken) {
+          response.writeHead(403)
+          response.end()
+          return
         }
-      )
-      response.writeHead(result.status, Object.fromEntries(result.headers))
-      response.end(await result.text())
+        if (request.method === 'DELETE') {
+          grants.delete(body.sessionId)
+          response.writeHead(204)
+          response.end()
+          return
+        }
+        response.setHeader('Content-Type', 'application/json')
+        response.end(JSON.stringify(owned.grant))
+        return
+      }
+      if (!body.target || !/^[0-9a-f]{64}$/.test(body.clientSessionToken)) {
+        response.writeHead(400)
+        response.end()
+        return
+      }
+      const sessionId = randomUUID()
+      const grant = {
+        sessionId,
+        target: body.target,
+        bootstrapToken: 'fixture-only',
+        expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+        embedUrl: `${config.embedOrigin}/embed/canvas/${sessionId}`,
+      }
+      grants.set(sessionId, { grant, owner: body.clientSessionToken })
+      response.setHeader('Content-Type', 'application/json')
+      response.end(JSON.stringify(grant))
     } catch {
-      response.writeHead(500)
-      response.end('Fixture failed')
+      response.writeHead(400)
+      response.end()
     }
   } else if (path?.startsWith('/embed/canvas/')) {
     response.setHeader('Content-Type', 'text/html')
