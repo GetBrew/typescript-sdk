@@ -127,7 +127,7 @@ packages:
     os: [win32]
 
   '@brew.new/sdk@file:vendor/brew-sdk.tgz':
-    resolution: {integrity: sha512-XDSQS3ahnIWQUxehsZ2KVINSojkcOQiL2nfgo5J/xn2sTTzXJg9op0gXfJP7JGaWpcxdJLjjftAdE3589n69nA==, tarball: file:vendor/brew-sdk.tgz}
+    resolution: {integrity: sha512-2Uisw1S/ExToV7XMlc635ipI5t1OVnVnOsry9hVkWYmkmOVUnEozPoghkT+LZHL4za/BQB0w74ZmpSzG1MUh+A==, tarball: file:vendor/brew-sdk.tgz}
     version: 12.2.0
     engines: {node: '>=20'}
     peerDependencies:
