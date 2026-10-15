@@ -28,7 +28,16 @@ describe('browser package boundaries', () => {
       )
       writeFileSync(
         join(root, 'consumer.cts'),
-        `import { createBrewClient } from '@brew.new/sdk';\nimport { createEmailCanvas } from '@brew.new/sdk/embed';\nimport { EmailCanvas } from '@brew.new/sdk/react';\nvoid createBrewClient; void createEmailCanvas; void EmailCanvas;`
+        `import { createBrewClient } from '@brew.new/sdk';\nimport { createEmailCanvas } from '@brew.new/sdk/embed';\nimport { EmailCanvas } from '@brew.new/sdk/react';\nvoid createBrewClient; void EmailCanvas;
+const group: Parameters<typeof createEmailCanvas>[1] = {clientId: 'brew_client_0123456789abcdef0123456789abcdef', groupId: 'grp_a'};
+const email: Parameters<typeof createEmailCanvas>[1] = {clientId: 'brew_client_0123456789abcdef0123456789abcdef', emailId: 'email_a'};
+// @ts-expect-error Exactly one target is required.
+const both: Parameters<typeof createEmailCanvas>[1] = {clientId: 'brew_client_0123456789abcdef0123456789abcdef', groupId: 'grp_a', emailId: 'email_a'};
+// @ts-expect-error Authentication is required.
+const missing: Parameters<typeof createEmailCanvas>[1] = {groupId: 'grp_a'};
+// @ts-expect-error Browser canvas props do not accept API keys.
+const secret: Parameters<typeof createEmailCanvas>[1] = {apiKey: 'brew_secret', groupId: 'grp_a'};
+void group; void email; void both; void missing; void secret;`
       )
       expect(() =>
         execFileSync(

@@ -13,6 +13,7 @@ import {
   resolveCanvasTarget,
   type EmailCanvasController,
   type EmailCanvasOptions,
+  type CanvasSessionRequest,
 } from '../embed/index'
 export type EmailCanvasProps = EmailCanvasOptions & {
   readonly className?: string
@@ -46,7 +47,23 @@ export const EmailCanvas = forwardRef<EmailCanvasHandle, EmailCanvasProps>(
     }, [])
     useEffect(() => {
       if (!container.current) return
-      const { embedOrigin, title, commandTimeoutMs } = latest.current
+      const { embedOrigin, title, commandTimeoutMs, clientId } = latest.current
+      const authentication =
+        clientId !== undefined
+          ? { clientId }
+          : {
+              getSession: (request: CanvasSessionRequest) => {
+                const provider = latest.current.getSession
+                if (!provider)
+                  return Promise.reject(
+                    new BrewEmbedError(
+                      'INVALID_ARGUMENT',
+                      'Canvas authentication is required.'
+                    )
+                  )
+                return provider(request)
+              },
+            }
       const resolved = resolveCanvasTarget(latest.current)
       const target =
         resolved.type === 'email'
@@ -54,10 +71,10 @@ export const EmailCanvas = forwardRef<EmailCanvasHandle, EmailCanvasProps>(
           : { groupId: resolved.groupId }
       const mounted = createEmailCanvas(container.current, {
         ...target,
+        ...authentication,
         ...(embedOrigin ? { embedOrigin } : {}),
         ...(title ? { title } : {}),
         ...(commandTimeoutMs !== undefined ? { commandTimeoutMs } : {}),
-        getSession: (request) => latest.current.getSession(request),
         onReady: () => latest.current.onReady?.(),
         onSaved: (event) => latest.current.onSaved?.(event),
         onSelectionChange: (ids) => latest.current.onSelectionChange?.(ids),
@@ -69,7 +86,7 @@ export const EmailCanvas = forwardRef<EmailCanvasHandle, EmailCanvasProps>(
         mounted.destroy()
         controller.current = null
       }
-    }, [props.groupId, props.emailId, props.embedOrigin])
+    }, [props.groupId, props.emailId, props.embedOrigin, props.clientId])
     return (
       <div
         ref={container}

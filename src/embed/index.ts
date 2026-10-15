@@ -5,4 +5,6 @@ export {
   type EmailCanvasController,
   type EmailCanvasOptions,
   type CanvasSessionRequest,
+  type CanvasSessionProvider,
+  type CanvasAuthentication,
 } from './controller'

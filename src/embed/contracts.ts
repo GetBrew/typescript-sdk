@@ -2,6 +2,8 @@
 import { isRecord } from './is-record'
 /** Canonical browser-safe embed protocol. Vendored into the public SDK by sync-embed-contracts.mjs. */
 export const CANVAS_PROTOCOL = 'brew.canvas.v1' as const
+/** Publishable embed app identifiers; API keys are never browser canvas credentials. */
+export const CANVAS_CLIENT_ID_PATTERN = /^brew_client_[0-9a-f]{32}$/
 export type CanvasTarget =
   | Readonly<{ type: 'group'; groupId: string }>
   | Readonly<{ type: 'email'; emailId: string }>

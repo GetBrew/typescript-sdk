@@ -1,87 +1,97 @@
 # Embedded email canvas
 
-Use `EmailCanvas` to put one Brew group, or one email, inside your app. It provides realtime generation, collaborator cursors and selections, manual editing, the properties inspector, autosave, recovery, and version selection. The iframe runs on Brew's origin and does not require third-party login cookies.
+Put one Brew group or one email inside your app, with live generation streams, multiplayer presence, manual editing, the properties panel, autosave and version selection. The iframe authenticates with a client ID and works without Clerk or third-party login cookies.
+
+## Create a client app
+
+Select the brand in Brew, then open **Settings → API → Client apps → Create client ID**. Name the app, add its exact allowed origins, choose whether editing is enabled, and copy its client ID.
+
+Use HTTPS in production. HTTP loopback origins such as `http://localhost:3500` are accepted for development. Origins include the port and exclude paths and trailing slashes. Wildcards are not accepted.
 
 ## React
 
 ```tsx
 'use client'
-
 import { EmailCanvas } from '@brew.new/sdk/react'
-import { createCanvasSessionProvider } from '@brew.new/sdk/embed'
 
-const getSession = createCanvasSessionProvider('/api/brew/canvas-session')
-
-export function CustomerEditor({ groupId }: { groupId: string }) {
+export function CustomerEmails() {
   return (
     <EmailCanvas
-      groupId={groupId}
-      getSession={getSession}
-      style={{ height: 800 }}
-      onSaved={(event) => console.log('Saved', event.emailId)}
-      onError={(error) => console.error(error.code, error.message)}
+      clientId="brew_client_..."
+      groupId="grp_..."
+      style={{ height: '80vh' }}
     />
   )
 }
 ```
 
-Pass `emailId` instead of `groupId` for single-email mode. The props are an exclusive TypeScript union; passing both is invalid. React is an optional peer dependency. The server SDK and plain browser entry do not import React.
+For a focused editor, replace `groupId` with `emailId`. Exactly one is required, both in TypeScript and at runtime. The client ID determines the brand and editing permissions. You do not provide an API key, Clerk key, user object, brand ID, parent origin or session endpoint.
 
-## Your server endpoint
+The component defaults to a height of 640px. React 18 and 19 are supported. React is optional if you use the browser controller.
 
-Authenticate the current user in your app. Resolve their allowed Brew brand and group/email on the server. Reject unauthorized targets and session IDs before issuing or refreshing access. Keep the Brew API key exclusively on your server.
+## Other frameworks
 
 ```ts
+import { createEmailCanvas } from '@brew.new/sdk/embed'
+
+const container = document.getElementById('canvas')!
+const canvas = createEmailCanvas(container, {
+  clientId: 'brew_client_...',
+  emailId: 'email_...',
+  onReady: () => console.log('Ready'),
+  onSaved: ({ emailId }) => console.log('Saved', emailId),
+  onError: (error) => console.error(error.code, error.message),
+})
+
+await canvas.flush() // before navigating away
+canvas.destroy() // unmount and close access
+```
+
+Give the container a nonzero height. `fitView()`, `focusEmail(emailId)` and `flush()` return promises. The React component exposes the same methods through an `EmailCanvasHandle` ref. Await `flush()` before navigation; if saving fails, keep the canvas mounted so the user can retry. `onDirtyChange` can drive a navigation warning, and `onSelectionChange` reports selected email IDs.
+
+Authentication, ownership-bound renewal and revocation are handled by the SDK. Renewal preserves the mounted iframe and unsaved content. Credentials stay in memory and never appear in iframe URLs. Unmounting revokes access on a best-effort basis; server expiration handles lost connections. `embedOrigin` is optional and defaults to `https://brew.new`; override it only for a trusted preview or local Brew deployment.
+
+## Headless generation and management
+
+Use a server-side Brew client for API operations, and the browser component for the editing surface:
+
+```ts
+// Your backend only
 import { createBrewClient } from '@brew.new/sdk'
-
-const brew = createBrewClient({ apiKey: process.env.BREW_API_KEY! })
-
-// Inside your authenticated handler, after checking the requested target:
-const session = await brew.canvas.sessions.create({
-  target: { type: 'group', groupId: authorizedGroupId },
-  user: { externalId: currentUser.id, name: currentUser.name },
-  parentOrigin: 'https://your-app.example',
-  permissions: ['read', 'edit', 'presence'],
+const brew = createBrewClient({
+  apiKey: process.env.BREW_API_KEY!,
+  brandId: process.env.BREW_BRAND_ID!,
 })
-// Return session as JSON with Cache-Control: no-store.
+// Generate and manage emails with brew.emails and brew.emailGroups.
+// Return the authorized groupId or emailId to your frontend.
 ```
 
-`createCanvasSessionProvider` POSTs `{ target, sessionId? }` to your endpoint. A renewal must return `brew.canvas.sessions.refresh(sessionId)` for the same authorized session. Store the association between that session ID, the user, and the target in your app. A session ID by itself is not proof of ownership. Use `brew.canvas.sessions.revoke(sessionId)` when access ends.
+Keep a group canvas mounted while your backend generates emails in that group: the new emails and generation chunks appear live. Pass an email ID when embedding a focused editing step. Client IDs cannot authorize API generation, management or sending.
 
-The backend validates brand permissions, target membership, and the issuing credential on every content operation. API keys have the `emails` scope. External identities are display identities, not Brew organization memberships. Read-only embeds use `permissions: ['read']`; add `presence` for collaboration awareness.
+## Access boundaries
 
-## Plain JavaScript
+Client IDs are publishable app credentials. Brew checks the request’s exact Origin against stored allowed origins before issuing a scoped grant and uses that same origin for iframe framing. Each content, edit and presence operation rechecks current client policy, organization status and brand lifecycle. Revoke the client app in Settings to end access. Changing origins or editing permissions invalidates existing sessions; reopen the canvas afterward.
 
-```ts
-import {
-  createEmailCanvas,
-  createCanvasSessionProvider,
-} from '@brew.new/sdk/embed'
+A client ID does not authenticate an individual person. Visitors to an approved origin can access the configured brand’s emails through the canvas, including other group/email IDs in that brand. Browser origin restrictions are not end-user authorization and can be forged by non-browser clients. Use dedicated brands/client apps for tenant isolation. For private per-user or per-target access, use the advanced server session flow below with your existing authentication provider.
 
-const canvas = createEmailCanvas(document.getElementById('canvas')!, {
-  emailId: 'email_example',
-  getSession: createCanvasSessionProvider('/api/brew/canvas-session'),
-})
+Multiplayer means live cursors/selections plus synchronized persisted changes. One person edits an email at a time; simultaneous character-level CRDT editing is not provided. Read-only mode is configured in the client app’s settings. The inspector supports scoped file uploads and cropping; workspace media search, logos, Giphy and AI image generation require separate workspace capabilities.
 
-// After onReady:
-await canvas.fitView()
-await canvas.focusEmail('email_example')
-await canvas.flush()
-canvas.destroy()
+## Advanced: server-authorized sessions
+
+If your app needs per-user/target authorization, replace `clientId` with a session provider. No particular login provider is required:
+
+```tsx
+import { EmailCanvas } from '@brew.new/sdk/react'
+import { createCanvasSessionProvider } from '@brew.new/sdk/embed'
+
+const getSession = createCanvasSessionProvider('/api/brew/canvas-session')
+<EmailCanvas emailId="email_..." getSession={getSession} />
 ```
 
-Give the container a nonzero height. The React component defaults to 640px. `flush()` rejects when edits remain unsaved. Await it before navigation; destroying the iframe is a synchronous cleanup operation and does not save edits. `onSaved` fires only after persistence acknowledges the change. `onDirtyChange` supports your app's navigation guard.
+Your endpoint receives `{ target, sessionId? }`. Authenticate the caller with your app’s existing login, authorize the target and brand on your backend, then call `brew.canvas.sessions.create({ target, user: {externalId, name}, parentOrigin, permissions })` with a server-side API key. Store ownership of the returned session ID. Renew only that caller’s owned session using `brew.canvas.sessions.refresh(sessionId)` and revoke it when access ends. A session ID alone is not proof of ownership. The SDK accepts either `clientId` or `getSession`, never both.
 
-## Sessions and framing
+## Runnable open source demo
 
-A session is scoped to one brand and exactly one target. It lasts one hour and can be renewed by the same server credential. Its bootstrap credential is one-use and lasts one minute; authenticated iframe access lasts five minutes. The SDK renews through your server without replacing the iframe. Credentials travel through an origin- and source-validated `postMessage` handshake, never in the iframe URL. Framing policy allows the session's exact parent origin.
+The [MIT Next.js example](../examples/embedded-email-canvas/README.md) demonstrates the client ID setup, group and single-email modes, save-before-exit and error recovery. No Clerk dependency or secret credentials are required. Its README covers installation, allowed domains, headless use cases, deployment and tests.
 
-`parentOrigin` must be an exact HTTPS origin without a path. HTTP loopback origins are accepted for local development. For a preview or local Brew deployment, explicitly set `embedOrigin` to its trusted origin. The SDK defaults to `https://brew.new` and rejects a session URL from another origin.
-
-Multiplayer provides live presence, selections, synchronized saved content, and an exclusive renewable editing lease per email. Two viewers cannot save concurrently; the second sees an editing conflict and can retry after the first releases the document. It is not character-level collaborative editing.
-
-The embedded inspector supports file uploads and cropping through scoped authentication. Existing durable Brew image URLs can be reused. Workspace media search, logos, Giphy, and AI image generation require separate capabilities and are omitted from this surface.
-
-## Runnable example
-
-Use the [MIT-licensed Next.js demo](../examples/embedded-email-canvas/README.md) for a complete Clerk-authenticated host with server-approved targets, ownership-bound renewal and revocation, save-before-navigation and sign-out, and group/single-email views. Its README covers local setup, the unreleased SDK build, production deployment, use cases, and validation. The public example is generated from the canonical `brew-v2` source and has its own typecheck, Biome, unit tests, browser tests, and build workflow.
+The embed entry points require an embed-capable SDK build and Brew deployment. Published SDK 12.2.0 does not include them; follow the example’s local SDK packing instructions until the next compatible release. Validate hosted HTTPS framing and real image upload/crop persistence before release; local fixture tests do not establish production hosting/storage readiness.

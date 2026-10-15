@@ -1,4 +1,5 @@
 import { anySignal } from '../core/signals'
+import { createClientCanvasSessionProvider } from './client-session'
 import {
   BrewEmbedError,
   CANVAS_PROTOCOL,
@@ -20,18 +21,24 @@ export type CanvasSessionRequest = Readonly<{
   sessionId?: string
   signal: AbortSignal
 }>
-export type EmailCanvasOptions = CanvasTargetProps & {
-  readonly getSession: (request: CanvasSessionRequest) => Promise<CanvasSession>
-  /** Trusted Brew hosting origin. Override only for your development/preview deployment. */
-  readonly embedOrigin?: string
-  readonly title?: string
-  readonly commandTimeoutMs?: number
-  readonly onReady?: () => void
-  readonly onSaved?: (event: CanvasSavedEvent) => void
-  readonly onSelectionChange?: (emailIds: ReadonlyArray<string>) => void
-  readonly onDirtyChange?: (hasUnsavedEdits: boolean) => void
-  readonly onError?: (error: BrewEmbedError) => void
-}
+export type CanvasSessionProvider = (
+  request: CanvasSessionRequest
+) => Promise<CanvasSession>
+export type CanvasAuthentication =
+  | Readonly<{ clientId: string; getSession?: never }>
+  | Readonly<{ getSession: CanvasSessionProvider; clientId?: never }>
+export type EmailCanvasOptions = CanvasTargetProps &
+  CanvasAuthentication & {
+    /** Trusted Brew hosting origin. Override only for your development/preview deployment. */
+    readonly embedOrigin?: string
+    readonly title?: string
+    readonly commandTimeoutMs?: number
+    readonly onReady?: () => void
+    readonly onSaved?: (event: CanvasSavedEvent) => void
+    readonly onSelectionChange?: (emailIds: ReadonlyArray<string>) => void
+    readonly onDirtyChange?: (hasUnsavedEdits: boolean) => void
+    readonly onError?: (error: BrewEmbedError) => void
+  }
 export type EmailCanvasController = Readonly<{
   fitView: () => Promise<void>
   focusEmail: (emailId: string) => Promise<void>
@@ -76,6 +83,26 @@ export function createEmailCanvas(
       'embedOrigin must be an exact HTTP or HTTPS origin.'
     )
   }
+  if ((options.clientId !== undefined) === (options.getSession !== undefined)) {
+    throw new BrewEmbedError(
+      'INVALID_ARGUMENT',
+      'Pass a clientId to authenticate the canvas.'
+    )
+  }
+  const clientProvider =
+    options.clientId !== undefined
+      ? createClientCanvasSessionProvider({
+          clientId: options.clientId,
+          embedOrigin: origin,
+        })
+      : undefined
+  const configuredProvider = clientProvider?.getSession ?? options.getSession
+  if (!configuredProvider)
+    throw new BrewEmbedError(
+      'INVALID_ARGUMENT',
+      'Canvas authentication is required.'
+    )
+  const provideSession: CanvasSessionProvider = configuredProvider
   const instanceId = ownerWindow.crypto.randomUUID()
   const abort = new AbortController()
   const pending = new Map<string, PendingCommand>()
@@ -139,7 +166,7 @@ export function createEmailCanvas(
     combined.signal.addEventListener('abort', onAbort, { once: true })
     try {
       const next = await Promise.race([
-        options.getSession({
+        provideSession({
           target,
           signal: combined.signal,
           ...(session ? { sessionId: session.sessionId } : {}),
@@ -298,6 +325,8 @@ export function createEmailCanvas(
       clearTimeout(connectionTimer)
       ownerWindow.removeEventListener('message', handleMessage)
       iframe?.remove()
+      // Network loss can prevent revocation; every grant also expires server-side.
+      void clientProvider?.close().catch(() => undefined)
       session = null
       for (const entry of pending.values()) {
         clearTimeout(entry.timer)

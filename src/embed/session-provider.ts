@@ -1,11 +1,11 @@
 import { BrewEmbedError, isCanvasSession } from './contracts'
-import type { CanvasSessionRequest, EmailCanvasOptions } from './controller'
+import type { CanvasSessionRequest, CanvasSessionProvider } from './controller'
 
 /** Connects the browser component to an authenticated endpoint in your own app. */
 export function createCanvasSessionProvider(
   endpoint: string,
   options: Readonly<{ fetch?: typeof fetch }> = {}
-): EmailCanvasOptions['getSession'] {
+): CanvasSessionProvider {
   return async ({ target, sessionId, signal }: CanvasSessionRequest) => {
     try {
       const response = await (options.fetch ?? globalThis.fetch)(endpoint, {
