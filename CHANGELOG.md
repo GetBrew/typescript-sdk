@@ -1,5 +1,20 @@
 # Changelog
 
+## 12.3.0
+
+### Added
+
+- Embed a group or single email with `EmailCanvas` from `@brew.new/sdk/react`
+  or `createEmailCanvas` from `@brew.new/sdk/embed`. Supply a publishable
+  `clientId` and exactly one `groupId` or `emailId`; no API key or Clerk key
+  is required by the browser integration.
+- Automatic session renewal and cleanup, realtime email updates, multiplayer
+  presence, manual editing, the properties panel, and draft recovery.
+- `brew.canvas.sessions` for server-authorized canvas access when individual
+  users need narrower permissions than the client app's brand.
+- An MIT-licensed Next.js demo and setup guide, including allowed origins,
+  save-before-navigation, group and single-email flows, and customer tests.
+
 ## 12.2.0
 
 Needs the API from GetBrew/brew-v2#2071: triggers Brew starts itself.
