@@ -1,15 +1,8 @@
 import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { missingConfiguration, readConfig } from '../lib/config.ts'
+import { checkConfiguration } from '../lib/config.ts'
 
-const problems = missingConfiguration(process.env).map((key) => `Set ${key}.`)
-if (!problems.length) {
-  try {
-    readConfig(process.env)
-  } catch (error) {
-    problems.push(error.message)
-  }
-}
+const problems = [...checkConfiguration(process.env).problems]
 if (!existsSync(resolve('node_modules/@brew.new/sdk/dist/react.js'))) {
   problems.push(
     'Install an SDK build containing the embed and react entry points. See README.md.'

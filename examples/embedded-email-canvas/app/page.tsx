@@ -1,12 +1,12 @@
 import { connection } from 'next/server'
 import { Suspense } from 'react'
 import { CanvasDemo } from '../components/canvas-demo'
-import { missingConfiguration, readConfig } from '../lib/config'
+import { checkConfiguration } from '../lib/config'
 
 async function Content() {
   await connection()
-  const missing = missingConfiguration(process.env)
-  if (missing.length) {
+  const { config, problems } = checkConfiguration(process.env)
+  if (!config) {
     return (
       <main className="welcome">
         <p className="eyebrow">Brew SDK example</p>
@@ -14,14 +14,18 @@ async function Content() {
         <p>
           Create a client ID in Brew Settings → API → Client apps. Add this
           app’s exact origin, then copy .env.example to .env.local and run pnpm
-          doctor.
+          run doctor.
         </p>
-        <p>Still needed: {missing.join(', ')}.</p>
+        <ul role="alert">
+          {problems.map((problem) => (
+            <li key={problem}>{problem}</li>
+          ))}
+        </ul>
         <a href="https://github.com/GetBrew/typescript-sdk">Explore the SDK</a>
       </main>
     )
   }
-  return <CanvasDemo {...readConfig(process.env)} />
+  return <CanvasDemo {...config} />
 }
 export default function Page() {
   return (

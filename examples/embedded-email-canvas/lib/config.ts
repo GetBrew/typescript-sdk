@@ -10,6 +10,28 @@ export type DemoConfig = Readonly<{
   targets: ReadonlyArray<DemoTarget>
 }>
 type Environment = Readonly<Record<string, string | undefined>>
+type ConfigurationCheck = Readonly<{
+  config: DemoConfig | null
+  problems: ReadonlyArray<string>
+}>
+
+export function checkConfiguration(env: Environment): ConfigurationCheck {
+  const missing = missingConfiguration(env)
+  if (missing.length) {
+    return { config: null, problems: missing.map((key) => `Set ${key}.`) }
+  }
+  try {
+    return { config: readConfig(env), problems: [] }
+  } catch (error) {
+    if (error instanceof Error) {
+      return { config: null, problems: [error.message] }
+    }
+    return {
+      config: null,
+      problems: ['Check .env.local using .env.example.'],
+    }
+  }
+}
 export function missingConfiguration(env: Environment): Array<string> {
   const missing: Array<string> = []
   if (!env.NEXT_PUBLIC_BREW_CLIENT_ID?.trim()) {
@@ -31,8 +53,9 @@ export function readConfig(env: Environment): DemoConfig {
     )
   }
   const embedOrigin = env.BREW_EMBED_ORIGIN || 'https://brew.new'
-  const url = new URL(embedOrigin)
+  const url = URL.canParse(embedOrigin) ? new URL(embedOrigin) : null
   if (
+    !url ||
     url.origin !== embedOrigin ||
     (url.protocol !== 'https:' &&
       !(

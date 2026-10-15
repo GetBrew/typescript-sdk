@@ -6,23 +6,33 @@ This directory is MIT licensed. Its public mirror lives in the [TypeScript SDK e
 
 ## Run it
 
-1. Use Node 22.18 or newer and the pnpm version in `package.json`.
+1. Use Node 22.18 or newer and the pnpm version in `package.json`. Clone the public SDK and build the unreleased embed entry points:
+
+```bash
+git clone https://github.com/GetBrew/typescript-sdk.git
+cd typescript-sdk
+npx --yes bun@1.3.10 install --frozen-lockfile
+npx --yes bun@1.3.10 run build
+cd examples/embedded-email-canvas
+```
+
+If you copied this example into another repository, keep a separate built SDK checkout and pass its path to the packing command below.
+
 2. In Brew, select your brand and open **Settings → API → Client apps**. Choose **Create client ID**, name your app, and allow **`http://localhost:3500`**. Save and copy the client ID. Enable editing if you want the editor panel.
 3. Copy `.env.example` to `.env.local`. Set `NEXT_PUBLIC_BREW_CLIENT_ID`. Keep `BREW_GROUP_ID=ungrouped` to start, or supply a group ID or email ID returned by the Brew API. Clear the group ID for single-email-only mode. These targets must belong to the client app’s brand. Set both to try both modes.
 4. Install the SDK build and dependencies, then run the demo:
 
 ```bash
-# Temporary setup until an embed-capable SDK version is published:
-# clone https://github.com/GetBrew/typescript-sdk beside this repository,
-# check out main, install its dependencies, and build it.
-# Use an absolute path to that SDK checkout here:
-node scripts/use-local-sdk.mjs /absolute/path/to/typescript-sdk
+# From the public SDK checkout above; use its absolute path for a copied example:
+node scripts/use-local-sdk.mjs ../..
 pnpm install --no-frozen-lockfile
-pnpm doctor
+pnpm run doctor
 pnpm dev
 ```
 
 Open **http://localhost:3500**. Choose the group or single email. Select an email to edit text and open its properties. Open a second tab to try multiplayer presence and saved updates. New emails and generated content stream into the selected group automatically. One person edits each email at a time.
+
+Use `pnpm run doctor` explicitly: `pnpm doctor` runs pnpm's own diagnostics instead of this example's configuration check. Both the demo setup screen and its check explain missing or invalid configuration without displaying credentials.
 
 Published SDK 12.2.0 does not contain the embed entry points. The packing script installs a locally built public SDK tarball into ignored `vendor/`; it never copies private app modules. Once a release includes these entry points, replace the file dependency with that release and commit the regenerated lockfile. An embed-capable Brew deployment is required; use `BREW_EMBED_ORIGIN` only for a trusted preview or local Brew deployment.
 
