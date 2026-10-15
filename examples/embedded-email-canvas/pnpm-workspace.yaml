@@ -6,3 +6,5 @@ allowBuilds:
   esbuild: true
   sharp: true
   unrs-resolver: true
+minimumReleaseAgeExclude:
+  - '@brew.new/sdk@12.3.0'

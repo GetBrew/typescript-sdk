@@ -4,6 +4,12 @@ Put one Brew group or one email inside your app, with live generation streams, m
 
 ## Create a client app
 
+Install SDK 12.3.0 or newer:
+
+```bash
+npm install @brew.new/sdk@^12.3.0
+```
+
 Select the brand in Brew, then open **Settings → API → Client apps → Create client ID**. Name the app, add its exact allowed origins, choose whether editing is enabled, and copy its client ID.
 
 Use HTTPS in production. HTTP loopback origins such as `http://localhost:3500` are accepted for development. Origins include the port and exclude paths and trailing slashes. Wildcards are not accepted.
@@ -94,4 +100,4 @@ Your endpoint receives `{ target, sessionId? }`. Authenticate the caller with yo
 
 The [MIT Next.js example](../examples/embedded-email-canvas/README.md) demonstrates the client ID setup, group and single-email modes, save-before-exit and error recovery. No Clerk dependency or secret credentials are required. Its README covers installation, allowed domains, headless use cases, deployment and tests.
 
-The embed entry points require an embed-capable SDK build and Brew deployment. Published SDK 12.2.0 does not include them; follow the example’s local SDK packing instructions until the next compatible release. Validate hosted HTTPS framing and real image upload/crop persistence before release; local fixture tests do not establish production hosting/storage readiness.
+The example installs the released SDK directly from npm. Validate hosted HTTPS framing and real image upload/crop persistence for your deployment; local fixture tests do not establish production hosting/storage readiness.

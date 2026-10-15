@@ -23,5 +23,5 @@ const source = resolve(vendor, packed[0].filename)
 copyFileSync(source, resolve(vendor, 'brew-sdk.tgz'))
 rmSync(source)
 console.log(
-  'SDK prepared. Run pnpm install --no-frozen-lockfile, then pnpm run doctor.'
+  'SDK packed. Run pnpm add ./vendor/brew-sdk.tgz --save-exact, then pnpm run doctor.'
 )

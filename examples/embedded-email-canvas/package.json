@@ -19,7 +19,7 @@
     "doctor": "node --experimental-strip-types --env-file-if-exists=.env.local scripts/doctor.mjs"
   },
   "dependencies": {
-    "@brew.new/sdk": "file:vendor/brew-sdk.tgz",
+    "@brew.new/sdk": "12.3.0",
     "next": "16.3.8",
     "react": "19.2.8",
     "react-dom": "19.2.8"
