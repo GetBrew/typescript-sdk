@@ -41,7 +41,7 @@ jobs:
       - name: Install demo
         run: |
           node scripts/use-local-sdk.mjs ../..
-          pnpm install --no-frozen-lockfile
+          pnpm add ./vendor/brew-sdk.tgz --save-exact --no-frozen-lockfile
           pnpm exec playwright install --with-deps chromium
       - name: Validate demo
         env:

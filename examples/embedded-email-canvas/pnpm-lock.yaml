@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@brew.new/sdk':
-        specifier: file:vendor/brew-sdk.tgz
-        version: file:vendor/brew-sdk.tgz(react@19.2.8)
+        specifier: 12.3.0
+        version: 12.3.0(react@19.2.8)
       next:
         specifier: 16.3.8
         version: 16.3.8(@playwright/test@1.62.1)(@types/node@22.19.15)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -126,9 +126,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@brew.new/sdk@file:vendor/brew-sdk.tgz':
-    resolution: {integrity: sha512-2Uisw1S/ExToV7XMlc635ipI5t1OVnVnOsry9hVkWYmkmOVUnEozPoghkT+LZHL4za/BQB0w74ZmpSzG1MUh+A==, tarball: file:vendor/brew-sdk.tgz}
-    version: 12.2.0
+  '@brew.new/sdk@12.3.0':
+    resolution: {integrity: sha512-3jS1IHkTlB8tFQO7rH/NdXbgp9ZjShl2ZM7wMz/J2YpwMnrNRAU1p66KiEbtvFgmenhFcVc++FDgjCtiMyjmrQ==}
     engines: {node: '>=20'}
     peerDependencies:
       react: '>=18.2.0 <20'
@@ -1163,7 +1162,7 @@ snapshots:
   '@biomejs/cli-win32-x64@2.5.12':
     optional: true
 
-  '@brew.new/sdk@file:vendor/brew-sdk.tgz(react@19.2.8)':
+  '@brew.new/sdk@12.3.0(react@19.2.8)':
     optionalDependencies:
       react: 19.2.8
 
