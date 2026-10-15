@@ -94,7 +94,7 @@ const getSession = createCanvasSessionProvider('/api/brew/canvas-session')
 <EmailCanvas emailId="email_..." getSession={getSession} />
 ```
 
-Your endpoint receives `{ target, sessionId? }`. Authenticate the caller with your app’s existing login, authorize the target and brand on your backend, then call `brew.canvas.sessions.create({ target, user: {externalId, name}, parentOrigin, permissions })` with a server-side API key. Store ownership of the returned session ID. Renew only that caller’s owned session using `brew.canvas.sessions.refresh(sessionId)` and revoke it when access ends. A session ID alone is not proof of ownership. The SDK accepts either `clientId` or `getSession`, never both.
+Your endpoint receives `{ target, sessionId? }`. Authenticate the caller with your app’s existing login, authorize the target and brand on your backend, then call `brew.canvas.sessions.create({ target, user: {externalId, name}, parentOrigin, permissions })` with a server-side API key. Store ownership of the returned session ID. Renew only that caller’s owned session using `brew.canvas.sessions.refresh(sessionId)` and revoke it when access ends. `brew.canvas.sessions.revoke(sessionId)` returns `{ revoked: true }`; `{ raw: true }` also exposes the status and request ID. A session ID alone is not proof of ownership. The SDK accepts either `clientId` or `getSession`, never both.
 
 ## Runnable open source demo
 

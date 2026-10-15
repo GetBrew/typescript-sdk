@@ -1,9 +1,13 @@
+import type { operations } from '../../generated/openapi-types'
 import { type HttpClient, unwrapResponse } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 import type {
   CanvasSession,
   CreateCanvasSessionInput,
 } from '../../embed/contracts'
+
+export type CanvasSessionRevokeResponse =
+  operations['revokeCanvasSession']['responses'][200]['content']['application/json']
 
 type SessionMethod<Input> = {
   (
@@ -16,10 +20,16 @@ export type CanvasResource = {
   readonly sessions: {
     readonly create: SessionMethod<CreateCanvasSessionInput>
     readonly refresh: SessionMethod<string>
-    readonly revoke: (
-      sessionId: string,
-      options?: RequestOptions
-    ) => Promise<void>
+    readonly revoke: {
+      (
+        sessionId: string,
+        options: RequestOptions & { readonly raw: true }
+      ): Promise<BrewRawResponse<CanvasSessionRevokeResponse>>
+      (
+        sessionId: string,
+        options?: RequestOptions
+      ): Promise<CanvasSessionRevokeResponse>
+    }
   }
 }
 export function createCanvasResource(client: HttpClient): CanvasResource {
@@ -66,17 +76,26 @@ export function createCanvasResource(client: HttpClient): CanvasResource {
     })
     return unwrapResponse(response, options)
   }
-  return {
-    sessions: {
-      create,
-      refresh,
-      revoke: async (sessionId, options) => {
-        await client.request({
-          method: 'DELETE',
-          path: `/v1/canvas/sessions/${encodeURIComponent(sessionId)}`,
-          ...(options ? { options } : {}),
-        })
-      },
-    },
+  function revoke(
+    sessionId: string,
+    options: RequestOptions & { readonly raw: true }
+  ): Promise<BrewRawResponse<CanvasSessionRevokeResponse>>
+  function revoke(
+    sessionId: string,
+    options?: RequestOptions
+  ): Promise<CanvasSessionRevokeResponse>
+  async function revoke(
+    sessionId: string,
+    options?: RequestOptions
+  ): Promise<
+    CanvasSessionRevokeResponse | BrewRawResponse<CanvasSessionRevokeResponse>
+  > {
+    const response = await client.request<CanvasSessionRevokeResponse>({
+      method: 'DELETE',
+      path: `/v1/canvas/sessions/${encodeURIComponent(sessionId)}`,
+      ...(options ? { options } : {}),
+    })
+    return unwrapResponse(response, options)
   }
+  return { sessions: { create, refresh, revoke } }
 }

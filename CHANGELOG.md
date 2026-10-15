@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- `canvas.sessions.revoke` preserves the API's `{ revoked: boolean }` response
+  instead of discarding it. With `{ raw: true }`, it also returns HTTP status,
+  headers, and request metadata. `CanvasSessionRevokeResponse` is exported from
+  the package root and derives from the generated OpenAPI contract.
+- Regression checks cover typed public SDK responses and one-attempt canvas
+  credential creation/refresh with no automatic replay key.
+
+This changes a public method signature. Release as 13.0.0 under the version
+policy, before the CLI canvas migration updates its dependency and registry lock.
+
 ## 12.3.0
 
 ### Added
