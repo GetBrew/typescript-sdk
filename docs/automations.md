@@ -22,6 +22,7 @@ scope.
 | [`triggerInstances.list` / `get`](#fired-trigger-history)  | `/v1/automations/trigger-instances[/{triggerInstanceId}]` |
 | `triggers.list` / `create` / `patch` / `delete`            | `/v1/automations/triggers[/{triggerEventId}]`             |
 | `triggers.get`                                             | `GET /v1/automations/triggers/{triggerEventId}`           |
+| [`triggers.ensureBrewEvent`](#unsubscribe-triggers)        | `POST /v1/automations/triggers/brew-events`               |
 | [`triggers.fire`](#transactional-email--firing-triggers)   | `POST /v1/automations/triggers/{triggerEventId}/fire`     |
 | `triggers.readiness`                                       | `GET /v1/automations/triggers/{triggerEventId}/readiness` |
 | `triggers.getContract` / `putContract` / `validatePayload` | `/v1/automations/triggers/{triggerEventId}/contract[…]`   |
@@ -168,6 +169,54 @@ up.
 body. It replaced `triggers.ready`, which overloaded `GET …/fire` and wrapped
 its answer in the fire envelope.
 
+## Unsubscribe triggers
+
+Brew events are triggers Brew starts itself. The first one is
+`contact.unsubscribed`: a contact unsubscribed with an email's unsubscribe
+link or their mail app's one-click button (never a bounce, complaint, import
+or API edit). `triggers.ensureBrewEvent` returns the brand's trigger for one
+scope, creating it the first time:
+
+```ts
+// Unsubscribes from one marketing domain's list (ids from brew.domains.list())
+const news = await brew.automations.triggers.ensureBrewEvent({
+  event: 'contact.unsubscribed',
+  scope: 'domain',
+  domainId: 'jd7f0c2a8w1x9m4n6p3q5r8s2t',
+})
+
+// Unsubscribes from every email the brand sends
+const all = await brew.automations.triggers.ensureBrewEvent({
+  event: 'contact.unsubscribed',
+  scope: 'all',
+})
+
+all.created // true the first time, false on every later call
+all.brewEvent // { event: 'contact.unsubscribed', scope: 'all' }
+```
+
+An unsubscribe from all clicked in one of a domain's emails also starts that
+domain's trigger, if the contact was still on its list. The payload is
+`{ email, unsubscribe: { scope, domain?, method, reasons, reasonText?, emailId?, emailTitle?, sendId?, at } }`.
+
+Wire the `triggerEventId` into `automations.create`. Brew owns the row:
+`patch` and `putContract` answer `422 TRIGGER_IMMUTABLE`, and `fire` and
+`readiness` answer `409 TRIGGER_NOT_FIREABLE`. Try a flow with
+`automations.test({ automationId })`: the test runs on the trigger's sample,
+with any `payload` fields you pass laid over it, and writes no contact.
+
+The run emails only the contact who just opted out. Send what they need, such
+as a confirmation of the unsubscribe, from a transactional domain; never a
+promotion. Mail from another marketing domain reaches them only while they are
+still on its list, never after an unsubscribe from all. Publishing refuses a
+flow none of whose emails could reach them.
+
+Refusals: `400 INVALID_REQUEST` when `domainId` is missing for
+`scope: 'domain'` or sent for `scope: 'all'`; `404 DOMAIN_NOT_FOUND`;
+`422 DOMAIN_PURPOSE_NOT_ALLOWED` for a transactional domain, which keeps no
+list; `409 TRIGGER_LIMIT_REACHED` when the brand holds the most triggers it
+can.
+
 ## Fired-trigger history
 
 `triggerInstances` is the audit log of every inbound fire — one row per fire,
@@ -193,7 +242,8 @@ for await (const row of brew.automations.triggerInstances.listAll()) {
 ```
 
 An unknown id is `404 TRIGGER_INSTANCE_NOT_FOUND` — the code that replaced
-`EVENT_NOT_FOUND`.
+`EVENT_NOT_FOUND`. `source` says where the fire came from: `api`,
+`integration`, or `brew_event` (an unsubscribe Brew recorded itself).
 
 ## Manual-audience runs
 
