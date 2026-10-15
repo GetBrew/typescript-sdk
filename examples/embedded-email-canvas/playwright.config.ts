@@ -16,9 +16,11 @@ export default defineConfig({
       ],
     },
   },
-  webServer: process.env.DEMO_E2E_APP_ORIGIN ? undefined : {
-    command: 'node --experimental-strip-types tests/browser-server.ts',
-    url: 'http://localhost:3501',
-    reuseExistingServer: false,
-  },
+  webServer: process.env.DEMO_E2E_APP_ORIGIN
+    ? undefined
+    : {
+        command: 'node --experimental-strip-types tests/browser-server.ts',
+        url: 'http://localhost:3501',
+        reuseExistingServer: false,
+      },
 })

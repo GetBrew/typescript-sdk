@@ -102,7 +102,10 @@ test('denied client access shows a useful error and can return to workspaces', a
     }
     await route.fulfill({
       status: 403,
-      headers: { 'Access-Control-Allow-Origin': route.request().headers().origin ?? 'http://localhost:3501' },
+      headers: {
+        'Access-Control-Allow-Origin':
+          route.request().headers().origin ?? 'http://localhost:3501',
+      },
       body: JSON.stringify({ error: 'Denied' }),
     })
   })
