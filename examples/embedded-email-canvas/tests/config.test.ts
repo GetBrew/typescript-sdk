@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { missingConfiguration, readConfig } from '../lib/config'
+import {
+  checkConfiguration,
+  missingConfiguration,
+  readConfig,
+} from '../lib/config'
 
 const clientId = 'brew_client_0123456789abcdef0123456789abcdef'
 describe('client ID demo setup', () => {
@@ -50,5 +54,45 @@ describe('client ID demo setup', () => {
         BREW_EMBED_ORIGIN: 'http://remote.example',
       })
     ).toThrow('HTTPS')
+  })
+  it('returns actionable setup problems without exposing an invalid credential', () => {
+    expect(checkConfiguration({})).toEqual({
+      config: null,
+      problems: [
+        'Set NEXT_PUBLIC_BREW_CLIENT_ID.',
+        'Set BREW_GROUP_ID or BREW_EMAIL_ID.',
+      ],
+    })
+    expect(
+      checkConfiguration({
+        NEXT_PUBLIC_BREW_CLIENT_ID: 'accidentally-pasted-secret',
+        BREW_GROUP_ID: 'ungrouped',
+      })
+    ).toEqual({
+      config: null,
+      problems: ['Copy the client ID from Brew Settings → API → Client apps.'],
+    })
+  })
+  it('reports malformed embed origins as setup problems instead of throwing', () => {
+    expect(
+      checkConfiguration({
+        NEXT_PUBLIC_BREW_CLIENT_ID: clientId,
+        BREW_GROUP_ID: 'ungrouped',
+        BREW_EMBED_ORIGIN: 'not a URL',
+      })
+    ).toEqual({
+      config: null,
+      problems: [expect.stringContaining('HTTPS origin')],
+    })
+  })
+  it('returns the validated configuration for the app and doctor', () => {
+    const env = {
+      NEXT_PUBLIC_BREW_CLIENT_ID: clientId,
+      BREW_EMAIL_ID: 'email_a',
+    }
+    expect(checkConfiguration(env)).toEqual({
+      config: readConfig(env),
+      problems: [],
+    })
   })
 })

@@ -1,4 +1,46 @@
-import { expect, test } from '@playwright/test'
+import { expect, type Page, test } from '@playwright/test'
+
+test('two customer tabs share presence and saved edits with independent sessions', async ({
+  page,
+  context,
+}) => {
+  test.skip(
+    !process.env.DEMO_E2E_BREW_ORIGIN,
+    'Requires the isolated real Brew backend.'
+  )
+  const other = await context.newPage()
+  const errors: Array<string> = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  other.on('pageerror', (error) => errors.push(error.message))
+  async function openTab(tab: Page) {
+    await tab.goto('/')
+    await tab.getByRole('button', { name: /Single email/ }).click()
+    await expect(tab.getByRole('button', { name: 'Save now' })).toBeEnabled()
+  }
+  await openTab(page)
+  await openTab(other)
+  const first = page.frameLocator('iframe')
+  const second = other.frameLocator('iframe')
+  const card = '[data-embed-email="email_validation"]'
+  await first.locator(card).click()
+  const editor = first.locator('.tiptap[contenteditable="true"]').first()
+  await expect(editor).toBeVisible()
+  await editor.hover()
+  await expect(second.getByText(/^Guest [0-9a-f]{6}$/).first()).toBeVisible()
+  const text = `Shared between customer tabs ${Date.now()}`
+  await editor.click()
+  await editor.pressSequentially(text)
+  await page.getByRole('button', { name: 'Save now' }).click()
+  await expect(second.locator(card)).toContainText(text)
+  await page.getByRole('button', { name: 'Back to workspaces' }).click()
+  await second.locator(card).click()
+  await expect(
+    second.locator('.tiptap[contenteditable="true"]').first()
+  ).toBeVisible()
+  await expect(other.getByRole('button', { name: 'Save now' })).toBeEnabled()
+  await other.getByRole('button', { name: 'Back to workspaces' }).click()
+  expect(errors).toEqual([])
+})
 
 test('real iframe manual edits persist through save, revoke, and reopen', async ({
   page,
