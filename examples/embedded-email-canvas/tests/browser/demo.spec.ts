@@ -88,7 +88,9 @@ test('renewal preserves the iframe and dirty state; a failed flush keeps edits v
   await expect(page.getByRole('status')).toContainText('Unsaved changes')
   await frame.getByRole('button', { name: 'Conflict' }).click()
   await page.getByRole('button', { name: 'Back to workspaces' }).click()
-  await expect(page.getByRole('alert')).toContainText('Save conflict')
+  await expect(page.getByRole('main').getByRole('alert')).toContainText(
+    'Save conflict'
+  )
   await expect(page.locator('iframe')).toHaveCount(1)
 })
 
@@ -111,7 +113,9 @@ test('denied client access shows a useful error and can return to workspaces', a
   })
   await page.goto('/')
   await page.getByRole('button', { name: /Campaign group/ }).click()
-  await expect(page.getByRole('alert')).toContainText('allowed origins')
+  await expect(page.getByRole('main').getByRole('alert')).toContainText(
+    'allowed origins'
+  )
   await page.getByRole('button', { name: 'Back to workspaces' }).click()
   await expect(
     page.getByRole('button', { name: /Campaign group/ })
