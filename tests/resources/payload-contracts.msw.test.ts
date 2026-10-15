@@ -1,6 +1,7 @@
 import { HttpResponse, http } from 'msw'
 import { describe, expect, expectTypeOf, it } from 'vitest'
 
+import type { PayloadContractField } from '../../src/resources/automations/triggers/contract'
 import { createTriggersResource } from '../../src/resources/automations/triggers/resource'
 import { createPayloadContractsResource } from '../../src/resources/payload-contracts/resource'
 import { makeTestHttpClient } from '../helpers/http-client'
@@ -27,6 +28,33 @@ const STORED_CONTRACT = {
 }
 
 describe('payload contract methods', () => {
+  it.each([undefined, 'json'] as const)(
+    'getContract returns required JSON fields with format %s',
+    async (format) => {
+      let url: URL | undefined
+      server.use(
+        http.get(
+          'https://brew.new/api/v1/automations/triggers/tri_signup/contract',
+          ({ request }) => {
+            url = new URL(request.url)
+            return HttpResponse.json(STORED_CONTRACT)
+          }
+        )
+      )
+      const { client } = makeTestHttpClient()
+      const triggers = createTriggersResource(client)
+      const body = await triggers.getContract({
+        triggerEventId: 'tri_signup',
+        ...(format === undefined ? {} : { format }),
+      })
+      expect(url?.searchParams.get('format')).toBe(format ?? null)
+      expect(body.format).toBe('json')
+      if (body.format !== 'json') throw new Error('Expected a JSON contract')
+      expectTypeOf(body.fields).toEqualTypeOf<Array<PayloadContractField>>()
+      expect(body.fields).toEqual(STORED_CONTRACT.fields)
+    }
+  )
+
   it('getContract passes format as a query param and unwraps the body', async () => {
     let url: URL | undefined
     server.use(
