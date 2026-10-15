@@ -10,6 +10,8 @@
   the package root and derives from the generated OpenAPI contract.
 - Regression checks cover typed public SDK responses and one-attempt canvas
   credential creation/refresh with no automatic replay key.
+- Source preparation writes build logs to stderr so `npm pack --json` remains
+  machine-readable for the embedded canvas demo and other package consumers.
 
 This changes a public method signature. Release as 13.0.0 under the version
 policy, before the CLI canvas migration updates its dependency and registry lock.
