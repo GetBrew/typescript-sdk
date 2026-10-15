@@ -660,3 +660,5 @@ export type {
   CanvasPermission,
   CreateCanvasSessionInput,
 } from './embed/contracts'
+
+export type { CanvasSessionRevokeResponse } from './resources/canvas/resource'
