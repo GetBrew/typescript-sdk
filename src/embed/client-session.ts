@@ -91,7 +91,7 @@ export function createClientCanvasSessionProvider(options: Options) {
       if (error instanceof BrewEmbedError) throw error
       throw new BrewEmbedError(
         'CONNECTION_FAILED',
-        'Could not connect to Brew. Retry to reconnect.'
+        'Could not connect to Brew. Check your connection and the client app’s allowed origins.'
       )
     }
   }

@@ -2,19 +2,19 @@
 
 A standalone Next.js app showing Brew’s email canvas inside your app. Configure a publishable client ID and a group ID or email ID. No Clerk account, Clerk keys, Brew login, API key, or custom session endpoint is required by this example.
 
-This directory is MIT licensed. Its public mirror lives in the [TypeScript SDK examples](https://github.com/GetBrew/typescript-sdk/tree/codex/embedded-email-canvas/examples/embedded-email-canvas). It has no imports from Brew’s private app.
+This directory is MIT licensed. Its public mirror lives in the [TypeScript SDK examples](https://github.com/GetBrew/typescript-sdk/tree/main/examples/embedded-email-canvas). It has no imports from Brew’s private app.
 
 ## Run it
 
 1. Use Node 22.18 or newer and the pnpm version in `package.json`.
 2. In Brew, select your brand and open **Settings → API → Client apps**. Choose **Create client ID**, name your app, and allow **`http://localhost:3500`**. Save and copy the client ID. Enable editing if you want the editor panel.
-3. Copy `.env.example` to `.env.local`. Set `NEXT_PUBLIC_BREW_CLIENT_ID` and at least one of `BREW_GROUP_ID` or `BREW_EMAIL_ID`. These targets must belong to the client app’s brand. Set both to try both modes.
+3. Copy `.env.example` to `.env.local`. Set `NEXT_PUBLIC_BREW_CLIENT_ID`. Keep `BREW_GROUP_ID=ungrouped` to start, or supply a group ID or email ID returned by the Brew API. Clear the group ID for single-email-only mode. These targets must belong to the client app’s brand. Set both to try both modes.
 4. Install the SDK build and dependencies, then run the demo:
 
 ```bash
 # Temporary setup until an embed-capable SDK version is published:
 # clone https://github.com/GetBrew/typescript-sdk beside this repository,
-# check out codex/embedded-email-canvas, install its dependencies, and build it.
+# check out main, install its dependencies, and build it.
 # Use an absolute path to that SDK checkout here:
 node scripts/use-local-sdk.mjs /absolute/path/to/typescript-sdk
 pnpm install --no-frozen-lockfile
@@ -50,6 +50,8 @@ Allowed origins are exact: `https://app.example.com` and `https://app.example.co
 A client ID is public and does not identify a signed-in person. It grants the embedded canvas access to the configured brand from approved browser origins. Anyone using an approved app can request a group or email in that brand; opaque IDs and your UI’s chooser are not per-user access controls. Browser origin restrictions do not authenticate non-browser callers, which can forge an Origin header. For private tenant or user access, use a dedicated brand/client app per tenant and your own access controls, or the SDK’s advanced server-issued session provider for per-target authorization.
 
 Client IDs cannot authorize API generation, sending, management, or ordinary Convex endpoints. Keep API keys on your backend. Revoke unused clients in Settings; revocation blocks established reads, edits, media admission, presence and renewal. Changing allowed origins or editing access ends existing grants; reopen the canvas afterward.
+
+If the canvas cannot connect, check that the client ID is active, its allowed origin exactly matches the address bar (including port), and the target belongs to its brand. A blocked CORS request cannot expose Brew’s error body to your browser, so the SDK’s connection error points you back to the allowed origins.
 
 ## Headless use cases
 
