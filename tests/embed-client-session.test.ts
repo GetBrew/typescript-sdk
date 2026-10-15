@@ -34,7 +34,11 @@ describe('client ID session transport', () => {
     const body = JSON.parse(
       typeof init?.body === 'string' ? init.body : ''
     ) as Record<string, unknown>
-    expect(Object.keys(body).sort()).toEqual(['clientSessionToken', 'target'])
+    expect(Object.keys(body).sort()).toEqual([
+      'clientSessionToken',
+      'recoveryId',
+      'target',
+    ])
     expect(body.clientSessionToken).toMatch(/^[0-9a-f]{64}$/)
     const renewal = JSON.parse(
       typeof fetcher.mock.calls[1]![1]?.body === 'string'
@@ -109,4 +113,51 @@ describe('client ID session transport', () => {
     })
     await provider.close()
   })
+})
+it('reuses a public recovery ID while generating independent ownership secrets on reopen', async () => {
+  const values = new Map<string, string>()
+  vi.stubGlobal('localStorage', {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      values.set(key, value)
+    },
+  })
+  const fetcher = vi
+    .fn<typeof fetch>()
+    .mockImplementation((_url, options) =>
+      options?.method === 'DELETE'
+        ? Promise.resolve(new Response(null, { status: 204 }))
+        : Promise.resolve(Response.json(grant))
+    )
+  const one = createClientCanvasSessionProvider({
+    clientId,
+    embedOrigin: 'https://brew.new',
+    fetch: fetcher,
+  })
+  const two = createClientCanvasSessionProvider({
+    clientId,
+    embedOrigin: 'https://brew.new',
+    fetch: fetcher,
+  })
+  try {
+    const request = {
+      target: grant.target,
+      signal: new AbortController().signal,
+    }
+    await one.getSession(request)
+    await two.getSession(request)
+    const bodies = fetcher.mock.calls.map(([, options]) => {
+      if (typeof options?.body !== 'string')
+        throw new Error('Expected a JSON body')
+      return JSON.parse(options.body) as Record<string, unknown>
+    })
+    expect(bodies[0]?.recoveryId).toMatch(/^[0-9a-f-]{36}$/)
+    expect(bodies[0]?.recoveryId).toBe(bodies[1]?.recoveryId)
+    expect(bodies[0]?.clientSessionToken).not.toBe(
+      bodies[1]?.clientSessionToken
+    )
+  } finally {
+    await Promise.all([one.close(), two.close()])
+    vi.unstubAllGlobals()
+  }
 })

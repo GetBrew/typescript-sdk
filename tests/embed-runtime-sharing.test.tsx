@@ -27,3 +27,26 @@ it('preserves typed errors across the React and browser package entries', async 
   expect(error).toBeInstanceOf(BrewEmbedError)
   expect(error).toMatchObject({ code: 'CONNECTION_FAILED', message: 'offline' })
 })
+it('preserves the public error class when JavaScript supplies conflicting React authentication props', async () => {
+  const { BrewEmbedError } = (await import(
+    new URL('../dist/embed.js', import.meta.url).pathname
+  )) as typeof EmbedEntry
+  const { EmailCanvas } = (await import(
+    new URL('../dist/react.js', import.meta.url).pathname
+  )) as typeof ReactEntry
+  // @ts-expect-error Deliberately model an untyped host passing both authentication modes.
+  const invalid: ReactEntry.EmailCanvasProps = {
+    clientId: 'brew_client_0123456789abcdef0123456789abcdef',
+    emailId: 'email_a',
+    getSession: () =>
+      Promise.reject(new BrewEmbedError('AUTHENTICATION_FAILED', 'unused')),
+  }
+  let failure: unknown
+  try {
+    render(createElement(EmailCanvas, invalid))
+  } catch (error) {
+    failure = error
+  }
+  expect(failure).toBeInstanceOf(BrewEmbedError)
+  expect(failure).toMatchObject({ code: 'INVALID_ARGUMENT' })
+})

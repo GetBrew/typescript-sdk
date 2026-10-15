@@ -11,11 +11,11 @@ import {
   BrewEmbedError,
   createEmailCanvas,
   resolveCanvasTarget,
+  validateCanvasAuthentication,
   type EmailCanvasController,
   type EmailCanvasOptions,
   type CanvasSessionRequest,
 } from '../embed/index'
-import { validateCanvasAuthentication } from '../embed/controller'
 export type EmailCanvasProps = EmailCanvasOptions & {
   readonly className?: string
   readonly style?: CSSProperties

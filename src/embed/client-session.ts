@@ -5,6 +5,7 @@ import {
   type CanvasSession,
 } from './contracts'
 import type { CanvasSessionRequest } from './controller'
+import { getCanvasRecoveryId } from './recovery-identity'
 
 type Options = Readonly<{
   clientId: string
@@ -25,6 +26,7 @@ export function createClientCanvasSessionProvider(options: Options) {
   const clientSessionToken = Array.from(bytes, (byte) =>
     byte.toString(16).padStart(2, '0')
   ).join('')
+  const recoveryId = getCanvasRecoveryId({ clientId: options.clientId })
   const fetcher = options.fetch ?? globalThis.fetch
   let isClosed = false
   let session: CanvasSession | undefined
@@ -64,6 +66,7 @@ export function createClientCanvasSessionProvider(options: Options) {
         body: JSON.stringify({
           target: request.target,
           clientSessionToken,
+          recoveryId,
           ...(request.sessionId ? { sessionId: request.sessionId } : {}),
         }),
         signal: AbortSignal.timeout(30_000),

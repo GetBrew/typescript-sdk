@@ -49,7 +49,7 @@ canvas.destroy() // unmount and close access
 
 Give the container a nonzero height. `fitView()`, `focusEmail(emailId)` and `flush()` return promises. The React component exposes the same methods through an `EmailCanvasHandle` ref. Await `flush()` before navigation; if saving fails, keep the canvas mounted so the user can retry. `onDirtyChange` can drive a navigation warning, and `onSelectionChange` reports selected email IDs.
 
-Authentication, ownership-bound renewal and revocation are handled by the SDK. Renewal preserves the mounted iframe and unsaved content. Credentials stay in memory and never appear in iframe URLs. Unmounting revokes access on a best-effort basis; server expiration handles lost connections. `embedOrigin` is optional and defaults to `https://brew.new`; override it only for a trusted preview or local Brew deployment.
+Authentication, ownership-bound renewal and revocation are handled by the SDK. Renewal preserves the mounted iframe and unsaved content. Ownership and access secrets stay in memory and never appear in iframe URLs. A separate, public recovery ID is stored per client app in your app’s local storage so reopening can find unsaved drafts. This ID grants no access; recovery across reloads requires browser storage to be available. Unmounting revokes access on a best-effort basis; server expiration handles lost connections. `embedOrigin` is optional and defaults to `https://brew.new`; override it only for a trusted preview or local Brew deployment.
 
 ## Headless generation and management
 

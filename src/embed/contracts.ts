@@ -4,6 +4,9 @@ import { isRecord } from './is-record'
 export const CANVAS_PROTOCOL = 'brew.canvas.v1' as const
 /** Publishable embed app identifiers; API keys are never browser canvas credentials. */
 export const CANVAS_CLIENT_ID_PATTERN = /^brew_client_[0-9a-f]{32}$/
+/** Browser recovery identity is public metadata, never an access credential. */
+export const CANVAS_RECOVERY_ID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
 export type CanvasTarget =
   | Readonly<{ type: 'group'; groupId: string }>
   | Readonly<{ type: 'email'; emailId: string }>
@@ -42,6 +45,20 @@ export class BrewEmbedError extends Error {
     super(message)
     this.name = 'BrewEmbedError'
     this.code = code
+  }
+}
+/** Validate before React or JavaScript hosts narrow the authentication mode. */
+export function validateCanvasAuthentication(
+  options: Readonly<{ clientId?: unknown; getSession?: unknown }>
+): void {
+  if (
+    (options.clientId !== undefined) === (options.getSession !== undefined) ||
+    (options.clientId === undefined && typeof options.getSession !== 'function')
+  ) {
+    throw new BrewEmbedError(
+      'INVALID_ARGUMENT',
+      'Pass exactly one of clientId or getSession.'
+    )
   }
 }
 export function resolveCanvasTarget(input: {

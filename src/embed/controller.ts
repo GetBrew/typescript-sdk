@@ -7,6 +7,7 @@ import {
   isCanvasSession,
   resolveCanvasTarget,
   sameCanvasTarget,
+  validateCanvasAuthentication,
   type CanvasCommand,
   type CanvasFrameMessage,
   type CanvasHostMessage,
@@ -27,23 +28,6 @@ export type CanvasSessionProvider = (
 export type CanvasAuthentication =
   | Readonly<{ clientId: string; getSession?: never }>
   | Readonly<{ getSession: CanvasSessionProvider; clientId?: never }>
-/** Also runs at the React boundary before it can narrow JavaScript props. */
-export function validateCanvasAuthentication(
-  options: Readonly<{
-    clientId?: string
-    getSession?: CanvasSessionProvider
-  }>
-): void {
-  if (
-    (options.clientId !== undefined) === (options.getSession !== undefined) ||
-    (options.clientId === undefined && typeof options.getSession !== 'function')
-  ) {
-    throw new BrewEmbedError(
-      'INVALID_ARGUMENT',
-      'Pass exactly one of clientId or getSession.'
-    )
-  }
-}
 export type EmailCanvasOptions = CanvasTargetProps &
   CanvasAuthentication & {
     /** Trusted Brew hosting origin. Override only for your development/preview deployment. */
