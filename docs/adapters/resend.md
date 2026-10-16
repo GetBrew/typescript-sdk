@@ -67,8 +67,12 @@ failure, including a dropped connection, comes back as `error`.
 | Several `to` recipients                              | `brew_unsupported_field`, pointing at `batch.send` (one entry per recipient). |
 
 `brew_template_required` says: "Brew sends app email from templates.
-Import this design into Brew and send it by key; see
-https://docs.brew.new/migrations/resend".
+Import this design into Brew and send it by key: run
+`npx @brew.new/cli migrate resend`, or see
+https://docs.brew.new/migrations/resend". That command imports your Resend
+templates into Brew and rewrites these call sites to send by key. The
+adapter exports both as `RESEND_MIGRATION_COMMAND` and
+`RESEND_MIGRATION_DOCS_URL`.
 
 ## `batch.send(emails, { idempotencyKey? })`
 
