@@ -11,7 +11,7 @@ import {
 } from '@brew.new/sdk'
 
 expectTypeOf<BrewSendKey>().toEqualTypeOf<
-  'auth.password-reset' | 'order.paid'
+  'auth.password-reset' | 'order.paid' | 'invite.sent'
 >()
 expectTypeOf<BrewSendPayload<'order.paid'>>().toEqualTypeOf<{
   email: string
@@ -111,4 +111,38 @@ export async function unionKeyCalls(
   } else {
     await brew.send(pair[0], pair[1])
   }
+}
+
+// A key whose payload is a union keeps its alternatives together: a union
+// key takes a payload that fits one alternative of each key it can hold.
+export async function unionPayloadCalls(
+  brew: BrewClient,
+  key: 'invite.sent' | 'auth.password-reset'
+): Promise<void> {
+  await brew.send('invite.sent', {
+    email: 'jane@example.com',
+    channel: 'code',
+    otp: '123456',
+  })
+
+  // Fits 'invite.sent' (its `link` alternative) and 'auth.password-reset'.
+  await brew.send(key, {
+    email: 'jane@example.com',
+    channel: 'link',
+    confirmationUrl: 'https://app.example.com/invite',
+  })
+
+  await brew.send(key, {
+    email: 'jane@example.com',
+    // @ts-expect-error: no 'invite.sent' alternative has this channel.
+    channel: 'fax',
+    confirmationUrl: 'https://app.example.com/invite',
+  })
+
+  // @ts-expect-error: 'auth.password-reset' needs `confirmationUrl`.
+  await brew.send(key, {
+    email: 'jane@example.com',
+    channel: 'code',
+    otp: '123456',
+  })
 }

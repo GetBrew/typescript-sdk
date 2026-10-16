@@ -33,7 +33,8 @@ spec is brew-v2 `main` at `8c7020e535` plus the operations and schemas from
   `declare module '@brew.new/sdk'` to type-check `brew.send` keys and
   payloads. Empty (the default), `send` takes any string key and an
   `{ email, …JSON }` payload whose other fields may be `undefined`. A key
-  typed as a union must carry a payload that fits every key in it. New
+  typed as a union must carry a payload that fits every key in it (one
+  alternative of a key whose payload is a union). New
   types: `BrewSend`, `BrewSendKey`, `BrewSendPayload<K>`,
   `BrewSendPayloadFor<K>`, `BrewSendResponse`, `BrewDefaultSendPayload`,
   `FireTriggerByKeyInput`, `FireTriggerByKeyResponse`.
