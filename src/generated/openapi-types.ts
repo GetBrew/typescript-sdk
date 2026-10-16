@@ -1426,7 +1426,7 @@ export interface paths {
          *
          *     **Use when** your code should send `brew.send(’<key>’, payload)` and nothing exists yet, or to bring an existing setup up to date.
          *
-         *     **Input** at most one of `starter` and `source`; a starter-kit key defaults to its own starter. `payloadSchema` declares flat payload fields; without it the starter’s contract is used, or for a `source` the fields its `{{ trigger.<field> }}` merge tags read. Only `email` (the recipient) reaches the contact; every other field is template data. `domainId` picks the sender; by default a verified domain whose purpose matches the email (transactional for auth emails, trial ending and payment failed; marketing for welcome and win-back), else the team-only sandbox (members of your organization, under a daily cap) until one verifies. `publish` defaults to true.
+         *     **Input** at most one of `starter` and `source`; a starter-kit key defaults to its own starter. `payloadSchema` declares flat payload fields; without it the starter’s contract is used, or for a `source` the fields its `{{ trigger.<field> }}` merge tags read. Only `email` (the recipient) reaches the contact; every other field is template data. Mark a one-time code or sign-in link `secret: true`: it is used only to render the email and redacted wherever the fire is stored, logged or counted (never on `email`). An omitted marker counts `pii: high` as secret, and a field the starter kit marks secret (`otp`, `confirmationUrl`, `newEmail`) stays secret. `domainId` picks the sender; by default a verified domain whose purpose matches the email (transactional for auth emails, trial ending and payment failed; marketing for welcome and win-back), else the team-only sandbox (members of your organization, under a daily cap) until one verifies. `publish` defaults to true.
          *
          *     **Re-runs** change only what differs. The same starter and version, or the same source, keeps the design. A newer starter version, another starter or another source replaces it, unless it was edited in Brew since setup: then `409 APP_EMAIL_EDITED_IN_BREW` until `overwrite: true`. A deleted design or automation is created again. A sandbox sender moves to a matching domain once one verifies. A call that fails part way leaves nothing a re-run would duplicate, and two calls for one key at once end with one design and one automation.
          *
@@ -1459,7 +1459,7 @@ export interface paths {
          * Set up the app email kit
          * @description Sets up the starter kit: auth emails (verify email, magic link, one-time code, password reset, invite, email change, reauthentication, security notice) and lifecycle emails (welcome, trial ending, payment failed, win-back). Each key is set up exactly as `upsertAppEmail` does with its own starter, a few at a time.
          *
-         *     **Input** `sets` (default both), `stack` (narrows the auth keys to the ones that auth library sends and picks the code snippets; default `custom`, every auth key) or exact `keys`, plus `domainId` and `overwrite` for every key.
+         *     **Input** `sets` (default both), `stack` (narrows the auth keys to the ones that auth library sends and picks the code snippets; default `custom`, every auth key) or exact `keys`, plus `domainId` and `overwrite` for every key. `supabase` returns a Send Email Hook to deploy as a Supabase Edge Function (`@brew.new/sdk/supabase`); `clerk` sets up the lifecycle emails only, since Clerk keeps sending its own auth emails.
          *
          *     **Returns** `200` with `results[]` in kit order, each `ok: true` with the setup result or `ok: false` with its `error` (`code`, `message`, `details`), and `stack` (`provider`, `authDelivery`, `note`, `keys`, `snippets`). One key failing does not stop the others; running the kit again finishes them.
          *
@@ -7403,6 +7403,8 @@ export interface components {
                      * @enum {string}
                      */
                     pii?: "none" | "low" | "high";
+                    /** @description True for a one-time code or sign-in link: used only to render the email, redacted in stored copies, logs and analytics. Never on `email`. Omitted: `pii: high` counts as secret, and a field the starter kit marks secret stays secret. */
+                    secret?: boolean;
                     description?: string;
                 }[];
             };
@@ -7485,7 +7487,7 @@ export interface components {
                 /** @enum {string} */
                 provider: "better-auth" | "authjs" | "supabase" | "clerk" | "firebase" | "custom";
                 /**
-                 * @description `code`: your app sends the auth keys; `hosted-webhook`: the provider hands them to Brew once connected.
+                 * @description `code`: your app, or a hook it hosts, sends the auth keys; `hosted-webhook`: the provider hands them to Brew once connected.
                  * @enum {string}
                  */
                 authDelivery: "code" | "hosted-webhook";
@@ -21400,7 +21402,9 @@ export interface operations {
                      *             "key": "confirmationUrl",
                      *             "type": "string",
                      *             "required": false,
-                     *             "pii": "high"
+                     *             "pii": "high",
+                     *             "secret": true,
+                     *             "syncToContact": false
                      *           }
                      *         ]
                      *       },
@@ -21475,7 +21479,9 @@ export interface operations {
                      *             "key": "confirmationUrl",
                      *             "type": "string",
                      *             "required": false,
-                     *             "pii": "high"
+                     *             "pii": "high",
+                     *             "secret": true,
+                     *             "syncToContact": false
                      *           }
                      *         ]
                      *       },
@@ -21735,7 +21741,9 @@ export interface operations {
                      *                 "key": "confirmationUrl",
                      *                 "type": "string",
                      *                 "required": false,
-                     *                 "pii": "high"
+                     *                 "pii": "high",
+                     *                 "secret": true,
+                     *                 "syncToContact": false
                      *               }
                      *             ]
                      *           },
