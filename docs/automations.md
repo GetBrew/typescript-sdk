@@ -160,7 +160,8 @@ await brew.send('order.paid', {
 ```
 
 `fireByKey` answers the `fire` body plus `triggerKey`. An unknown key is
-`404 TRIGGER_KEY_NOT_FOUND`; a key another trigger in the brand holds is
+`404 TRIGGER_KEY_NOT_FOUND`, and a Brew-event trigger refuses it with
+`409 TRIGGER_NOT_FIREABLE`, as it refuses `fire`; a key another trigger in the brand holds is
 `409 TRIGGER_KEY_TAKEN` on `create` / `patch`; `kit`, `by-key`, `brew.*` and
 `auth.*` keys outside the starter kit are `400 TRIGGER_KEY_RESERVED`. An
 idempotency key matches the resolved trigger, so a by-key and a by-id fire
