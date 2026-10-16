@@ -469,6 +469,7 @@ Runs `tsup` and emits to `dist/`:
 - `dist/index.js` (ESM)
 - `dist/index.cjs` (CJS)
 - `dist/index.d.ts` + `dist/index.d.cts` (TypeScript declarations)
+- `dist/{embed,react}.*`: the same four files per canvas entry
 - `dist/{resend,better-auth,next-auth,supabase}/index.*`: the same four
   files per subpath adapter (see [Subpath adapters](#subpath-adapters))
 - Sourcemaps for all of the above
@@ -558,8 +559,10 @@ tsup entry each. User docs: [`docs/adapters/`](./adapters/). The rules:
   the typecheck and the tests. Adapter-internal code shared between
   adapters (`src/adapters/shared/`) is inlined into each bundle, which is
   fine as long as it holds no classes a caller compares by identity.
-- **No runtime or peer dependencies.** Type the libraries an adapter
-  serves structurally (the fields it reads), never by importing them.
+- **No runtime or peer dependencies.** The package's only peer is the
+  optional `react` that `/react` (the canvas) needs; an adapter adds none.
+  Type the libraries an adapter serves structurally (the fields it reads),
+  never by importing them.
   `tests/types/adapter-compat.test.ts` checks the adapters against the
   real `better-auth` and `@auth/core` types (devDependencies) and a copy
   of next-auth v4's `EmailConfig`.
@@ -575,9 +578,9 @@ tsup entry each. User docs: [`docs/adapters/`](./adapters/). The rules:
 resolve under node10, node16 CJS and ESM, and bundler) and
 `scripts/smoke-exports.mjs`, which packs the package, installs the
 tarball into a scratch app, loads every subpath with `import()` and
-`require()`, asserts one `BrewApiError` across root and adapters and no
-runtime or peer dependencies, and type-checks the packed `.d.ts` files
-with a `BrewTriggerKeyRegistry` augmentation.
+`require()`, asserts one `BrewApiError` across root and adapters, no
+runtime dependencies and no peer but the optional `react`, and type-checks
+the packed `.d.ts` files with a `BrewTriggerKeyRegistry` augmentation.
 
 ---
 
