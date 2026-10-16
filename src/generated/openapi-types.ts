@@ -1285,7 +1285,7 @@ export interface paths {
          *
          *     **Idempotency** send a stable `Idempotency-Key` header on every retry. The key is matched against the stored trigger receipt of the RESOLVED trigger, so a by-key and a by-id fire of one trigger with the same key replay each other, for as long as the receipt is kept (90 days).
          *
-         *     **Errors** `404 TRIGGER_KEY_NOT_FOUND` when no trigger in the brand has the key (a sibling brand’s key never resolves); otherwise the `fireTrigger` errors: `400 INVALID_PAYLOAD`, `422 NO_PUBLISHED_AUTOMATION`, `409 IDEMPOTENCY_CONFLICT`.
+         *     **Errors** `404 TRIGGER_KEY_NOT_FOUND` when no trigger in the brand has the key (a sibling brand’s key never resolves); otherwise the `fireTrigger` errors: `400 INVALID_PAYLOAD`, `422 NO_PUBLISHED_AUTOMATION`, `409 IDEMPOTENCY_CONFLICT`, and `409 TRIGGER_NOT_FIREABLE` for a Brew event trigger, which Brew starts itself.
          *
          *     **See also** `fireTrigger`, `listTriggers`, `updateTrigger` (to set a key).
          */
@@ -6850,7 +6850,7 @@ export interface components {
         };
         BrewEventTriggerSaved: {
             triggerEventId: string;
-            /** @description Stable developer key your code names this trigger by; unique in the brand. Absent when the trigger has none. */
+            /** @description Stable developer key your code names this trigger by; unique in the brand. Fire by it with `POST /v1/automations/triggers/by-key/{triggerKey}/fire`. Absent when the trigger has none. */
             key?: string;
             /** @description Present when an app-email setup wired this keyed trigger to an automation and design. */
             appEmail?: {
@@ -20006,6 +20006,8 @@ export interface operations {
              * @description `IDEMPOTENCY_CONFLICT`: The same Idempotency-Key was reused with a different request body.
              *
              *     `IDEMPOTENCY_IN_PROGRESS`: A request with this Idempotency-Key is still executing.
+             *
+             *     `TRIGGER_NOT_FIREABLE`: Brew starts this trigger itself when its event happens, so it cannot be fired over the API.
              */
             409: {
                 headers: {

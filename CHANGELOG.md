@@ -9,7 +9,8 @@ first. Publish only once both API pull requests are deployed and the live
 spec matches the vendored one: until then
 `POST /v1/automations/triggers/by-key/{triggerKey}/fire` answers `404`. The
 spec is brew-v2 `main` at `8c7020e535` plus the operations and schemas from
-#2013 (`d556eaf50d`) and #2017 (`104d635e70`).
+#2013 (`d556eaf50d`) and #2017 (`63736f0f99`); with #2017 stacked on
+#2013 on current main, it is byte-identical to #2017's own spec.
 
 ### Added
 
@@ -25,7 +26,8 @@ spec is brew-v2 `main` at `8c7020e535` plus the operations and schemas from
 - **`brew.automations.triggers.fireByKey({ triggerKey, payload }, options?)`**
   (`POST /v1/automations/triggers/by-key/{triggerKey}/fire`): the object
   form of `send`, generic over the payload like `fire`, with `{ raw: true }`.
-  An unknown key throws `BrewApiError` `404 TRIGGER_KEY_NOT_FOUND`. An
+  An unknown key throws `BrewApiError` `404 TRIGGER_KEY_NOT_FOUND`, and a
+  Brew-event trigger `409 TRIGGER_NOT_FIREABLE`, as `fire` does. An
   empty, `.` or `..` key throws a `TypeError` before any request.
 - **`BrewTriggerKeyRegistry`**: augment it with
   `declare module '@brew.new/sdk'` to type-check `brew.send` keys and
