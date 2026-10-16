@@ -86,8 +86,8 @@ jobs:
         # under node10, node16 CJS/ESM and bundler), and
         # scripts/smoke-exports.mjs (npm pack, install into a scratch app,
         # import() + require() every subpath, one BrewApiError class shared
-        # by root and adapters, no runtime or peer dependencies, tsc against
-        # the packed .d.ts files).
+        # by root and adapters, no runtime dependencies and no peer but the
+        # canvas's optional react, tsc against the packed .d.ts files).
         run: bun run check:exports
 
       - name: Generated types are up to date
