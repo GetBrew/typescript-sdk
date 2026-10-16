@@ -7,7 +7,7 @@
 import type { AuthConfig } from '@auth/core'
 import type { EmailConfig as AuthJsEmailConfig } from '@auth/core/providers/email'
 import type { BetterAuthOptions } from 'better-auth'
-import type { emailOTP, magicLink } from 'better-auth/plugins'
+import type { emailOTP, magicLink, organization } from 'better-auth/plugins'
 import { describe, expect, it } from 'vitest'
 
 import { brewAuthEmails } from '../../src/adapters/better-auth'
@@ -66,8 +66,16 @@ describe('adapter types against the libraries they serve', () => {
     const emailOtpOptions = {
       sendVerificationOTP: emails.sendVerificationOTP,
     } satisfies Parameters<typeof emailOTP>[0]
+    const organizationOptions = {
+      sendInvitationEmail: emails.sendInvitationEmail,
+    } satisfies Parameters<typeof organization>[0]
 
-    expect([options, magicLinkOptions, emailOtpOptions]).toHaveLength(3)
+    expect([
+      options,
+      magicLinkOptions,
+      emailOtpOptions,
+      organizationOptions,
+    ]).toHaveLength(4)
   })
 
   it('Auth.js v5 (@auth/core) and next-auth v4: the provider fits', () => {

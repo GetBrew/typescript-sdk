@@ -45,8 +45,6 @@ export type AuthEmailPayload = {
   readonly inviterName?: string
   readonly organizationName?: string
   readonly noticeType?: string
-  /** `auth.otp` only: what the code is for (`sign-in`, `email-verification`, …). */
-  readonly purpose?: string
 }
 
 /** A client, or a function that returns one (called once, on first send). */
@@ -85,7 +83,6 @@ const OPTIONAL_PAYLOAD_FIELDS = [
   'inviterName',
   'organizationName',
   'noticeType',
-  'purpose',
 ] as const satisfies ReadonlyArray<Exclude<keyof AuthEmailPayload, 'email'>>
 
 /**
