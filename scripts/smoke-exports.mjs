@@ -16,6 +16,7 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs'
 import { createRequire } from 'node:module'
@@ -46,10 +47,13 @@ function check(condition, message) {
 try {
   // 1. Pack and install exactly what npm would publish.
   const [packed] = JSON.parse(
-    execFileSync('npm', ['pack', '--json', '--pack-destination', scratch], {
-      cwd: root,
-      encoding: 'utf8',
-    })
+    // The build already ran; `--ignore-scripts` skips `prepare` (a Git
+    // source install's rebuild).
+    execFileSync(
+      'npm',
+      ['pack', '--json', '--ignore-scripts', '--pack-destination', scratch],
+      { cwd: root, encoding: 'utf8' }
+    )
   )
   const app = path.join(scratch, 'app')
   mkdirSync(app)
@@ -80,11 +84,27 @@ try {
       'utf8'
     )
   )
+  check(installed.dependencies === undefined, 'no runtime dependencies')
+  // The only peer is the canvas entry's optional `react`; the adapters add
+  // none (they type the libraries they serve structurally).
+  const peers = Object.keys(installed.peerDependencies ?? {})
   check(
-    installed.dependencies === undefined &&
-      installed.peerDependencies === undefined,
-    'no runtime or peer dependencies'
+    peers.every(
+      (peer) =>
+        peer === 'react' &&
+        installed.peerDependenciesMeta?.[peer]?.optional === true
+    ),
+    `no peer dependencies but the optional react (${peers.join(', ') || 'none'})`
   )
+  // Give `/react` its optional peers the way an app that uses it would.
+  mkdirSync(path.join(app, 'node_modules'), { recursive: true })
+  for (const peer of ['react', 'react-dom']) {
+    symlinkSync(
+      path.join(root, 'node_modules', peer),
+      path.join(app, 'node_modules', peer),
+      'junction'
+    )
+  }
 
   // 2. Every subpath loads both ways, resolved from inside the app.
   const loader = (kind) =>
@@ -129,6 +149,8 @@ try {
 
   const expectations = {
     [pkg.name]: ['createBrewClient', 'BrewApiError'],
+    [`${pkg.name}/embed`]: ['createEmailCanvas'],
+    [`${pkg.name}/react`]: ['EmailCanvas'],
     [`${pkg.name}/resend`]: ['Resend'],
     [`${pkg.name}/better-auth`]: ['brewAuthEmails'],
     [`${pkg.name}/next-auth`]: ['BrewEmail'],
@@ -138,14 +160,17 @@ try {
       'verifyStandardWebhook',
     ],
   }
+  // A function, or a component object such as `forwardRef`'s.
+  const isExport = (value) =>
+    typeof value === 'function' || (typeof value === 'object' && value !== null)
   for (const [specifier, names] of Object.entries(expectations)) {
     for (const name of names) {
       check(
-        typeof esm[specifier]?.[name] === 'function',
+        isExport(esm[specifier]?.[name]),
         `ESM ${specifier} exports ${name}`
       )
       check(
-        typeof cjs[specifier]?.[name] === 'function',
+        isExport(cjs[specifier]?.[name]),
         `CJS ${specifier} exports ${name}`
       )
     }
