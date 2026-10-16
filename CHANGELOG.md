@@ -10,13 +10,13 @@ after 13.1.0, which it builds on. Publish only once GetBrew/brew-v2#2066
 (`/v1/app-emails`) and GetBrew/brew-v2#2064 (import modes) are deployed
 and the live spec matches the vendored one (until then the app-email
 routes answer `404`), and once `@brew.new/cli` ships `migrate resend`,
-which `brew_template_required` points to. The spec is 13.1.0's plus the
-operations and schemas from #2066 (`84cea75be5`) and #2064
-(`6be9d56b25`). Each adapter sends by trigger key, so it also needs
-13.1.0's by-key route and keys whose automations are published (the auth
-starter kit's `auth.*` keys and `lifecycle.welcome` by default). The
-adapters add no runtime or peer dependencies: the libraries they serve are
-typed structurally.
+which `brew_template_required` points to. The spec is #2066's
+(`84cea75be5`, which carries 13.1.0's #2013 and #2017 and the team
+sandbox #2059 it builds on) plus #2064's delta (`6be9d56b25`). Each
+adapter sends by trigger key, so it also needs 13.1.0's by-key route and
+keys whose automations are published (the auth starter kit's `auth.*`
+keys and `lifecycle.welcome` by default). The adapters add no runtime or
+peer dependencies: the libraries they serve are typed structurally.
 
 ### Added
 
@@ -65,6 +65,13 @@ stack }`, where each result is `ok: true` with the setup result or
     and `APP_EMAIL_STARTER_UNKNOWN`; new warning codes `SANDBOX_SENDER`,
     `APP_EMAIL_NOT_PUBLISHED` and `DESIGN_EDITED_IN_BREW`. See
     `docs/app-emails.md`.
+- **Team sandbox** (GetBrew/brew-v2#2059, which #2066 builds on), from the
+  regenerated spec: an automation's Send Email step takes `senderMode`
+  (`domain` or `sandbox`; `sandbox` means that until a domain verifies,
+  an event automation emails your organization's members only) and
+  automation rows report it; a fire's `notStarted[]` entries gain
+  `code: 'DOMAIN_REQUIRED'`; `BrewApiError['code']` gains
+  `DOMAIN_REQUIRED` (`422`) and `SANDBOX_DAILY_LIMIT` (`429`).
 - **Import modes for a Resend migration** (GetBrew/brew-v2#2064), from the
   regenerated spec: `emails.import` takes `props: 'merge_tags'` (`jsx`
   only: the root component's props become `{{ trigger.<name> }}` merge
