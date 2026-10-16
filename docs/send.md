@@ -26,7 +26,7 @@ await brew.send(
 
 > **Availability.** The by-key route and trigger keys ship in the Brew
 > platform release that deploys GetBrew/brew-v2#2013 (trigger keys) and
-> GetBrew/brew-v2#2017 (fire by key). SDK 12.2.0 is not released before
+> GetBrew/brew-v2#2017 (fire by key). SDK 13.1.0 is not released before
 > that deploy: until then the route answers `404` and trigger rows carry no
 > `key`.
 
