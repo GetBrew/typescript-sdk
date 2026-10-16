@@ -3,13 +3,14 @@
  *
  * ```ts
  * import { betterAuth } from 'better-auth'
- * import { emailOTP, magicLink } from 'better-auth/plugins'
+ * import { emailOTP, magicLink, organization } from 'better-auth/plugins'
  * import { createBrewClient } from '@brew.new/sdk'
  * import { brewAuthEmails } from '@brew.new/sdk/better-auth'
  *
  * const emails = brewAuthEmails({
  *   client: () => createBrewClient({ apiKey: process.env.BREW_API_KEY! }),
  *   appName: 'Acme',
+ *   invitationUrl: ({ id }) => `https://acme.com/accept-invite/${id}`,
  * })
  *
  * export const auth = betterAuth({
@@ -24,12 +25,14 @@
  *   plugins: [
  *     magicLink({ sendMagicLink: emails.sendMagicLink }),
  *     emailOTP({ sendVerificationOTP: emails.sendVerificationOTP }),
+ *     organization({ sendInvitationEmail: emails.sendInvitationEmail }),
  *   ],
  *   databaseHooks: { user: { create: { after: emails.onUserCreated } } },
  * })
  * ```
  *
- * Structural types only: no dependency on `better-auth`.
+ * Keys and payloads follow Brew's Better Auth recipe (the app-email setup's
+ * `stack` snippets). Structural types only: no dependency on `better-auth`.
  */
 import {
   type AuthEmailKeys,
@@ -72,6 +75,13 @@ export type BrewAuthEmailsOptions = {
   /** Sent as `appName` on every email. Optional: the kit's designs fall back to the brand name. */
   readonly appName?: string
   /**
+   * The accept link an organization invitation carries (`confirmationUrl`),
+   * built from the invitation Better Auth passes `sendInvitationEmail`:
+   * `({ id }) => \`https://acme.com/accept-invite/${id}\``. Required by
+   * `sendInvitationEmail` only.
+   */
+  readonly invitationUrl?: (invitation: BetterAuthInvitationEmailData) => string
+  /**
    * Run each send in the background: the callback hands the send to
    * `waitUntil` (Vercel's `waitUntil`, Cloudflare's `ctx.waitUntil`, …) and
    * returns at once, so the response does not wait for Brew. Without it,
@@ -90,6 +100,19 @@ export type BrewAuthEmailsOptions = {
     error: unknown,
     context: BrewAuthEmailErrorContext
   ) => void
+}
+
+/**
+ * What the organization plugin passes `sendInvitationEmail` (the fields this
+ * adapter reads): the invitation `id`, the invitee `email`, the
+ * `organization` and the `inviter` member with its `user`.
+ */
+export type BetterAuthInvitationEmailData = {
+  readonly id: string
+  readonly email: string
+  readonly role?: string
+  readonly organization: { readonly name: string }
+  readonly inviter: { readonly user: { readonly name?: string | null } }
 }
 
 /** `{ user, url, token }`: what Better Auth passes its link callbacks. */
@@ -113,7 +136,7 @@ export type BrewAuthEmails = {
   /**
    * `user.changeEmail.sendChangeEmailConfirmation` → `auth.email-change`,
    * sent to the CURRENT address (Better Auth asks it to approve the change)
-   * with `newEmail` set.
+   * with `newEmail` and `confirmationUrl`.
    */
   readonly sendChangeEmailConfirmation: (
     data: BetterAuthLinkEmailData & { readonly newEmail: string },
@@ -129,9 +152,11 @@ export type BrewAuthEmails = {
     context?: unknown
   ) => Promise<void>
   /**
-   * `emailOTP({ sendVerificationOTP })` → `auth.otp` with `purpose: type`;
-   * `type: 'change-email'` (the code goes to the new address) →
-   * `auth.email-change` with `newEmail`.
+   * `emailOTP({ sendVerificationOTP })` with `{ email, otp }`, by `type`:
+   * `forget-password` → `auth.password-reset`, `change-email` →
+   * `auth.email-change` (Better Auth sends that code to the new address),
+   * anything else (`sign-in`, `email-verification`) → `auth.otp`. One
+   * starter design handles both a code and a link.
    */
   readonly sendVerificationOTP: (
     data: {
@@ -140,6 +165,16 @@ export type BrewAuthEmails = {
       readonly type: string
     },
     context?: unknown
+  ) => Promise<void>
+  /**
+   * `organization({ sendInvitationEmail })` → `auth.invite` with
+   * `inviterName`, `organizationName` and `confirmationUrl` from the
+   * `invitationUrl` option (rejects with a `TypeError`, sending nothing,
+   * when it is not set).
+   */
+  readonly sendInvitationEmail: (
+    data: BetterAuthInvitationEmailData,
+    request?: unknown
   ) => Promise<void>
   /**
    * `databaseHooks.user.create.after` → `lifecycle.welcome`, once per user.
@@ -162,6 +197,17 @@ type Dispatch = {
 
 const LOG_LABEL = '[@brew.new/sdk/better-auth]'
 
+/** Which email an email-OTP code sends, by Better Auth's `type`. */
+function otpKind(type: string): AuthEmailKind {
+  if (type === 'forget-password') {
+    return 'passwordReset'
+  }
+  if (type === 'change-email') {
+    return 'emailChange'
+  }
+  return 'otp'
+}
+
 function consoleError(error: unknown, context: BrewAuthEmailErrorContext) {
   console.error(`${LOG_LABEL} ${context.key} failed`, error)
 }
@@ -170,8 +216,9 @@ function consoleError(error: unknown, context: BrewAuthEmailErrorContext) {
  * Build Better Auth's email callbacks on top of `brew.send`.
  *
  * Every send carries an idempotency key derived from its secret,
- * `${key}:${sha256(token)}` (recipient and code for a one-time code, the
- * user id for the welcome), so a retried callback never emails twice.
+ * `${key}:${sha256(token)}` (recipient, type and code for a one-time code,
+ * the invitation id for an invite, the user id for the welcome), so a
+ * retried callback never emails twice.
  */
 export function brewAuthEmails(options: BrewAuthEmailsOptions): BrewAuthEmails {
   const getClient = lazyClient(options.client)
@@ -242,12 +289,7 @@ export function brewAuthEmails(options: BrewAuthEmailsOptions): BrewAuthEmails {
     sendChangeEmailConfirmation: ({ user, newEmail, url, token }) =>
       dispatch({
         kind: 'emailChange',
-        payload: {
-          email: user.email,
-          ...userName(user),
-          newEmail,
-          confirmationUrl: url,
-        },
+        payload: { email: user.email, newEmail, confirmationUrl: url },
         unique: [token],
         shouldReject: true,
       }),
@@ -259,23 +301,38 @@ export function brewAuthEmails(options: BrewAuthEmailsOptions): BrewAuthEmails {
         shouldReject: true,
       }),
     // A code is short and repeats across users, so the key also hashes the
-    // recipient and purpose: two users' equal codes must not replay.
+    // recipient and type: two users' equal codes must not replay.
     sendVerificationOTP: ({ email, otp, type }) =>
-      dispatch(
-        type === 'change-email'
-          ? {
-              kind: 'emailChange',
-              payload: { email, newEmail: email, otp },
-              unique: [email, type, otp],
-              shouldReject: true,
-            }
-          : {
-              kind: 'otp',
-              payload: { email, otp, purpose: type },
-              unique: [email, type, otp],
-              shouldReject: true,
-            }
-      ),
+      dispatch({
+        kind: otpKind(type),
+        payload: { email, otp },
+        unique: [email, type, otp],
+        shouldReject: true,
+      }),
+    sendInvitationEmail: (invitation) => {
+      const { invitationUrl } = options
+      if (invitationUrl === undefined) {
+        return Promise.reject(
+          new TypeError(
+            'sendInvitationEmail: pass `invitationUrl` to brewAuthEmails, e.g. ({ id }) => `https://acme.com/accept-invite/${id}`.'
+          )
+        )
+      }
+      const inviterName = invitation.inviter.user.name
+      return dispatch({
+        kind: 'invite',
+        payload: {
+          email: invitation.email,
+          ...(inviterName === null || inviterName === undefined
+            ? {}
+            : { inviterName }),
+          organizationName: invitation.organization.name,
+          confirmationUrl: invitationUrl(invitation),
+        },
+        unique: [invitation.id],
+        shouldReject: true,
+      })
+    },
     onUserCreated: (user) =>
       dispatch({
         kind: 'welcome',
