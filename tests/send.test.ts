@@ -61,6 +61,36 @@ describe('brew.send(key, payload, options?)', () => {
     expect(result.triggerKey).toBe('auth.password-reset')
   })
 
+  it("types a sandbox-refused run's notStarted code (DOMAIN_REQUIRED)", async () => {
+    server.use(
+      http.post(
+        `${baseUrl}/v1/automations/triggers/by-key/auth.password-reset/fire`,
+        () =>
+          HttpResponse.json(
+            {
+              ...accepted('auth.password-reset'),
+              automationRunIds: [],
+              notStarted: [
+                {
+                  automationId: 'auto_send',
+                  reason: 'The recipient is not in your organization.',
+                  code: 'DOMAIN_REQUIRED',
+                },
+              ],
+            },
+            { status: 202 }
+          )
+      )
+    )
+
+    const result = await brewClient().send('auth.password-reset', {
+      email: 'kim@example.com',
+    })
+
+    const code: 'DOMAIN_REQUIRED' | undefined = result.notStarted?.[0]?.code
+    expect(code).toBe('DOMAIN_REQUIRED')
+  })
+
   it('leaves an undefined optional field out of the body', async () => {
     let body: unknown
     server.use(
