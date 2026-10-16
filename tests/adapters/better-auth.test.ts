@@ -70,7 +70,6 @@ describe('@brew.new/sdk/better-auth brewAuthEmails', () => {
         payload: {
           email: 'jane@example.com',
           appName: 'Acme',
-          userName: 'Jane',
           newEmail: 'jane@new.example.com',
           confirmationUrl: 'https://app.test/change?t=c1',
         },
@@ -89,7 +88,6 @@ describe('@brew.new/sdk/better-auth brewAuthEmails', () => {
           email: 'joe@example.com',
           appName: 'Acme',
           otp: '123456',
-          purpose: 'sign-in',
         },
       },
       {
@@ -118,31 +116,106 @@ describe('@brew.new/sdk/better-auth brewAuthEmails', () => {
     })
   })
 
-  it('routes an email-OTP `change-email` code to auth.email-change at the new address', async () => {
+  // brew-v2 lib/app-emails/stack-recipes.ts (Better Auth emailOTP) is the
+  // canonical mapping: one template handles both `otp` and `confirmationUrl`.
+  it.each([
+    ['forget-password', 'auth.password-reset'],
+    ['change-email', 'auth.email-change'],
+    ['sign-in', 'auth.otp'],
+    ['email-verification', 'auth.otp'],
+  ] as const)(
+    'routes an email-OTP `%s` code to %s with { email, otp }',
+    async (type, key) => {
+      const fires = captureFires()
+
+      await brewAuthEmails({ client: testClient() }).sendVerificationOTP({
+        email: 'jane@example.com',
+        otp: '654321',
+        type,
+      })
+
+      expect(fires).toEqual([
+        {
+          key,
+          payload: { email: 'jane@example.com', otp: '654321' },
+          idempotencyKey: expectedIdempotencyKey(
+            key,
+            'jane@example.com',
+            type,
+            '654321'
+          ),
+        },
+      ])
+    }
+  )
+
+  it('sends an email-OTP `forget-password` code to your passwordReset key', async () => {
     const fires = captureFires()
 
-    await brewAuthEmails({ client: testClient() }).sendVerificationOTP({
-      email: 'jane@new.example.com',
-      otp: '654321',
-      type: 'change-email',
+    await brewAuthEmails({
+      client: testClient(),
+      keys: { passwordReset: 'acme.reset' },
+    }).sendVerificationOTP({
+      email: 'jane@example.com',
+      otp: '111222',
+      type: 'forget-password',
     })
 
+    expect(fires[0]?.key).toBe('acme.reset')
+  })
+
+  it('sends an organization invitation to auth.invite with your accept link', async () => {
+    const fires = captureFires()
+    const invitationUrl = vi.fn(
+      ({ id }: { readonly id: string }) =>
+        `https://app.test/accept-invite/${id}`
+    )
+
+    await brewAuthEmails({
+      client: testClient(),
+      invitationUrl,
+    }).sendInvitationEmail({
+      id: 'inv_1',
+      role: 'member',
+      email: 'joe@example.com',
+      organization: { name: 'Acme Inc' },
+      inviter: { user: { name: 'Jane' } },
+    })
+
+    expect(invitationUrl).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'inv_1', email: 'joe@example.com' })
+    )
     expect(fires).toEqual([
       {
-        key: 'auth.email-change',
+        key: 'auth.invite',
         payload: {
-          email: 'jane@new.example.com',
-          newEmail: 'jane@new.example.com',
-          otp: '654321',
+          email: 'joe@example.com',
+          inviterName: 'Jane',
+          organizationName: 'Acme Inc',
+          confirmationUrl: 'https://app.test/accept-invite/inv_1',
         },
-        idempotencyKey: expectedIdempotencyKey(
-          'auth.email-change',
-          'jane@new.example.com',
-          'change-email',
-          '654321'
-        ),
+        // The invitation id is the secret that makes the email unique.
+        idempotencyKey: expectedIdempotencyKey('auth.invite', 'inv_1'),
       },
     ])
+  })
+
+  it('refuses an invitation without invitationUrl and sends nothing', async () => {
+    const fires = captureFires()
+
+    const error: unknown = await brewAuthEmails({ client: testClient() })
+      .sendInvitationEmail({
+        id: 'inv_2',
+        role: 'member',
+        email: 'joe@example.com',
+        organization: { name: 'Acme Inc' },
+        inviter: { user: { name: null } },
+      })
+      .catch((caught: unknown) => caught)
+
+    expect(error).toBeInstanceOf(TypeError)
+    expect(String(error)).toContain('invitationUrl')
+    expect(fires).toEqual([])
   })
 
   it('derives each idempotency key from the secret: `${key}:${sha256(token)}`', async () => {

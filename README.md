@@ -89,12 +89,12 @@ Subpath exports that wire `brew.send` into the libraries apps already use.
 No extra install and no peer dependencies; each works on Node 20+, and
 `/supabase` on Deno and edge runtimes.
 
-| Import                                             | For                                                                        | Guide                                                            |
-| -------------------------------------------------- | -------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| `@brew.new/sdk/resend`                             | Resend-shaped `emails.send({ template })` and `batch.send`; never throws   | [`docs/adapters/resend.md`](./docs/adapters/resend.md)           |
-| `@brew.new/sdk/better-auth`                        | Better Auth email callbacks (verify, reset, change email, magic link, OTP) | [`docs/adapters/better-auth.md`](./docs/adapters/better-auth.md) |
-| `@brew.new/sdk/next-auth`, `@brew.new/sdk/auth-js` | Auth.js email provider (`BrewEmail`), v4 and v5                            | [`docs/adapters/auth-js.md`](./docs/adapters/auth-js.md)         |
-| `@brew.new/sdk/supabase`                           | Supabase Auth Send Email Hook for Edge Functions, Standard Webhooks verify | [`docs/adapters/supabase.md`](./docs/adapters/supabase.md)       |
+| Import                                             | For                                                                                | Guide                                                            |
+| -------------------------------------------------- | ---------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `@brew.new/sdk/resend`                             | Resend-shaped `emails.send({ template })` and `batch.send`; never throws           | [`docs/adapters/resend.md`](./docs/adapters/resend.md)           |
+| `@brew.new/sdk/better-auth`                        | Better Auth email callbacks (verify, reset, email change, magic link, OTP, invite) | [`docs/adapters/better-auth.md`](./docs/adapters/better-auth.md) |
+| `@brew.new/sdk/next-auth`, `@brew.new/sdk/auth-js` | Auth.js email provider (`BrewEmail`), v4 and v5                                    | [`docs/adapters/auth-js.md`](./docs/adapters/auth-js.md)         |
+| `@brew.new/sdk/supabase`                           | Supabase Auth Send Email Hook for Edge Functions, Standard Webhooks verify         | [`docs/adapters/supabase.md`](./docs/adapters/supabase.md)       |
 
 ```ts
 import { Resend } from '@brew.new/sdk/resend'
