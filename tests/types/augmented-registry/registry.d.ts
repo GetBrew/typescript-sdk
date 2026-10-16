@@ -10,5 +10,9 @@ declare module '@brew.new/sdk' {
       appName?: string
     }
     'order.paid': { email: string; orderId: string; total: number }
+    // A payload that is itself a union: one alternative per channel.
+    'invite.sent':
+      | { email: string; channel: 'link'; confirmationUrl: string }
+      | { email: string; channel: 'code'; otp: string }
   }
 }

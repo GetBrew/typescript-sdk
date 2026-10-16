@@ -74,9 +74,14 @@ type IsUnion<T, TAll = T> = T extends unknown
     : true
   : never
 
-type UnionToIntersection<TUnion> = (
-  TUnion extends unknown ? (value: TUnion) => void : never
-) extends (value: infer TIntersection) => void
+/**
+ * The intersection of each key's payload, distributing over the KEYS only:
+ * a key whose payload is itself a union keeps its alternatives together
+ * (`(A1 | A2) & B`), instead of requiring all of them at once.
+ */
+type PayloadPerKeyIntersection<TKey extends BrewSendKey> = (
+  TKey extends unknown ? (payload: BrewSendPayload<TKey>) => void : never
+) extends (payload: infer TIntersection) => void
   ? TIntersection
   : never
 
@@ -85,11 +90,12 @@ type UnionToIntersection<TUnion> = (
  * `TKey`. A literal key takes its own payload. A key typed as a union
  * (`'auth.password-reset' | 'order.paid'`) can be any member at runtime, so
  * the payload must satisfy every member's payload: a password-reset payload
- * no longer type-checks for a key that might be `order.paid`.
+ * no longer type-checks for a key that might be `order.paid`. A member whose
+ * payload is a union is satisfied by any one of its alternatives.
  */
 export type BrewSendPayloadFor<TKey extends BrewSendKey> =
   IsUnion<TKey> extends true
-    ? UnionToIntersection<BrewSendPayload<TKey>>
+    ? PayloadPerKeyIntersection<TKey>
     : BrewSendPayload<TKey>
 
 /**
