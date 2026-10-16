@@ -150,7 +150,9 @@ await brew.send('order.paid', { email, orderId }) // error: `total` missing
 ```
 
 A key typed as a union (`'auth.password-reset' | 'order.paid'`) could be
-either key at runtime, so its payload must fit every key in the union.
+either key at runtime, so its payload must fit every key in the union. A
+key whose registered payload is itself a union is satisfied by any one of
+its alternatives.
 Narrow the key first to send one key's payload.
 
 `BrewSendKey`, `BrewSendPayload<K>` and `BrewSendPayloadFor<K>` (the payload
