@@ -3,7 +3,11 @@ import { createHash } from 'node:crypto'
 import { HttpResponse, http } from 'msw'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { RESEND_MIGRATION_DOCS_URL, Resend } from '../../src/adapters/resend'
+import {
+  RESEND_MIGRATION_COMMAND,
+  RESEND_MIGRATION_DOCS_URL,
+  Resend,
+} from '../../src/adapters/resend'
 import type { BrewClient } from '../../src/index'
 import { server } from '../msw/server'
 
@@ -108,6 +112,10 @@ describe('@brew.new/sdk/resend emails.send', () => {
     expect(onWarning.mock.calls[0]?.[0]).toMatch(/`from`, `subject` ignored/)
   })
 
+  it('exports the migrate command it points at', () => {
+    expect(RESEND_MIGRATION_COMMAND).toBe('npx @brew.new/cli migrate resend')
+  })
+
   it('refuses html, react and text without a template: brew_template_required', async () => {
     const fires = captureFires()
     const client = resend()
@@ -127,10 +135,10 @@ describe('@brew.new/sdk/resend emails.send', () => {
       expect(result.error?.message).toContain(
         'Brew sends app email from templates. Import this design into Brew and send it by key'
       )
+      expect(result.error?.message).toContain(RESEND_MIGRATION_COMMAND)
       expect(result.error?.message).toContain(RESEND_MIGRATION_DOCS_URL)
-      expect(result.error?.message).not.toMatch(
-        /npx|brew\.new init|migrate resend/
-      )
+      // The unscoped `brew.new` npm name is not ours to point at.
+      expect(result.error?.message).not.toMatch(/npx brew\.new|brew\.new init/)
     }
     expect(fires).toEqual([])
   })
