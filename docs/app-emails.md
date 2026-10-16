@@ -86,9 +86,31 @@ Pass at most one of `starter` and `source`. The other fields:
 | `overwrite`     | `false`: keep a design edited in Brew                                                      |
 
 `payloadSchema.fields` are flat (`string`, `int`, `boolean`, `date`) and
-can mark `pii: 'high'` to keep a value out of logs. `email` (the recipient)
-is added when missing. Only `email` reaches the contact; every other field
-is template data.
+can mark `pii: 'high'` to keep a value out of logs. Mark a one-time code or
+sign-in link `secret: true`: Brew uses it only to render the email and
+redacts it wherever the fire is stored, logged or counted. `email` never
+takes it. A field without the marker counts `pii: 'high'` as secret, and a
+field the starter kit marks secret (`otp`, `confirmationUrl`, `newEmail`)
+stays secret. `email` (the recipient) is added when missing. Only `email`
+reaches the contact; every other field is template data.
+
+```ts
+await brew.appEmails.upsert({
+  triggerKey: 'account.sign-in-code',
+  source: { format: 'jsx', content: signInCodeJsx },
+  payloadSchema: {
+    fields: [
+      {
+        key: 'code',
+        type: 'string',
+        required: true,
+        pii: 'high',
+        secret: true,
+      },
+    ],
+  },
+})
+```
 
 **Re-runs** change only what differs. The same starter version, or the
 same source, keeps the design. A newer starter version, another starter or
@@ -117,7 +139,7 @@ const { results, stack } = await brew.appEmails.setUpKit({
 for (const result of results) {
   if (!result.ok) console.warn(result.triggerKey, result.error.code)
 }
-stack.authDelivery // 'code' or 'hosted-webhook'
+stack.authDelivery // 'code' for every stack today
 stack.snippets // [{ title, file, code }] for your auth library
 ```
 
@@ -126,9 +148,13 @@ stack.snippets // [{ title, file, code }] for your auth library
   `lifecycle` (welcome, trial ending, payment failed, win-back).
 - `stack`: `better-auth`, `authjs`, `supabase`, `clerk`, `firebase` or
   `custom`. It narrows the auth keys to the ones that library sends and
-  picks the code snippets. `authDelivery: 'hosted-webhook'` (Supabase,
-  Clerk) means the provider hands its auth emails to Brew once connected,
-  so there is no auth email code to write.
+  picks the code snippets. Supabase gets a Send Email Hook to deploy as a
+  Supabase Edge Function ([`@brew.new/sdk/supabase`](./adapters/supabase.md))
+  that sends every auth email with Brew. Clerk keeps sending its own auth
+  emails, so a `clerk` run sets up the lifecycle emails only. Every stack
+  answers `authDelivery: 'code'`; `'hosted-webhook'` is reserved for a
+  provider that hands its auth emails to Brew directly, which none does
+  yet.
 - `keys`: exactly these kit keys, instead of `sets` and `stack`.
 - `domainId`, `overwrite`: applied to every key, as in `upsert`.
 

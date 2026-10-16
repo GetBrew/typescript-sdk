@@ -11,8 +11,8 @@ after 13.1.0, which it builds on. Publish only once GetBrew/brew-v2#2066
 and the live spec matches the vendored one (until then the app-email
 routes answer `404`), and once `@brew.new/cli` ships `migrate resend`,
 which `brew_template_required` points to. The spec is 13.1.0's plus the
-operations and schemas from #2066 (`c72bb45467`) and #2064
-(`70fb35dd71`). Each adapter sends by trigger key, so it also needs
+operations and schemas from #2066 (`84cea75be5`) and #2064
+(`6be9d56b25`). Each adapter sends by trigger key, so it also needs
 13.1.0's by-key route and keys whose automations are published (the auth
 starter kit's `auth.*` keys and `lifecycle.welcome` by default). The
 adapters add no runtime or peer dependencies: the libraries they serve are
@@ -34,7 +34,9 @@ typed structurally.
     `PUT /v1/app-emails/{triggerKey}`, one idempotent setup (trigger,
     payload contract, design from a `starter` or your
     `source: { format, content }`, automation, publish). Body: `starter`,
-    `source`, `title`, `subject`, `previewText`, `payloadSchema`,
+    `source`, `title`, `subject`, `previewText`, `payloadSchema` (flat
+    fields with `pii` and `secret`: a `secret: true` field renders the
+    email and is redacted wherever the fire is stored, logged or counted),
     `domainId`, `from`, `publish`, `overwrite`. Resolves to
     `{ triggerKey, triggerEventId, emailId, emailVersionId, automationId,
 published, created, sender, payloadSchema, fireExample, warnings }`

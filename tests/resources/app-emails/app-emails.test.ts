@@ -245,6 +245,74 @@ describe('appEmails.upsert', () => {
     expect(result.fireExample.sdk).toContain('brew.send')
   })
 
+  it('sends secret: true on a custom field and reads it back from the stored contract', async () => {
+    let body: unknown
+    const storedFields = [
+      { key: 'email', type: 'string' as const, required: true },
+      {
+        key: 'code',
+        type: 'string' as const,
+        required: true,
+        pii: 'high' as const,
+        secret: true,
+      },
+    ]
+    server.use(
+      http.put(`${BASE}/:key`, async ({ request }) => {
+        body = await request.json()
+        return HttpResponse.json(
+          {
+            ...SETUP_RESULT,
+            triggerKey: 'account.sign-in-code',
+            payloadSchema: { type: 'object', fields: storedFields },
+          },
+          { status: 201 }
+        )
+      })
+    )
+
+    const { client } = makeTestHttpClient()
+    const result = await createAppEmailsResource(client).upsert({
+      triggerKey: 'account.sign-in-code',
+      source: {
+        format: 'jsx',
+        content: '<Html><Text>{{ trigger.code }}</Text></Html>',
+      },
+      payloadSchema: {
+        fields: [
+          {
+            key: 'code',
+            type: 'string',
+            required: true,
+            pii: 'high',
+            secret: true,
+          },
+        ],
+      },
+    })
+
+    expect(body).toEqual({
+      source: {
+        format: 'jsx',
+        content: '<Html><Text>{{ trigger.code }}</Text></Html>',
+      },
+      payloadSchema: {
+        fields: [
+          {
+            key: 'code',
+            type: 'string',
+            required: true,
+            pii: 'high',
+            secret: true,
+          },
+        ],
+      },
+    })
+    expect(
+      result.payloadSchema.fields.find((field) => field.key === 'code')?.secret
+    ).toBe(true)
+  })
+
   it('sends {} for a starter-kit key alone, and a re-run answers 200 (status on raw)', async () => {
     let body: unknown
     server.use(
