@@ -118,11 +118,14 @@ export type ResendCompatBatchResult = {
   readonly data: ReadonlyArray<ResendCompatSendResult>
 }
 
-/** Where an `html` / `react` / `text` send is pointed. */
+/** Where an `html` / `react` / `text` send is pointed: the migration guide. */
 export const RESEND_MIGRATION_DOCS_URL =
   'https://docs.brew.new/migrations/resend'
 
-const TEMPLATE_REQUIRED_MESSAGE = `Brew sends app email from templates. Import this design into Brew and send it by key; see ${RESEND_MIGRATION_DOCS_URL}`
+/** The Brew CLI command that imports Resend templates and rewrites call sites. */
+export const RESEND_MIGRATION_COMMAND = 'npx @brew.new/cli migrate resend'
+
+const TEMPLATE_REQUIRED_MESSAGE = `Brew sends app email from templates. Import this design into Brew and send it by key: run \`${RESEND_MIGRATION_COMMAND}\`, or see ${RESEND_MIGRATION_DOCS_URL}`
 
 const UNSUPPORTED_FIELD_NAMES = [
   'cc',
