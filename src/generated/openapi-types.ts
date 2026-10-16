@@ -1255,7 +1255,7 @@ export interface paths {
          *
          *     **Idempotency** send a stable `Idempotency-Key` header on every retry. A repeat answers `200` with `status: "replayed"` and the ORIGINAL run ids; nothing fires twice. A fire key is matched against the stored trigger receipt, so it replays for as long as the receipt is kept (90 days), not only the 24 hours of the shared response cache. Use one key per business action and never reuse it for a different fire.
          *
-         *     **Errors** `400 INVALID_PAYLOAD` when the payload does not satisfy the schema, or when `email` (or `user.email`) is not one plain address such as `jane@example.com`: a display name (`Jane <jane@example.com>`), a list or a line break is refused with `details.errors[].code: "invalid_email"`, and no contact is written; `404 TRIGGER_EVENT_NOT_FOUND` for an unknown or cross-brand id; `422 NO_PUBLISHED_AUTOMATION` when nothing published listens for the trigger; `409 IDEMPOTENCY_CONFLICT` when a key is reused with a different body; `409 TRIGGER_NOT_FIREABLE` for a Brew event trigger, which Brew starts itself (try its automation with `testAutomation`).
+         *     **Errors** `400 INVALID_PAYLOAD` when the payload does not satisfy the schema, or when `email` (or `user.email`) is not one plain address such as `jane@example.com`: a display name (`Jane <jane@example.com>`), a list or a line break is refused with `details.errors[].code: "invalid_email"`, and no contact is written; `404 TRIGGER_EVENT_NOT_FOUND` for an unknown or cross-brand id; `422 NO_PUBLISHED_AUTOMATION` when nothing published listens for the trigger; `422 DOMAIN_REQUIRED` when every matched automation sends only from the Brew sandbox (no verified domain yet), right away, and to recipients who are not members of your organization (`details: { recipient, allowed, domainsUrl }`; in a mixed fan-out those automations are listed in `notStarted[]` with `code: "DOMAIN_REQUIRED"` and the rest start); `429 SANDBOX_DAILY_LIMIT` with `Retry-After` when the organization spent today’s sandbox sends (`details: { limit, resetsAt }`); `409 IDEMPOTENCY_CONFLICT` when a key is reused with a different body; `409 TRIGGER_NOT_FIREABLE` for a Brew event trigger, which Brew starts itself (try its automation with `testAutomation`).
          *
          *     **See also** `checkTriggerReady`, `getTriggerInstance`, `listAutomationRuns`.
          */
@@ -3071,8 +3071,13 @@ export interface components {
                 emailId: string;
                 /** @description Email version id to send — required. A pin to the latest version follows new versions (prompt edit, restore) into an unpublished draft; older pins stay. */
                 emailVersionId: string;
-                /** @description Owned sending-domain id — optional at authoring; required, and verified (sendable: true), at publish and on every live run. A marketing domain enforces the unsubscribe link; a sendingPurpose "transactional" domain skips it and delivers even to unsubscribed contacts, so choose one only for genuinely transactional flows (receipts, password resets). */
+                /** @description Verified owned domain id, required at publish unless senderMode is sandbox. Transactional domains skip unsubscribe links and reach unsubscribed contacts: only for receipts, resets. */
                 domainId?: string;
+                /**
+                 * @description sandbox: until a domain verifies, event automations email your organization members only.
+                 * @enum {string}
+                 */
+                senderMode?: "domain" | "sandbox";
                 /** @description Inbox subject — required. Supports {{var | fallback}} interpolation. */
                 subject: string;
                 /** @description Inbox preheader — optional; the email design's <Preview> is the source of truth and wins when present. */
@@ -3436,6 +3441,8 @@ export interface components {
                     fromName?: string;
                     fromAddress?: string;
                     domainId?: string;
+                    /** @enum {string} */
+                    senderMode?: "domain" | "sandbox";
                     replyTo?: string;
                     to?: unknown;
                     html?: string;
@@ -4564,7 +4571,7 @@ export interface components {
             };
         };
         /** @enum {string} */
-        ApiErrorCode: "ACCOUNT_SUSPENDED" | "API_KEY_REVOKED" | "APP_EMAIL_EDITED_IN_BREW" | "APP_EMAIL_STARTER_UNKNOWN" | "AUDIENCE_BUILD_ACTIVE" | "AUDIENCE_BUILD_ALREADY_ACTIVE" | "AUDIENCE_EDIT_CONFLICT" | "AUDIENCE_MEMBERSHIP_NOT_EXPRESSIBLE" | "AUDIENCE_NOT_FOUND" | "AUDIENCE_RUN_NOT_FOUND" | "AUDIT_NOT_FOUND" | "AUTHENTICATION_REQUIRED" | "AUTOMATION_GRAPH_INVALID" | "AUTOMATION_NOT_FOUND" | "AUTOMATION_NOT_PAUSABLE" | "AUTOMATION_NOT_PUBLISHED" | "AUTOMATION_RUN_NOT_FOUND" | "AUTOMATION_VERSION_CONFLICT" | "AUTOMATION_VERSION_NOT_FOUND" | "BATCH_TOO_LARGE" | "BRAND_DOMAIN_CONFLICT" | "BRAND_ID_REQUIRED" | "BRAND_LIMIT_REACHED" | "BRAND_NOT_FOUND" | "BRAND_NOT_READY" | "BRAND_SCOPE_MISMATCH" | "CHAT_NOT_FOUND" | "COMMENT_NOT_FOUND" | "CONSENT_REQUIRED" | "CONTACT_NOT_FOUND" | "CONTENT_OPERATION_FAILED" | "CONTRACT_LOCKED_BY_PUBLISHED_AUTOMATIONS" | "CORE_FIELD_IMMUTABLE" | "DOMAIN_ALREADY_EXISTS" | "DOMAIN_CLAIMED_ELSEWHERE" | "DOMAIN_NOT_FOUND" | "DOMAIN_NOT_READY" | "DOMAIN_OTHER_BRAND" | "DOMAIN_PROVIDER_ERROR" | "DOMAIN_PURPOSE_NOT_ALLOWED" | "DOMAIN_VERIFICATION_FAILED" | "DOMAIN_VERIFIED_ELSEWHERE" | "EMAIL_GENERATION_FAILED" | "EMAIL_GROUP_NAME_CONFLICT" | "EMAIL_GROUP_NOT_FOUND" | "EMAIL_IMAGES_MISSING" | "EMAIL_IMPORT_FAILED" | "EMAIL_IN_PROGRESS" | "EMAIL_IN_USE_BY_AUTOMATION" | "EMAIL_NOT_FOUND" | "EMAIL_NOT_READY" | "EMAIL_RUN_AMBIGUOUS" | "EMAIL_TEMPLATE_INVALID" | "EMAIL_VERSION_NOT_FOUND" | "EXPORT_PROVIDER_ERROR" | "EXPORT_UNSUPPORTED" | "FIELD_NOT_FOUND" | "FIELD_TYPE_MISMATCH" | "FIGMA_ACCESS_DENIED" | "FIGMA_CONVERSION_FAILED" | "FIGMA_FRAME_NOT_FOUND" | "FIGMA_NOT_CONNECTED" | "FIGMA_UNAVAILABLE" | "FIGMA_URL_INVALID" | "FLOW_NOT_FOUND" | "IDEMPOTENCY_CONFLICT" | "IDEMPOTENCY_IN_PROGRESS" | "INSIGHT_NOT_FOUND" | "INSUFFICIENT_CREDITS" | "INSUFFICIENT_PERMISSIONS" | "INSUFFICIENT_ROLE" | "INTEGRATION_NOT_CONNECTED" | "INTERNAL_ERROR" | "INVALID_API_KEY" | "INVALID_EMAIL" | "INVALID_PAYLOAD" | "INVALID_REQUEST" | "LIQUID_RENDER_ERROR" | "METHOD_NOT_ALLOWED" | "MISSING_EMAIL" | "NO_ELIGIBLE_RECIPIENTS" | "NO_PUBLISHED_AUTOMATION" | "NOT_FOUND" | "NOT_IMPLEMENTED" | "ORG_SCOPE_REQUIRED" | "PAYLOAD_SCHEMA_EMAIL_REQUIRED" | "PAYLOAD_TOO_LARGE" | "PREVIEW_NOT_FOUND" | "PUBLISH_VALIDATION_FAILED" | "RATE_LIMITED" | "RECIPIENT_UNSUBSCRIBED" | "REFERENCE_EMAIL_NOT_FOUND" | "RESUBSCRIBE_NOT_ALLOWED" | "RUN_IN_PROGRESS" | "RUN_NOT_CANCELLABLE" | "RUN_NOT_PAUSABLE" | "RUN_NOT_PAUSED" | "RUN_NOT_RESUMABLE" | "RUN_START_FAILED" | "RUN_STOP_FAILED" | "SEND_NOT_CANCELLABLE" | "SEND_NOT_FOUND" | "SEND_NOT_PAUSABLE" | "SEND_NOT_RESUMABLE" | "SEND_QUOTA_EXCEEDED" | "SERVICE_UNAVAILABLE" | "TEMPLATE_NOT_FOUND" | "TRIGGER_ALREADY_EXISTS" | "TRIGGER_EVENT_NOT_FOUND" | "TRIGGER_HAS_DEPENDENT_AUTOMATIONS" | "TRIGGER_IMMUTABLE" | "TRIGGER_INSTANCE_NOT_FOUND" | "TRIGGER_KEY_NOT_FOUND" | "TRIGGER_KEY_RESERVED" | "TRIGGER_KEY_TAKEN" | "TRIGGER_LIMIT_REACHED" | "TRIGGER_NOT_FIREABLE" | "UPLOAD_IN_PROGRESS" | "UPLOAD_NOT_FOUND" | "UPLOAD_NOT_RECEIVED";
+        ApiErrorCode: "ACCOUNT_SUSPENDED" | "API_KEY_REVOKED" | "APP_EMAIL_EDITED_IN_BREW" | "APP_EMAIL_STARTER_UNKNOWN" | "AUDIENCE_BUILD_ACTIVE" | "AUDIENCE_BUILD_ALREADY_ACTIVE" | "AUDIENCE_EDIT_CONFLICT" | "AUDIENCE_MEMBERSHIP_NOT_EXPRESSIBLE" | "AUDIENCE_NOT_FOUND" | "AUDIENCE_RUN_NOT_FOUND" | "AUDIT_NOT_FOUND" | "AUTHENTICATION_REQUIRED" | "AUTOMATION_GRAPH_INVALID" | "AUTOMATION_NOT_FOUND" | "AUTOMATION_NOT_PAUSABLE" | "AUTOMATION_NOT_PUBLISHED" | "AUTOMATION_RUN_NOT_FOUND" | "AUTOMATION_VERSION_CONFLICT" | "AUTOMATION_VERSION_NOT_FOUND" | "BATCH_TOO_LARGE" | "BRAND_DOMAIN_CONFLICT" | "BRAND_ID_REQUIRED" | "BRAND_LIMIT_REACHED" | "BRAND_NOT_FOUND" | "BRAND_NOT_READY" | "BRAND_SCOPE_MISMATCH" | "CHAT_NOT_FOUND" | "COMMENT_NOT_FOUND" | "CONSENT_REQUIRED" | "CONTACT_NOT_FOUND" | "CONTENT_OPERATION_FAILED" | "CONTRACT_LOCKED_BY_PUBLISHED_AUTOMATIONS" | "CORE_FIELD_IMMUTABLE" | "DOMAIN_ALREADY_EXISTS" | "DOMAIN_CLAIMED_ELSEWHERE" | "DOMAIN_NOT_FOUND" | "DOMAIN_NOT_READY" | "DOMAIN_OTHER_BRAND" | "DOMAIN_PROVIDER_ERROR" | "DOMAIN_PURPOSE_NOT_ALLOWED" | "DOMAIN_REQUIRED" | "DOMAIN_VERIFICATION_FAILED" | "DOMAIN_VERIFIED_ELSEWHERE" | "EMAIL_GENERATION_FAILED" | "EMAIL_GROUP_NAME_CONFLICT" | "EMAIL_GROUP_NOT_FOUND" | "EMAIL_IMAGES_MISSING" | "EMAIL_IMPORT_FAILED" | "EMAIL_IN_PROGRESS" | "EMAIL_IN_USE_BY_AUTOMATION" | "EMAIL_NOT_FOUND" | "EMAIL_NOT_READY" | "EMAIL_RUN_AMBIGUOUS" | "EMAIL_TEMPLATE_INVALID" | "EMAIL_VERSION_NOT_FOUND" | "EXPORT_PROVIDER_ERROR" | "EXPORT_UNSUPPORTED" | "FIELD_NOT_FOUND" | "FIELD_TYPE_MISMATCH" | "FIGMA_ACCESS_DENIED" | "FIGMA_CONVERSION_FAILED" | "FIGMA_FRAME_NOT_FOUND" | "FIGMA_NOT_CONNECTED" | "FIGMA_UNAVAILABLE" | "FIGMA_URL_INVALID" | "FLOW_NOT_FOUND" | "IDEMPOTENCY_CONFLICT" | "IDEMPOTENCY_IN_PROGRESS" | "INSIGHT_NOT_FOUND" | "INSUFFICIENT_CREDITS" | "INSUFFICIENT_PERMISSIONS" | "INSUFFICIENT_ROLE" | "INTEGRATION_NOT_CONNECTED" | "INTERNAL_ERROR" | "INVALID_API_KEY" | "INVALID_EMAIL" | "INVALID_PAYLOAD" | "INVALID_REQUEST" | "LIQUID_RENDER_ERROR" | "METHOD_NOT_ALLOWED" | "MISSING_EMAIL" | "NO_ELIGIBLE_RECIPIENTS" | "NO_PUBLISHED_AUTOMATION" | "NOT_FOUND" | "NOT_IMPLEMENTED" | "ORG_SCOPE_REQUIRED" | "PAYLOAD_SCHEMA_EMAIL_REQUIRED" | "PAYLOAD_TOO_LARGE" | "PREVIEW_NOT_FOUND" | "PUBLISH_VALIDATION_FAILED" | "RATE_LIMITED" | "RECIPIENT_UNSUBSCRIBED" | "REFERENCE_EMAIL_NOT_FOUND" | "RESUBSCRIBE_NOT_ALLOWED" | "RUN_IN_PROGRESS" | "RUN_NOT_CANCELLABLE" | "RUN_NOT_PAUSABLE" | "RUN_NOT_PAUSED" | "RUN_NOT_RESUMABLE" | "RUN_START_FAILED" | "RUN_STOP_FAILED" | "SANDBOX_DAILY_LIMIT" | "SEND_NOT_CANCELLABLE" | "SEND_NOT_FOUND" | "SEND_NOT_PAUSABLE" | "SEND_NOT_RESUMABLE" | "SEND_QUOTA_EXCEEDED" | "SERVICE_UNAVAILABLE" | "TEMPLATE_NOT_FOUND" | "TRIGGER_ALREADY_EXISTS" | "TRIGGER_EVENT_NOT_FOUND" | "TRIGGER_HAS_DEPENDENT_AUTOMATIONS" | "TRIGGER_IMMUTABLE" | "TRIGGER_INSTANCE_NOT_FOUND" | "TRIGGER_KEY_NOT_FOUND" | "TRIGGER_KEY_RESERVED" | "TRIGGER_KEY_TAKEN" | "TRIGGER_LIMIT_REACHED" | "TRIGGER_NOT_FIREABLE" | "UPLOAD_IN_PROGRESS" | "UPLOAD_NOT_FOUND" | "UPLOAD_NOT_RECEIVED";
         EmailGenerateTextResponse: {
             response: string;
         };
@@ -5687,8 +5694,13 @@ export interface components {
                     emailId: string;
                     /** @description Email version id to send — required. A pin to the latest version follows new versions (prompt edit, restore) into an unpublished draft; older pins stay. */
                     emailVersionId: string;
-                    /** @description Owned sending-domain id — optional at authoring; required, and verified (sendable: true), at publish and on every live run. A marketing domain enforces the unsubscribe link; a sendingPurpose "transactional" domain skips it and delivers even to unsubscribed contacts, so choose one only for genuinely transactional flows (receipts, password resets). */
+                    /** @description Verified owned domain id, required at publish unless senderMode is sandbox. Transactional domains skip unsubscribe links and reach unsubscribed contacts: only for receipts, resets. */
                     domainId?: string;
+                    /**
+                     * @description sandbox: until a domain verifies, event automations email your organization members only.
+                     * @enum {string}
+                     */
+                    senderMode?: "domain" | "sandbox";
                     /** @description Inbox subject — required. Supports {{var | fallback}} interpolation. */
                     subject: string;
                     /** @description Inbox preheader — optional; the email design's <Preview> is the source of truth and wins when present. */
@@ -6057,6 +6069,8 @@ export interface components {
                         fromName?: string;
                         fromAddress?: string;
                         domainId?: string;
+                        /** @enum {string} */
+                        senderMode?: "domain" | "sandbox";
                         replyTo?: string;
                         to?: unknown;
                         html?: string;
@@ -6216,8 +6230,13 @@ export interface components {
                     emailId: string;
                     /** @description Email version id to send — required. A pin to the latest version follows new versions (prompt edit, restore) into an unpublished draft; older pins stay. */
                     emailVersionId: string;
-                    /** @description Owned sending-domain id — optional at authoring; required, and verified (sendable: true), at publish and on every live run. A marketing domain enforces the unsubscribe link; a sendingPurpose "transactional" domain skips it and delivers even to unsubscribed contacts, so choose one only for genuinely transactional flows (receipts, password resets). */
+                    /** @description Verified owned domain id, required at publish unless senderMode is sandbox. Transactional domains skip unsubscribe links and reach unsubscribed contacts: only for receipts, resets. */
                     domainId?: string;
+                    /**
+                     * @description sandbox: until a domain verifies, event automations email your organization members only.
+                     * @enum {string}
+                     */
+                    senderMode?: "domain" | "sandbox";
                     /** @description Inbox subject — required. Supports {{var | fallback}} interpolation. */
                     subject: string;
                     /** @description Inbox preheader — optional; the email design's <Preview> is the source of truth and wins when present. */
@@ -7109,6 +7128,11 @@ export interface components {
                 automationId: string;
                 /** @description Why its run did not start. A refusal (a merge tag or condition field the trigger does not declare, a step the run gate finds incomplete) repeats on every fire until the automation or trigger is fixed; an unexpected error is retried automatically. */
                 reason: string;
+                /**
+                 * @description DOMAIN_REQUIRED: this automation sends from the Brew sandbox until its domain is verified, and the recipient is not a member of your organization.
+                 * @enum {string}
+                 */
+                code?: "DOMAIN_REQUIRED";
             }[];
             publishedAutomations: ({
                 automationId: string;
@@ -19940,7 +19964,11 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description `NO_PUBLISHED_AUTOMATION`: The trigger fired, but no published automation listens for it, so nothing would run. */
+            /**
+             * @description `DOMAIN_REQUIRED`: The matched automations send from the Brew sandbox until a sending domain is verified, and the sandbox only emails members of your organization; `details` carries `recipient`, `allowed` and `domainsUrl`.
+             *
+             *     `NO_PUBLISHED_AUTOMATION`: The trigger fired, but no published automation listens for it, so nothing would run.
+             */
             422: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */
@@ -19951,7 +19979,11 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
-            /** @description `RATE_LIMITED`: The credential exhausted the rolling window for this route policy; Retry-After is when the oldest recorded request leaves, and the refused request does not take a slot. */
+            /**
+             * @description `RATE_LIMITED`: The credential exhausted the rolling window for this route policy; Retry-After is when the oldest recorded request leaves, and the refused request does not take a slot.
+             *
+             *     `SANDBOX_DAILY_LIMIT`: Your organization used all of today’s Brew sandbox sends (`details.limit`, default 50 a UTC day); `details.resetsAt` is when the count resets, and `Retry-After` the seconds until then.
+             */
             429: {
                 headers: {
                     /** @description Unique request identifier. Share this with support when debugging a request. */

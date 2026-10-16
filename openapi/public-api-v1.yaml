@@ -890,7 +890,13 @@ components:
                 domainId:
                   type: string
                   minLength: 1
-                  description: 'Owned sending-domain id — optional at authoring; required, and verified (sendable: true), at publish and on every live run. A marketing domain enforces the unsubscribe link; a sendingPurpose "transactional" domain skips it and delivers even to unsubscribed contacts, so choose one only for genuinely transactional flows (receipts, password resets).'
+                  description: "Verified owned domain id, required at publish unless senderMode is sandbox. Transactional domains skip unsubscribe links and reach unsubscribed contacts: only for receipts, resets."
+                senderMode:
+                  type: string
+                  enum:
+                    - domain
+                    - sandbox
+                  description: "sandbox: until a domain verifies, event automations email your organization members only."
                 subject:
                   type: string
                   minLength: 1
@@ -1885,6 +1891,11 @@ components:
                         type: string
                       domainId:
                         type: string
+                      senderMode:
+                        type: string
+                        enum:
+                          - domain
+                          - sandbox
                       replyTo:
                         type: string
                       to: {}
@@ -5089,6 +5100,7 @@ components:
         - DOMAIN_OTHER_BRAND
         - DOMAIN_PROVIDER_ERROR
         - DOMAIN_PURPOSE_NOT_ALLOWED
+        - DOMAIN_REQUIRED
         - DOMAIN_VERIFICATION_FAILED
         - DOMAIN_VERIFIED_ELSEWHERE
         - EMAIL_GENERATION_FAILED
@@ -5149,6 +5161,7 @@ components:
         - RUN_NOT_RESUMABLE
         - RUN_START_FAILED
         - RUN_STOP_FAILED
+        - SANDBOX_DAILY_LIMIT
         - SEND_NOT_CANCELLABLE
         - SEND_NOT_FOUND
         - SEND_NOT_PAUSABLE
@@ -8436,7 +8449,13 @@ components:
                       domainId:
                         type: string
                         minLength: 1
-                        description: 'Owned sending-domain id — optional at authoring; required, and verified (sendable: true), at publish and on every live run. A marketing domain enforces the unsubscribe link; a sendingPurpose "transactional" domain skips it and delivers even to unsubscribed contacts, so choose one only for genuinely transactional flows (receipts, password resets).'
+                        description: "Verified owned domain id, required at publish unless senderMode is sandbox. Transactional domains skip unsubscribe links and reach unsubscribed contacts: only for receipts, resets."
+                      senderMode:
+                        type: string
+                        enum:
+                          - domain
+                          - sandbox
+                        description: "sandbox: until a domain verifies, event automations email your organization members only."
                       subject:
                         type: string
                         minLength: 1
@@ -9448,6 +9467,11 @@ components:
                               type: string
                             domainId:
                               type: string
+                            senderMode:
+                              type: string
+                              enum:
+                                - domain
+                                - sandbox
                             replyTo:
                               type: string
                             to: {}
@@ -9917,7 +9941,13 @@ components:
                       domainId:
                         type: string
                         minLength: 1
-                        description: 'Owned sending-domain id — optional at authoring; required, and verified (sendable: true), at publish and on every live run. A marketing domain enforces the unsubscribe link; a sendingPurpose "transactional" domain skips it and delivers even to unsubscribed contacts, so choose one only for genuinely transactional flows (receipts, password resets).'
+                        description: "Verified owned domain id, required at publish unless senderMode is sandbox. Transactional domains skip unsubscribe links and reach unsubscribed contacts: only for receipts, resets."
+                      senderMode:
+                        type: string
+                        enum:
+                          - domain
+                          - sandbox
+                        description: "sandbox: until a domain verifies, event automations email your organization members only."
                       subject:
                         type: string
                         minLength: 1
@@ -12285,6 +12315,11 @@ components:
               reason:
                 type: string
                 description: Why its run did not start. A refusal (a merge tag or condition field the trigger does not declare, a step the run gate finds incomplete) repeats on every fire until the automation or trigger is fixed; an unexpected error is retried automatically.
+              code:
+                type: string
+                enum:
+                  - DOMAIN_REQUIRED
+                description: "DOMAIN_REQUIRED: this automation sends from the Brew sandbox until its domain is verified, and the recipient is not a member of your organization."
             required:
               - automationId
               - reason
@@ -43535,7 +43570,7 @@ paths:
 
         **Idempotency** send a stable `Idempotency-Key` header on every retry. A repeat answers `200` with `status: "replayed"` and the ORIGINAL run ids; nothing fires twice. A fire key is matched against the stored trigger receipt, so it replays for as long as the receipt is kept (90 days), not only the 24 hours of the shared response cache. Use one key per business action and never reuse it for a different fire.
 
-        **Errors** `400 INVALID_PAYLOAD` when the payload does not satisfy the schema, or when `email` (or `user.email`) is not one plain address such as `jane@example.com`: a display name (`Jane <jane@example.com>`), a list or a line break is refused with `details.errors[].code: "invalid_email"`, and no contact is written; `404 TRIGGER_EVENT_NOT_FOUND` for an unknown or cross-brand id; `422 NO_PUBLISHED_AUTOMATION` when nothing published listens for the trigger; `409 IDEMPOTENCY_CONFLICT` when a key is reused with a different body; `409 TRIGGER_NOT_FIREABLE` for a Brew event trigger, which Brew starts itself (try its automation with `testAutomation`).
+        **Errors** `400 INVALID_PAYLOAD` when the payload does not satisfy the schema, or when `email` (or `user.email`) is not one plain address such as `jane@example.com`: a display name (`Jane <jane@example.com>`), a list or a line break is refused with `details.errors[].code: "invalid_email"`, and no contact is written; `404 TRIGGER_EVENT_NOT_FOUND` for an unknown or cross-brand id; `422 NO_PUBLISHED_AUTOMATION` when nothing published listens for the trigger; `422 DOMAIN_REQUIRED` when every matched automation sends only from the Brew sandbox (no verified domain yet), right away, and to recipients who are not members of your organization (`details: { recipient, allowed, domainsUrl }`; in a mixed fan-out those automations are listed in `notStarted[]` with `code: "DOMAIN_REQUIRED"` and the rest start); `429 SANDBOX_DAILY_LIMIT` with `Retry-After` when the organization spent today’s sandbox sends (`details: { limit, resetsAt }`); `409 IDEMPOTENCY_CONFLICT` when a key is reused with a different body; `409 TRIGGER_NOT_FIREABLE` for a Brew event trigger, which Brew starts itself (try its automation with `testAutomation`).
 
         **See also** `checkTriggerReady`, `getTriggerInstance`, `listAutomationRuns`.
       parameters:
@@ -43912,7 +43947,10 @@ paths:
                       suggestion: Try the automation with its Test action (POST /v1/automations/{automationId}/test) instead.
                       docs: https://docs.brew.new/api-reference/api/errors
         "422":
-          description: "`NO_PUBLISHED_AUTOMATION`: The trigger fired, but no published automation listens for it, so nothing would run."
+          description: |-
+            `DOMAIN_REQUIRED`: The matched automations send from the Brew sandbox until a sending domain is verified, and the sandbox only emails members of your organization; `details` carries `recipient`, `allowed` and `domainsUrl`.
+
+            `NO_PUBLISHED_AUTOMATION`: The trigger fired, but no published automation listens for it, so nothing would run.
           headers:
             x-request-id:
               schema:
@@ -43926,6 +43964,15 @@ paths:
               schema:
                 $ref: "#/components/schemas/ApiErrorEnvelope"
               examples:
+                domainRequired:
+                  summary: DOMAIN_REQUIRED
+                  value:
+                    error:
+                      code: DOMAIN_REQUIRED
+                      type: invalid_request
+                      message: The matched automations send from the Brew sandbox until a sending domain is verified, and the sandbox only emails members of your organization; `details` carries `recipient`, `allowed` and `domainsUrl`.
+                      suggestion: Verify a sending domain at /domains to email anyone, or fire to an address of a member of your organization while you test.
+                      docs: https://docs.brew.new/api-reference/api/errors
                 noPublishedAutomation:
                   summary: NO_PUBLISHED_AUTOMATION
                   value:
@@ -43936,7 +43983,10 @@ paths:
                       suggestion: Publish an automation wired to this trigger, then fire again. GET /v1/automations/triggers/{triggerEventId}/readiness reports this before you send a live event.
                       docs: https://docs.brew.new/api-reference/api/errors
         "429":
-          description: "`RATE_LIMITED`: The credential exhausted the rolling window for this route policy; Retry-After is when the oldest recorded request leaves, and the refused request does not take a slot."
+          description: |-
+            `RATE_LIMITED`: The credential exhausted the rolling window for this route policy; Retry-After is when the oldest recorded request leaves, and the refused request does not take a slot.
+
+            `SANDBOX_DAILY_LIMIT`: Your organization used all of today’s Brew sandbox sends (`details.limit`, default 50 a UTC day); `details.resetsAt` is when the count resets, and `Retry-After` the seconds until then.
           headers:
             x-request-id:
               schema:
@@ -43994,6 +44044,16 @@ paths:
                         remaining: 0
                         reset: 1712592360
                         consumed: false
+                sandboxDailyLimit:
+                  summary: SANDBOX_DAILY_LIMIT
+                  value:
+                    error:
+                      code: SANDBOX_DAILY_LIMIT
+                      type: rate_limit
+                      message: Your organization used all of today’s Brew sandbox sends (`details.limit`, default 50 a UTC day); `details.resetsAt` is when the count resets, and `Retry-After` the seconds until then.
+                      suggestion: Wait until `details.resetsAt`, or verify a sending domain at /domains to send without the sandbox limit.
+                      docs: https://docs.brew.new/api-reference/api/errors
+                      retryAfter: 42
         "500":
           description: "`INTERNAL_ERROR`: An unexpected failure; the x-request-id header identifies it."
           headers:
