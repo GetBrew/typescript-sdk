@@ -7,12 +7,14 @@ call, subpath adapters that wire `brew.send` into Resend call sites,
 Better Auth, Auth.js and Supabase Auth, and the import modes a Resend
 migration uses. Additive: nothing is removed or renamed. A minor release
 after 13.1.0, which it builds on. Publish only once GetBrew/brew-v2#2066
-(`/v1/app-emails`) and GetBrew/brew-v2#2064 (import modes) are deployed
-and the live spec matches the vendored one (until then the app-email
-routes answer `404`), and once `@brew.new/cli` ships `migrate resend`,
-which `brew_template_required` points to. The spec is #2066's
-(`84cea75be5`, which carries 13.1.0's #2013 and #2017 and the team
-sandbox #2059 it builds on) plus #2064's delta (`6be9d56b25`). Each
+(`/v1/app-emails`), GetBrew/brew-v2#2064 (import modes) and
+GetBrew/brew-v2#2145 (import modes on an app email's `source`) are
+deployed and the live spec matches the vendored one (until then the
+app-email routes answer `404`), and once `@brew.new/cli` ships
+`migrate resend`, which `brew_template_required` points to. The spec is
+#2145's (`b2912ad9f7`): #2066 (`0fed90fbf3`, which carries 13.1.0's
+#2013 and #2017 and the team sandbox #2059 it builds on) merged with
+#2064 (`9f97aea3f8`), plus #2145's own `source` fields. Each
 adapter sends by trigger key, so it also needs 13.1.0's by-key route and
 keys whose automations are published (the auth starter kit's `auth.*`
 keys and `lifecycle.welcome` by default). The adapters add no runtime or
@@ -34,7 +36,9 @@ peer dependencies: the libraries they serve are typed structurally.
     `PUT /v1/app-emails/{triggerKey}`, one idempotent setup (trigger,
     payload contract, design from a `starter` or your
     `source: { format, content }`, automation, publish). Body: `starter`,
-    `source`, `title`, `subject`, `previewText`, `payloadSchema` (flat
+    `source` (with the import modes `props`, `placeholders` and
+    `variables`, as on `emails.import`, from GetBrew/brew-v2#2145),
+    `title`, `subject`, `previewText`, `payloadSchema` (flat
     fields with `pii` and `secret`: a `secret: true` field renders the
     email and is redacted wherever the fire is stored, logged or counted),
     `domainId`, `from`, `publish`, `overwrite`. Resolves to
@@ -78,9 +82,11 @@ stack }`, where each result is `ok: true` with the setup result or
   tags, with defaults and `??` literals as fallbacks; `fold`, the default,
   keeps today's behavior), `placeholders: 'resend'` (Resend's
   `{{{NAME}}}` / `{{{NAME|fallback}}}` become Brew merge tags) and
-  `variables: [{ key, fallbackValue? }]` (fallbacks the source gives none).
-  The response lists `variables: [{ path, fallback? }]`, every merge path
-  the design and subject read, and `assetReport.warnings[].code` gains
+  `variables: [{ key, fallbackValue? }]` (fallbacks the source gives none);
+  `appEmails.upsert`'s `source` takes the same three
+  (GetBrew/brew-v2#2145). The `emails.import` response lists
+  `variables: [{ path, fallback? }]`, every merge path the design and
+  subject read, and `assetReport.warnings[].code` gains
   `dynamic_prop_folded`, `dynamic_control_flow_unsupported`,
   `escaping_changed` and `placeholder_unmapped`.
 - **`@brew.new/sdk/resend`**: `new Resend(apiKey?, options?)` with
