@@ -119,7 +119,49 @@ describe('chats.list', () => {
   })
 
   it('types the rows', () => {
-    expectTypeOf<ChatSummary['origin']>().toEqualTypeOf<'slack' | null>()
+    // Pin the published contract so removals and widening to string fail typecheck.
+    type ExpectedOrigin =
+      | 'slack'
+      | 'teams'
+      | 'telegram'
+      | 'whatsapp'
+      | 'discord'
+      | 'gchat'
+      | 'github'
+      | 'linear'
+      | 'notion'
+      | 'gmail'
+      | 'twilio'
+      | 'messenger'
+      | 'instagram'
+      | 'x'
+      | 'xchat'
+      | 'web'
+      | 'agentphone'
+      | 'dial'
+      | 'kapso'
+      | 'lark'
+      | 'linq'
+      | 'liveblocks'
+      | 'matrix'
+      | 'novu'
+      | 'photon'
+      | 'resend'
+      | 'sendblue'
+      | 'velt'
+      | 'zernio'
+      | 'webex'
+      | 'line'
+      | 'baileys'
+      | 'blooio'
+      | 'zalo'
+      | 'mattermost'
+      | 'weixin'
+      | 'qq'
+      | 'wecom'
+      | 'zaileys'
+      | null
+    expectTypeOf<ChatSummary['origin']>().toEqualTypeOf<ExpectedOrigin>()
     expectTypeOf<{ limit: 10; cursor: 'c' }>().toExtend<ListChatsInput>()
   })
 })
