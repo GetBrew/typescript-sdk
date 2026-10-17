@@ -1,5 +1,162 @@
 # Changelog
 
+## 13.2.0 (not released yet)
+
+`brew.appEmails`, which sets up the emails your code sends by key in one
+call, subpath adapters that wire `brew.send` into Resend call sites,
+Better Auth, Auth.js and Supabase Auth, and the import modes a Resend
+migration uses. Additive: nothing is removed or renamed. A minor release
+after 13.1.0, which it builds on. Publish only once GetBrew/brew-v2#2066
+(`/v1/app-emails`), GetBrew/brew-v2#2064 (import modes) and
+GetBrew/brew-v2#2145 (import modes on an app email's `source`) are
+deployed and the live spec matches the vendored one (until then the
+app-email routes answer `404`), and once `@brew.new/cli` ships
+`migrate resend`, which `brew_template_required` points to. The spec is
+#2145's (`b2912ad9f7`): #2066 (`0fed90fbf3`, which carries 13.1.0's
+#2013 and #2017 and the team sandbox #2059 it builds on) merged with
+#2064 (`9f97aea3f8`), plus #2145's own `source` fields. Each
+adapter sends by trigger key, so it also needs 13.1.0's by-key route and
+keys whose automations are published (the auth starter kit's `auth.*`
+keys and `lifecycle.welcome` by default). The adapters add no runtime or
+peer dependencies: the libraries they serve are typed structurally.
+
+### Added
+
+- **`brew.appEmails`** (scope `automations`; the two setup calls also need
+  `emails`, since each setup imports a design):
+  - `list(input?, options?)`: `GET /v1/app-emails`, `{ data, pagination }`
+    rows with `triggerKey`, `triggerEventId`, `title`, `emailId`,
+    `automationId`, `starterId?`, `starterVersion?`, `upgradeAvailable`,
+    `published`, `sender` (`mode`: `domain` / `sandbox` / `none`),
+    `readiness` (`ready`, `teamOnly`, `blockers`) and `updatedAt`. Pages
+    with `limit` / `cursor`.
+  - `get(triggerKey, options?)`: `GET /v1/app-emails/{triggerKey}`, one
+    row; `404 TRIGGER_KEY_NOT_FOUND` when the key has no app email.
+  - `upsert({ triggerKey, ...body }, options?)`:
+    `PUT /v1/app-emails/{triggerKey}`, one idempotent setup (trigger,
+    payload contract, design from a `starter` or your
+    `source: { format, content }`, automation, publish). Body: `starter`,
+    `source` (with the import modes `props`, `placeholders` and
+    `variables`, as on `emails.import`, from GetBrew/brew-v2#2145),
+    `title`, `subject`, `previewText`, `payloadSchema` (flat
+    fields with `pii` and `secret`: a `secret: true` field renders the
+    email and is redacted wherever the fire is stored, logged or counted),
+    `domainId`, `from`, `publish`, `overwrite`. Resolves to
+    `{ triggerKey, triggerEventId, emailId, emailVersionId, automationId,
+published, created, sender, payloadSchema, fireExample, warnings }`
+    (HTTP `201` first time, `200` on a re-run). A design edited in Brew
+    throws `409 APP_EMAIL_EDITED_IN_BREW` until `overwrite: true`; an
+    unknown starter is `400 APP_EMAIL_STARTER_UNKNOWN`.
+  - `setUpKit(input?, options?)`: `POST /v1/app-emails/kit` with `sets`,
+    `stack`, `keys`, `domainId`, `overwrite`; resolves to `{ results,
+stack }`, where each result is `ok: true` with the setup result or
+    `ok: false` with its `error` (per-key failures never throw), and
+    `stack` carries `provider`, `authDelivery`, `note`, `keys` and
+    `snippets`. Sends an `Idempotency-Key`.
+  - Keys ride the path percent-encoded, like `fireByKey`; an empty key,
+    `.` or `..` throws `TypeError` before any request.
+  - `UPSERT_APP_EMAIL_DEFAULT_TIMEOUT_MS` and
+    `SET_UP_APP_EMAIL_KIT_DEFAULT_TIMEOUT_MS` (both 300 s, a floor under
+    the client `timeoutMs`).
+  - Types: `AppEmailsResource`, `AppEmail`, `AppEmailsListResponse`,
+    `ListAppEmailsInput`, `ListAppEmailsResponse`, `GetAppEmailResponse`,
+    `UpsertAppEmailInput`, `UpsertAppEmailResponse`, `AppEmailSetupBody`,
+    `AppEmailSetupResult`, `SetUpAppEmailKitInput`,
+    `SetUpAppEmailKitResponse`, `AppEmailKitBody`, `AppEmailKitResponse`,
+    `AppEmailKitResult`, `AppEmailKitStack`, `AppEmailKitKey`,
+    `AppEmailKitSet`, `AppEmailKitStackProvider`.
+  - New error codes in `BrewApiError['code']`: `APP_EMAIL_EDITED_IN_BREW`
+    and `APP_EMAIL_STARTER_UNKNOWN`; new warning codes `SANDBOX_SENDER`,
+    `APP_EMAIL_NOT_PUBLISHED` and `DESIGN_EDITED_IN_BREW`. See
+    `docs/app-emails.md`.
+- **Team sandbox** (GetBrew/brew-v2#2059, which #2066 builds on), from the
+  regenerated spec: an automation's Send Email step takes `senderMode`
+  (`domain` or `sandbox`; `sandbox` means that until a domain verifies,
+  an event automation emails your organization's members only) and
+  automation rows report it. `automations.create` and `automations.patch`
+  take it too: `AutomationSendEmailNodeConfig` gains
+  `senderMode?: 'domain' | 'sandbox'`, and a `'sandbox'` step may omit
+  `domainId` (a `'domain'` step, the default, still needs it). A fire's
+  `notStarted[]` entries gain
+  `code: 'DOMAIN_REQUIRED'`; `BrewApiError['code']` gains
+  `DOMAIN_REQUIRED` (`422`) and `SANDBOX_DAILY_LIMIT` (`429`).
+- **Import modes for a Resend migration** (GetBrew/brew-v2#2064), from the
+  regenerated spec: `emails.import` takes `props: 'merge_tags'` (`jsx`
+  only: the root component's props become `{{ trigger.<name> }}` merge
+  tags, with defaults and `??` literals as fallbacks; `fold`, the default,
+  keeps today's behavior), `placeholders: 'resend'` (Resend's
+  `{{{NAME}}}` / `{{{NAME|fallback}}}` become Brew merge tags) and
+  `variables: [{ key, fallbackValue? }]` (fallbacks the source gives none);
+  `appEmails.upsert`'s `source` takes the same three
+  (GetBrew/brew-v2#2145). The `emails.import` response lists
+  `variables: [{ path, fallback? }]`, every merge path the design and
+  subject read, and `assetReport.warnings[].code` gains
+  `dynamic_prop_folded`, `dynamic_control_flow_unsupported`,
+  `escaping_changed` and `placeholder_unmapped`.
+- **`@brew.new/sdk/resend`**: `new Resend(apiKey?, options?)` with
+  `emails.send(email, options?)` and `batch.send(emails, options?)` (both
+  take `{ idempotencyKey }`). Options: `baseUrl`, `brandId`, `templates` (Resend
+  template id to trigger key), `onWarning`, `client`. Each send is
+  `brew.send(templates[id] ?? id, { ...variables, email: to })`: the
+  recipient wins over a `variables.email`. `data.id` is the trigger
+  instance id. Answers Resend's
+  `{ data, error, headers }` and never throws; errors carry Resend's names
+  (`validation_error`, `not_found`, `rate_limit_exceeded`,
+  `missing_api_key`, `invalid_api_key`, `application_error`, …) plus
+  `brewCode` and `requestId`. `html`, `react` or `text` without a template
+  answer `brew_template_required`, which points to
+  `npx @brew.new/cli migrate resend` (`RESEND_MIGRATION_COMMAND`) and the
+  migration guide (`RESEND_MIGRATION_DOCS_URL`); `cc`, `bcc`,
+  `attachments`, `headers`, `scheduledAt` and several `to` answer
+  `brew_unsupported_field`; `from` and `subject` are ignored with one
+  warning. `batch.send` sends in order, is not atomic, and keys email `i`
+  as `${idempotencyKey}:${i}` (a key over 97 characters is shortened to
+  fit the 100-character limit). The API key defaults to `BREW_API_KEY`.
+  See `docs/adapters/resend.md`.
+- **`@brew.new/sdk/better-auth`**: `brewAuthEmails(options)` (`client`,
+  `keys`, `appName`, `invitationUrl`, `waitUntil`, `onError`) returns
+  `sendVerificationEmail`, `sendResetPassword`,
+  `sendChangeEmailConfirmation` (to the current address, with `newEmail`),
+  `sendMagicLink`, `sendVerificationOTP`, `sendInvitationEmail` and
+  `onUserCreated` (`lifecycle.welcome`, never rejects). Keys and payloads
+  follow Brew's Better Auth recipe: an email-OTP code sends
+  `{ email, otp }` to `auth.password-reset` for `forget-password`,
+  `auth.email-change` for `change-email` and `auth.otp` otherwise; an
+  organization invitation sends `auth.invite` with `inviterName`,
+  `organizationName` and the `invitationUrl` link. Without `waitUntil` each
+  callback returns the send for Better Auth to await; with it, the send
+  runs in the background. Idempotency keys are `${key}:${sha256(token)}`
+  (recipient, type and code for a code; the invitation id for an invite).
+  See `docs/adapters/better-auth.md`.
+- **`@brew.new/sdk/next-auth`** and its alias **`@brew.new/sdk/auth-js`**:
+  `BrewEmail(options)` (`client`, `key`, `appName`, `maxAge`, `id`), an
+  Auth.js email provider (`id: 'brew'`, `type: 'email'`) for v5 and, with
+  `id: 'email'`, v4. `sendVerificationRequest` awaits the send of
+  `auth.magic-link` and throws on failure. See `docs/adapters/auth-js.md`.
+- **`@brew.new/sdk/supabase`**: `createSupabaseSendEmailHook(options)`
+  (`client`, `secret`, `keys`, `appName`, `verification`,
+  `confirmationUrl`, `onError`), a `(request) => Promise<Response>` Send
+  Email Hook for `Deno.serve`. It maps every `email_action_type` to a
+  starter-kit key (two sends for a secure email change), builds
+  Supabase's verify link, and answers `200 {}` or
+  `{ error: { http_code, message } }`. Also
+  `verifyStandardWebhook({ payload, headers, secret })` (WebCrypto
+  HMAC-SHA256, `v1,whsec_` secrets, timestamp tolerance, several
+  signatures), `signStandardWebhook`, `WebhookVerificationError` and the
+  pure `planSupabaseSends`. No `node:` imports. See
+  `docs/adapters/supabase.md`.
+
+### Changed
+
+- `typesVersions` maps every subpath (the adapters and `/embed`,
+  `/react`) for `moduleResolution: node10`, the top-level `types` points
+  at the CJS declarations that `main` loads, and `exports` gains
+  `./package.json`. Resolution of `@brew.new/sdk` itself is unchanged.
+- CI checks the packed package: `publint --strict`, `attw --pack` and
+  `scripts/smoke-exports.mjs` (every subpath loads under `import()` and
+  `require()`, the adapters share the root's `BrewApiError` class, no
+  runtime dependencies and no peer but `/react`'s optional `react`).
+
 ## 13.1.0 (not released yet)
 
 App email by trigger key (GetBrew/brew-v2#2013, GetBrew/brew-v2#2017).

@@ -9,6 +9,10 @@ import {
   createApiKeysResource,
 } from './resources/api-keys/resource'
 import {
+  type AppEmailsResource,
+  createAppEmailsResource,
+} from './resources/app-emails/resource'
+import {
   type AudiencesResource,
   createAudiencesResource,
 } from './resources/audiences/resource'
@@ -151,6 +155,15 @@ export type BrewClient = {
    * (`DELETE /v1/api-keys/{keyId}`). Never sends `X-Brand-Id`.
    */
   readonly apiKeys: ApiKeysResource
+  /**
+   * App emails: the emails your code sends by trigger key, set up in one
+   * call. `appEmails.list()` / `.get(triggerKey)` read them with `sender`
+   * and `readiness`; `appEmails.upsert({ triggerKey, ... })` sets up one
+   * (`PUT /v1/app-emails/{triggerKey}`: trigger, contract, design,
+   * published automation); `appEmails.setUpKit({ sets, stack })` sets up
+   * the auth and lifecycle starter kit. Send them with `brew.send`.
+   */
+  readonly appEmails: AppEmailsResource
   readonly audiences: AudiencesResource
   /**
    * Automation graphs plus the nested `automations.triggers.*` (trigger
@@ -303,6 +316,7 @@ function buildClient(
     brands: createBrandsResource(organizationHttpClient),
     analytics: createAnalyticsResource(httpClient),
     apiKeys: createApiKeysResource(organizationHttpClient),
+    appEmails: createAppEmailsResource(httpClient),
     audiences: createAudiencesResource(httpClient),
     automations,
     brand: createBrandResource(httpClient),

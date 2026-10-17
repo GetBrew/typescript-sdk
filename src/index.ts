@@ -64,6 +64,24 @@ export type {
 } from './resources/analytics/types'
 export type { ApiKeysResource } from './resources/api-keys/resource'
 export type * from './resources/api-keys/types'
+// ---------- App emails: set up by trigger key ----------
+export type { GetAppEmailResponse } from './resources/app-emails/get'
+export type {
+  ListAppEmailsInput,
+  ListAppEmailsResponse,
+} from './resources/app-emails/list'
+export type { AppEmailsResource } from './resources/app-emails/resource'
+export {
+  SET_UP_APP_EMAIL_KIT_DEFAULT_TIMEOUT_MS,
+  type SetUpAppEmailKitInput,
+  type SetUpAppEmailKitResponse,
+} from './resources/app-emails/set-up-kit'
+export type * from './resources/app-emails/types'
+export {
+  UPSERT_APP_EMAIL_DEFAULT_TIMEOUT_MS,
+  type UpsertAppEmailInput,
+  type UpsertAppEmailResponse,
+} from './resources/app-emails/upsert'
 export type {
   CreateAudienceInput,
   CreateAudienceResponse,
