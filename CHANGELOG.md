@@ -73,7 +73,11 @@ stack }`, where each result is `ok: true` with the setup result or
   regenerated spec: an automation's Send Email step takes `senderMode`
   (`domain` or `sandbox`; `sandbox` means that until a domain verifies,
   an event automation emails your organization's members only) and
-  automation rows report it; a fire's `notStarted[]` entries gain
+  automation rows report it. `automations.create` and `automations.patch`
+  take it too: `AutomationSendEmailNodeConfig` gains
+  `senderMode?: 'domain' | 'sandbox'`, and a `'sandbox'` step may omit
+  `domainId` (a `'domain'` step, the default, still needs it). A fire's
+  `notStarted[]` entries gain
   `code: 'DOMAIN_REQUIRED'`; `BrewApiError['code']` gains
   `DOMAIN_REQUIRED` (`422`) and `SANDBOX_DAILY_LIMIT` (`429`).
 - **Import modes for a Resend migration** (GetBrew/brew-v2#2064), from the
