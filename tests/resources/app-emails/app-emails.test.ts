@@ -313,6 +313,55 @@ describe('appEmails.upsert', () => {
     ).toBe(true)
   })
 
+  it('sends the import modes on source: props, placeholders and variables', async () => {
+    const bodies: Array<unknown> = []
+    server.use(
+      http.put(`${BASE}/:key`, async ({ request }) => {
+        bodies.push(await request.json())
+        return HttpResponse.json(SETUP_RESULT, { status: 201 })
+      })
+    )
+
+    const appEmails = createAppEmailsResource(makeTestHttpClient().client)
+    await appEmails.upsert({
+      triggerKey: 'order.shipped',
+      source: {
+        format: 'jsx',
+        content: 'export default function E({ orderId }) {}',
+        props: 'merge_tags',
+      },
+    })
+    await appEmails.upsert({
+      triggerKey: 'invoice.ready',
+      source: {
+        format: 'html',
+        content: '<p>Hi {{{FIRST_NAME|there}}}, {{{INVOICE_URL}}}</p>',
+        placeholders: 'resend',
+        variables: [{ key: 'INVOICE_URL', fallbackValue: 'https://acme.dev' }],
+      },
+    })
+
+    expect(bodies).toEqual([
+      {
+        source: {
+          format: 'jsx',
+          content: 'export default function E({ orderId }) {}',
+          props: 'merge_tags',
+        },
+      },
+      {
+        source: {
+          format: 'html',
+          content: '<p>Hi {{{FIRST_NAME|there}}}, {{{INVOICE_URL}}}</p>',
+          placeholders: 'resend',
+          variables: [
+            { key: 'INVOICE_URL', fallbackValue: 'https://acme.dev' },
+          ],
+        },
+      },
+    ])
+  })
+
   it('sends {} for a starter-kit key alone, and a re-run answers 200 (status on raw)', async () => {
     let body: unknown
     server.use(
@@ -557,5 +606,17 @@ describe('appEmails public types', () => {
     expectTypeOf<Extract<AppEmailKitResult, { ok: true }>>().toHaveProperty(
       'fireExample'
     )
+  })
+
+  it('types the import modes a source takes', () => {
+    type Source = NonNullable<UpsertAppEmailInput['source']>
+    expectTypeOf<Source['props']>().toEqualTypeOf<
+      'fold' | 'merge_tags' | undefined
+    >()
+    expectTypeOf<Source['placeholders']>().toEqualTypeOf<'resend' | undefined>()
+    expectTypeOf<NonNullable<Source['variables']>[number]>().toEqualTypeOf<{
+      key: string
+      fallbackValue?: string
+    }>()
   })
 })
