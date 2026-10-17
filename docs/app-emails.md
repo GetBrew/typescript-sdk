@@ -42,8 +42,9 @@ A setup imports a design, so `upsert` and `setUpKit` also need the
 `{ raw: true }` in `options` for `{ data, status, headers, requestId }`.
 
 > **Availability.** These routes ship in the Brew platform release that
-> deploys GetBrew/brew-v2#2066. SDK 13.2.0 is not released before that
-> deploy: until then each route answers `404`.
+> deploys GetBrew/brew-v2#2066, and the `source` import modes with
+> GetBrew/brew-v2#2145. SDK 13.2.0 is not released before those deploys:
+> until then each route answers `404`.
 
 ## `upsert`: one key
 
@@ -69,8 +70,9 @@ The design comes from one of:
   default to their own starter, so `{ triggerKey }` is the whole call.
 - **`starter`.** Any kit template on a key of your own. On a kit key it
   must equal the key.
-- **`source`.** Your own `{ format: 'html' | 'mjml' | 'jsx', content }`.
-  Merge tags such as `{{ trigger.orderId }}` read the payload.
+- **`source`.** Your own `{ format: 'html' | 'mjml' | 'jsx', content }`,
+  plus the import modes below. Merge tags such as `{{ trigger.orderId }}`
+  read the payload.
 
 Pass at most one of `starter` and `source`. The other fields:
 
@@ -109,6 +111,28 @@ await brew.appEmails.upsert({
       },
     ],
   },
+})
+```
+
+**Import modes.** A `source` takes the same modes as `emails.import`, so a
+template moved from Resend keeps its variables as merge tags instead of
+fixed text:
+
+- `props: 'merge_tags'` (`jsx` only): the root component's props become
+  `{{ trigger.<name> }}` merge tags filled from the payload, with defaults
+  and `??` literals as fallbacks. The default, `fold`, folds each prop to its
+  `PreviewProps` value or default.
+- `placeholders: 'resend'`: Resend placeholders (`{{{NAME}}}`,
+  `{{{NAME|fallback}}}`) become `{{ trigger.NAME }}`; `FIRST_NAME`,
+  `LAST_NAME` and `EMAIL` read the contact.
+- `variables: [{ key, fallbackValue? }]`: fallback text for variables the
+  source gives none, such as a Resend template's `variables`. Needs
+  `placeholders` or `props: 'merge_tags'`.
+
+```ts
+await brew.appEmails.upsert({
+  triggerKey: 'order.shipped',
+  source: { format: 'jsx', content: orderShippedJsx, props: 'merge_tags' },
 })
 ```
 
