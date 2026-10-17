@@ -163,7 +163,7 @@ const { results, stack } = await brew.appEmails.setUpKit({
 for (const result of results) {
   if (!result.ok) console.warn(result.triggerKey, result.error.code)
 }
-stack.authDelivery // 'code' for every stack today
+stack.authDelivery // 'hosted-webhook' for supabase and clerk, else 'code'
 stack.snippets // [{ title, file, code }] for your auth library
 ```
 
@@ -172,13 +172,15 @@ stack.snippets // [{ title, file, code }] for your auth library
   `lifecycle` (welcome, trial ending, payment failed, win-back).
 - `stack`: `better-auth`, `authjs`, `supabase`, `clerk`, `firebase` or
   `custom`. It narrows the auth keys to the ones that library sends and
-  picks the code snippets. Supabase gets a Send Email Hook to deploy as a
-  Supabase Edge Function ([`@brew.new/sdk/supabase`](./adapters/supabase.md))
-  that sends every auth email with Brew. Clerk keeps sending its own auth
-  emails, so a `clerk` run sets up the lifecycle emails only. Every stack
-  answers `authDelivery: 'code'`; `'hosted-webhook'` is reserved for a
-  provider that hands its auth emails to Brew directly, which none does
-  yet.
+  picks the code snippets. Supabase and Clerk hand their auth emails to
+  Brew (`authDelivery: 'hosted-webhook'`): connect them with
+  [`brew.integrations.connect`](./integrations.md), which also runs this
+  kit for their auth keys. Supabase can instead self-host its Send Email
+  Hook as an Edge Function
+  ([`@brew.new/sdk/supabase`](./adapters/supabase.md); the snippets carry
+  it). For Clerk, turn off Clerk's own delivery for the templates
+  `stack.note` lists. Every other stack answers `authDelivery: 'code'`:
+  your app fires the auth keys.
 - `keys`: exactly these kit keys, instead of `sets` and `stack`.
 - `domainId`, `overwrite`: applied to every key, as in `upsert`.
 
