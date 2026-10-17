@@ -84,6 +84,26 @@ cap). The setup calls need the `automations` and `emails` scopes and
 default to a 5-minute timeout. They ship with Brew platform release
 GetBrew/brew-v2#2169. See [`docs/app-emails.md`](./docs/app-emails.md).
 
+### Hosted auth hooks: Supabase Auth and Clerk
+
+Supabase Auth and Clerk can hand every auth email to Brew directly. One
+call stores the provider's signing secret, sets up its auth app emails
+and returns the URL to paste into the provider:
+
+```ts
+const { webhookUrl, authEmails } = await brew.integrations.connect({
+  provider: 'supabase_auth', // or 'clerk'
+  signingSecret: process.env.SUPABASE_SEND_EMAIL_HOOK_SECRET!, // v1,whsec_…
+})
+
+const { status } = await brew.integrations.getConnection('supabase_auth')
+```
+
+The secret goes in the request body only; the SDK never logs it or puts it
+in an error. It needs the `emails` and `automations` scopes and ships with
+Brew platform release GetBrew/brew-v2#2146. See
+[`docs/integrations.md`](./docs/integrations.md).
+
 ## Adapters
 
 Subpath exports that wire `brew.send` into the libraries apps already use.
@@ -212,6 +232,7 @@ controller is available from `@brew.new/sdk/embed`.
 | ---------------------------------- | ---------------------------------------------------------------------- |
 | `brew.send` (app email by key)     | [`docs/send.md`](./docs/send.md)                                       |
 | App emails (set up by key)         | [`docs/app-emails.md`](./docs/app-emails.md)                           |
+| Hosted auth hooks (integrations)   | [`docs/integrations.md`](./docs/integrations.md)                       |
 | Resend adapter                     | [`docs/adapters/resend.md`](./docs/adapters/resend.md)                 |
 | Better Auth adapter                | [`docs/adapters/better-auth.md`](./docs/adapters/better-auth.md)       |
 | Auth.js (next-auth) adapter        | [`docs/adapters/auth-js.md`](./docs/adapters/auth-js.md)               |
