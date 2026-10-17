@@ -217,7 +217,12 @@ export type BrewClient = {
    * report, suggestions and memo on request. Free and read-only.
    */
   readonly insights: InsightsResource
-  /** `GET /v1/integrations` — the product integration catalog for the brand in scope, with a `connected` flag per provider. */
+  /**
+   * `GET /v1/integrations` — the product integration catalog for the brand
+   * in scope, with a `connected` flag per provider — plus the hosted auth
+   * email hooks (`connect`, `getConnection` on
+   * `/v1/integrations/{provider}/connection`).
+   */
   readonly integrations: IntegrationsResource
   /**
    * `GET /v1/notifications` — the brand's notifications as the app's bell
