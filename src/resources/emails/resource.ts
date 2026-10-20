@@ -31,7 +31,7 @@ export type EmailsResource = {
   readonly get: ReturnType<typeof createGetEmail>
   /** `POST /v1/emails` — generate an email from a prompt (scope: `emails`). */
   readonly generate: ReturnType<typeof createGenerateEmail>
-  /** `POST /v1/emails/import` — import existing `html`/`jsx` as a new editable design (scope: `emails`). */
+  /** `POST /v1/emails/import` — import existing `html`/`mjml`/`jsx`/`eml` as a new editable design (scope: `emails`). */
   readonly import: ReturnType<typeof createImportEmail>
   /** `POST /v1/emails/figma` — deterministically convert a Figma frame into a new editable design; no model in the loop, and FREE (scope: `emails`). */
   readonly importFigma: ReturnType<typeof createImportFigmaDesign>

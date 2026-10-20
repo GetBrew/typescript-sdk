@@ -82,6 +82,9 @@ Every failure a public method gives up on is typed (`docs/errors.md`):
   `BrewApiError`: there is no status to report, and the public docs route
   `BrewApiError` and plain `Error` down different branches.
 - `BrewParseError` — a complete 2xx body that is not JSON.
+- `BrewBrandExtractionTimeoutError` — the total `brands.waitForExtraction`
+  deadline elapsed; `lastStatus` carries the latest observed lifecycle row.
+  Extraction may continue on the server; ordinary API/transport errors stay unchanged.
 - A caller abort rethrows the signal's `reason` verbatim — the one value a
   public path throws that may not be an `Error`, because `fetch` does the
   same and callers compare against it.

@@ -5,18 +5,17 @@ import type { BrewRawResponse, RequestOptions } from '../../types'
 /**
  * Body for `POST /v1/emails/import` — import an existing email as a new
  * saved design. Provide the raw `content` (as a string) and its `format`
- * (`'html'`, `'mjml'`, or `'jsx'`); optionally a `title` and a `baseUrl`
+ * (`'html'`, `'mjml'`, `'jsx'`, or `'eml'`); optionally a `title` and a `baseUrl`
  * used to resolve relative asset URLs in the source.
  */
 export type EmailImportInput = components['schemas']['EmailImportRequest']
 
 /**
  * Mirrors the generate response: the persisted design's identity, the
- * pinned `emailVersionId`, the rendered `html`, and `previewImage` when
- * one was captured.
+ * pinned `emailVersionId`, the rendered `html`, `previewImage` when one was
+ * captured, and an `assetReport` describing rehosted, retained and removed assets.
  */
-export type EmailImportResponse =
-  components['schemas']['EmailGenerateGeneratedResponse']
+export type EmailImportResponse = components['schemas']['EmailImportResponse']
 
 /**
  * Default per-call timeout for `POST /v1/emails/import`.
@@ -33,9 +32,9 @@ export const IMPORT_EMAIL_DEFAULT_TIMEOUT_MS = 300_000
 
 /**
  * `POST /v1/emails/import` (scope: `emails`) — import existing markup
- * (raw `html`, `mjml`, or React-Email `jsx`) as a new editable Brand
- * design, returning the same shape as `brew.emails.generate(...)`: `emailId`,
- * the pinned `emailVersionId`, the rendered `html`, and `previewImage`.
+ * (raw `html`, `mjml`, React-Email `jsx`, or RFC 822 `eml`) as a new editable
+ * brand design, returning `emailId`, the pinned `emailVersionId`, the rendered
+ * `html`, `previewImage`, group metadata and an `assetReport`.
  * Resolves with HTTP 201.
  *
  * The brand is resolved from the API key — the body does not accept a

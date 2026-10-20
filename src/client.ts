@@ -284,7 +284,7 @@ function buildClient(
       }
       return buildClient({ ...config, brandId }, tuning)
     },
-    brands: createBrandsResource(organizationHttpClient),
+    brands: createBrandsResource(organizationHttpClient, config.signal),
     analytics: createAnalyticsResource(httpClient),
     apiKeys: createApiKeysResource(organizationHttpClient),
     audiences: createAudiencesResource(httpClient),

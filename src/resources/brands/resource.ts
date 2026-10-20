@@ -3,6 +3,7 @@ import type { HttpClient } from '../../core/http'
 import { createCreateBrand } from './create'
 import { createGetBrand } from './get'
 import { createListBrands } from './list'
+import { createWaitForExtraction } from './wait-for-extraction'
 
 /**
  * Brand LIFECYCLE — an ORGANIZATION-level resource in the SDK.
@@ -18,12 +19,18 @@ export type BrandsResource = {
   readonly create: ReturnType<typeof createCreateBrand>
   /** `GET /v1/brands/{brandId}` — permission-agnostic lifecycle poll for `create`. */
   readonly get: ReturnType<typeof createGetBrand>
+  /** Poll lifecycle status until extraction ends, with a total deadline. Inspect the returned `ready` flag. */
+  readonly waitForExtraction: ReturnType<typeof createWaitForExtraction>
 }
 
-export function createBrandsResource(client: HttpClient): BrandsResource {
+export function createBrandsResource(
+  client: HttpClient,
+  clientSignal?: AbortSignal
+): BrandsResource {
   return {
     list: createListBrands(client),
     create: createCreateBrand(client),
     get: createGetBrand(client),
+    waitForExtraction: createWaitForExtraction(client, clientSignal),
   }
 }

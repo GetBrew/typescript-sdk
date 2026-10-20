@@ -104,8 +104,13 @@ describe('client.withBrand', () => {
 })
 
 describe('brands resource', () => {
-  it('exposes list, create, and get', () => {
+  it('exposes lifecycle reads, creation, and bounded extraction waiting', () => {
     const brew = createBrewClient({ apiKey: 'brew_test_abc' })
-    expect(Object.keys(brew.brands).sort()).toEqual(['create', 'get', 'list'])
+    expect(Object.keys(brew.brands).sort()).toEqual([
+      'create',
+      'get',
+      'list',
+      'waitForExtraction',
+    ])
   })
 })
