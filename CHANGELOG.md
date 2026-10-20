@@ -4,8 +4,7 @@
 
 App email by trigger key (GetBrew/brew-v2#2013, GetBrew/brew-v2#2017).
 Additive: nothing is removed or renamed. This is a minor release after
-13.0.0, the canvas `revoke` change listed under Unreleased below; cut that
-first. Publish only once both API pull requests are deployed and the live
+13.0.0. Publish only once both API pull requests are deployed and the live
 spec matches the vendored one: until then
 `POST /v1/automations/triggers/by-key/{triggerKey}/fire` answers `404`. The
 spec is brew-v2 `main` at `8c7020e535` plus the operations and schemas from
