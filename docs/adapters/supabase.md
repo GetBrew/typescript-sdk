@@ -30,10 +30,10 @@ The hook verifies the Standard Webhooks signature, maps
 
 | `email_action_type` | Key                     | Recipient and payload                                                 |
 | ------------------- | ----------------------- | --------------------------------------------------------------------- |
-| `signup`            | `auth.verify-email`     | `user.email`: `confirmationUrl`                                       |
-| `recovery`          | `auth.password-reset`   | `user.email`: `confirmationUrl`                                       |
-| `magiclink`         | `auth.magic-link`       | `user.email`: `confirmationUrl`                                       |
-| `invite`            | `auth.invite`           | `user.email`: `confirmationUrl`                                       |
+| `signup`            | `auth.verify-email`     | `user.email`: `confirmationUrl`, `otp`                                |
+| `recovery`          | `auth.password-reset`   | `user.email`: `confirmationUrl`, `otp`                                |
+| `magiclink`         | `auth.magic-link`       | `user.email`: `confirmationUrl`, `otp`                                |
+| `invite`            | `auth.invite`           | `user.email`: `confirmationUrl`, `otp`                                |
 | `email_change`      | `auth.email-change`     | see below                                                             |
 | `reauthentication`  | `auth.reauthentication` | `user.email`: `otp`                                                   |
 | `email`             | `auth.otp`              | `user.email`: `otp`                                                   |
@@ -74,31 +74,40 @@ createSupabaseSendEmailHook({
 })
 ```
 
-**Codes in link emails.** Link emails carry the link only
-(`verification: 'link'`, the default), as Supabase's default templates do.
-With `verification: 'code'` they also carry the six-digit code as `otp`,
-and the starter kit's designs show the code instead of the button: use it
-when your app confirms with `verifyOtp({ email, token, type })`. An email
-with no token hash to build a link from carries the code either way.
+**Codes in link emails.** Link emails carry the link and, when Supabase
+sent one, the six-digit code as `otp`, as Brew's hosted Supabase hook does:
+an app that confirms with `verifyOtp({ email, token, type })` needs the
+code, and the starter kit's designs show both. An email with no token hash
+to build a link from carries the code alone.
 
 ## Answers
 
-| Outcome                              | Status | Body                                     |
-| ------------------------------------ | ------ | ---------------------------------------- |
-| Every email accepted                 | `200`  | `{}`                                     |
-| Bad or missing signature, stale time | `401`  | `{ error: { http_code: 401, message } }` |
-| A body it cannot use, unknown action | `400`  | `{ error: { http_code: 400, message } }` |
-| A secret that is not `v1,whsec_…`    | `500`  | `{ error: { http_code: 500, message } }` |
-| Brew refused or could not be reached | `500`  | `{ error: { http_code: 500, message } }` |
-| Not a `POST`                         | `405`  | `{ error: { http_code: 405, message } }` |
+Supabase Auth reads a hook's body only when it answers `200`; any other
+status becomes a generic 500 and the message is lost. So every refusal is a
+`200` whose `{ error: { http_code, message } }` fails the auth request with
+that status and message, and only a failure a retry may get past answers
+`503` with `Retry-After`, which Supabase retries at once (at most 3
+attempts in 5 seconds).
 
-On an error Supabase reports the email as not sent. Each send carries an
-idempotency key hashed from its token hash (or, for codes and notices,
-the code and the `webhook-id`), so the client's retries of a send never
-email twice. A code repeats across requests, so a code email, including
-a link email sent as a code because no link could be built, is keyed per
-request. `onError(error)` sees every failure (default `console.error`);
-one that throws is logged, and the hook still answers its error.
+| Outcome                                               | Status | Body                                        |
+| ----------------------------------------------------- | ------ | ------------------------------------------- |
+| Every email accepted                                  | `200`  | `{}`                                        |
+| Bad or missing signature, stale time                  | `200`  | `{ error: { http_code: 401, message } }`    |
+| A body it cannot use, unknown action                  | `200`  | `{ error: { http_code: 400, message } }`    |
+| Brew refused (`422`, `404`, a daily sandbox cap …)    | `200`  | `{ error: { http_code: status, message } }` |
+| Brew refused the API key (`401` / `403`)              | `200`  | `{ error: { http_code: 500, message } }`    |
+| A secret that is not `v1,whsec_…`, anything else      | `200`  | `{ error: { http_code: 500, message } }`    |
+| Timeout, dropped connection, Brew `5xx` or rate limit | `503`  | `{ error: { http_code: 503, message } }`    |
+| Not a `POST` (not a hook call)                        | `405`  | `{ error: { http_code: 405, message } }`    |
+
+Supabase signs each retry with a new `webhook-id` but the same body, so
+every send's idempotency key hashes the call's id instead:
+`supabaseHookCallId({ payload, secret })`, an HMAC of the raw body under
+the hook secret (it reveals nothing about a code). Supabase's retries and
+the client's own replay the same send; a new call (a new token, or new user
+state for a notice) sends again. `onError(error)` sees every failure
+(default `console.error`); one that throws is logged, and the hook still
+answers its error.
 
 ## Options
 
@@ -108,7 +117,6 @@ one that throws is logged, and the hook still answers its error.
 | `secret`          | required            | The hook secret: `v1,whsec_<base64>`.                            |
 | `keys`            | starter kit         | Rename a key: `{ verifyEmail: 'acme.confirm' }`.                 |
 | `appName`         | none                | Sent as `appName`. Optional: the designs use the brand name.     |
-| `verification`    | `'link'`            | `'code'` adds `otp` to link emails.                              |
 | `confirmationUrl` | Supabase verify URL | Builds the link from `{ siteUrl, tokenHash, type, redirectTo }`. |
 | `onError`         | `console.error`     | Called with each failure the hook answers with an error.         |
 
@@ -124,5 +132,6 @@ returns the parsed JSON body. It throws `WebhookVerificationError` with a
 `timestamp_out_of_tolerance`, `invalid_signature`, `invalid_secret` or
 `invalid_payload`. `payload` must be the raw body (`await request.text()`).
 
-`planSupabaseSends(body, options)` is the hook's pure mapping, exported
-for a handler of your own.
+`planSupabaseSends(body, { appName, confirmationUrl, callId })` is the
+hook's pure mapping, exported for a handler of your own; pass
+`supabaseHookCallId` of the raw body as `callId`.
