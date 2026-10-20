@@ -175,9 +175,9 @@ Use `bun run format` only as an intentional formatting write.
 `src/index.ts` owns public exports; `src/client.ts` composes the resources.
 `src/core/` owns transport, retries, deadlines, errors, and pagination.
 `src/resources/` owns thin resource methods; `src/adapters/` the subpaths,
-which load the SDK only as `@brew.new/sdk`
+loading the SDK only as `@brew.new/sdk`
 ([why](docs/development.md#subpath-adapters)). `tests/` owns hermetic
 Vitest/MSW and deliberate loopback tests. The
 [development guide](docs/development.md) explains generation and the
 contribution workflow. Never hand-edit `src/generated/`; regenerate it from
-the vendored OpenAPI spec.
+the vendored spec.
