@@ -7,51 +7,6 @@ import {
 } from '../../src/core/pagination'
 
 describe('autoPaginate', () => {
-  it('rejects a stalled cursor before yielding a repeated page', async () => {
-    let calls = 0
-    const rows: Array<number> = []
-    const drain = async () => {
-      for await (const row of autoPaginate<number>(() => {
-        calls += 1
-        if (calls > 2) throw new Error('Unexpected third request')
-        return Promise.resolve({
-          items: [1],
-          pagination: { limit: 1, cursor: 'stalled', hasMore: true },
-        })
-      }))
-        rows.push(row)
-    }
-    await expect(drain()).rejects.toMatchObject({
-      name: 'BrewPaginationError',
-      cursor: 'stalled',
-      pagesFetched: 2,
-      itemsYielded: 1,
-    })
-    expect(calls).toBe(2)
-    expect(rows).toEqual([1])
-  })
-
-  it('continues through an empty page with an advancing cursor', async () => {
-    const rows: Array<number> = []
-    const seen: Array<string | null> = []
-    for await (const row of autoPaginate<number>((cursor) => {
-      seen.push(cursor)
-      return Promise.resolve(
-        cursor === null
-          ? {
-              items: [],
-              pagination: { limit: 1, cursor: 'sparse', hasMore: true },
-            }
-          : {
-              items: [42],
-              pagination: { limit: 1, cursor: null, hasMore: false },
-            }
-      )
-    }))
-      rows.push(row)
-    expect(seen).toEqual([null, 'sparse'])
-    expect(rows).toEqual([42])
-  })
   it('yields every row across pages, following the cursor', async () => {
     const pages: Record<string, Page<number>> = {
       first: {

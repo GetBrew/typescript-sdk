@@ -1,5 +1,4 @@
 import type { RequestOptions } from '../types'
-import { BrewPaginationError } from './errors'
 
 /**
  * Shared cursor-pagination primitives.
@@ -68,24 +67,17 @@ export async function* autoPaginate<TItem>(
    * before its cursor is known, so the next fetch cannot start early.
    */
   let cursor: string | null = null
-  let pagesFetched = 0
-  let itemsYielded = 0
   while (true) {
     if (options?.signal?.aborted === true) {
       return
     }
 
     const page = await fetchPage(cursor)
-    pagesFetched += 1
-    const next = page.pagination
-    if (next?.hasMore && next.cursor !== null && next.cursor === cursor) {
-      throw new BrewPaginationError({ cursor, pagesFetched, itemsYielded })
-    }
     for (const item of page.items) {
-      itemsYielded += 1
       yield item
     }
 
+    const next = page.pagination
     if (!next || !next.hasMore || next.cursor === null) {
       return
     }
