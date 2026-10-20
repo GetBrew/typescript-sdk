@@ -56,11 +56,9 @@ positionally, then `options?` — `emails.get(emailId, { include })`,
 `sends.cancel(sendId)`, `automations.runs.cancel(automationRunId, { reason })`,
 `emails.inboxPlacementTests.get(emailId, testId)`. The identity rides the URL
 path on the wire, so there is no domain object to name it in; wrapping a single
-string in `{ emailId }` would make every detail read read worse than the REST
+string in `{ emailId }` would make every detail read worse than the REST
 call it stands for. Anything with a request body or a query still takes the
-object.
-
-`brew.send(key, payload)` is the one exception
+object. `brew.send(key, payload)` is the other exception
 ([why](docs/development.md#the-brewsend-exception)).
 
 ## Async patterns
@@ -171,8 +169,7 @@ bun run format:check     # read-only formatting check
 bun run test -- tests/<file>.test.ts  # relevant tests
 ```
 
-Use `bun run format` only as an intentional formatting write. Generated types
-are regenerated from the vendored spec, never edited by hand.
+Use `bun run format` only as an intentional formatting write.
 
 > **Trap**: `bun test` (without `run`) invokes Bun's built-in test runner,
 > which ignores `vitest.config.ts` and `tests/setup.ts`, so MSW never
