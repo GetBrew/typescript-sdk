@@ -24,6 +24,9 @@ import type { BrewRawResponse, RequestOptions } from '../../types'
  *   day over 12 anywhere in the column overrides it. Without it such a
  *   column reads month-first and the response carries a
  *   `DATE_ORDER_ASSUMED` warning naming the field.
+ * - `fileName` names the batch in Brew's Import History and is stamped on
+ *   every contact it writes as `csvFileName`; the response's `importId` is
+ *   the batch's id, carried by every contact it wrote.
  */
 export type ImportCsvContactsInput =
   components['schemas']['ContactsImportCsvRequest']
@@ -43,13 +46,13 @@ export type ImportCsvWarning = ImportCsvContactsResponse['warnings'][number]
 /**
  * Bulk-import contacts from a raw CSV string.
  *
- * The wire format is `{ csv, mapping?, validate?, consent?, dateOrder? }`.
+ * The wire format is `{ csv, mapping?, validate?, consent?, dateOrder?, fileName? }`.
  * The server parses the CSV,
  * auto-defines any custom fields it finds (returned in `fieldsCreated`),
  * and upserts each row.
  *
  * Returns the full `ContactsImportCsvResponse` envelope: a `summary`
- * (inserted/updated/failed/skipped counts), `fieldsCreated`, a per-row
+ * (inserted/updated/failed/skipped counts), the batch's `importId`, `fieldsCreated`, a per-row
  * `errors` array, and a `warnings` array surfacing non-fatal
  * normalizations. The response is the same shape on full and partial
  * success — inspect `summary.failed` and `errors` to detect row-level

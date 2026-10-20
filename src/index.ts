@@ -292,6 +292,10 @@ export type {
   GetContactResponse,
 } from './resources/contacts/get'
 export type {
+  ImportContactsInput,
+  ImportContactsResponse,
+} from './resources/contacts/import'
+export type {
   ImportCsvContactsInput,
   ImportCsvContactsResponse,
   ImportCsvError,

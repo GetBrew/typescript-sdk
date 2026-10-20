@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Added
+
+- `brew.contacts.import({ contacts, consent?, validate?, fileName? })` calls
+  `POST /v1/contacts/import`: the JSON twin of `importCsv`, recorded as one
+  batch in Brew's Import History. `ImportContactsInput` and
+  `ImportContactsResponse` are exported from the package root.
+- `importCsv` takes `fileName`, the name the batch is listed under in Import
+  History (also stamped on each contact as `csvFileName`). Both imports return
+  the batch's `importId`, which every contact they write carries.
+
 ### Fixed
 
 - `canvas.sessions.revoke` preserves the API's `{ revoked: boolean }` response
