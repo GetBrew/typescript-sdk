@@ -89,16 +89,16 @@ that status and message, and only a failure a retry may get past answers
 `503` with `Retry-After`, which Supabase retries at once (at most 3
 attempts in 5 seconds).
 
-| Outcome                                               | Status | Body                                        |
-| ----------------------------------------------------- | ------ | ------------------------------------------- |
-| Every email accepted                                  | `200`  | `{}`                                        |
-| Bad or missing signature, stale time                  | `200`  | `{ error: { http_code: 401, message } }`    |
-| A body it cannot use, unknown action                  | `200`  | `{ error: { http_code: 400, message } }`    |
-| Brew refused (`422`, `404`, a daily sandbox cap …)    | `200`  | `{ error: { http_code: status, message } }` |
-| Brew refused the API key (`401` / `403`)              | `200`  | `{ error: { http_code: 500, message } }`    |
-| A secret that is not `v1,whsec_…`, anything else      | `200`  | `{ error: { http_code: 500, message } }`    |
-| Timeout, dropped connection, Brew `5xx` or rate limit | `503`  | `{ error: { http_code: 503, message } }`    |
-| Not a `POST` (not a hook call)                        | `405`  | `{ error: { http_code: 405, message } }`    |
+| Outcome                                              | Status | Body                                        |
+| ---------------------------------------------------- | ------ | ------------------------------------------- |
+| Every email accepted                                 | `200`  | `{}`                                        |
+| Bad or missing signature, stale time                 | `200`  | `{ error: { http_code: 401, message } }`    |
+| A body it cannot use, unknown action                 | `200`  | `{ error: { http_code: 400, message } }`    |
+| Brew refused (`422`, `404`, `429` rate limit or cap) | `200`  | `{ error: { http_code: status, message } }` |
+| Brew refused the API key (`401` / `403`)             | `200`  | `{ error: { http_code: 500, message } }`    |
+| A secret that is not `v1,whsec_…`, anything else     | `200`  | `{ error: { http_code: 500, message } }`    |
+| Timeout, dropped connection or Brew `5xx`            | `503`  | `{ error: { http_code: 503, message } }`    |
+| Not a `POST` (not a hook call)                       | `405`  | `{ error: { http_code: 405, message } }`    |
 
 Supabase signs each retry with a new `webhook-id` but the same body, so
 every send's idempotency key hashes the call's id instead:
