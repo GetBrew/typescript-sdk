@@ -22,7 +22,7 @@ export {
 } from './core/errors'
 export type { Pagination, PaginationInput } from './core/pagination'
 // ---------- Pagination ----------
-export { autoPaginate } from './core/pagination'
+export { autoPaginate, BrewPaginationError } from './core/pagination'
 // Recursive JSON payload value for `emails.send` / `automations.triggers.fire`
 // (replaces the removed `TransactionalPayloadValue`).
 export type { SendPayloadValue } from './generated/openapi-types'

@@ -38,9 +38,8 @@ export type SearchAllContactsInput = Readonly<
  *   `search` are still yielded by the loop, but no further fetches are
  *   issued.
  *
- * This is the filtered counterpart to `brew.contacts.listAll`: filtering
- * moved off the list query onto the search endpoint, so any iteration
- * that needs filters/search/sort goes through here.
+ * Filtering lives on the search endpoint, so iteration that needs
+ * filters/search/sort goes through here.
  *
  * Example:
  * ```ts
