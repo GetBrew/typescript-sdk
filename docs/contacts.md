@@ -605,18 +605,29 @@ if (result.notFound.length > 0) {
 ## `validate`
 
 Deliverability-check up to 100 addresses before importing or sending:
-each is `valid`, `risky` or `invalid`, with a `reason`, a `didYouMean`
-typo correction and `risk`, `isDisposable` and `isRole` flags. The verdict
-is also saved onto any matching existing contacts. Metered 2 credits per
-address, charged only on success; a check that cannot complete answers a
-retryable `503` and is not billed.
+Completed checks have `checkOutcome: "completed"` and a `valid`, `risky`
+or `invalid` verdict, with optional reason, typo correction and provider flags.
+Unscored addresses have `checkOutcome: "unavailable"` and
+`status: "risky"`; their previous stored verdict remains unchanged.
+`persistence` reports matching contacts, modified profiles and failed saves.
+Inspect it separately from provider verdicts. A batch with at least one scored
+address costs 2 credits per submitted address, including unavailable rows in a
+partial outage. Completed checks that produce no scored verdict waive the charge.
+A wholly unavailable batch answers retryable `503` and is not billed.
 
 ```ts
-const { data } = await brew.contacts.validate({
+const { data, persistence } = await brew.contacts.validate({
   emails: ['jane@example.com', 'bo@exampel.com'],
 })
 for (const result of data) {
+  if (result.checkOutcome === 'unavailable') {
+    console.log(result.email, 'Check unavailable; stored verdict unchanged')
+    continue
+  }
   console.log(result.email, result.status, result.didYouMean)
+}
+if (persistence.failed > 0) {
+  console.log(`${persistence.failed} verdicts could not be saved`)
 }
 ```
 

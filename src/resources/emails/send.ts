@@ -91,9 +91,11 @@ export type SendEmailStatus = SendEmailResponse['status']
  * the single polymorphic send endpoint, discriminated by `test`:
  *
  * - Pass `{ test: true, ... }` for a one-off TEST delivery to a single
- *   `to` address. Forces the Brew default sender (no verified domain or
- *   audience required) and never creates a send row. Resolves
- *   synchronously (HTTP 200) with `{ status: 'completed', recipient }`.
+ *   `to` address. Omit `domainId` for the Brew default sender, or supply a
+ *   verified, org-owned sending domain. Invalid domains are rejected. No
+ *   audience is required, and it never creates a send row. Real test
+ *   deliveries count toward send usage. Resolves synchronously (HTTP 200)
+ *   with `{ status: 'completed', recipient }`.
  * - Otherwise it is a real campaign send: provide a recipient target
  *   (`audienceId` or inline `to`) and the verified `domainId`. A design
  *   can be sent unlimited times; every call mints a new send. This

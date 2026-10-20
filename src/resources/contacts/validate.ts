@@ -29,7 +29,8 @@ export type ContactValidationResult = ValidateContactsResponse['data'][number]
  *
  * The wire format is `{ emails: [...] }`. Each address comes back in
  * `data` with a `valid` boolean, a `status` of `valid` | `risky` |
- * `invalid`, an optional machine-readable `reason`, a `didYouMean` typo
+ * `invalid`, a `checkOutcome` of `completed` | `unavailable`,
+ * an optional machine-readable `reason`, a `didYouMean` typo
  * correction when the address looks mistyped, and — when the provider
  * supplies them — a `risk` band (`low` | `medium` | `high` | `unknown`),
  * an `isDisposable` flag, and an `isRole` flag. Order is not guaranteed to
@@ -41,12 +42,14 @@ export type ContactValidationResult = ValidateContactsResponse['data'][number]
  * `validationDetails` / `lastValidatedAt`. Addresses that do not match an
  * existing contact are scored and returned but create no contact.
  *
- * Metered 2 credits per address, charged only on success (a total-outage
- * batch returns a retryable `503` and is not billed).
+ * Metered 2 credits per submitted address when any address has a scored
+ * verdict. Completed checks with no scored verdict waive the charge; a
+ * total-outage batch returns a retryable `503` and is not billed.
  *
- * Returns the full `ContactsValidateResponse` envelope (`{ data, persistence }`):
- * `persistence` counts the stored contacts the verdicts `matched`,
- * `modified` and `failed` to update.
+ * Returns the full `ContactsValidateResponse` envelope (`{ data, persistence }`).
+ * `persistence` reports matched, modified and failed update-only writes. A
+ * partial provider outage returns unavailable rows without changing their
+ * stored verdict; a total outage returns 503.
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<ValidateContactsResponse>` instead of the unwrapped
