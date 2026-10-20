@@ -106,6 +106,7 @@ when Brew answered (share the request id with support).
 | `IDEMPOTENCY_CONFLICT`                                            | `invalid_idempotent_request`     |
 | `IDEMPOTENCY_IN_PROGRESS`                                         | `concurrent_idempotent_requests` |
 | Any other `4xx` (`INVALID_PAYLOAD`, `NO_PUBLISHED_AUTOMATION`, …) | `validation_error`               |
+| Refused before sending (a blank or over-long `idempotencyKey`)    | `validation_error`               |
 | `5xx`, a timeout or a dropped connection (`statusCode: null`)     | `application_error`              |
 
 ## What does not carry over
