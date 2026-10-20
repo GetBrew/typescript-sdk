@@ -15,7 +15,7 @@ import type { BrewRawResponse, RequestOptions } from '../../types'
  *   response gains a `validation` counts object
  *   (`{ valid, risky, invalid, unscored }`); >100 addresses import first,
  *   then validate as a BACKGROUND job and the response gains a
- *   `validationJobId` instead. Metered 2 credits per CSV row, charged only
+ *   `validationJobId` instead. Metered 2 credits per CSV data row (rows skipped for a missing or invalid email, and repeated addresses, count), charged only
  *   on success; insufficient credits fail with `402 INSUFFICIENT_CREDITS`.
  * - `consent` stamps a marketing consent record on every imported row
  *   (typically `{ source: 'import' }`).
@@ -64,7 +64,7 @@ export type ImportCsvWarning = ImportCsvContactsResponse['warnings'][number]
  * persist the verdict onto each contact. ≤100 addresses validate inline and
  * the envelope gains a `validation` counts object; >100 addresses import
  * first then validate as a background job and the envelope gains a
- * `validationJobId` instead. Metered 2 credits per CSV row, charged only on
+ * `validationJobId` instead. Metered 2 credits per CSV data row (rows skipped for a missing or invalid email, and repeated addresses, count), charged only on
  * success; insufficient credits fail with `402 INSUFFICIENT_CREDITS`.
  *
  * Pass `{ raw: true }` in `options` to receive the full
