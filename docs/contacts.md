@@ -610,9 +610,10 @@ or `invalid` verdict, with optional reason, typo correction and provider flags.
 Unscored addresses have `checkOutcome: "unavailable"` and
 `status: "risky"`; their previous stored verdict remains unchanged.
 `persistence` reports matching contacts, modified profiles and failed saves.
-Inspect it separately from provider verdicts. A successful batch costs 2 credits
-per submitted address, including unavailable rows in a partial outage. A wholly
-unavailable batch answers retryable `503` and is not billed.
+Inspect it separately from provider verdicts. A batch with at least one scored
+address costs 2 credits per submitted address, including unavailable rows in a
+partial outage. Completed checks that produce no scored verdict waive the charge.
+A wholly unavailable batch answers retryable `503` and is not billed.
 
 ```ts
 const { data, persistence } = await brew.contacts.validate({

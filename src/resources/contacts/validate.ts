@@ -36,8 +36,9 @@ export type ContactValidationResult = ValidateContactsResponse['data'][number]
  * `validationDetails` / `lastValidatedAt`. Addresses that do not match an
  * existing contact are scored and returned but create no contact.
  *
- * Metered 2 credits per address, charged only on success (a total-outage
- * batch returns a retryable `503` and is not billed).
+ * Metered 2 credits per submitted address when any address has a scored
+ * verdict. Completed checks with no scored verdict waive the charge; a
+ * total-outage batch returns a retryable `503` and is not billed.
  *
  * Returns the full `ContactsValidateResponse` envelope (`{ data, persistence }`).
  * `persistence` reports matched, modified and failed update-only writes. A
