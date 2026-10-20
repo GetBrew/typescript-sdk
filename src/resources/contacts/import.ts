@@ -21,14 +21,23 @@ export type ImportContactsInput = components['schemas']['ContactsImportRequest']
 export type ImportContactsResponse =
   components['schemas']['ContactsImportResponse']
 
+/** Aggregate counts for an import (inserted/updated/failed/skipped). */
+export type ImportContactsSummary = ImportContactsResponse['summary']
+
+/** One per-row failure in `ImportContactsResponse.errors`. */
+export type ImportContactsError = ImportContactsResponse['errors'][number]
+
+/** One non-fatal note in `ImportContactsResponse.warnings`. */
+export type ImportContactsWarning = ImportContactsResponse['warnings'][number]
+
 /**
  * Bulk-import contacts from JSON rows, recorded as ONE Import History batch.
  *
  * The JSON twin of `importCsv`: missing contacts are created (subscribed
  * unless a row says `subscribed: false`), existing ones updated, and the
- * response carries the batch's `importId`, which every written contact
- * carries too (filter on it to list them; deleting the import in the app
- * removes the contacts it created). Use `upsertMany` instead for recurring
+ * response carries the batch's `importId`, which each written contact
+ * carries too until a later import touches it (filter on it to list them;
+ * deleting the import in the app removes the contacts it created). Use `upsertMany` instead for recurring
  * syncs that should not appear in Import History.
  *
  * The response is the same shape on full and partial success (200 / 207):

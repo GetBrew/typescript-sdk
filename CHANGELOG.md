@@ -6,11 +6,34 @@
 
 - `brew.contacts.import({ contacts, consent?, validate?, fileName? })` calls
   `POST /v1/contacts/import`: the JSON twin of `importCsv`, recorded as one
-  batch in Brew's Import History. `ImportContactsInput` and
-  `ImportContactsResponse` are exported from the package root.
+  batch in Brew's Import History. `ImportContactsInput`,
+  `ImportContactsResponse`, `ImportContactsSummary`, `ImportContactsError` and
+  `ImportContactsWarning` are exported from the package root.
 - `importCsv` takes `fileName`, the name the batch is listed under in Import
   History (also stamped on each contact as `csvFileName`). Both imports return
-  the batch's `importId`, which every contact they write carries.
+  the batch's `importId`, which each contact they write carries until a later
+  import touches it. Both responses share the `ContactsImportResponse`
+  component (`ImportCsvContactsResponse` keeps its name).
+
+### Changed
+
+- `contacts.validate` results are discriminated by `checkOutcome` (the
+  generated spec now matches the API). `ContactValidationResult` is a union:
+  `checkOutcome: 'completed'` rows carry `reason?`, `didYouMean?`, `risk?`,
+  `isDisposable?` and `isRole?`; `checkOutcome: 'unavailable'` rows (the
+  provider could not score the address, and its stored verdict was kept)
+  carry only `email`, `valid`, `status` and `reason`. The envelope adds
+  `persistence: { matched, modified, failed }`, and `validation` on
+  `upsert`/`upsertMany`/`importCsv`/`import` may carry the same object.
+  Narrow before reading the provider fields:
+
+  ```ts
+  for (const row of data) {
+    if (row.checkOutcome === 'completed' && row.didYouMean) {
+      // …
+    }
+  }
+  ```
 
 ### Fixed
 

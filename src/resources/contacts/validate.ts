@@ -14,7 +14,13 @@ export type ValidateContactsInput = {
 export type ValidateContactsResponse =
   components['schemas']['ContactsValidateResponse']
 
-/** One per-email validation result in `ValidateContactsResponse.data`. */
+/**
+ * One per-email validation result in `ValidateContactsResponse.data`,
+ * discriminated by `checkOutcome`: `'completed'` rows carry the provider's
+ * `didYouMean` / `risk` / `isDisposable` / `isRole`; `'unavailable'` rows
+ * (the provider could not score the address) carry only `email`, `valid`,
+ * `status` and `reason`. Narrow on `checkOutcome` before reading those.
+ */
 export type ContactValidationResult = ValidateContactsResponse['data'][number]
 
 /**
@@ -38,7 +44,9 @@ export type ContactValidationResult = ValidateContactsResponse['data'][number]
  * Metered 2 credits per address, charged only on success (a total-outage
  * batch returns a retryable `503` and is not billed).
  *
- * Returns the full `ContactsValidateResponse` envelope (`{ data }`).
+ * Returns the full `ContactsValidateResponse` envelope (`{ data, persistence }`):
+ * `persistence` counts the stored contacts the verdicts `matched`,
+ * `modified` and `failed` to update.
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<ValidateContactsResponse>` instead of the unwrapped

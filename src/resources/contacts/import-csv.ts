@@ -15,7 +15,7 @@ import type { BrewRawResponse, RequestOptions } from '../../types'
  *   response gains a `validation` counts object
  *   (`{ valid, risky, invalid, unscored }`); >100 addresses import first,
  *   then validate as a BACKGROUND job and the response gains a
- *   `validationJobId` instead. Metered 2 credits per address, charged only
+ *   `validationJobId` instead. Metered 2 credits per CSV row, charged only
  *   on success; insufficient credits fail with `402 INSUFFICIENT_CREDITS`.
  * - `consent` stamps a marketing consent record on every imported row
  *   (typically `{ source: 'import' }`).
@@ -26,13 +26,15 @@ import type { BrewRawResponse, RequestOptions } from '../../types'
  *   `DATE_ORDER_ASSUMED` warning naming the field.
  * - `fileName` names the batch in Brew's Import History and is stamped on
  *   every contact it writes as `csvFileName`; the response's `importId` is
- *   the batch's id, carried by every contact it wrote.
+ *   the batch's id, carried by each contact it wrote until a later import
+ *   touches it.
  */
 export type ImportCsvContactsInput =
   components['schemas']['ContactsImportCsvRequest']
 
+/** The same envelope as `ImportContactsResponse` (one shared component). */
 export type ImportCsvContactsResponse =
-  components['schemas']['ContactsImportCsvResponse']
+  components['schemas']['ContactsImportResponse']
 
 /** Aggregate counts for a CSV import (inserted/updated/failed/skipped). */
 export type ImportCsvSummary = ImportCsvContactsResponse['summary']
@@ -62,7 +64,7 @@ export type ImportCsvWarning = ImportCsvContactsResponse['warnings'][number]
  * persist the verdict onto each contact. ≤100 addresses validate inline and
  * the envelope gains a `validation` counts object; >100 addresses import
  * first then validate as a background job and the envelope gains a
- * `validationJobId` instead. Metered 2 credits per address, charged only on
+ * `validationJobId` instead. Metered 2 credits per CSV row, charged only on
  * success; insufficient credits fail with `402 INSUFFICIENT_CREDITS`.
  *
  * Pass `{ raw: true }` in `options` to receive the full
