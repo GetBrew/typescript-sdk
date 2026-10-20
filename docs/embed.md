@@ -6,10 +6,10 @@ For a private customer admin app, follow the [white-label integration guide](htt
 
 ## Create a client app
 
-Install SDK 12.3.0 or newer:
+Install SDK 13.0.0 or newer:
 
 ```bash
-npm install @brew.new/sdk@^12.3.0
+npm install @brew.new/sdk@^13.0.0
 ```
 
 Select the brand in Brew, then open **Settings → API → Client apps → Create client ID**. Name the app, add its exact allowed origins, choose whether editing is enabled, and copy its client ID.
@@ -96,7 +96,7 @@ const getSession = createCanvasSessionProvider('/api/brew/canvas-session')
 <EmailCanvas emailId="email_..." getSession={getSession} />
 ```
 
-The `headers` option is available in the current source and will ship in the next SDK release. Published SDK 12.3.0 integrations can continue using a custom `fetch` wrapper for CSRF headers.
+The `headers` option requires SDK 13.0.0 or later. Earlier versions can use a custom `fetch` wrapper for CSRF headers.
 
 Pass your existing app's CSRF headers through `headers`; no custom fetch wrapper is needed. For example, if your CSRF middleware publishes the token in `<meta name="csrf-token">`:
 

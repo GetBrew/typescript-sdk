@@ -118,9 +118,8 @@ organizations cannot be probed.
 
 ## `brands.waitForExtraction(brandId, options?)`
 
-**Available in the next SDK release; not included in npm version 12.3.0.**
-Until that release, poll `brands.get({ brandId })` from a worker or your app's
-status endpoint.
+**Requires SDK 13.0.0 or later.** On earlier versions, poll
+`brands.get({ brandId })` from a worker or your app's status endpoint.
 
 Wait for an existing brand's extraction to end without writing a polling loop:
 

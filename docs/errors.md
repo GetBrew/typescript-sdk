@@ -18,10 +18,10 @@ All SDK error classes extend `Error`, so the two-branch pattern below —
 `BrewApiError` for API errors, `Error` for everything else — covers
 every case.
 
-`BrewBrandExtractionTimeoutError` and `brands.waitForExtraction()` are included
-in the next SDK release; they are not available in npm version 12.3.0. This
-wait deadline is separate from a `BrewTimeoutError` on an individual HTTP
-attempt. See [Brands](./brands.md#brandswaitforextractionbrandid-options).
+`BrewBrandExtractionTimeoutError` and `brands.waitForExtraction()` require SDK
+13.0.0 or later. This wait deadline is separate from a `BrewTimeoutError` on
+an individual HTTP attempt. See
+[Brands](./brands.md#brandswaitforextractionbrandid-options).
 
 ## The error shape
 
