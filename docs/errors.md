@@ -3,14 +3,16 @@
 Every failure the SDK gives up on is typed, and which type tells you
 what you know about the request:
 
-| Thrown                                         | Means                                                                                                                                     |
-| ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `BrewApiError`                                 | The server answered with a non-2xx status. `status`, `code` and the rest of the envelope say what it said.                                |
-| `BrewTimeoutError` (a `BrewTransportError`)    | No complete answer within `timeoutMs` — waiting for the headers or reading the body. **Outcome unknown.**                                 |
-| `BrewConnectionError` (a `BrewTransportError`) | The connection failed, or dropped while the body streamed. **Outcome unknown.** The original error is on `cause`.                         |
-| `BrewParseError`                               | The server answered 2xx, but the body was not JSON. Report it with `requestId`.                                                           |
-| `BrewBrandExtractionTimeoutError`              | `brands.waitForExtraction()` reached its total `maxWaitMs` deadline. Inspect `brandId` and `lastStatus`; extraction may still be running. |
-| your signal's `reason`                         | You cancelled — the `signal` you passed (request- or client-level) aborted.                                                               |
+| Thrown                                         | Means                                                                                                                                                                                                                   |
+| ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `BrewInputError`                               | Invalid local request configuration, identified by `param`. No request was sent.                                                                                                                                        |
+| `BrewApiError`                                 | The server answered with a non-2xx status. `status`, `code` and the rest of the envelope say what it said.                                                                                                              |
+| `BrewTimeoutError` (a `BrewTransportError`)    | No complete answer within `timeoutMs` — waiting for the headers or reading the body. **Outcome unknown.**                                                                                                               |
+| `BrewConnectionError` (a `BrewTransportError`) | The connection failed, or dropped while the body streamed. **Outcome unknown.** The original error is on `cause`.                                                                                                       |
+| `BrewParseError`                               | The server answered 2xx, but the body was not JSON. Report it with `requestId`.                                                                                                                                         |
+| `BrewPaginationError`                          | A list endpoint repeated a cursor. The iterator stops with `code: 'PAGINATION_CURSOR_CYCLE'`, `cursor`, `pagesFetched`, and `itemsYielded`. Already-yielded items are incomplete; do not treat them as a complete list. |
+| `BrewBrandExtractionTimeoutError`              | `brands.waitForExtraction()` reached its total `maxWaitMs` deadline. Inspect `brandId` and `lastStatus`; extraction may still be running.                                                                               |
+| your signal's `reason`                         | You cancelled — the `signal` you passed (request- or client-level) aborted.                                                                                                                                             |
 
 All SDK error classes extend `Error`, so the two-branch pattern below —
 `BrewApiError` for API errors, `Error` for everything else — covers
@@ -344,3 +346,29 @@ interrupted write without doing it twice, replay it with the same
 idempotency key. A cancel rejects with your own `reason`, which carries
 no key, so on a write you might cancel, pass your own
 `RequestOptions.idempotencyKey` and keep it.
+
+## Pagination protocol failures
+
+`autoPaginate` rejects an identical or cyclic next cursor before fetching a
+known page again. Empty pages with an advancing cursor continue normally;
+`hasMore: false` or a missing cursor ends iteration. Its documented cancellation
+behavior is unchanged: an abort between pages ends iteration, while an abort
+from an in-flight request propagates that request's signal reason.
+
+```ts
+import { BrewPaginationError } from '@brew.new/sdk'
+
+try {
+  for await (const contact of brew.contacts.searchAll()) {
+    // Consume each contact.
+  }
+} catch (error) {
+  if (error instanceof BrewPaginationError) {
+    console.error(`Incomplete list after ${error.itemsYielded} items`)
+  }
+  throw error
+}
+```
+
+The repeated cursor is diagnostic evidence, not a safe resume cursor. Report
+the failure instead of automatically retrying the same cursor.

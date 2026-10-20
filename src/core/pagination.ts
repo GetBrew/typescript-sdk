@@ -40,6 +40,26 @@ export type Page<TItem> = {
   readonly pagination: Pagination | undefined
 }
 
+/** The server returned a cursor already fetched by this iterator. */
+export class BrewPaginationError extends Error {
+  readonly code = 'PAGINATION_CURSOR_CYCLE'
+  readonly cursor: string
+  readonly pagesFetched: number
+  readonly itemsYielded: number
+
+  constructor(input: {
+    readonly cursor: string
+    readonly pagesFetched: number
+    readonly itemsYielded: number
+  }) {
+    super('Pagination returned a previously fetched cursor.')
+    this.name = 'BrewPaginationError'
+    this.cursor = input.cursor
+    this.pagesFetched = input.pagesFetched
+    this.itemsYielded = input.itemsYielded
+  }
+}
+
 /**
  * Generic async-iterator that walks every page of a cursor-paginated
  * list, yielding one row at a time. Resources build a thin `listAll`
@@ -67,19 +87,42 @@ export async function* autoPaginate<TItem>(
    * before its cursor is known, so the next fetch cannot start early.
    */
   let cursor: string | null = null
+  const fetched = new Set<string>()
+  let pagesFetched = 0
+  let itemsYielded = 0
+  const isAborted = () => options?.signal?.aborted === true
   while (true) {
-    if (options?.signal?.aborted === true) {
+    if (isAborted()) {
       return
     }
 
     const page = await fetchPage(cursor)
+    pagesFetched += 1
+    if (cursor !== null) {
+      fetched.add(cursor)
+    }
     for (const item of page.items) {
+      itemsYielded += 1
       yield item
+    }
+
+    // A caller may abort while consuming the page. Preserve quiet termination
+    // between pages even if the server also returned a cyclic next cursor.
+    if (isAborted()) {
+      return
     }
 
     const next = page.pagination
     if (!next || !next.hasMore || next.cursor === null) {
       return
+    }
+
+    if (fetched.has(next.cursor)) {
+      throw new BrewPaginationError({
+        cursor: next.cursor,
+        pagesFetched,
+        itemsYielded,
+      })
     }
 
     cursor = next.cursor

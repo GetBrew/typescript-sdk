@@ -813,9 +813,11 @@ The single polymorphic send. The input is a union discriminated by
 `test`, and the response shape follows the input:
 
 - **Test send** (`test: true`) — a one-off [TEST] delivery to a single
-  recipient. Forces the Brew default sender (no verified domain or saved
-  audience required) and never creates a send row. Resolves synchronously
-  (HTTP 200) with `{ status: 'completed', recipient }`.
+  recipient. Omit `domainId` for the Brew default sender, or supply a verified,
+  org-owned sending domain. Invalid domains are rejected. No saved audience
+  is required, and it never creates a send row. Real test deliveries count
+  toward send usage. Resolves synchronously (HTTP 200) with
+  `{ status: 'completed', recipient }`.
 - **Campaign send** (omit `test`) — delivers a saved design to a target.
   Provide EXACTLY ONE recipient target — `audienceId` (a saved audience,
   or the string `'all'` to target every contact in the brand) or `to` (a
