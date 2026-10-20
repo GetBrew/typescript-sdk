@@ -184,10 +184,15 @@ export type {
   PayloadContractField,
   PayloadContractGetResponse,
   PayloadContractPutRequest,
+  PayloadContractPutResponse,
   PayloadContractValidateResponse,
   PutTriggerContractInput,
   ValidateTriggerPayloadInput,
 } from './resources/automations/triggers/contract'
+export type {
+  EnsureBrewEventTriggerInput,
+  EnsureBrewEventTriggerResponse,
+} from './resources/automations/triggers/brew-events'
 export type {
   CreateTriggerInput,
   CreateTriggerResponse,
@@ -222,6 +227,7 @@ export type {
 export type { TriggersResource } from './resources/automations/triggers/resource'
 // ---------- Automations › triggers: domain types ----------
 export type {
+  BrewEventTriggerConfig,
   Trigger,
   TriggersListResponse,
 } from './resources/automations/triggers/types'
@@ -440,6 +446,7 @@ export type {
   ExportEmailResponse,
   ExportProvider,
 } from './resources/emails/export'
+export { EXPORT_EMAIL_DEFAULT_TIMEOUT_MS } from './resources/emails/export'
 export type {
   ImportFigmaDesignInput,
   ImportFigmaDesignResponse,
@@ -650,3 +657,11 @@ export type {
 
 // ---------- Metadata ----------
 export { SDK_NAME, SDK_VERSION } from './version'
+export type {
+  CanvasSession,
+  CanvasTarget,
+  CanvasPermission,
+  CreateCanvasSessionInput,
+} from './embed/contracts'
+
+export type { CanvasSessionRevokeResponse } from './resources/canvas/resource'

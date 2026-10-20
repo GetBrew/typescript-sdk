@@ -1,5 +1,6 @@
 import type { HttpClient } from '../../../core/http'
 
+import { createEnsureBrewEventTrigger } from './brew-events'
 import {
   createGetTriggerContract,
   createPutTriggerContract,
@@ -20,6 +21,14 @@ export type TriggersResource = {
   readonly get: ReturnType<typeof createGetTrigger>
   /** `POST /v1/automations/triggers` — deterministic create (returns the bare row) (scope: `automations`). */
   readonly create: ReturnType<typeof createCreateTrigger>
+  /**
+   * `POST /v1/automations/triggers/brew-events` — get or create the brand's
+   * Brew-event trigger for one scope, e.g. "a contact unsubscribed from one
+   * domain's emails, or from all". Returns the row plus `created`. Brew
+   * starts it itself, so `fire` and `readiness` refuse it (scope:
+   * `automations`).
+   */
+  readonly ensureBrewEvent: ReturnType<typeof createEnsureBrewEventTrigger>
   /** `POST /v1/automations/triggers/{triggerEventId}/fire` — fire a trigger; starts one run per published automation attached to it (scope: `automations`). */
   readonly fire: ReturnType<typeof createFireTrigger>
   /** `GET /v1/automations/triggers/{triggerEventId}/readiness` — preflight WITHOUT firing: credential verdict + payload contract + what a fire would start, as a bare body (scope: `automations`). */
@@ -47,6 +56,7 @@ export function createTriggersResource(client: HttpClient): TriggersResource {
     list: createListTriggers(client),
     get: createGetTrigger(client),
     create: createCreateTrigger(client),
+    ensureBrewEvent: createEnsureBrewEventTrigger(client),
     fire: createFireTrigger(client),
     readiness: createTriggerReadiness(client),
     patch: createPatchTrigger(client),

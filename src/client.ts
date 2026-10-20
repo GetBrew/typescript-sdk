@@ -93,6 +93,10 @@ import {
   type UsageResource,
 } from './resources/usage/resource'
 import type { BrewClientConfig, ResolvedBrewClientConfig } from './types'
+import {
+  createCanvasResource,
+  type CanvasResource,
+} from './resources/canvas/resource'
 
 /**
  * The public shape of a Brew API client. Expand this union as new
@@ -106,6 +110,7 @@ import type { BrewClientConfig, ResolvedBrewClientConfig } from './types'
  * that pin.
  */
 export type BrewClient = {
+  readonly canvas: CanvasResource
   /**
    * Return a client pinned to `brandId` (sent as `X-Brand-Id`). Same auth,
    * transport and tuning; only the brand differs. Use this with an
@@ -272,6 +277,7 @@ function buildClient(
       ? httpClient
       : createHttpClient({ ...config, brandId: undefined }, tuning)
   return {
+    canvas: createCanvasResource(httpClient),
     withBrand: (brandId: string): BrewClient => {
       if (typeof brandId !== 'string' || brandId.trim() === '') {
         throw new TypeError('withBrand: `brandId` must be a non-empty string')

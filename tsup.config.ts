@@ -10,14 +10,35 @@ const pkg = JSON.parse(
 ) as { version: string }
 
 export default defineConfig({
-  entry: ['src/index.ts'],
+  entry: {
+    index: 'src/index.ts',
+    embed: 'src/embed/index.ts',
+    react: 'src/react/index.tsx',
+  },
   format: ['esm', 'cjs'],
   dts: true,
   sourcemap: true,
-  clean: true,
   minify: false,
   target: 'es2022',
-  treeshake: true,
+  // A single declaration build owns all entries. Esbuild preserves the
+  // React entry's client directive; a Rollup treeshake pass would strip it.
+  treeshake: false,
+  clean: true,
+  external: ['react', 'react/jsx-runtime'],
+  esbuildPlugins: [
+    {
+      name: 'shared-embed-runtime',
+      setup(build) {
+        build.onResolve({ filter: /^\.\.\/embed\/index$/ }, () => ({
+          path:
+            build.initialOptions.format === 'cjs'
+              ? './embed.cjs'
+              : './embed.js',
+          external: true,
+        }))
+      },
+    },
+  ],
   splitting: false,
   outDir: 'dist',
   define: {

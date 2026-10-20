@@ -2,6 +2,8 @@ dist
 node_modules
 coverage
 src/generated
+src/embed/contracts.ts
+src/embed/is-record.ts
 # Owned by sub-agent-orchestrator/openapi/public-api-v1.ts and emitted via
 # `pnpm openapi:generate` upstream. Different YAML quoting conventions than
 # Prettier — keep the generated file byte-identical with the upstream source.
@@ -9,3 +11,5 @@ openapi/public-api-v1.yaml
 bun.lock
 bun.lockb
 LICENSE
+# Generated from brew-v2's licensed source; its own Biome check owns formatting.
+examples/embedded-email-canvas

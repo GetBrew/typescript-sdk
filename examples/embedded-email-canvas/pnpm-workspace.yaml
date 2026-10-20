@@ -1,0 +1,10 @@
+# Keep the example independently installable when copied out of brew-v2.
+packages:
+  - .
+allowBuilds:
+  '@clerk/shared': true
+  esbuild: true
+  sharp: true
+  unrs-resolver: true
+minimumReleaseAgeExclude:
+  - '@brew.new/sdk@12.3.0'
