@@ -502,6 +502,9 @@ describe('createSupabaseSendEmailHook', () => {
     [422, 'NO_PUBLISHED_AUTOMATION', 422],
     [404, 'TRIGGER_KEY_NOT_FOUND', 404],
     [429, 'SANDBOX_DAILY_LIMIT', 429],
+    // Supabase retries at once, with no wait: a rate limit would refuse
+    // every attempt, so it fails the auth request with its message instead.
+    [429, 'RATE_LIMITED', 429],
     // A key Brew does not accept is this server's setup, not the user's.
     [401, 'INVALID_API_KEY', 500],
     [403, 'INSUFFICIENT_PERMISSIONS', 500],
@@ -527,7 +530,6 @@ describe('createSupabaseSendEmailHook', () => {
   it.each([
     ['a 503', () => apiError(503, 'SERVICE_UNAVAILABLE', 'api_error')],
     ['a 500', () => apiError(500, 'INTERNAL_ERROR', 'api_error')],
-    ['a rate limit', () => apiError(429, 'RATE_LIMITED', 'rate_limit_error')],
     ['a dropped connection', () => HttpResponse.error()],
   ])(
     'answers 503 with Retry-After for %s, so Supabase retries at once',
