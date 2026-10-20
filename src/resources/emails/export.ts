@@ -25,6 +25,14 @@ export type ExportEmailResponse = components['schemas']['EmailExportResponse']
 export type ExportProvider = ExportEmailResponse['provider']
 
 /**
+ * Exports may upload multiple assets before creating content in the ESP.
+ * Match Brew's 800s route budget so the default 30s client timeout does not
+ * abandon a draft still being created. Explicit request timeouts still win;
+ * a longer client-wide timeout is preserved by the transport's default floor.
+ */
+export const EXPORT_EMAIL_DEFAULT_TIMEOUT_MS = 800_000
+
+/**
  * `POST /v1/emails/{emailId}/export` (scope: `emails`) — export a design to a
  * connected ESP as a template, so you can send it from a stack you already
  * run.
@@ -57,6 +65,7 @@ export function createExportEmail(client: HttpClient) {
       method: 'POST',
       path: `/v1/emails/${encodeURIComponent(emailId)}/export`,
       body,
+      defaultTimeoutMs: EXPORT_EMAIL_DEFAULT_TIMEOUT_MS,
       ...(options ? { options } : {}),
     })
     return unwrapResponse(response, options)
