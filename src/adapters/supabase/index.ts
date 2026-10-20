@@ -436,19 +436,20 @@ function retryLater(message: string): Response {
   )
 }
 
-/** Brew could not answer, or answered that a retry may succeed. */
+/**
+ * Brew could not answer, or answered that an immediate retry may succeed.
+ * A `429` is not: Supabase retries at once, with no wait, so a rate limit
+ * or a daily sandbox cap would refuse every attempt (as Brew's hosted hook
+ * does, it fails the auth request with its message instead).
+ */
 function isTransient(error: unknown): boolean {
   if (error instanceof BrewTransportError || error instanceof BrewParseError) {
     return true
   }
-  if (!(error instanceof BrewApiError)) {
-    return false
-  }
-  // A daily sandbox cap does not lift in the next second.
-  if (error.status === 429) {
-    return error.code !== 'SANDBOX_DAILY_LIMIT'
-  }
-  return error.status === 408 || error.status >= 500
+  return (
+    error instanceof BrewApiError &&
+    (error.status === 408 || error.status >= 500)
+  )
 }
 
 /**
@@ -484,8 +485,8 @@ function refusalCode(error: unknown): number {
  * with `{ error: { http_code, message } }`, the only error body Supabase
  * reads: `401` for a bad signature, `400` for a body it cannot use, Brew's
  * status when Brew refused (`500` for an API key it does not accept), `500`
- * for anything else. A timeout, a dropped connection, a Brew `5xx` or rate
- * limit answers `503` with `Retry-After`, which Supabase retries at once.
+ * for anything else. A timeout, a dropped connection or a Brew `5xx`
+ * answers `503` with `Retry-After`, which Supabase retries at once.
  * Each send's idempotency key hashes `supabaseHookCallId` of the body, the
  * same on every retry, so a retried call never emails twice.
  */
