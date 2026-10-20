@@ -28,7 +28,12 @@ describe('browser package boundaries', () => {
       )
       writeFileSync(
         join(root, 'consumer.cts'),
-        `import { createBrewClient } from '@brew.new/sdk';\nimport { createEmailCanvas } from '@brew.new/sdk/embed';\nimport { EmailCanvas } from '@brew.new/sdk/react';\nvoid createBrewClient; void EmailCanvas;
+        `import { createBrewClient, BrewBrandExtractionTimeoutError, type WaitForExtractionOptions } from '@brew.new/sdk';\nimport { createEmailCanvas } from '@brew.new/sdk/embed';\nimport { EmailCanvas } from '@brew.new/sdk/react';\nvoid EmailCanvas;
+const brew = createBrewClient({apiKey:'brew_test'});
+const waitOptions: WaitForExtractionOptions = {maxWaitMs: 1, pollIntervalMs: 1};
+const waitResult: Promise<{brandId: string, ready: boolean}> = brew.brands.waitForExtraction('brand_a', waitOptions);
+const waitError = new BrewBrandExtractionTimeoutError({brandId: 'brand_a', maxWaitMs: 1});
+void waitResult; void waitError.lastStatus;
 const group: Parameters<typeof createEmailCanvas>[1] = {clientId: 'brew_client_0123456789abcdef0123456789abcdef', groupId: 'grp_a'};
 const email: Parameters<typeof createEmailCanvas>[1] = {clientId: 'brew_client_0123456789abcdef0123456789abcdef', emailId: 'email_a'};
 // @ts-expect-error Exactly one target is required.

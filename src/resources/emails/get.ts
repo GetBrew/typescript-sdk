@@ -34,9 +34,9 @@ export type GetEmailOptions = RequestOptions & {
    */
   readonly emailVersionId?: string
   /**
-   * Read the version one generation run produced — the `runId` a
-   * `generate` or `edit` returned while it was still `generating`. A run
-   * that failed answers `status: 'failed'` with `errorMessage`. Mutually
+   * Read the version one generation run produced, using a `runId` from
+   * an asynchronous surface such as MCP. SDK generate/edit wait for the final
+   * result. A failed run answers `status: 'failed'` with `errorMessage`. Mutually
    * exclusive with `emailVersionId`.
    */
   readonly runId?: string
@@ -56,8 +56,8 @@ export type GetEmailResponse = components['schemas']['EmailDetail']
  * `{ version, emailVersionId }` history — the ids
  * `brew.emails.restore(...)` takes.
  *
- * Pin a saved version with `emailVersionId`, or poll a generation with the
- * `runId` it returned (a run that failed reads `status: 'failed'`). An
+ * Pin a saved version with `emailVersionId`, or read a generation started on
+ * another surface by `runId` (a failed run reads `status: 'failed'`). An
  * unknown version or run is `404 EMAIL_VERSION_NOT_FOUND`.
  *
  * An unknown or cross-brand id is `404 EMAIL_NOT_FOUND` — it is no

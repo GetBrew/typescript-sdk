@@ -2,12 +2,14 @@
 
 Put one Brew group or one email inside your app, with live generation streams, multiplayer presence, manual editing, the properties panel, autosave and version selection. The iframe authenticates with a client ID and works without Clerk or third-party login cookies.
 
+For a private customer admin app, follow the [white-label integration guide](https://docs.brew.new/sdks/typescript/white-label-email-editor) for brand extraction, backend generation, authorized sessions and reading saved HTML. The canvas is a Brew-hosted iframe; the SDK does not offer theme, custom-logo or custom-domain options.
+
 ## Create a client app
 
-Install SDK 12.3.0 or newer:
+Install SDK 13.0.0 or newer:
 
 ```bash
-npm install @brew.new/sdk@^12.3.0
+npm install @brew.new/sdk@^13.0.0
 ```
 
 Select the brand in Brew, then open **Settings → API → Client apps → Create client ID**. Name the app, add its exact allowed origins, choose whether editing is enabled, and copy its client ID.
@@ -94,7 +96,27 @@ const getSession = createCanvasSessionProvider('/api/brew/canvas-session')
 <EmailCanvas emailId="email_..." getSession={getSession} />
 ```
 
+The `headers` option requires SDK 13.0.0 or later. Earlier versions can use a custom `fetch` wrapper for CSRF headers.
+
+Pass your existing app's CSRF headers through `headers`; no custom fetch wrapper is needed. For example, if your CSRF middleware publishes the token in `<meta name="csrf-token">`:
+
+```ts
+const getSession = createCanvasSessionProvider('/api/brew/canvas-session', {
+  headers: () => ({
+    'X-CSRF-Token':
+      document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')
+        ?.content ?? '',
+  }),
+})
+```
+
+`headers` accepts a `HeadersInit` value (a record, `Headers`, or header tuples), or a synchronous or asynchronous function returning one. The function runs for every initial and renewal request, so rotated tokens are read fresh. The provider copies the headers and always sets `Content-Type: application/json`. It keeps `credentials: 'same-origin'` and forwards the request's abort signal, including when you supply `fetch`.
+
+Use a trusted endpoint in your app, preferably a same-origin relative path. An absolute cross-origin endpoint remains supported, but same-origin credentials do not send login cookies to it; custom headers are sent to the endpoint you configure. Keep your existing CSRF validation on the server.
+
 Your endpoint receives `{ target, sessionId? }`. Authenticate the caller with your app’s existing login, authorize the target and brand on your backend, then call `brew.canvas.sessions.create({ target, user: {externalId, name}, parentOrigin, permissions })` with a server-side API key. Store ownership of the returned session ID. Renew only that caller’s owned session using `brew.canvas.sessions.refresh(sessionId)` and revoke it when access ends. `brew.canvas.sessions.revoke(sessionId)` returns `{ revoked: true }`; `{ raw: true }` also exposes the status and request ID. A session ID alone is not proof of ownership. The SDK accepts either `clientId` or `getSession`, never both.
+
+Set `parentOrigin` from trusted server configuration, choose permissions on your backend, apply your app’s CSRF protection, and return grants with `Cache-Control: no-store`. Store the issuing credential, owner, brand, target and permissions with the session so refresh/revoke use the same principal and still-valid authorization. Custom providers do not automatically revoke sessions on unmount; wire server-side revocation into your app’s close and sign-out flows. Await `flush()` before closing, starting an API edit or retrieving saved HTML.
 
 ## Runnable open source demo
 

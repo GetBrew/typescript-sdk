@@ -10,7 +10,8 @@ Official TypeScript SDK for the [Brew](https://brew.new) public API.
   request, response body included.
 - Safe retries with exponential backoff + jitter.
 - Auto-generated `Idempotency-Key` on POST so retries never double-write.
-- Node 20+, server-first. API keys are secrets — do not use this SDK directly in a browser.
+- Node 20+ for the server API client. API keys stay on your backend; browser
+  canvas integrations use the separate `@brew.new/sdk/react` or `/embed` entry.
 
 ## Install
 
