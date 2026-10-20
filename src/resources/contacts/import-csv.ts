@@ -11,12 +11,14 @@ import type { BrewRawResponse, RequestOptions } from '../../types'
  *   overrides header inference. Supply it when the CSV column names do not
  *   match Brew contact fields.
  * - `validate: true` deliverability-checks every imported address and saves
- *   the verdict onto each contact. ≤100 addresses validate INLINE and the
- *   response gains a `validation` counts object
- *   (`{ valid, risky, invalid, unscored }`); >100 addresses import first,
- *   then validate as a BACKGROUND job and the response gains a
- *   `validationJobId` instead. Metered 2 credits per CSV data row (rows skipped for a missing or invalid email, and repeated addresses, count), charged only
- *   on success; insufficient credits fail with `402 INSUFFICIENT_CREDITS`.
+ *   the verdict onto each contact. A CSV of ≤100 data rows validates INLINE
+ *   and the response gains a `validation` counts object
+ *   (`{ valid, risky, invalid, unscored }`); a larger CSV imports first,
+ *   then validates as a BACKGROUND job and the response gains a
+ *   `validationJobId` instead. Both the cutoff and the meter count CSV data
+ *   rows, including rows skipped for a missing or invalid email and repeated
+ *   addresses: 2 credits per data row, charged only on success; insufficient
+ *   credits fail with `402 INSUFFICIENT_CREDITS`.
  * - `consent` stamps a marketing consent record on every imported row
  *   (typically `{ source: 'import' }`).
  * - `dateOrder` (`month_first` | `day_first`) says how to read a date column
@@ -61,11 +63,13 @@ export type ImportCsvWarning = ImportCsvContactsResponse['warnings'][number]
  * problems; the transport does not throw on a partial-failure status.
  *
  * Pass `validate: true` to deliverability-check every imported address and
- * persist the verdict onto each contact. ≤100 addresses validate inline and
- * the envelope gains a `validation` counts object; >100 addresses import
- * first then validate as a background job and the envelope gains a
- * `validationJobId` instead. Metered 2 credits per CSV data row (rows skipped for a missing or invalid email, and repeated addresses, count), charged only on
- * success; insufficient credits fail with `402 INSUFFICIENT_CREDITS`.
+ * persist the verdict onto each contact. A CSV of ≤100 data rows validates
+ * inline and the envelope gains a `validation` counts object; a larger CSV
+ * imports first then validates as a background job and the envelope gains a
+ * `validationJobId` instead. The cutoff and the meter both count CSV data
+ * rows (rows skipped for a missing or invalid email, and repeated addresses,
+ * count): 2 credits per data row, charged only on success; insufficient
+ * credits fail with `402 INSUFFICIENT_CREDITS`.
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<ImportCsvContactsResponse>` instead of the unwrapped
