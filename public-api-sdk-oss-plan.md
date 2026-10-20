@@ -1,5 +1,9 @@
 # Public API SDK OSS Plan
 
+> Historical design proposal. Method names, response shapes, and release steps
+> describe the original SDK and may be retired. Current contracts live in
+> `src/`, the vendored OpenAPI spec, and [the development guide](docs/development.md).
+
 > **Implementation status (2026-05-01).** The originally-deferred items
 > from the bottom of this plan are now shipped:
 >

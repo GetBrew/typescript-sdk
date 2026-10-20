@@ -187,67 +187,20 @@ suggestion only for `429`/5xx, and the error-catalogue docs URL — better
 to return a readable error than throw from the error path. `body` still
 carries whatever was received.
 
-### The legacy fire envelope
+### Trigger errors and legacy compatibility
 
-`POST`/`GET /v1/automations/triggers/{triggerEventId}/fire` is the one
-endpoint outside the `{ error }` convention. Its pipeline answers its
-successes and its own refusals — missing key, payload mismatch, unknown
-trigger, brand scope, no published automation — with the legacy fire
-envelope (a malformed JSON body is refused earlier with the standard
-envelope, and the contract documents the route's 401/403/429 as
-`ApiErrorEnvelope`; the SDK tries the standard shape first, then this
-one, so either is mapped correctly):
+Current `POST /v1/automations/triggers/{triggerEventId}/fire` failures use the
+standard `{ error }` envelope. Success is a bare `202` body with
+`triggerInstanceId`, `automationRunIds`, `notStarted`, and counts. A successful
+HTTP response can include automations that did not start: inspect `notStarted`
+before reporting that every matched flow is running. See
+[transactional email and trigger firing](automations.md#transactional-email--firing-triggers).
 
-```json
-{
-  "success": false,
-  "status": "payload_mismatch",
-  "code": "INVALID_PAYLOAD",
-  "message": "Payload validation failed.",
-  "triggerEventId": "tri_signup",
-  "receivedAt": "2026-09-20T10:00:00.000Z",
-  "details": {
-    "errors": [
-      {
-        "code": "invalid_type",
-        "field": "code",
-        "message": "Field \"code\" must be a string",
-        "expectedType": "string",
-        "actualType": "number"
-      }
-    ],
-    "warnings": [],
-    "payloadSchema": { "type": "object", "fields": [] }
-  }
-}
-```
-
-The SDK maps it verbatim: `code` and `message` from the body, `type`
-derived from the HTTP status (`401` → `authentication_error`, `403` →
-`authorization_error`, `404` → `not_found`, `409` → `conflict`, `429` →
-`rate_limit`, any other 4xx → `invalid_request`, 5xx → `internal_error`),
-a fix-the-request `suggestion` for any 4xx outside the retry policy (the
-same body fails the same way on retry; `408`/`429`/5xx keep retry advice),
-the fire reference as `docs`, and `details` — for a `payload_mismatch`,
-`errors[]` names every offending field and `payloadSchema` is the schema
-to repair against. The envelope's own `status` discriminator is reachable
-through `body`:
-
-```ts
-try {
-  await brew.automations.triggers.fire({ triggerEventId, payload })
-} catch (error) {
-  if (error instanceof BrewApiError && error.code === 'INVALID_PAYLOAD') {
-    const errors = error.details?.errors as
-      | Array<{ field: string; message: string }>
-      | undefined
-    for (const issue of errors ?? []) {
-      console.error(`${issue.field}: ${issue.message}`)
-    }
-  }
-  throw error
-}
-```
+The SDK also recognizes older fire error bodies with top-level `success`,
+`code`, `message`, and `details` for compatibility with older deployments.
+That decoder is not the current endpoint contract. Both shapes become
+`BrewApiError`; use its typed fields rather than depending on a legacy body's
+`status` discriminator.
 
 ### A cut-off error body
 

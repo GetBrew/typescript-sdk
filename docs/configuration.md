@@ -102,6 +102,7 @@ for callers composing their own deadlines:
 | `emails.edit`           | 240 s   | `EDIT_EMAIL_DEFAULT_TIMEOUT_MS`            |
 | `emails.import`         | 300 s   | `IMPORT_EMAIL_DEFAULT_TIMEOUT_MS`          |
 | `emails.importFigma`    | 800 s\* | `IMPORT_FIGMA_DEFAULT_TIMEOUT_MS`          |
+| `emails.export`         | 800 s\* | `EXPORT_EMAIL_DEFAULT_TIMEOUT_MS`          |
 | `emails.previewClients` | 90 s    | `PREVIEW_EMAIL_CLIENTS_DEFAULT_TIMEOUT_MS` |
 | `emails.audit`          | 65 s    | `AUDIT_EMAIL_DEFAULT_TIMEOUT_MS`           |
 | `content.gif`           | 300 s   | `GIF_DEFAULT_TIMEOUT_MS`                   |
