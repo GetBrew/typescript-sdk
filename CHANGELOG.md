@@ -134,13 +134,17 @@ stack }`, where each result is `ok: true` with the setup result or
   `id: 'email'`, v4. `sendVerificationRequest` awaits the send of
   `auth.magic-link` and throws on failure. See `docs/adapters/auth-js.md`.
 - **`@brew.new/sdk/supabase`**: `createSupabaseSendEmailHook(options)`
-  (`client`, `secret`, `keys`, `appName`, `verification`,
-  `confirmationUrl`, `onError`), a `(request) => Promise<Response>` Send
-  Email Hook for `Deno.serve`. It maps every `email_action_type` to a
-  starter-kit key (two sends for a secure email change), builds
-  Supabase's verify link, and answers `200 {}` or
-  `{ error: { http_code, message } }`. Also
-  `verifyStandardWebhook({ payload, headers, secret })` (WebCrypto
+  (`client`, `secret`, `keys`, `appName`, `confirmationUrl`, `onError`), a
+  `(request) => Promise<Response>` Send Email Hook for `Deno.serve`. It
+  maps every `email_action_type` to a starter-kit key (two sends for a
+  secure email change), builds Supabase's verify link and sends the
+  six-digit code beside it as `otp`, as Brew's hosted Supabase hook does.
+  It answers `200 {}`, every refusal as `200` with
+  `{ error: { http_code, message } }` (the only error body Supabase
+  reads), and a transient failure as `503` with `Retry-After`. Idempotency
+  keys hash `supabaseHookCallId` (an HMAC of the body under the hook
+  secret), not the `webhook-id`, which Supabase changes on every retry.
+  Also `verifyStandardWebhook({ payload, headers, secret })` (WebCrypto
   HMAC-SHA256, `v1,whsec_` secrets, timestamp tolerance, several
   signatures), `signStandardWebhook`, `WebhookVerificationError` and the
   pure `planSupabaseSends`. No `node:` imports. See

@@ -17,6 +17,8 @@
  * )
  * ```
  */
+import { BrewApiError, BrewParseError, BrewTransportError } from '@brew.new/sdk'
+
 import {
   type AuthEmailKeys,
   type AuthEmailKind,
@@ -30,6 +32,7 @@ import {
 } from '../shared/auth'
 
 import {
+  decodeWebhookSecret,
   verifyStandardWebhook,
   WebhookVerificationError,
 } from './standard-webhooks'
@@ -83,33 +86,25 @@ export type SupabaseConfirmationUrlInput = {
   readonly redirectTo: string
 }
 
-/**
- * What a link email carries. `'link'` (default) sends the confirmation link,
- * as Supabase's default templates do; `'code'` also sends the six-digit
- * code as `otp`, and the starter kit's designs then show the code instead
- * of the button (for apps that confirm with `verifyOtp`).
- */
-export type SupabaseVerificationStyle = 'link' | 'code'
-
 /** What `planSupabaseSends` needs besides the hook body. */
 export type PlanSupabaseSendsOptions = {
   readonly appName?: string
-  readonly verification?: SupabaseVerificationStyle
   readonly confirmationUrl?: (input: SupabaseConfirmationUrlInput) => string
   /**
-   * The request's `webhook-id`, hashed into the idempotency key of an
-   * email that carries a code instead of a link, and of a notice. A code
-   * repeats across requests; the delivery id keeps two requests that drew
-   * the same code apart.
+   * Names this hook call, the same on each of Supabase's retries, and is
+   * hashed into every send's idempotency key. Supabase signs each retry
+   * with a NEW `webhook-id` but the same body, so
+   * `createSupabaseSendEmailHook` passes `supabaseHookCallId` of the raw
+   * body. Default: the body itself (`JSON.stringify(hook)`).
    */
-  readonly webhookId?: string
+  readonly callId?: string
 }
 
 /** One Brew send a hook call makes. */
 export type PlannedSupabaseSend = {
   readonly kind: AuthEmailKind
   readonly payload: AuthEmailPayload
-  /** Hashed into the idempotency key. */
+  /** Hashed into the idempotency key: the hook call's `callId`. */
   readonly unique: string
 }
 
@@ -122,12 +117,6 @@ export type CreateSupabaseSendEmailHookOptions = {
   readonly keys?: AuthEmailKeys
   /** Sent as `appName` on every email. Optional: the kit's designs fall back to the brand name. */
   readonly appName?: string
-  /**
-   * Link emails (signup, recovery, magic link, invite, email change) send
-   * the link (`'link'`, default) or the code too (`'code'`). Sign-in codes
-   * (`email`) and reauthentication always send the code.
-   */
-  readonly verification?: SupabaseVerificationStyle
   /**
    * Build the link a user clicks. Default: Supabase's verify endpoint,
    * `${site_url}/auth/v1/verify?token=…&type=…&redirect_to=…`. Override it
@@ -143,6 +132,10 @@ export type CreateSupabaseSendEmailHookOptions = {
   readonly onError?: (error: unknown) => void
 }
 
+/**
+ * A refusal Supabase shows the user: `http_code` becomes the auth request's
+ * status (see `refuse`).
+ */
 class HookRequestError extends Error {
   readonly status: number
 
@@ -188,11 +181,8 @@ export function defaultSupabaseConfirmationUrl({
   return `${verify}?${query.toString()}`
 }
 
-/** What a planned email carries, and what its idempotency key hashes. */
-type EmailContent = {
-  readonly fields: { confirmationUrl?: string; otp?: string }
-  readonly unique: string
-}
+/** What a planned email carries besides the shared fields. */
+type EmailFields = { confirmationUrl?: string; otp?: string }
 
 function text(value: unknown): string | undefined {
   return typeof value === 'string' && value !== '' ? value : undefined
@@ -220,18 +210,54 @@ function isHookPayload(value: unknown): value is SupabaseSendEmailHookPayload {
   )
 }
 
+const CALL_ID_CONTEXT = 'brew.send-email-hook.v1\n'
+
+/**
+ * The id of one hook call: hex HMAC-SHA256 of the raw body under the hook
+ * secret. Supabase signs every retry of a call with a new `webhook-id` but
+ * marshals the body once, so its retries share this id, and each new call
+ * (a new token, or new user state for a notice) gets a new one. Keyed, so
+ * an idempotency key reveals nothing about a six-digit code.
+ */
+export async function supabaseHookCallId({
+  payload,
+  secret,
+}: {
+  /** The raw request body, as verified. */
+  readonly payload: string
+  /** The hook secret: `v1,whsec_<base64>`. */
+  readonly secret: string
+}): Promise<string> {
+  const key = await globalThis.crypto.subtle.importKey(
+    'raw',
+    decodeWebhookSecret(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  )
+  const digest = await globalThis.crypto.subtle.sign(
+    'HMAC',
+    key,
+    new TextEncoder().encode(`${CALL_ID_CONTEXT}${payload}`)
+  )
+  return [...new Uint8Array(digest)]
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('')
+}
+
 /**
  * The Brew sends one hook call makes: one per email, two for a secure email
- * change (the current and the new address each confirm). Pure: exported
- * for a handler of your own.
+ * change (the current and the new address each confirm). Link emails carry
+ * the verify link and, when Supabase sent one, the six-digit code as `otp`
+ * (an app that confirms with `verifyOtp` needs it; the kit shows both).
+ * Pure: exported for a handler of your own.
  */
 export function planSupabaseSends(
   hook: SupabaseSendEmailHookPayload,
   {
     appName,
-    verification = 'link',
     confirmationUrl = defaultSupabaseConfirmationUrl,
-    webhookId = '',
+    callId = JSON.stringify(hook),
   }: PlanSupabaseSendsOptions = {}
 ): ReadonlyArray<PlannedSupabaseSend> {
   const { user, email_data: data } = hook
@@ -247,55 +273,43 @@ export function planSupabaseSends(
     }
     return value
   }
-  const codeOf = (token: string | undefined): { otp?: string } => {
+  const codeOf = (token: string | undefined): EmailFields => {
     const value = text(token)
     return value === undefined ? {} : { otp: value }
   }
-  // A code email: the code, keyed by the code AND the delivery id. A
-  // six-digit code repeats, and two requests that drew the same one must
-  // each send.
-  const codeEmail = (token: string | undefined): EmailContent => ({
-    fields: codeOf(token),
-    unique: `${text(token) ?? ''}:${webhookId}`,
-  })
-  // A link email: the verify link from `tokenHash` (plus the code when the
-  // hook sends codes), keyed by the token hash. With no link to build, it
-  // sends the code instead (so the email still works), keyed as a code.
+  // A link email: the verify link from `tokenHash` and the code beside it.
+  // With no link to build, the code alone (so the email still works).
   const linkEmail = (
     tokenHash: string | undefined,
     token: string | undefined
-  ): EmailContent => {
+  ): EmailFields => {
     const hash = text(tokenHash)
     const siteUrl = text(data.site_url)
     if (hash === undefined || siteUrl === undefined) {
-      return codeEmail(token)
+      return codeOf(token)
     }
     return {
-      fields: {
-        confirmationUrl: confirmationUrl({
-          siteUrl,
-          tokenHash: hash,
-          type: action,
-          redirectTo: data.redirect_to ?? '',
-        }),
-        ...(verification === 'code' ? codeOf(token) : {}),
-      },
-      unique: hash,
+      confirmationUrl: confirmationUrl({
+        siteUrl,
+        tokenHash: hash,
+        type: action,
+        redirectTo: data.redirect_to ?? '',
+      }),
+      ...codeOf(token),
     }
   }
 
   const linkKind = LINK_KIND_BY_ACTION[action]
   if (linkKind !== undefined) {
-    const link = linkEmail(data.token_hash, data.token)
     return [
       {
         kind: linkKind,
         payload: {
           email: requireAddress(user.email),
           ...shared,
-          ...link.fields,
+          ...linkEmail(data.token_hash, data.token),
         },
-        unique: link.unique,
+        unique: callId,
       },
     ]
   }
@@ -307,9 +321,9 @@ export function planSupabaseSends(
     // are reversed for backward compatibility: the CURRENT address confirms
     // with `token` + `token_hash_new`, the NEW one with `token_new` +
     // `token_hash`.
+    // The two sends share the call's id; their recipients tell their
+    // idempotency keys apart.
     if (text(data.token_hash_new) !== undefined && text(user.email)) {
-      const current = linkEmail(data.token_hash_new, data.token)
-      const next = linkEmail(data.token_hash, data.token_new)
       return [
         {
           kind: 'emailChange',
@@ -317,9 +331,9 @@ export function planSupabaseSends(
             email: requireAddress(user.email),
             ...shared,
             ...newEmailField,
-            ...current.fields,
+            ...linkEmail(data.token_hash_new, data.token),
           },
-          unique: current.unique,
+          unique: callId,
         },
         {
           kind: 'emailChange',
@@ -327,15 +341,14 @@ export function planSupabaseSends(
             email: requireAddress(newEmail),
             ...shared,
             ...newEmailField,
-            ...next.fields,
+            ...linkEmail(data.token_hash, data.token_new),
           },
-          unique: next.unique,
+          unique: callId,
         },
       ]
     }
     // One confirmation, to the new address: `token_hash` with `token` (or
     // `token_new`, whichever Supabase filled).
-    const link = linkEmail(data.token_hash, text(data.token) ?? data.token_new)
     return [
       {
         kind: 'emailChange',
@@ -343,24 +356,23 @@ export function planSupabaseSends(
           email: requireAddress(newEmail ?? user.email),
           ...shared,
           ...newEmailField,
-          ...link.fields,
+          ...linkEmail(data.token_hash, text(data.token) ?? data.token_new),
         },
-        unique: link.unique,
+        unique: callId,
       },
     ]
   }
 
   if (action === 'reauthentication' || action === 'email') {
-    const code = codeEmail(data.token)
     return [
       {
         kind: action === 'email' ? 'otp' : 'reauthentication',
         payload: {
           email: requireAddress(user.email),
           ...shared,
-          ...code.fields,
+          ...codeOf(data.token),
         },
-        unique: code.unique,
+        unique: callId,
       },
     ]
   }
@@ -382,7 +394,7 @@ export function planSupabaseSends(
           ...(movedTo === undefined ? {} : { newEmail: movedTo }),
           noticeType: action.slice(0, -NOTIFICATION_SUFFIX.length),
         },
-        unique: webhookId,
+        unique: callId,
       },
     ]
   }
@@ -390,15 +402,65 @@ export function planSupabaseSends(
   throw new HookRequestError(400, `Unsupported email_action_type: ${action}.`)
 }
 
-function jsonResponse(status: number, body: unknown): Response {
+function jsonResponse(
+  status: number,
+  body: unknown,
+  headers: Readonly<Record<string, string>> = {}
+): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', ...headers },
   })
 }
 
-function errorResponse(status: number, message: string): Response {
-  return jsonResponse(status, { error: { http_code: status, message } })
+/**
+ * A refusal. Supabase Auth reads a hook's body only on a `200`
+ * (supabase/auth `internal/hooks/hookshttp.go`): `{ error: { http_code,
+ * message } }` then fails the auth request with that status and message.
+ * Any other status is a generic 500 and the message is dropped.
+ */
+function refuse(httpCode: number, message: string): Response {
+  return jsonResponse(200, { error: { http_code: httpCode, message } })
+}
+
+/**
+ * A failure an immediate retry may get past. Supabase retries a `503` at
+ * once, with a new `webhook-id` and the same body, only when `Retry-After`
+ * is set: at most 3 attempts inside its 5-second budget.
+ */
+function retryLater(message: string): Response {
+  return jsonResponse(
+    503,
+    { error: { http_code: 503, message } },
+    { 'retry-after': '1' }
+  )
+}
+
+/** Brew could not answer, or answered that a retry may succeed. */
+function isTransient(error: unknown): boolean {
+  if (error instanceof BrewTransportError || error instanceof BrewParseError) {
+    return true
+  }
+  if (!(error instanceof BrewApiError)) {
+    return false
+  }
+  // A daily sandbox cap does not lift in the next second.
+  if (error.status === 429) {
+    return error.code !== 'SANDBOX_DAILY_LIMIT'
+  }
+  return error.status === 408 || error.status >= 500
+}
+
+/**
+ * The `http_code` of a Brew refusal: its status, except an API key Brew
+ * does not accept (`401` / `403`), which is this server's setup, not the
+ * signing-in user's.
+ */
+function refusalCode(error: unknown): number {
+  if (!(error instanceof BrewApiError)) {
+    return 500
+  }
+  return error.status === 401 || error.status === 403 ? 500 : error.status
 }
 
 /**
@@ -418,13 +480,14 @@ function errorResponse(status: number, message: string): Response {
  * | `email`              | `auth.otp`                            |
  * | `*_notification`     | `auth.security-notice` + `noticeType` |
  *
- * Answers `200 {}` when every email was accepted, otherwise
- * `{ error: { http_code, message } }` with that status: 401 for a bad
- * signature, 400 for a body it cannot use, 500 when Brew refused or could
- * not be reached (Supabase then reports the send as failed). Each send's
- * idempotency key hashes its token hash (a link email) or its code and the
- * request's `webhook-id` (a code email, a notice), so the client's retries
- * of a send never email twice.
+ * Answers `200 {}` when every email was accepted. Every refusal is a `200`
+ * with `{ error: { http_code, message } }`, the only error body Supabase
+ * reads: `401` for a bad signature, `400` for a body it cannot use, Brew's
+ * status when Brew refused (`500` for an API key it does not accept), `500`
+ * for anything else. A timeout, a dropped connection, a Brew `5xx` or rate
+ * limit answers `503` with `Retry-After`, which Supabase retries at once.
+ * Each send's idempotency key hashes `supabaseHookCallId` of the body, the
+ * same on every retry, so a retried call never emails twice.
  */
 export function createSupabaseSendEmailHook(
   options: CreateSupabaseSendEmailHookOptions
@@ -437,7 +500,10 @@ export function createSupabaseSendEmailHook(
 
   return async (request: Request): Promise<Response> => {
     if (request.method !== 'POST') {
-      return errorResponse(405, 'The Send Email Hook takes POST.')
+      // Not a hook call: Supabase only ever POSTs.
+      return jsonResponse(405, {
+        error: { http_code: 405, message: 'The Send Email Hook takes POST.' },
+      })
     }
     try {
       const body = await request.text()
@@ -451,13 +517,13 @@ export function createSupabaseSendEmailHook(
       }
       const plan = planSupabaseSends(verified, {
         ...(options.appName === undefined ? {} : { appName: options.appName }),
-        ...(options.verification === undefined
-          ? {}
-          : { verification: options.verification }),
         ...(options.confirmationUrl === undefined
           ? {}
           : { confirmationUrl: options.confirmationUrl }),
-        webhookId: request.headers.get('webhook-id') ?? '',
+        callId: await supabaseHookCallId({
+          payload: body,
+          secret: options.secret,
+        }),
       })
       const client = getClient()
       await Promise.all(
@@ -477,15 +543,20 @@ export function createSupabaseSendEmailHook(
     } catch (error) {
       reportSafely(LOG_LABEL, () => onError(error))
       if (error instanceof WebhookVerificationError) {
-        return error.reason === 'invalid_secret'
-          ? errorResponse(500, error.message)
-          : errorResponse(401, error.message)
+        return refuse(
+          error.reason === 'invalid_secret' ? 500 : 401,
+          error.message
+        )
       }
       if (error instanceof HookRequestError) {
-        return errorResponse(error.status, error.message)
+        return refuse(error.status, error.message)
       }
-      const message = error instanceof Error ? error.message : String(error)
-      return errorResponse(500, `Brew could not send the email: ${message}`)
+      const message = `Brew could not send the email: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+      return isTransient(error)
+        ? retryLater(message)
+        : refuse(refusalCode(error), message)
     }
   }
 }
