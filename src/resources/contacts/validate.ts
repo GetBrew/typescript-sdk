@@ -23,7 +23,7 @@ export type ContactValidationResult = ValidateContactsResponse['data'][number]
  *
  * The wire format is `{ emails: [...] }`. Each address comes back in
  * `data` with a `valid` boolean, a `status` of `valid` | `risky` |
- * `invalid` | `unavailable`, a `checkOutcome` of `completed` | `unavailable`,
+ * `invalid`, a `checkOutcome` of `completed` | `unavailable`,
  * an optional machine-readable `reason`, a `didYouMean` typo
  * correction when the address looks mistyped, and — when the provider
  * supplies them — a `risk` band (`low` | `medium` | `high` | `unknown`),

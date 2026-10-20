@@ -608,7 +608,7 @@ Deliverability-check up to 100 addresses before importing or sending:
 Completed checks have `checkOutcome: "completed"` and a `valid`, `risky`
 or `invalid` verdict, with optional reason, typo correction and provider flags.
 Unscored addresses have `checkOutcome: "unavailable"` and
-`status: "unavailable"`; their previous stored verdict remains unchanged.
+`status: "risky"`; their previous stored verdict remains unchanged.
 `persistence` reports matching contacts, modified profiles and failed saves.
 Inspect it separately from provider verdicts. A successful batch costs 2 credits
 per submitted address, including unavailable rows in a partial outage. A wholly

@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, expectTypeOf, it } from 'vitest'
 import {
   createValidateContacts,
   type ContactValidationResult,
@@ -28,7 +28,7 @@ const response = {
     {
       email: 'unknown@example.com',
       valid: false,
-      status: 'unavailable',
+      status: 'risky',
       checkOutcome: 'unavailable',
       reason: 'validation_unavailable',
     },
@@ -44,6 +44,14 @@ const validation = {
 }
 
 describe('contact validation outcome contracts', () => {
+  it('keeps unavailable checks compatible with the API risky status (type-level)', () => {
+    expectTypeOf<
+      Extract<
+        ContactValidationResult,
+        { checkOutcome: 'unavailable' }
+      >['status']
+    >().toEqualTypeOf<'risky'>()
+  })
   it('preserves unavailable rows and failed saves in the response envelope', async () => {
     server.use(
       http.post('https://brew.new/api/v1/contacts/validate', () =>
@@ -86,7 +94,7 @@ describe('contact validation outcome contracts', () => {
     const invalid: ContactValidationResult = {
       email: 'x@example.com',
       checkOutcome: 'unavailable',
-      status: 'unavailable',
+      status: 'risky',
       reason: 'validation_unavailable',
       valid: true,
     }
