@@ -1,5 +1,10 @@
 # Retries + idempotency
 
+Caller-supplied idempotency keys are normalized as HTTP header values and must
+contain 1–100 characters after trimming. Invalid keys reject with
+`BrewInputError` before transport; omitting the key on a replayable POST still
+generates a fresh UUID. Every retry carries the same normalized key.
+
 The SDK retries transient failures by default. The retry policy is
 designed to be **safe** — never retry a request whose retry could cause
 a duplicate write — and **boring** — exponential backoff with full
