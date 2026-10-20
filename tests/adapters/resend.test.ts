@@ -289,6 +289,24 @@ describe('@brew.new/sdk/resend error mapping', () => {
     })
   })
 
+  it('maps an idempotencyKey the SDK refuses before sending to validation_error', async () => {
+    const fires = captureFires()
+
+    const result = await resend().emails.send(
+      { to: 'jane@example.com', template: { id: 'auth.password-reset' } },
+      { idempotencyKey: '   ' }
+    )
+
+    expect(fires).toHaveLength(0)
+    expect(result.data).toBeNull()
+    expect(result.error).toEqual({
+      name: 'validation_error',
+      message:
+        'idempotencyKey must be a nonblank HTTP header value of at most 100 characters.',
+      statusCode: 422,
+    })
+  })
+
   it('never throws, even when the client throws a non-Error', async () => {
     const throwing: BrewClient = {
       ...testClient(),

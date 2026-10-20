@@ -1,4 +1,4 @@
-import { BrewApiError, BrewTransportError } from '@brew.new/sdk'
+import { BrewApiError, BrewInputError, BrewTransportError } from '@brew.new/sdk'
 
 /**
  * Resend's error names this adapter answers with, plus two of Brew's own:
@@ -69,11 +69,16 @@ function nameForStatus(status: number): ResendCompatErrorName {
 
 /**
  * Map anything a send can throw to Resend's error shape. A refused request
- * (`BrewApiError`) keeps its status and Brew code; no answer at all (a
+ * (`BrewApiError`) keeps its status and Brew code; an input the SDK refuses
+ * before sending (`BrewInputError`, such as a blank `idempotencyKey`) is a
+ * `validation_error`, like the adapter's own checks; no answer at all (a
  * timeout or a dropped connection) and anything unexpected is
  * `application_error` with `statusCode: null`.
  */
 export function toResendError(error: unknown): ResendCompatError {
+  if (error instanceof BrewInputError) {
+    return resendError('validation_error', error.message)
+  }
   if (error instanceof BrewApiError) {
     const name = NAME_BY_CODE[error.code] ?? nameForStatus(error.status)
     return {
