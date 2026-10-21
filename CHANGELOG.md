@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Synchronize email categories and template browse groups with app revision
+  `9bf2e01f14d8260bdde0825e901a05497b66c70c`. Generation inputs accept
+  `onboarding`, `content`, `event-recap`, `product-pitch`, `company-news` and
+  `fundraising`; existing categories remain valid. Template reads accept
+  `group` filters and `groupBy: 'group'` counts. These additions require the
+  matching API deployment.
+
 ## 13.0.0
 
 ### Breaking
