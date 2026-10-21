@@ -15,7 +15,8 @@ export type ExportEmailInput = {
 } & components['schemas']['EmailExportRequest']
 
 /**
- * 200 result of `POST /v1/emails/{emailId}/export` — what was written to the
+ * Result of `POST /v1/emails/{emailId}/export` — HTTP 201 when exported, or
+ * HTTP 200 for a dry run. Describes what was written to the
  * ESP (`{ emailId, provider, providerName, templateName, templateId?,
  * dryRun }`). On a dry run `dryRun` is `true` and no `templateId` is issued.
  */
@@ -39,7 +40,8 @@ export const EXPORT_EMAIL_DEFAULT_TIMEOUT_MS = 800_000
  *
  * The ESP must be connected for the brand: exporting to one that is not
  * surfaces as `400 INTEGRATION_NOT_CONNECTED`. If the provider rejects the
- * template or is temporarily unavailable you get `502 EXPORT_PROVIDER_ERROR`.
+ * template or is temporarily unavailable, the response includes a typed
+ * provider error; inspect `BrewApiError.code`, `status` and `retryAfter`.
  *
  * Supply `options.idempotencyKey` to make retries safe; one is generated
  * automatically otherwise.

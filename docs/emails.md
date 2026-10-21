@@ -170,8 +170,9 @@ for (const link of links ?? []) {
 }
 ```
 
-Read a saved version with `emailVersionId`, or poll a generation with the
-`runId` that `generate` / `edit` returned while it was `generating`:
+Read a saved version with `emailVersionId`, or read a generation started through
+an asynchronous surface such as MCP using its `runId`. The SDK's `generate` and
+`edit` calls wait for the final artifact or text response:
 
 ```ts
 const pinned = await brew.emails.get('email_123', {

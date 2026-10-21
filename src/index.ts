@@ -267,6 +267,10 @@ export type {
   ListBrandsResponse,
 } from './resources/brands/list'
 export type { BrandsResource } from './resources/brands/resource'
+export {
+  BrewBrandExtractionTimeoutError,
+  type WaitForExtractionOptions,
+} from './resources/brands/wait-for-extraction'
 export type { ListAllChatsInput } from './resources/chats/list'
 export type { ChatsResource } from './resources/chats/resource'
 // ---------- Chats: domain types ----------

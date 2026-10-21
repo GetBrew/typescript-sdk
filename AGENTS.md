@@ -1,7 +1,7 @@
 # Agents
 
-Guidelines for any agent (human or AI) working inside `@brew.new/sdk`, the
-official TypeScript SDK for the Brew public API.
+Guidelines for contributors to `@brew.new/sdk`, the official TypeScript client
+for the Brew public API.
 
 ## What this package is
 
@@ -82,6 +82,8 @@ Every failure a public method gives up on is typed (`docs/errors.md`):
   `BrewApiError`: there is no status to report, and the public docs route
   `BrewApiError` and plain `Error` down different branches.
 - `BrewParseError` — a complete 2xx body that is not JSON.
+- `BrewBrandExtractionTimeoutError` — extraction wait expired; `lastStatus`
+  is the last lifecycle row. Server extraction can continue.
 - A caller abort rethrows the signal's `reason` verbatim — the one value a
   public path throws that may not be an `Error`, because `fetch` does the
   same and callers compare against it.
@@ -104,7 +106,7 @@ Do not scatter retry loops across resources. Rules:
   key on every attempt.
 - `PATCH` is not retried by default.
 - Honor `Retry-After` up to 60 s (`MAX_RETRY_AFTER_MS`); beyond it, throw.
-- Exponential backoff with jitter. Boring and predictable.
+- Exponential backoff with jitter.
 
 `src/core/http.ts` rules that exist because breaking them caused real
 bugs:

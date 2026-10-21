@@ -1,6 +1,30 @@
 # Changelog
 
-## Unreleased
+## 13.0.0
+
+### Breaking
+
+- `canvas.sessions.revoke` now returns `CanvasSessionRevokeResponse` instead of
+  `void`. Update wrappers that explicitly return `Promise<void>` to await the
+  call without returning its value, or return the typed response instead.
+  With `{ raw: true }`, the result is
+  `BrewRawResponse<CanvasSessionRevokeResponse>`.
+
+### Added
+
+- `brands.waitForExtraction(brandId, { maxWaitMs?, pollIntervalMs?, signal? })`
+  polls until extraction ends, with a five-minute total deadline by default.
+  It returns the terminal lifecycle row, including failed or not-ready rows;
+  check `ready` before generating an email. The exported
+  `BrewBrandExtractionTimeoutError` includes the last observed status. Client
+  cancellation, HTTP errors and retry settings are preserved.
+- `createCanvasSessionProvider` accepts `headers` as `HeadersInit` or a sync or
+  async factory. The factory runs for initial and renewal requests, supporting
+  rotating CSRF headers and cancellation while headers are being resolved.
+- `BrewInputError` identifies invalid idempotency keys before a request is sent.
+  `BrewPaginationError` stops repeated cursor cycles with page and item counts.
+- Loops email exports and an 800-second default export timeout, preserving
+  explicit request timeouts and longer client-wide settings.
 
 ### Added
 
@@ -45,9 +69,15 @@
   credential creation/refresh with no automatic replay key.
 - Source preparation writes build logs to stderr so `npm pack --json` remains
   machine-readable for the embedded canvas demo and other package consumers.
-
-This changes a public method signature. Release as 13.0.0 under the version
-policy, before the CLI canvas migration updates its dependency and registry lock.
+- Git dependencies prepare complete ESM and CommonJS declarations, including
+  when installed inside `node_modules` on Windows.
+- `emails.import` returns the generated import contract, including required
+  asset diagnostics. Public payload contracts retain their discriminated
+  formats and warnings.
+- API contracts and resource guidance match current contact validation
+  outcomes, audience count freshness, email result recovery and send behavior.
+- White-label documentation uses the flat brand lifecycle response, private
+  canvas sessions, save-before-export and the supported email import formats.
 
 ## 12.3.0
 
