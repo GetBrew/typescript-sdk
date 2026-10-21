@@ -36,6 +36,7 @@ List public templates with optional filters.
 type ListTemplateRowsInput = {
   readonly brand?: string
   readonly category?: string
+  readonly group?: ListTemplateCountsInput['group'] // browse group, e.g. 'events'
   readonly semantic?: string // vector-ranked matches
   readonly query?: string // title text or an exact template id
   readonly representation?: 'full' | 'summary' // summary omits html
@@ -92,18 +93,32 @@ const { data: picks } = await brew.templates.list({
   representation: 'summary',
 })
 console.log(picks[0]?.viewUrl, picks[0]?.referenceEmailId)
+
+// Browse event invitations, reminders and recaps together.
+const { data: events } = await brew.templates.list({
+  group: 'events',
+  representation: 'summary',
+})
+console.log(events.map((template) => template.title))
 ```
 
 With `count: true`, the response is `{ count }`. Add `groupBy: 'brand'` or
-`'category'` for `groups`, `groupCount`, `ungroupedCount`, and group
+`'category'` or `'group'` for `groups`, `groupCount`, `ungroupedCount`, and group
 pagination. Continue grouped counts with the returned cursor; a plain count
-accepts no cursor. Counts support `brand` and
-`category` filters; `query` and `semantic` require row mode. Raw mode keeps
+accepts no cursor. Counts support `brand`, `category` and
+`group` filters; `query` and `semantic` require row mode. Raw mode keeps
 the count response type as well.
 
 ```ts
 const counts = await brew.templates.list({ count: true, groupBy: 'category' })
 console.log(counts.count, counts.groups)
+
+const browseGroups = await brew.templates.list({
+  count: true,
+  groupBy: 'group',
+  brand: 'vercel.com',
+})
+console.log(browseGroups.groups)
 ```
 
 ---
