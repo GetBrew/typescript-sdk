@@ -16,6 +16,7 @@ type TemplateQuery = NonNullable<
 export const TEMPLATE_GROUP_BY_TOKENS = [
   'brand',
   'category',
+  'group',
 ] as const satisfies ReadonlyArray<NonNullable<TemplateQuery['groupBy']>>
 
 /** Filters for template rows; grouping requires count mode. */
@@ -83,7 +84,7 @@ type ListTemplatesBody =
  * `POST /v1/emails`); `templates.get(templateId)` reads one.
  *
  * `count: true` returns `{ count }` for the `brand`/`category` filters.
- * `groupBy: 'brand'` or `'category'` adds grouped counts with cursor
+ * `groupBy: 'brand'`, `'category'` or `'group'` adds grouped counts with cursor
  * pagination. Count mode cannot use `query` or `semantic`.
  *
  * Pass `{ raw: true }` in `options` to receive the full `BrewRawResponse`

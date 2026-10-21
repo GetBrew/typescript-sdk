@@ -38,10 +38,13 @@ export type ImportCsvContactsInput =
 export type ImportCsvContactsResponse =
   components['schemas']['ContactsImportResponse']
 
-/** Aggregate counts for a CSV import (inserted/updated/failed/skipped). */
+/**
+ * Aggregate counts for a CSV import. Every data row lands in exactly one
+ * bucket: `inserted + updated + failed + skipped === total`.
+ */
 export type ImportCsvSummary = ImportCsvContactsResponse['summary']
 
-/** One per-row failure in `ImportCsvContactsResponse.errors`. */
+/** One per-row failure; `row` is the 1-based CSV data row (header excluded). */
 export type ImportCsvError = ImportCsvContactsResponse['errors'][number]
 
 /** One non-fatal normalization in `ImportCsvContactsResponse.warnings`. */
@@ -55,12 +58,15 @@ export type ImportCsvWarning = ImportCsvContactsResponse['warnings'][number]
  * auto-defines any custom fields it finds (returned in `fieldsCreated`),
  * and upserts each row.
  *
- * Returns the full `ContactsImportCsvResponse` envelope: a `summary`
- * (inserted/updated/failed/skipped counts), the batch's `importId`, `fieldsCreated`, a per-row
- * `errors` array, and a `warnings` array surfacing non-fatal
- * normalizations. The response is the same shape on full and partial
- * success — inspect `summary.failed` and `errors` to detect row-level
- * problems; the transport does not throw on a partial-failure status.
+ * Returns the full `ContactsImportResponse` envelope: a `summary`
+ * (`inserted`, `updated`, `failed`, `skipped`, summing to `total`), the
+ * batch's `importId`, `fieldsCreated`, a per-row `errors` array, and a
+ * `warnings` array surfacing non-fatal notes. Every failed row has an
+ * `errors` entry and every skipped row a `CSV_ROW_SKIPPED` warning, each
+ * naming its 1-based data `row` (header excluded). The response is the same
+ * shape on full and partial success — inspect `summary.failed` and `errors`
+ * to detect row-level problems; the transport does not throw on a
+ * partial-failure status.
  *
  * Pass `validate: true` to deliverability-check every imported address and
  * persist the verdict onto each contact. A CSV of ≤100 data rows validates
