@@ -82,7 +82,7 @@ pass `overwrite: true`. Until a sending domain verifies, app emails send
 from a team-only sandbox (members of your organization, under a daily
 cap). The setup calls need the `automations` and `emails` scopes and
 default to a 5-minute timeout. They ship with Brew platform release
-GetBrew/brew-v2#2066. See [`docs/app-emails.md`](./docs/app-emails.md).
+GetBrew/brew-v2#2169. See [`docs/app-emails.md`](./docs/app-emails.md).
 
 ## Adapters
 
