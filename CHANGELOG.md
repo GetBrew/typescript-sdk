@@ -20,6 +20,12 @@
   the batch's `importId`, which each contact they write carries until a later
   import touches it. Both responses share the `ContactsImportResponse`
   component (`ImportCsvContactsResponse` keeps its name).
+- Both import responses include `summary.total`: submitted JSON contacts or
+  CSV data rows, equal to `inserted + updated + failed + skipped`. Errors
+  and warnings can include a positive, 1-based `row` (JSON `contacts` index
+  plus one, or CSV data row excluding the header). `CSV_ROW_SKIPPED` warnings
+  identify the first 100 skipped CSV rows; a final warning without `row`
+  counts any remainder. These fields require the matching API deployment.
 
 ### Changed
 

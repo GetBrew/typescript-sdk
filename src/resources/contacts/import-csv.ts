@@ -38,13 +38,13 @@ export type ImportCsvContactsInput =
 export type ImportCsvContactsResponse =
   components['schemas']['ContactsImportResponse']
 
-/** Aggregate counts for a CSV import (inserted/updated/failed/skipped). */
+/** CSV counts: `inserted + updated + failed + skipped === total`. */
 export type ImportCsvSummary = ImportCsvContactsResponse['summary']
 
-/** One failure in `ImportCsvContactsResponse.errors`. */
+/** One failure; optional `row` is a positive CSV data-row number (no header). */
 export type ImportCsvError = ImportCsvContactsResponse['errors'][number]
 
-/** One non-fatal normalization in `ImportCsvContactsResponse.warnings`. */
+/** One non-fatal note; `row` is absent for aggregate or column-level notes. */
 export type ImportCsvWarning = ImportCsvContactsResponse['warnings'][number]
 
 /**
@@ -56,12 +56,17 @@ export type ImportCsvWarning = ImportCsvContactsResponse['warnings'][number]
  * and upserts each row.
  *
  * Returns the full `ContactsImportResponse` envelope: a `summary`
- * (`inserted`, `updated`, `failed`, `skipped`), the
+ * (`inserted`, `updated`, `failed`, `skipped`, and their sum `total`), the
  * batch's `importId`, `fieldsCreated`, a per-row `errors` array, and a
  * `warnings` array surfacing non-fatal notes. The response is the same
  * shape on full and partial success — inspect `summary.failed` and `errors`
  * to detect row-level problems; the transport does not throw on a
  * partial-failure status.
+ *
+ * When present, `row` on an error or warning is a positive, 1-based CSV data
+ * row (the header is excluded). `CSV_ROW_SKIPPED` warnings identify up to
+ * the first 100 skipped rows. If more are skipped, a final warning counts
+ * the remainder without a `row`. Read `summary.skipped` for the full count.
  *
  * Pass `validate: true` to deliverability-check every imported address and
  * persist the verdict onto each contact. A CSV of ≤100 data rows validates

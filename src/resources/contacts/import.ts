@@ -21,13 +21,13 @@ export type ImportContactsInput = components['schemas']['ContactsImportRequest']
 export type ImportContactsResponse =
   components['schemas']['ContactsImportResponse']
 
-/** Aggregate counts for an import (inserted/updated/failed/skipped). */
+/** Import counts: `inserted + updated + failed + skipped === total`. */
 export type ImportContactsSummary = ImportContactsResponse['summary']
 
-/** One failure in `ImportContactsResponse.errors`. */
+/** One failure; optional `row` is a positive, 1-based index into `contacts`. */
 export type ImportContactsError = ImportContactsResponse['errors'][number]
 
-/** One non-fatal note in `ImportContactsResponse.warnings`. */
+/** One non-fatal note; optional `row` is a positive, 1-based contact index. */
 export type ImportContactsWarning = ImportContactsResponse['warnings'][number]
 
 /**
@@ -41,7 +41,10 @@ export type ImportContactsWarning = ImportContactsResponse['warnings'][number]
  * syncs that should not appear in Import History.
  *
  * The response is the same shape on full and partial success (200 / 207):
- * inspect `summary.failed` and `errors` for row-level problems.
+ * `summary.total` counts submitted contacts and equals
+ * `inserted + updated + failed + skipped` (`skipped` is 0 for JSON).
+ * Inspect `summary.failed` and `errors` for row-level problems. Errors and
+ * warnings can name the contact with `row`: `contacts[row - 1]`.
  */
 export function createImportContacts(client: HttpClient) {
   function importContacts(

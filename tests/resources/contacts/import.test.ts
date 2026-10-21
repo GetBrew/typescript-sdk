@@ -1,18 +1,21 @@
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it } from 'vitest'
 
-import { createImportContacts } from '../../../src/resources/contacts/import'
+import {
+  createImportContacts,
+  type ImportContactsResponse,
+} from '../../../src/resources/contacts/import'
 import { createImportCsvContacts } from '../../../src/resources/contacts/import-csv'
 import { makeTestHttpClient } from '../../helpers/http-client'
 import { server } from '../../msw/server'
 
 const ENVELOPE = {
-  summary: { inserted: 1, updated: 1, failed: 0, skipped: 0 },
+  summary: { inserted: 1, updated: 1, failed: 0, skipped: 0, total: 2 },
   fieldsCreated: [],
   errors: [],
   warnings: [],
   importId: 'imp_123',
-}
+} satisfies ImportContactsResponse
 
 describe('contacts.import', () => {
   it('posts JSON rows with fileName and consent and returns the importId', async () => {
@@ -48,25 +51,25 @@ describe('contacts.import', () => {
     })
     expect(result.importId).toBe('imp_123')
     expect(result.summary.updated).toBe(1)
+    expect(result.summary.total).toBe(2)
   })
 
   it('returns the partial-success envelope without throwing on 207', async () => {
+    const body = {
+      ...ENVELOPE,
+      summary: { inserted: 1, updated: 0, failed: 1, skipped: 0, total: 2 },
+      errors: [
+        {
+          email: 'not-an-email',
+          row: 2,
+          code: 'INVALID_EMAIL',
+          message: "'not-an-email' is not a valid email address.",
+        },
+      ],
+    } satisfies ImportContactsResponse
     server.use(
       http.post('https://brew.new/api/v1/contacts/import', () =>
-        HttpResponse.json(
-          {
-            ...ENVELOPE,
-            summary: { inserted: 1, updated: 0, failed: 1, skipped: 0 },
-            errors: [
-              {
-                email: 'not-an-email',
-                code: 'INVALID_EMAIL',
-                message: "'not-an-email' is not a valid email address.",
-              },
-            ],
-          },
-          { status: 207 }
-        )
+        HttpResponse.json(body, { status: 207 })
       )
     )
     const { client } = makeTestHttpClient()
@@ -74,7 +77,10 @@ describe('contacts.import', () => {
       contacts: [{ email: 'ada@example.com' }, { email: 'not-an-email' }],
     })
     expect(result.summary.failed).toBe(1)
+    expect(result.summary.total).toBe(2)
     expect(result.errors[0]?.code).toBe('INVALID_EMAIL')
+    expect(result.errors[0]?.row).toBe(2)
+    expect(result).toEqual(body)
   })
 })
 
@@ -86,7 +92,16 @@ describe('contacts.importCsv fileName', () => {
         'https://brew.new/api/v1/contacts/import-csv',
         async ({ request }) => {
           sent = await request.json()
-          return HttpResponse.json(ENVELOPE)
+          return HttpResponse.json({
+            ...ENVELOPE,
+            summary: {
+              inserted: 1,
+              updated: 0,
+              failed: 0,
+              skipped: 0,
+              total: 1,
+            },
+          } satisfies ImportContactsResponse)
         }
       )
     )
@@ -100,5 +115,6 @@ describe('contacts.importCsv fileName', () => {
       fileName: 'customers.csv',
     })
     expect(result.importId).toBe('imp_123')
+    expect(result.summary.total).toBe(1)
   })
 })
