@@ -2,14 +2,16 @@
 
 ## 13.1.0 (not released yet)
 
-App email by trigger key (GetBrew/brew-v2#2013, GetBrew/brew-v2#2017).
-Additive: nothing is removed or renamed. This is a minor release after
-13.0.0. Publish only once both API pull requests are deployed and the live
-spec matches the vendored one: until then
-`POST /v1/automations/triggers/by-key/{triggerKey}/fire` answers `404`. The
-spec is brew-v2 `main` at `8c7020e535` plus the operations and schemas from
-#2013 (`d556eaf50d`) and #2017 (`63736f0f99`); with #2017 stacked on
-#2013 on current main, it is byte-identical to #2017's own spec.
+App email by trigger key (GetBrew/brew-v2#2169, which carries trigger keys
+and fire by key). Additive: nothing is removed or renamed. This is a minor
+release after 13.0.0. Publish only once GetBrew/brew-v2#2169 is deployed and
+the live spec matches the vendored one: until then
+`POST /v1/automations/triggers/by-key/{triggerKey}/fire` answers `404`.
+Spec source: brew-v2 #2169 @ 6f8ef50544 (vendored whole: brew-v2 `main`
+`2db5428b09` plus the developer-platform routes). Routes the later 13.2.0
+and 13.3.0 releases bind (`/v1/app-emails`,
+`/v1/integrations/{provider}/connection`) are typed in the generated file but
+have no method yet.
 
 ### Added
 
@@ -44,6 +46,20 @@ spec is brew-v2 `main` at `8c7020e535` plus the operations and schemas from
 starterVersion? }`. The fire body gains `triggerKey` on a by-key fire.
   New error codes: `TRIGGER_KEY_NOT_FOUND`, `TRIGGER_KEY_RESERVED`,
   `TRIGGER_KEY_TAKEN`.
+- **Team sandbox on fires**, from the regenerated spec: a fire (by id or
+  by key, so `brew.send` too) whose automations send from the Brew sandbox
+  because no sending domain is verified yet reaches members of your
+  organization only. Another recipient throws `422 DOMAIN_REQUIRED`
+  (`details`: `recipient`, `allowed`, `domainsUrl`), or, when only some
+  matched automations use the sandbox, lands in `notStarted[]` with
+  `code: 'DOMAIN_REQUIRED'`. The organization's daily sandbox cap throws
+  `429 SANDBOX_DAILY_LIMIT` (`details.resetsAt`); its `Retry-After` runs to
+  the next UTC day, past the 60 s the client waits, so it throws rather than
+  retries.
+- The template browse-group token `group` joins `TEMPLATE_GROUP_BY_TOKENS`,
+  only because the vendored spec publishes it (`templates.list` already
+  forwards every query field); typescript-sdk#78 documents the browse
+  groups and the category relabel.
 
 ## 13.0.0
 

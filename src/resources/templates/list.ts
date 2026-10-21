@@ -16,6 +16,7 @@ type TemplateQuery = NonNullable<
 export const TEMPLATE_GROUP_BY_TOKENS = [
   'brand',
   'category',
+  'group',
 ] as const satisfies ReadonlyArray<NonNullable<TemplateQuery['groupBy']>>
 
 /** Filters for template rows; grouping requires count mode. */
