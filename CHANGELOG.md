@@ -2,41 +2,14 @@
 
 ## Unreleased
 
+### Added
+
 - Synchronize email categories and template browse groups with app revision
   `9bf2e01f14d8260bdde0825e901a05497b66c70c`. Generation inputs accept
   `onboarding`, `content`, `event-recap`, `product-pitch`, `company-news` and
   `fundraising`; existing categories remain valid. Template reads accept
   `group` filters and `groupBy: 'group'` counts. These additions require the
   matching API deployment.
-
-## 13.0.0
-
-### Breaking
-
-- `canvas.sessions.revoke` now returns `CanvasSessionRevokeResponse` instead of
-  `void`. Update wrappers that explicitly return `Promise<void>` to await the
-  call without returning its value, or return the typed response instead.
-  With `{ raw: true }`, the result is
-  `BrewRawResponse<CanvasSessionRevokeResponse>`.
-
-### Added
-
-- `brands.waitForExtraction(brandId, { maxWaitMs?, pollIntervalMs?, signal? })`
-  polls until extraction ends, with a five-minute total deadline by default.
-  It returns the terminal lifecycle row, including failed or not-ready rows;
-  check `ready` before generating an email. The exported
-  `BrewBrandExtractionTimeoutError` includes the last observed status. Client
-  cancellation, HTTP errors and retry settings are preserved.
-- `createCanvasSessionProvider` accepts `headers` as `HeadersInit` or a sync or
-  async factory. The factory runs for initial and renewal requests, supporting
-  rotating CSRF headers and cancellation while headers are being resolved.
-- `BrewInputError` identifies invalid idempotency keys before a request is sent.
-  `BrewPaginationError` stops repeated cursor cycles with page and item counts.
-- Loops email exports and an 800-second default export timeout, preserving
-  explicit request timeouts and longer client-wide settings.
-
-### Added
-
 - `brew.contacts.import({ contacts, consent?, validate?, fileName? })` calls
   `POST /v1/contacts/import`: the JSON twin of `importCsv`, recorded as one
   batch in Brew's Import History. `ImportContactsInput`,
@@ -67,6 +40,32 @@
     }
   }
   ```
+
+## 13.0.0
+
+### Breaking
+
+- `canvas.sessions.revoke` now returns `CanvasSessionRevokeResponse` instead of
+  `void`. Update wrappers that explicitly return `Promise<void>` to await the
+  call without returning its value, or return the typed response instead.
+  With `{ raw: true }`, the result is
+  `BrewRawResponse<CanvasSessionRevokeResponse>`.
+
+### Added
+
+- `brands.waitForExtraction(brandId, { maxWaitMs?, pollIntervalMs?, signal? })`
+  polls until extraction ends, with a five-minute total deadline by default.
+  It returns the terminal lifecycle row, including failed or not-ready rows;
+  check `ready` before generating an email. The exported
+  `BrewBrandExtractionTimeoutError` includes the last observed status. Client
+  cancellation, HTTP errors and retry settings are preserved.
+- `createCanvasSessionProvider` accepts `headers` as `HeadersInit` or a sync or
+  async factory. The factory runs for initial and renewal requests, supporting
+  rotating CSRF headers and cancellation while headers are being resolved.
+- `BrewInputError` identifies invalid idempotency keys before a request is sent.
+  `BrewPaginationError` stops repeated cursor cycles with page and item counts.
+- Loops email exports and an 800-second default export timeout, preserving
+  explicit request timeouts and longer client-wide settings.
 
 ### Fixed
 
