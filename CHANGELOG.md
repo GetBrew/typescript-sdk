@@ -7,10 +7,10 @@ connect a hosted auth email hook (Supabase Auth's Send Email Hook or
 Clerk's `email.created`) over the API, from a setup script or the CLI.
 Additive: nothing is removed or renamed. A minor release after 13.2.0,
 which it builds on (publish 13.2.0 first). Publish only once
-GetBrew/brew-v2#2146 (`/v1/integrations/{provider}/connection`, stacked on
-#2068 and #2066) is deployed and the live spec matches the vendored one;
-until then the connection routes answer `404`. The spec is 13.2.0's plus
-exactly #2146's delta (`c3da555e60` over #2068 `12a02af5e3`).
+GetBrew/brew-v2#2169 (`/v1/integrations/{provider}/connection` and the
+hosted Supabase and Clerk hooks) is deployed and the live spec matches the
+vendored one; until then the connection routes answer `404`. Spec source:
+brew-v2 #2169 @ 6f8ef50544, the same file 13.1.0 and 13.2.0 vendor.
 
 ### Added
 
@@ -48,14 +48,10 @@ exactly #2146's delta (`c3da555e60` over #2068 `12a02af5e3`).
 
 ### Changed
 
-- From the regenerated spec: `IntegrationsListResponse` rows'
-  `provider` gains `supabase_auth` (an exhaustive `switch` over it needs
-  the new case), and `appEmails.setUpKit` documents `stack: 'supabase'` as
-  a hosted hook (`authDelivery: 'hosted-webhook'`) connected with
-  `connect`, with the self-hosted `@brew.new/sdk/supabase` hook as the
-  alternative. `docs/app-emails.md` and `docs/adapters/supabase.md` say
-  the same, and describe `stack: 'clerk'` as the hosted `email.created`
-  delivery that #2068 ships.
+- `docs/app-emails.md` and `docs/adapters/supabase.md` point the kit's
+  hosted delivery for `supabase` and `clerk` (`hosted-webhook`, documented
+  since 13.2.0) at `connect`, with the self-hosted `@brew.new/sdk/supabase`
+  hook as Supabase's alternative.
 
 ## 13.6.0 (not released yet)
 
