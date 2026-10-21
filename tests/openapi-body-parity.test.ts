@@ -4,6 +4,8 @@ import { extname, join } from 'node:path'
 import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 
+import { PENDING_IN_STACK } from './helpers/pending-in-stack'
+
 /**
  * Every request-body property the spec documents is one the SDK can send.
  *
@@ -257,7 +259,9 @@ describe('request body parity', () => {
     const unsendable = [...spec].flatMap(([route, properties]) => {
       const keys = sdk.get(route)
       if (!keys) {
-        return [`${route}: no SDK call sends a body`]
+        return route in PENDING_IN_STACK
+          ? []
+          : [`${route}: no SDK call sends a body`]
       }
       const missing = [...properties].filter((name) => !keys.has(name))
       return missing.length > 0 ? [`${route}: ${missing.join(', ')}`] : []

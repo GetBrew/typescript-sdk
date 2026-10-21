@@ -25,10 +25,9 @@ await brew.send(
 | `brew.automations.triggers.fireByKey({ triggerKey, payload })` | the same route; the object form, with a `TPayload` generic | `automations` |
 
 > **Availability.** The by-key route and trigger keys ship in the Brew
-> platform release that deploys GetBrew/brew-v2#2013 (trigger keys) and
-> GetBrew/brew-v2#2017 (fire by key). SDK 13.1.0 is not released before
-> that deploy: until then the route answers `404` and trigger rows carry no
-> `key`.
+> platform release that deploys GetBrew/brew-v2#2169. SDK 13.1.0 is not
+> released before that deploy: until then the route answers `404` and
+> trigger rows carry no `key`.
 
 ## How it works
 
@@ -101,8 +100,10 @@ A refused send throws `BrewApiError` (see [`errors.md`](./errors.md)):
 | 404    | `TRIGGER_KEY_NOT_FOUND`   | No trigger in the brand has this key.                       |
 | 400    | `INVALID_PAYLOAD`         | The payload does not match the trigger's `payloadSchema`.   |
 | 422    | `NO_PUBLISHED_AUTOMATION` | The trigger has no published automation to send with.       |
+| 422    | `DOMAIN_REQUIRED`         | Sandbox sender: the recipient is not in your organization.  |
 | 409    | `IDEMPOTENCY_CONFLICT`    | The idempotency key was reused with a different payload.    |
 | 429    | `RATE_LIMITED`            | Retried for you up to `maxRetries`, honoring `Retry-After`. |
+| 429    | `SANDBOX_DAILY_LIMIT`     | Today's sandbox sends are used up; see `details.resetsAt`.  |
 
 ```ts
 import { BrewApiError } from '@brew.new/sdk'
