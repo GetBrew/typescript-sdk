@@ -20,12 +20,6 @@
   the batch's `importId`, which each contact they write carries until a later
   import touches it. Both responses share the `ContactsImportResponse`
   component (`ImportCsvContactsResponse` keeps its name).
-- Import responses account for every row: `summary.total` is the rows
-  submitted and always equals `inserted + updated + failed + skipped`. Each
-  failed row has its own `errors` entry and each skipped CSV row a
-  `CSV_ROW_SKIPPED` warning, both naming the 1-based `row`
-  (`contacts[row - 1]`, or the CSV data row). `upsertMany` errors carry `row`
-  too, and a repeated address now fails each of its rows rather than once.
 
 ### Changed
 

@@ -21,16 +21,10 @@ export type ImportContactsInput = components['schemas']['ContactsImportRequest']
 export type ImportContactsResponse =
   components['schemas']['ContactsImportResponse']
 
-/**
- * Aggregate counts for an import. Every submitted row lands in exactly one
- * bucket: `inserted + updated + failed + skipped === total`.
- */
+/** Aggregate counts for an import (inserted/updated/failed/skipped). */
 export type ImportContactsSummary = ImportContactsResponse['summary']
 
-/**
- * One per-row failure in `ImportContactsResponse.errors`. Each failed row
- * has its own entry, and `row` is 1-based: the row is `contacts[row - 1]`.
- */
+/** One failure in `ImportContactsResponse.errors`. */
 export type ImportContactsError = ImportContactsResponse['errors'][number]
 
 /** One non-fatal note in `ImportContactsResponse.warnings`. */
