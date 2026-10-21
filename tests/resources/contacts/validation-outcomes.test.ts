@@ -122,7 +122,7 @@ describe('contact validation outcome contracts', () => {
   })
   it('preserves inline CSV unscored and save-failure counts', async () => {
     const body = {
-      summary: { inserted: 2, updated: 0, failed: 0, skipped: 0 },
+      summary: { inserted: 2, updated: 0, failed: 0, skipped: 0, total: 2 },
       fieldsCreated: [],
       warnings: [],
       errors: [],
