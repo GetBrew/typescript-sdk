@@ -10,15 +10,14 @@ import type { BrewRawResponse, RequestOptions } from '../../types'
  * - `mapping` is an optional `{ csvColumn: contactField }` lookup that
  *   overrides header inference. Supply it when the CSV column names do not
  *   match Brew contact fields.
- * - `validate: true` deliverability-checks every imported address and saves
- *   the verdict onto each contact. A CSV of ≤100 data rows validates INLINE
- *   and the response gains a `validation` counts object
- *   (`{ valid, risky, invalid, unscored }`); a larger CSV imports first,
- *   then validates as a BACKGROUND job and the response gains a
- *   `validationJobId` instead. Both the cutoff and the meter count CSV data
- *   rows, including rows skipped for a missing or invalid email and repeated
- *   addresses: 2 credits per data row, charged only on success; insufficient
- *   credits fail with `402 INSUFFICIENT_CREDITS`.
+ * - `validate: true` requests deliverability checks for imported addresses.
+ *   Files of at most 100 submitted CSV data rows select the inline path, with
+ *   `validation` counts when a check runs. Inline checks are metered at
+ *   2 credits per submitted data row, including skipped rows and repeated
+ *   addresses, charged only on success. Larger files use a background
+ *   workflow, charged per address as it runs, with `validationJobId` when
+ *   queued. Neither field is guaranteed when there are no addresses to check
+ *   or no work to queue.
  * - `consent` stamps a marketing consent record on every imported row
  *   (typically `{ source: 'import' }`).
  * - `dateOrder` (`month_first` | `day_first`) says how to read a date column
@@ -68,14 +67,15 @@ export type ImportCsvWarning = ImportCsvContactsResponse['warnings'][number]
  * the first 100 skipped rows. If more are skipped, a final warning counts
  * the remainder without a `row`. Read `summary.skipped` for the full count.
  *
- * Pass `validate: true` to deliverability-check every imported address and
- * persist the verdict onto each contact. A CSV of ≤100 data rows validates
- * inline and the envelope gains a `validation` counts object; a larger CSV
- * imports first then validates as a background job and the envelope gains a
- * `validationJobId` instead. The cutoff and the meter both count CSV data
- * rows (rows skipped for a missing or invalid email, and repeated addresses,
- * count): 2 credits per data row, charged only on success; insufficient
- * credits fail with `402 INSUFFICIENT_CREDITS`.
+ * Pass `validate: true` to request deliverability checks and persist their
+ * verdicts. The inline cutoff is 100 submitted CSV data rows, including
+ * skipped rows and repeated addresses; inline checks are metered at
+ * 2 credits per submitted data row, charged only on success. Larger imports
+ * use a background workflow, charged per address as it runs.
+ * `validation` counts appear when an inline check runs;
+ * `validationJobId` appears when a background job is queued. Neither field
+ * is guaranteed when there are no addresses to check or no work to queue.
+ * Insufficient credits fail with `402 INSUFFICIENT_CREDITS`.
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<ImportCsvContactsResponse>` instead of the unwrapped

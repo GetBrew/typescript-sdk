@@ -49,9 +49,9 @@ export type ContactsResource = {
   readonly deleteMany: ReturnType<typeof createDeleteManyContacts>
   /** `POST /v1/contacts/validate` — batch deliverability check for emails (valid/risky/invalid + `reason` + `didYouMean` + `risk`/`isDisposable`/`isRole`); PERSISTS the verdict onto any matching existing contacts; metered 2 credits per address (scope: `contacts`). */
   readonly validate: ReturnType<typeof createValidateContacts>
-  /** `POST /v1/contacts/import` — bulk-import up to 1000 contacts from JSON rows as one Import History batch (returns its `importId`; `fileName` names it); pass `validate: true` to deliverability-check the addresses (inline ≤100, else a background `validationJobId`) at 2 credits per address (scope: `contacts`). */
+  /** `POST /v1/contacts/import` — import up to 1000 JSON contacts as one Import History batch (`importId`; `fileName` names it). Optional validation uses the submitted count: ≤100 selects inline checks metered at 2 credits per submitted contact; larger submissions use a workflow charged per address as it runs. Counts or a job ID appear only when checks run or work is queued (scope: `contacts`). */
   readonly import: ReturnType<typeof createImportContacts>
-  /** `POST /v1/contacts/import-csv` — bulk-import contacts from a raw CSV string as one Import History batch (returns its `importId`; `fileName` names it); pass `validate: true` to deliverability-check the imported addresses (inline ≤100, else a background `validationJobId`) at 2 credits per CSV data row, skipped rows included (scope: `contacts`). */
+  /** `POST /v1/contacts/import-csv` — import CSV as one Import History batch (`importId`; `fileName` names it). Optional validation uses submitted data rows, including skipped/repeated rows: ≤100 selects inline checks metered at 2 credits per data row; larger files use a workflow charged per address as it runs. Counts or a job ID appear only when checks run or work is queued (scope: `contacts`). */
   readonly importCsv: ReturnType<typeof createImportCsvContacts>
 }
 

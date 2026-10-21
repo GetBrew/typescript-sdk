@@ -11,8 +11,12 @@ import type { BrewRawResponse, RequestOptions } from '../../types'
  *   `consent`). A missing/invalid or repeated email fails its row.
  * - `consent` is the default consent record for every row without its own
  *   (typically `{ source: 'import' }`).
- * - `validate: true` deliverability-checks every address (inline ≤100,
- *   else a background `validationJobId`), 2 credits per address.
+ * - `validate: true` requests deliverability checks for imported addresses.
+ *   Submissions of at most 100 contacts select inline validation, metered at
+ *   2 credits per submitted contact; `validation` counts appear when a check
+ *   runs. Larger submissions use a background workflow, charged per address
+ *   as it runs, with `validationJobId` when queued. Neither field is
+ *   guaranteed when there are no addresses to check or no work to queue.
  * - `fileName` names the batch in Brew's Import History and is stamped on
  *   every contact it writes as `csvFileName`.
  */
