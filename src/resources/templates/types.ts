@@ -15,7 +15,7 @@ export type Template = TemplatesListResponse['data'][number]
 type TemplatesListBody =
   operations['listTemplates']['responses'][200]['content']['application/json']
 
-/** Counts matching templates, optionally grouped by brand or category. */
+/** Counts matching templates, optionally grouped by brand, category or browse group. */
 export type TemplatesCountResponse = Extract<
   TemplatesListBody,
   { count: number }
