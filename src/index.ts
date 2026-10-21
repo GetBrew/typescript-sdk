@@ -601,6 +601,12 @@ export type {
   InsightSuggestion,
   InsightSummary,
 } from './resources/insights/types'
+export {
+  CONNECT_INTEGRATION_DEFAULT_TIMEOUT_MS,
+  type ConnectIntegrationInput,
+  type ConnectIntegrationResponse,
+} from './resources/integrations/connect'
+export type { GetIntegrationConnectionResponse } from './resources/integrations/get-connection'
 export type { IntegrationsResource } from './resources/integrations/resource'
 export type * from './resources/integrations/types'
 // ---------- Notifications: the app's bell, as a read ----------
