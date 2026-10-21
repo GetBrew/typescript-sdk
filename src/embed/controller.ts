@@ -12,6 +12,7 @@ import {
   type CanvasFrameMessage,
   type CanvasHostMessage,
   type CanvasSavedEvent,
+  type CanvasSelectedEmail,
   type CanvasSession,
   type CanvasTarget,
   type CanvasTargetProps,
@@ -37,6 +38,10 @@ export type EmailCanvasOptions = CanvasTargetProps &
     readonly onReady?: () => void
     readonly onSaved?: (event: CanvasSavedEvent) => void
     readonly onSelectionChange?: (emailIds: ReadonlyArray<string>) => void
+    /** Resolved displayed rows; empty while deselected or switching versions. */
+    readonly onEmailSelectionChange?: (
+      emails: ReadonlyArray<CanvasSelectedEmail>
+    ) => void
     readonly onDirtyChange?: (hasUnsavedEdits: boolean) => void
     readonly onError?: (error: BrewEmbedError) => void
   }
@@ -44,6 +49,8 @@ export type EmailCanvasController = Readonly<{
   fitView: () => Promise<void>
   focusEmail: (emailId: string) => Promise<void>
   flush: () => Promise<void>
+  /** Flush and release the active editor lease without unmounting the canvas. */
+  clearSelection: () => Promise<void>
   destroy: () => void
 }>
 type PendingCommand = {
@@ -262,6 +269,9 @@ export function createEmailCanvas(
       case 'selection':
         options.onSelectionChange?.(message.emailIds)
         break
+      case 'email-selection':
+        options.onEmailSelectionChange?.(message.emails)
+        break
       case 'dirty':
         options.onDirtyChange?.(message.hasUnsavedEdits)
         break
@@ -314,6 +324,7 @@ export function createEmailCanvas(
     fitView: () => command({ type: 'fit' }),
     focusEmail: (emailId) => command({ type: 'focus', emailId }),
     flush: () => command({ type: 'flush' }),
+    clearSelection: () => command({ type: 'clear-selection' }),
     destroy: () => {
       if (isDestroyed) return
       isDestroyed = true

@@ -45,6 +45,7 @@ export const EmailCanvas = forwardRef<EmailCanvasHandle, EmailCanvasProps>(
         fitView: async () => current().fitView(),
         focusEmail: async (id) => current().focusEmail(id),
         flush: async () => current().flush(),
+        clearSelection: async () => current().clearSelection(),
       }
     }, [])
     useEffect(() => {
@@ -80,6 +81,8 @@ export const EmailCanvas = forwardRef<EmailCanvasHandle, EmailCanvasProps>(
         onReady: () => latest.current.onReady?.(),
         onSaved: (event) => latest.current.onSaved?.(event),
         onSelectionChange: (ids) => latest.current.onSelectionChange?.(ids),
+        onEmailSelectionChange: (emails) =>
+          latest.current.onEmailSelectionChange?.(emails),
         onDirtyChange: (isDirty) => latest.current.onDirtyChange?.(isDirty),
         onError: (error) => latest.current.onError?.(error),
       })

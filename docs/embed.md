@@ -123,3 +123,46 @@ Set `parentOrigin` from trusted server configuration, choose permissions on your
 The [MIT Next.js example](../examples/embedded-email-canvas/README.md) demonstrates the client ID setup, group and single-email modes, save-before-exit and error recovery. No Clerk dependency or secret credentials are required. Its README covers installation, allowed domains, headless use cases, deployment and tests.
 
 The example installs the released SDK directly from npm. Validate hosted HTTPS framing and real image upload/crop persistence for your deployment; local fixture tests do not establish production hosting/storage readiness.
+
+## Selected emails and locale remixes (SDK 13.1+)
+
+Use `onEmailSelectionChange` to receive the displayed email and version. The
+existing `onSelectionChange` still receives IDs only.
+
+```ts
+const canvas = createEmailCanvas(container, {
+  clientId: configuredClientId,
+  groupId: ownedGroupId,
+  onEmailSelectionChange: (emails) => {
+    // [] on deselection, removal, or while a version is unresolved.
+    const selected = emails[0]
+    // { emailId, emailVersion: number | 'latest', emailVersionId: string | null }
+    retainSelection(selected)
+  },
+})
+```
+
+Keep this group canvas mounted while your backend creates emails into the
+same group. Do not recreate it when the current email or version changes.
+`focusEmail(emailId)` selects an email already in the group.
+
+For a locale variant, call `emails.generate` on your backend with
+`referenceEmailId: selected.emailId`, the same `groupId`, a localized
+`subjectLine`, and a prompt naming the target language and asking to preserve
+layout, imagery, URLs and approved facts. This creates a separate email and
+leaves the source intact. Generation uses the reference's **latest saved row**.
+For an exact historical reference, first `emails.clone({ emailId,
+emailVersionId, title })`, then use the clone's `emailId` as the reference.
+Remixing is AI generation; review the resulting localization and design.
+
+Before an API AI edit, await `canvas.clearSelection()`. It flushes pending
+manual edits and releases the active editing lease without replacing the
+iframe. Block new manual selection until the API request finishes, then call
+`focusEmail(emailId)`. If saving fails, the promise rejects and selection is
+retained; keep the editor open. React refs expose the same `clearSelection()`
+method. Use the selection's exact `emailVersionId` for the AI-edit baseline
+and saved HTML reads; a missing ID must be resolved rather than guessed.
+
+Rename through `emailGroups.update({ groupId, name })` or
+`emails.edit({ emailId, title })`. A metadata-only rename is free, creates no
+new email version, and appears through the existing live subscriptions.
