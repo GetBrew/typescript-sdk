@@ -15,6 +15,59 @@ const session = {
   expiresAt: new Date(Date.now() + 60000).toISOString(),
 }
 describe('iframe controller', () => {
+  it('reports exact selected versions and clears selection without replacing the iframe', async () => {
+    const container = document.createElement('div')
+    document.body.append(container)
+    const onSelectionChange = vi.fn()
+    const onEmailSelectionChange = vi.fn()
+    const controller = createEmailCanvas(container, {
+      groupId: 'grp_a',
+      getSession: () => Promise.resolve(session),
+      onSelectionChange,
+      onEmailSelectionChange,
+    })
+    await vi.waitFor(() =>
+      expect(container.querySelector('iframe')).not.toBeNull()
+    )
+    const iframe = container.querySelector('iframe')!
+    const send = vi.spyOn(iframe.contentWindow!, 'postMessage')
+    const instanceId = new URL(iframe.src).searchParams.get('instanceId')!
+    const message = (type: string, fields = {}) =>
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          origin: 'https://brew.new',
+          source: iframe.contentWindow,
+          data: { protocol: CANVAS_PROTOCOL, instanceId, type, ...fields },
+        })
+      )
+    try {
+      message('ready')
+      message('selection', { emailIds: ['email_a'] })
+      const selected = [
+        { emailId: 'email_a', emailVersion: 2, emailVersionId: 'version_a' },
+      ]
+      message('email-selection', { emails: selected })
+      expect(onSelectionChange).toHaveBeenCalledWith(['email_a'])
+      expect(onEmailSelectionChange).toHaveBeenCalledWith(selected)
+      message('email-selection', {
+        emails: [{ ...selected[0], emailVersion: -1 }],
+      })
+      expect(onEmailSelectionChange).toHaveBeenCalledOnce()
+      const cleared = controller.clearSelection()
+      const request = send.mock.calls.at(-1)?.[0] as {
+        requestId: string
+        command: unknown
+      }
+      expect(request.command).toEqual({ type: 'clear-selection' })
+      message('email-selection', { emails: [] })
+      message('result', { requestId: request.requestId })
+      await cleared
+      expect(onEmailSelectionChange).toHaveBeenLastCalledWith([])
+      expect(container.querySelector('iframe')).toBe(iframe)
+    } finally {
+      controller.destroy()
+    }
+  })
   it('keeps commands available after nonfatal editing errors', async () => {
     const container = document.createElement('div')
     document.body.append(container)
