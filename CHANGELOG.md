@@ -56,6 +56,15 @@ starterVersion? }`. The fire body gains `triggerKey` on a by-key fire.
   `429 SANDBOX_DAILY_LIMIT` (`details.resetsAt`); its `Retry-After` runs to
   the next UTC day, past the 60 s the client waits, so it throws rather than
   retries.
+- **`domains.add` returns the added row with `warnings`** (type
+  `AddDomainResponse` = `DomainsPostResponse`): `DKIM_SELECTOR_IN_USE` when
+  the domain already publishes a different DKIM key where Brew asks for its
+  record, with `suggestedNames` (subdomains to add instead). Also from the
+  regenerated spec: `automations.publish` (and `patch` with
+  `published: true`) can warn `ENGAGEMENT_NOT_TRACKED` (an engagement
+  filter on an email sent from a transactional domain, which tracks no
+  opens or clicks), and `integrations.list` rows' `provider`
+  gains `supabase_auth` (an exhaustive `switch` needs the new case).
 - The template browse-group token `group` joins `TEMPLATE_GROUP_BY_TOKENS`,
   only because the vendored spec publishes it (`templates.list` already
   forwards every query field); typescript-sdk#78 documents the browse
