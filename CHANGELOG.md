@@ -6,15 +6,12 @@
 call, subpath adapters that wire `brew.send` into Resend call sites,
 Better Auth, Auth.js and Supabase Auth, and the import modes a Resend
 migration uses. Additive: nothing is removed or renamed. A minor release
-after 13.1.0, which it builds on. Publish only once GetBrew/brew-v2#2066
-(`/v1/app-emails`), GetBrew/brew-v2#2064 (import modes) and
-GetBrew/brew-v2#2145 (import modes on an app email's `source`) are
-deployed and the live spec matches the vendored one (until then the
-app-email routes answer `404`), and once `@brew.new/cli` ships
-`migrate resend`, which `brew_template_required` points to. The spec is
-#2145's (`b2912ad9f7`): #2066 (`0fed90fbf3`, which carries 13.1.0's
-#2013 and #2017 and the team sandbox #2059 it builds on) merged with
-#2064 (`9f97aea3f8`), plus #2145's own `source` fields. Each
+after 13.1.0, which it builds on. Publish only once GetBrew/brew-v2#2169
+(`/v1/app-emails`, the team sandbox and the import modes) is deployed and
+the live spec matches the vendored one (until then the app-email routes
+answer `404`), and once `@brew.new/cli` ships `migrate resend`, which
+`brew_template_required` points to. Spec source: brew-v2 #2169 @
+6f8ef50544, the same file 13.1.0 vendors. Each
 adapter sends by trigger key, so it also needs 13.1.0's by-key route and
 keys whose automations are published (the auth starter kit's `auth.*`
 keys and `lifecycle.welcome` by default). The adapters add no runtime or
@@ -46,13 +43,26 @@ peer dependencies: the libraries they serve are typed structurally.
 published, created, sender, payloadSchema, fireExample, warnings }`
     (HTTP `201` first time, `200` on a re-run). A design edited in Brew
     throws `409 APP_EMAIL_EDITED_IN_BREW` until `overwrite: true`; an
-    unknown starter is `400 APP_EMAIL_STARTER_UNKNOWN`.
+    unknown starter is `400 APP_EMAIL_STARTER_UNKNOWN`. A key whose
+    trigger already starts a published automation no setup made throws
+    `409 APP_EMAIL_TRIGGER_IN_USE` (`details.automationIds`); a
+    `payloadSchema` that drops or retypes a field the live automation reads,
+    `409 CONTRACT_LOCKED_BY_PUBLISHED_AUTOMATIONS`; other setups of the key
+    writing first, `409 APP_EMAIL_SETUP_IN_PROGRESS` (retry later); a
+    marketing `domainId` on a transactional key (auth, trial ending,
+    payment failed), `422 APP_EMAIL_DOMAIN_PURPOSE_MISMATCH`. A setup
+    publishes only the version it wrote: a draft saved in Brew since, or a
+    `publish: false` change while live, answers `DRAFT_SAVED_NOT_LIVE`.
   - `setUpKit(input?, options?)`: `POST /v1/app-emails/kit` with `sets`,
     `stack`, `keys`, `domainId`, `overwrite`; resolves to `{ results,
 stack }`, where each result is `ok: true` with the setup result or
     `ok: false` with its `error` (per-key failures never throw), and
-    `stack` carries `provider`, `authDelivery`, `note`, `keys` and
-    `snippets`. Sends an `Idempotency-Key`.
+    `stack` carries `provider`, `authDelivery` (`hosted-webhook` for
+    `supabase` and `clerk`, whose auth emails reach Brew once connected;
+    else `code`), `note`, `keys` and `snippets`. A marketing `domainId`
+    sets up the marketing keys and answers each transactional key
+    `ok: false` with `APP_EMAIL_DOMAIN_PURPOSE_MISMATCH`. Sends an
+    `Idempotency-Key`.
   - Keys ride the path percent-encoded, like `fireByKey`; an empty key,
     `.` or `..` throws `TypeError` before any request.
   - `UPSERT_APP_EMAIL_DEFAULT_TIMEOUT_MS` and
@@ -65,10 +75,11 @@ stack }`, where each result is `ok: true` with the setup result or
     `SetUpAppEmailKitResponse`, `AppEmailKitBody`, `AppEmailKitResponse`,
     `AppEmailKitResult`, `AppEmailKitStack`, `AppEmailKitKey`,
     `AppEmailKitSet`, `AppEmailKitStackProvider`.
-  - New error codes in `BrewApiError['code']`: `APP_EMAIL_EDITED_IN_BREW`
-    and `APP_EMAIL_STARTER_UNKNOWN`; new warning codes `SANDBOX_SENDER`,
-    `APP_EMAIL_NOT_PUBLISHED` and `DESIGN_EDITED_IN_BREW`. See
-    `docs/app-emails.md`.
+  - New error codes in `BrewApiError['code']`: `APP_EMAIL_EDITED_IN_BREW`,
+    `APP_EMAIL_STARTER_UNKNOWN`, `APP_EMAIL_TRIGGER_IN_USE`,
+    `APP_EMAIL_SETUP_IN_PROGRESS` and `APP_EMAIL_DOMAIN_PURPOSE_MISMATCH`;
+    new warning codes `SANDBOX_SENDER`, `APP_EMAIL_NOT_PUBLISHED` and
+    `DESIGN_EDITED_IN_BREW`. See `docs/app-emails.md`.
 - **Team sandbox** (GetBrew/brew-v2#2059, which #2066 builds on), from the
   regenerated spec: an automation's Send Email step takes `senderMode`
   (`domain` or `sandbox`; `sandbox` means that until a domain verifies,
@@ -76,10 +87,9 @@ stack }`, where each result is `ok: true` with the setup result or
   automation rows report it. `automations.create` and `automations.patch`
   take it too: `AutomationSendEmailNodeConfig` gains
   `senderMode?: 'domain' | 'sandbox'`, and a `'sandbox'` step may omit
-  `domainId` (a `'domain'` step, the default, still needs it). A fire's
-  `notStarted[]` entries gain
-  `code: 'DOMAIN_REQUIRED'`; `BrewApiError['code']` gains
-  `DOMAIN_REQUIRED` (`422`) and `SANDBOX_DAILY_LIMIT` (`429`).
+  `domainId` (a `'domain'` step, the default, still needs it). The fire
+  refusals the sandbox adds (`422 DOMAIN_REQUIRED`, `429
+SANDBOX_DAILY_LIMIT`, `notStarted[].code`) are typed since 13.1.0.
 - **Import modes for a Resend migration** (GetBrew/brew-v2#2064), from the
   regenerated spec: `emails.import` takes `props: 'merge_tags'` (`jsx`
   only: the root component's props become `{{ trigger.<name> }}` merge
