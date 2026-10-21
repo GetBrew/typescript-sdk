@@ -1,0 +1,16 @@
+// Idempotency-key primitives shared by every adapter: the API's length
+// limit and a WebCrypto SHA-256 (Node 20+, Deno, edge; no `node:` imports).
+
+/** The API's `Idempotency-Key` length limit. */
+export const IDEMPOTENCY_KEY_MAX_LENGTH = 100
+
+/** Lowercase hex SHA-256 of `text`, via WebCrypto. */
+export async function sha256Hex(text: string): Promise<string> {
+  const digest = await globalThis.crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(text)
+  )
+  return [...new Uint8Array(digest)]
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('')
+}

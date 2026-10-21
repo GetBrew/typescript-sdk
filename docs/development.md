@@ -469,7 +469,13 @@ Runs `tsup` and emits to `dist/`:
 - `dist/index.js` (ESM)
 - `dist/index.cjs` (CJS)
 - `dist/index.d.ts` + `dist/index.d.cts` (TypeScript declarations)
+- `dist/{embed,react}.*`: the same four files per canvas entry
+- `dist/{resend,better-auth,next-auth,supabase}/index.*`: the same four
+  files per subpath adapter (see [Subpath adapters](#subpath-adapters))
 - Sourcemaps for all of the above
+
+`bun run check:exports` (CI runs it after the build) checks the built
+package as npm would publish it; `bun run check:package` builds first.
 
 The published npm tarball ships only `dist/`, `README.md`, and
 `LICENSE` (see `files` in `package.json`). Source files, tests, and
@@ -538,6 +544,46 @@ not copy the two-positional shape to other methods.
 
 ---
 
+## Subpath adapters
+
+`@brew.new/sdk/resend`, `/better-auth`, `/next-auth` (and its alias
+`/auth-js`) and `/supabase` live in `src/adapters/<name>/index.ts`, one
+tsup entry each. User docs: [`docs/adapters/`](./adapters/). The rules:
+
+- **Load the SDK as `@brew.new/sdk`, never by a relative path into
+  `src/`.** tsup marks `@brew.new/sdk` external, so an adapter bundle
+  loads the root bundle at runtime instead of inlining a second copy. One
+  copy means one `BrewApiError` class: a root error thrown through an
+  adapter still passes `instanceof`. `tsconfig.json` `paths` and the
+  `vitest.config.ts` alias resolve `@brew.new/sdk` to `src/index.ts` for
+  the typecheck and the tests. Adapter-internal code shared between
+  adapters (`src/adapters/shared/`) is inlined into each bundle, which is
+  fine as long as it holds no classes a caller compares by identity.
+- **No runtime or peer dependencies.** The package's only peer is the
+  optional `react` that `/react` (the canvas) needs; an adapter adds none.
+  Type the libraries an adapter serves structurally (the fields it reads),
+  never by importing them.
+  `tests/types/adapter-compat.test.ts` checks the adapters against the
+  real `better-auth` and `@auth/core` types (devDependencies) and a copy
+  of next-auth v4's `EmailConfig`.
+- **No `node:` imports** in adapter code: `/supabase` runs on Deno
+  (Supabase Edge Functions), and every adapter runs on edge runtimes.
+  Hash and sign with WebCrypto (`globalThis.crypto.subtle`).
+- **A new subpath** needs: the tsup entry, an `exports` entry with
+  `import`/`require` × `types`/`default`, a `typesVersions` line (node10
+  resolution), the `expectations` table in `scripts/smoke-exports.mjs`,
+  and a page in `docs/adapters/`.
+
+`bun run check:exports` runs `publint --strict`, `attw --pack .` (types
+resolve under node10, node16 CJS and ESM, and bundler) and
+`scripts/smoke-exports.mjs`, which packs the package, installs the
+tarball into a scratch app, loads every subpath with `import()` and
+`require()`, asserts one `BrewApiError` across root and adapters, no
+runtime dependencies and no peer but the optional `react`, and type-checks
+the packed `.d.ts` files with a `BrewTriggerKeyRegistry` augmentation.
+
+---
+
 ## Repo layout
 
 ```
@@ -546,6 +592,7 @@ src/
 ├── client.ts                   createBrewClient factory
 ├── send.ts                     brew.send(key, payload) on top of triggers.fireByKey
 ├── send-registry.ts            BrewTriggerKeyRegistry (augmentable) + send key/payload types
+├── adapters/                   Subpath adapters: resend, better-auth, next-auth, supabase (+ shared/)
 ├── version.ts                  SDK_NAME + SDK_VERSION (version is injected at build time from package.json)
 ├── types.ts                    Public types (BrewClientConfig, RequestOptions, BrewErrorEnvelope)
 ├── generated/
@@ -573,6 +620,7 @@ tests/
 ├── setup.ts                    vitest + MSW lifecycle wiring
 ├── helpers/http-client.ts      Shared test harness (makeTestHttpClient)
 ├── msw/{server,handlers}.ts    Shared setupServer instance
+├── adapters/                   One test file per subpath adapter (+ Standard Webhooks)
 ├── core/                       Unit tests for every core/ file
 └── resources/                  One test file per resource method
 
