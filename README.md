@@ -101,7 +101,7 @@ const { status } = await brew.integrations.getConnection('supabase_auth')
 
 The secret goes in the request body only; the SDK never logs it or puts it
 in an error. It needs the `emails` and `automations` scopes and ships with
-Brew platform release GetBrew/brew-v2#2146. See
+Brew platform release GetBrew/brew-v2#2169. See
 [`docs/integrations.md`](./docs/integrations.md).
 
 ## Adapters
