@@ -19,6 +19,7 @@ audience scope.
 | [`delete`](#delete)         | `DELETE /v1/contacts/{email}`    |
 | [`deleteMany`](#deletemany) | `POST /v1/contacts/batch-delete` |
 | [`validate`](#validate)     | `POST /v1/contacts/validate`     |
+| [`import`](#import)         | `POST /v1/contacts/import`       |
 | [`importCsv`](#importcsv)   | `POST /v1/contacts/import-csv`   |
 
 > **New in 10.0.0.** `list(query)` and `get(email)` are real routes.
@@ -633,20 +634,74 @@ if (persistence.failed > 0) {
 
 ---
 
+## `import`
+
+> **Unreleased.** The JSON method and new import metadata below require the
+> matching API deployment and SDK release. Published SDK 13.0.0 does not
+> expose `contacts.import`.
+
+Import up to 1000 JSON contacts as one named batch in Brew's Import History.
+Use `upsertMany` for recurring syncs that should not create a history entry.
+Each contact uses the batch-create shape: `email`, optional `firstName`,
+`lastName`, `subscribed`, `customFields` and per-contact `consent`. Top-level
+`consent` supplies the default for contacts without their own record; only
+record consent you actually collected. It does not re-subscribe an opt-out.
+
+```ts
+const result = await brew.contacts.import({
+  contacts: [
+    { email: 'ada@example.com', firstName: 'Ada' },
+    { email: 'grace@example.com', firstName: 'Grace' },
+  ],
+  fileName: 'crm-export.json',
+  consent: { source: 'import' },
+})
+
+console.log(result.importId)
+console.log(result.summary.total) // 2 submitted contacts
+for (const error of result.errors) {
+  console.error(error.row, error.email, error.code, error.message)
+}
+```
+
+`fileName` names the batch in Import History and is stamped on contacts it
+writes as `csvFileName`. Both imports return the batch's `importId` (absent on
+a `dryRun` preview); each written contact carries it until a later import touches that contact.
+Deleting the import removes contacts it created that a later import has not
+since updated.
+
+Both imports return `summary`, `fieldsCreated`, `errors` and `warnings`.
+The required `summary.total` equals `inserted + updated + failed + skipped`;
+for JSON, `skipped` counts only existing contacts left alone by
+`onConflict: 'skip'`. Full and partial success (`200` / `207`) have
+the same response shape, and `207` does not throw. Inspect `summary.failed`
+and `errors` after every call. An error or warning can have an optional,
+positive `row`: a 1-based index into the submitted `contacts` array.
+
+With `validate: true`, submissions of at most 100 contacts use the inline
+path; `validation` counts appear when a check runs. Inline checks are metered
+at 2 credits per submitted contact. Larger submissions import first and use
+a background workflow, charged per address as it runs; `validationJobId`
+appears when a job is queued. Neither field is guaranteed when no imported
+addresses can be checked or no work needs to be queued.
+
+---
+
 ## `importCsv`
 
 Bulk-import contacts from raw CSV text. The server parses the file,
 auto-defines the custom fields it finds (`fieldsCreated`) and upserts each
-row. The input is the spec's request body:
+row, with up to 1000 data rows per call. Like `import`, it creates one Import
+History batch. The input is the spec's request body:
 
 ```ts
 type ImportCsvContactsInput = {
   csv: string
   mapping?: { [csvColumn: string]: string } // overrides header inference
-  validate?: boolean // deliverability check, 2 credits per address
+  validate?: boolean // inline checks: 2 credits per submitted data row
   consent?: ContactConsentInput // stamped on every imported row
   dateOrder?: 'month_first' | 'day_first'
-  fileName?: string // the batch's name in Import History
+  fileName?: string // batch name in Import History
   dryRun?: boolean // preview the response, write nothing
   onConflict?: 'upsert' | 'skip' // skip leaves existing contacts unchanged
 }
@@ -663,16 +718,35 @@ const result = await brew.contacts.importCsv({
   csv: 'Email,Signup Date\nada@example.com,03/04/2026',
   dateOrder: 'day_first',
   consent: { source: 'import' },
+  fileName: 'signups.csv',
 })
 
-console.log(result.summary) // { inserted, updated, failed, skipped }
+console.log(result.importId)
+console.log(result.summary) // { inserted, updated, failed, skipped, total }
 for (const warning of result.warnings) {
-  console.warn(warning.code, warning.field, warning.message)
+  console.warn(warning.row, warning.code, warning.field, warning.message)
 }
 ```
 
-The response has the same shape on full and partial success: inspect
-`summary.failed` and `errors` for row-level problems.
+The response is the same shared envelope as `import`, including
+`importId` (absent on a dry run) and `summary.total`. Inspect `summary.failed` and `errors` on both
+full and partial success. Optional `row` values on errors or warnings name
+the positive, 1-based CSV data row, excluding the header.
+
+`CSV_ROW_SKIPPED` warnings identify up to the first 100 rows skipped for a
+missing or invalid email, or merged into a later duplicate. If more rows
+are skipped, a final warning counts the remainder without a `row`. Read
+`summary.skipped` for the full count. Column-wide warnings can omit `row`
+too.
+
+With `validate: true`, at most 100 submitted CSV data rows select the inline
+path; `validation` counts appear when a check runs. Inline checks are metered
+at 2 credits per submitted data row, including skipped rows and repeated
+addresses. The cutoff also counts submitted data rows, excluding the header.
+Larger files import first and use a background workflow, charged per address
+as it runs; `validationJobId` appears when a job is queued. Neither field is
+guaranteed when no imported addresses can be checked or no work needs to be
+queued.
 
 `dryRun: true` returns the response the import would return and writes
 nothing: no contacts, field definitions or Import History batch. It carries
@@ -684,7 +758,11 @@ contact is left unchanged and counted in `summary.skipped`, with a
 takes both options too.
 
 ```ts
-const preview = await brew.contacts.importCsv({ csv, dryRun: true })
+const preview = await brew.contacts.importCsv({
+  csv,
+  onConflict: 'skip',
+  dryRun: true,
+})
 if (preview.summary.failed === 0) {
   const result = await brew.contacts.importCsv({ csv, onConflict: 'skip' })
   console.log(result.importId, result.summary)
