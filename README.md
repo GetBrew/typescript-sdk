@@ -21,6 +21,36 @@ bun add @brew.new/sdk
 npm install @brew.new/sdk
 ```
 
+## Send your first app email
+
+```ts
+import { createBrewClient } from '@brew.new/sdk'
+
+const brew = createBrewClient({ apiKey: process.env.BREW_API_KEY! })
+
+await brew.send('auth.password-reset', {
+  email: 'jane@example.com',
+  confirmationUrl: 'https://app.example.com/reset?token=abc',
+  appName: 'Acme',
+})
+```
+
+`brew.send(key, payload)` sends the app email behind a trigger key: the
+key's published automation holds the design, the subject and the sender,
+and `payload` carries the recipient (`email`) plus the data the email reads
+(`{{ trigger.confirmationUrl }}`). A key is a trigger in your brand with
+that `key` set: the auth emails (`auth.verify-email`, `auth.magic-link`,
+`auth.otp`, `auth.password-reset`, …), lifecycle emails such as
+`lifecycle.welcome`, or a key of your own. The auth emails share one
+payload: `email` plus optional `appName`, `userName`, `confirmationUrl`,
+`otp` and the rest listed in [`docs/send.md`](./docs/send.md#starter-kit-keys).
+Pass `{ idempotencyKey }` as the third argument when the call itself can
+repeat, and augment `BrewTriggerKeyRegistry` to type-check every key and
+payload. See [`docs/send.md`](./docs/send.md).
+
+`brew.send` is not `brew.emails.send`: `emails.send` sends a saved design to
+an audience (a campaign) or as one test delivery.
+
 ## Quick start
 
 ```ts
@@ -124,6 +154,7 @@ controller is available from `@brew.new/sdk/embed`.
 
 | Topic                              | File                                                                   |
 | ---------------------------------- | ---------------------------------------------------------------------- |
+| `brew.send` (app email by key)     | [`docs/send.md`](./docs/send.md)                                       |
 | Analytics resource                 | [`docs/analytics.md`](./docs/analytics.md)                             |
 | Automations resource               | [`docs/automations.md`](./docs/automations.md)                         |
 | Audiences resource                 | [`docs/audiences.md`](./docs/audiences.md)                             |
