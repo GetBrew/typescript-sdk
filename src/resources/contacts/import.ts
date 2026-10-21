@@ -15,6 +15,14 @@ import type { BrewRawResponse, RequestOptions } from '../../types'
  *   else a background `validationJobId`), 2 credits per address.
  * - `fileName` names the batch in Brew's Import History and is stamped on
  *   every contact it writes as `csvFileName`.
+ * - `dryRun: true` returns the response this import would return and writes
+ *   nothing (no contacts, field definitions or Import History batch); the
+ *   response carries `dryRun: true` and no `importId`, `validate` is not run
+ *   and nothing is charged.
+ * - `onConflict` (`upsert` default | `skip`): `skip` only creates missing
+ *   contacts and leaves every existing one unchanged, counted in
+ *   `summary.skipped` with a `CONTACT_EXISTS_SKIPPED` warning naming its
+ *   `row`.
  */
 export type ImportContactsInput = components['schemas']['ContactsImportRequest']
 
@@ -42,7 +50,8 @@ export type ImportContactsWarning = ImportContactsResponse['warnings'][number]
  *
  * The response is the same shape on full and partial success (200 / 207):
  * `summary.total` counts submitted contacts and equals
- * `inserted + updated + failed + skipped` (`skipped` is 0 for JSON).
+ * `inserted + updated + failed + skipped` (`skipped` counts existing
+ * contacts left alone by `onConflict: 'skip'`, else 0 for JSON).
  * Inspect `summary.failed` and `errors` for row-level problems. Errors and
  * warnings can name the contact with `row`: `contacts[row - 1]`.
  */

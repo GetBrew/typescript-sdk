@@ -26,6 +26,12 @@
   plus one, or CSV data row excluding the header). `CSV_ROW_SKIPPED` warnings
   identify the first 100 skipped CSV rows; a final warning without `row`
   counts any remainder. These fields require the matching API deployment.
+- Both imports take `dryRun` and `onConflict`. `dryRun: true` returns the
+  response the import would return and writes nothing; it carries
+  `dryRun: true` and no `importId` (now optional on `ContactsImportResponse`).
+  `onConflict: 'skip'` creates missing contacts and leaves existing ones
+  unchanged, counted in `summary.skipped` with a `CONTACT_EXISTS_SKIPPED`
+  warning. These options require the matching API deployment.
 
 ### Changed
 

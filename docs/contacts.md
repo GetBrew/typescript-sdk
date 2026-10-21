@@ -646,6 +646,9 @@ type ImportCsvContactsInput = {
   validate?: boolean // deliverability check, 2 credits per address
   consent?: ContactConsentInput // stamped on every imported row
   dateOrder?: 'month_first' | 'day_first'
+  fileName?: string // the batch's name in Import History
+  dryRun?: boolean // preview the response, write nothing
+  onConflict?: 'upsert' | 'skip' // skip leaves existing contacts unchanged
 }
 ```
 
@@ -670,3 +673,20 @@ for (const warning of result.warnings) {
 
 The response has the same shape on full and partial success: inspect
 `summary.failed` and `errors` for row-level problems.
+
+`dryRun: true` returns the response the import would return and writes
+nothing: no contacts, field definitions or Import History batch. It carries
+`dryRun: true` and no `importId`, runs no `validate` check and charges
+nothing, and a real run on the same data right after returns the same
+counts. `onConflict: 'skip'` only creates missing contacts: each existing
+contact is left unchanged and counted in `summary.skipped`, with a
+`CONTACT_EXISTS_SKIPPED` warning naming its `row`. `brew.contacts.import()`
+takes both options too.
+
+```ts
+const preview = await brew.contacts.importCsv({ csv, dryRun: true })
+if (preview.summary.failed === 0) {
+  const result = await brew.contacts.importCsv({ csv, onConflict: 'skip' })
+  console.log(result.importId, result.summary)
+}
+```
