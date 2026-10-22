@@ -6,13 +6,15 @@ For a private customer admin app, follow the [white-label integration guide](htt
 
 ## Create a client app
 
-Install SDK 13.0.0 or newer:
+Install SDK 13.2.0 or newer for organization-wide client IDs:
 
 ```bash
-npm install @brew.new/sdk@^13.0.0
+npm install @brew.new/sdk@^13.2.0
 ```
 
-Select the brand in Brew, then open **Settings → API → Client apps → Create client ID**. Name the app, add its exact allowed origins, choose whether editing is enabled, and copy its client ID.
+Open **Settings → API → Client apps → Create client ID**. Name the app, choose **All brands** or a specific brand, add its exact allowed origins, enable editing if required, and copy its client ID. Organization admins can choose either scope; members can select only an authorized brand.
+
+An all-brands client ID works for every current and future brand in its organization. Pass the selected `brandId` with each canvas target. Each session remains bound to that one brand and group/email; the client cannot cross organizations. Existing brand-bound IDs still work without `brandId`, and reject a different brand if one is supplied.
 
 Use HTTPS in production. HTTP loopback origins such as `http://localhost:3500` are accepted for development. Origins include the port and exclude paths and trailing slashes. Wildcards are not accepted.
 
@@ -26,6 +28,7 @@ export function CustomerEmails() {
   return (
     <EmailCanvas
       clientId="brew_client_..."
+      brandId="brand_..."
       groupId="grp_..."
       style={{ height: '80vh' }}
     />
@@ -33,7 +36,7 @@ export function CustomerEmails() {
 }
 ```
 
-For a focused editor, replace `groupId` with `emailId`. Exactly one is required, both in TypeScript and at runtime. The client ID determines the brand and editing permissions. You do not provide an API key, Clerk key, user object, brand ID, parent origin or session endpoint.
+For a focused editor, replace `groupId` with `emailId`. Exactly one is required, both in TypeScript and at runtime. The client ID determines the permitted brand scope and editing policy; `brandId` selects the current brand. It is required for all-brands IDs, including when `groupId` is `ungrouped`. You do not provide an API key, Clerk key, user object, parent origin or session endpoint. Switching brands acquires a new scoped session. Generation, saves and version updates within the same board preserve its iframe.
 
 The component defaults to a height of 640px. React 18 and 19 are supported. React is optional if you use the browser controller.
 
@@ -45,6 +48,7 @@ import { createEmailCanvas } from '@brew.new/sdk/embed'
 const container = document.getElementById('canvas')!
 const canvas = createEmailCanvas(container, {
   clientId: 'brew_client_...',
+  brandId: 'brand_...',
   emailId: 'email_...',
   onReady: () => console.log('Ready'),
   onSaved: ({ emailId }) => console.log('Saved', emailId),
