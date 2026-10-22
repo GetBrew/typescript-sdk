@@ -70,6 +70,12 @@ export function validateCanvasAuthentication(
       'Pass exactly one of clientId or getSession.'
     )
   }
+  if (options.brandId !== undefined && options.clientId === undefined) {
+    throw new BrewEmbedError(
+      'INVALID_ARGUMENT',
+      'brandId is supported only with clientId. Authorize the brand in getSession.'
+    )
+  }
   if (
     options.brandId !== undefined &&
     (typeof options.brandId !== 'string' ||

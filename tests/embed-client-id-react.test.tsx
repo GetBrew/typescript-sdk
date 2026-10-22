@@ -54,9 +54,12 @@ it('replaces only the brand-scoped session when one organization client switches
   view.rerender(
     <EmailCanvas clientId={clientId} brandId="brand_b" groupId="ungrouped" />
   )
-  await waitFor(() =>
-    expect(view.container.querySelector('iframe')).not.toBe(first)
-  )
+  await waitFor(() => {
+    const replacement = view.container.querySelector('iframe')
+    expect(replacement).not.toBeNull()
+    expect(replacement).not.toBe(first)
+    expect(replacement?.src).toContain('/embed/canvas/session_2')
+  })
   expect(
     fetcher.mock.calls.some(([, init]) => {
       if (init?.method !== 'POST' || typeof init.body !== 'string') return false
@@ -134,15 +137,33 @@ it('rejects API keys and missing client IDs synchronously in the controller', ()
 it.each(['', ' brand_a', 'brand_a ', null, 42])(
   'rejects invalid explicit brand context: %s',
   (brandId) => {
+    const options: EmailCanvasProps = {
+      clientId,
+      // @ts-expect-error Deliberately exercise invalid untyped JavaScript brand context.
+      brandId,
+      groupId: 'ungrouped',
+    }
     expect(() =>
-      createEmailCanvas(document.createElement('div'), {
-        clientId,
-        brandId,
-        groupId: 'ungrouped',
-      } as unknown as EmailCanvasProps)
+      createEmailCanvas(document.createElement('div'), options)
     ).toThrow(expect.objectContaining({ code: 'INVALID_ARGUMENT' }))
   }
 )
+it('rejects brandId with a custom provider before either host can ignore it', () => {
+  const getSession = vi.fn()
+  // @ts-expect-error Deliberately exercise a JavaScript host mixing client-only brand context with a custom provider.
+  const options: EmailCanvasProps = {
+    getSession,
+    brandId: 'brand_a',
+    emailId: 'email_a',
+  }
+  expect(() =>
+    createEmailCanvas(document.createElement('div'), options)
+  ).toThrow(expect.objectContaining({ code: 'INVALID_ARGUMENT' }))
+  expect(() => render(<EmailCanvas {...options} />)).toThrow(
+    expect.objectContaining({ code: 'INVALID_ARGUMENT' })
+  )
+  expect(getSession).not.toHaveBeenCalled()
+})
 it('rejects conflicting authentication props instead of dropping a per-user authorization callback', () => {
   const fetcher = vi
     .fn<typeof fetch>()
