@@ -15,4 +15,9 @@ if (problems.length) {
   console.log(
     'Configuration is complete. This checks setup only; open the app to verify access to your configured targets.'
   )
+  if (!process.env.BREW_BRAND_ID?.trim()) {
+    console.log(
+      'All brands client IDs also require BREW_BRAND_ID, including for ungrouped.'
+    )
+  }
 }

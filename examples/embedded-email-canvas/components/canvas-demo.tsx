@@ -9,17 +9,20 @@ type Props = Readonly<{
   targets: ReadonlyArray<DemoTarget>
   embedOrigin: string
   clientId: string
+  brandId?: string
 }>
 
 function CanvasView({
   item,
   embedOrigin,
   clientId,
+  brandId,
   onLeave,
 }: Readonly<{
   item: DemoTarget
   embedOrigin: string
   clientId: string
+  brandId?: string
   onLeave: () => void
 }>) {
   const canvas = useRef<EmailCanvasHandle>(null)
@@ -153,6 +156,7 @@ function CanvasView({
           className="canvas"
           style={{ height: 'calc(100dvh - 230px)', minHeight: 420 }}
           clientId={clientId}
+          {...(brandId ? { brandId } : {})}
           onReady={() => {
             setIsReady(true)
             setError(null)
@@ -172,7 +176,7 @@ function CanvasView({
   )
 }
 
-export function CanvasDemo({ targets, embedOrigin, clientId }: Props) {
+export function CanvasDemo({ targets, embedOrigin, clientId, brandId }: Props) {
   const [active, setActive] = useState<DemoTarget | null>(null)
   return (
     <main className="workspace">
@@ -181,6 +185,7 @@ export function CanvasDemo({ targets, embedOrigin, clientId }: Props) {
           item={active}
           embedOrigin={embedOrigin}
           clientId={clientId}
+          {...(brandId ? { brandId } : {})}
           onLeave={() => setActive(null)}
         />
       ) : (

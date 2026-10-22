@@ -7,6 +7,24 @@ import {
 
 const clientId = 'brew_client_0123456789abcdef0123456789abcdef'
 describe('client ID demo setup', () => {
+  it('retains an explicit brand for organization-wide clients and ungrouped', () => {
+    expect(
+      readConfig({
+        NEXT_PUBLIC_BREW_CLIENT_ID: clientId,
+        BREW_BRAND_ID: 'brand_a',
+        BREW_GROUP_ID: 'ungrouped',
+      })
+    ).toHaveProperty('brandId', 'brand_a')
+  })
+  it('rejects oversized brand IDs without echoing configuration', () => {
+    expect(() =>
+      readConfig({
+        NEXT_PUBLIC_BREW_CLIENT_ID: clientId,
+        BREW_BRAND_ID: 'x'.repeat(201),
+        BREW_GROUP_ID: 'ungrouped',
+      })
+    ).toThrow('Brand IDs must be at most 200 characters.')
+  })
   it('needs only a publishable client ID and one target', () => {
     expect(
       readConfig({
