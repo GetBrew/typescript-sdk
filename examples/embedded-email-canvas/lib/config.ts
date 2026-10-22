@@ -6,6 +6,7 @@ import {
 export type DemoTarget = Readonly<{ label: string; target: CanvasTarget }>
 export type DemoConfig = Readonly<{
   clientId: string
+  brandId?: string
   embedOrigin: string
   targets: ReadonlyArray<DemoTarget>
 }>
@@ -53,6 +54,10 @@ export function readConfig(env: Environment): DemoConfig {
     )
   }
   const embedOrigin = env.BREW_EMBED_ORIGIN || 'https://brew.new'
+  const brandId = env.BREW_BRAND_ID?.trim()
+  if (brandId && brandId.length > 200) {
+    throw new Error('Brand IDs must be at most 200 characters.')
+  }
   const url = URL.canParse(embedOrigin) ? new URL(embedOrigin) : null
   if (
     !url ||
@@ -86,5 +91,5 @@ export function readConfig(env: Environment): DemoConfig {
           : { type, emailId: value.trim() },
     })
   }
-  return { clientId, embedOrigin, targets }
+  return { clientId, ...(brandId ? { brandId } : {}), embedOrigin, targets }
 }

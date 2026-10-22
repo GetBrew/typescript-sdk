@@ -7,4 +7,4 @@ allowBuilds:
   sharp: true
   unrs-resolver: true
 minimumReleaseAgeExclude:
-  - '@brew.new/sdk@12.3.0'
+  - '@brew.new/sdk@13.2.0'

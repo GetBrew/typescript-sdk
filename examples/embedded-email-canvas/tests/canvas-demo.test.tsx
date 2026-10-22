@@ -36,6 +36,7 @@ afterEach(() => {
 })
 const props = {
   clientId: 'brew_client_0123456789abcdef0123456789abcdef',
+  brandId: 'brand_a',
   targets: [
     {
       label: 'Campaign group',
@@ -54,10 +55,11 @@ function open() {
   act(() => mock.props?.onReady?.())
 }
 describe('client ID customer flow', () => {
-  it('passes only the client ID and exclusive target to the SDK', () => {
+  it('passes the client ID, selected brand and exclusive target to the SDK', () => {
     open()
     expect(mock.props?.clientId).toBe(props.clientId)
     expect(mock.props?.groupId).toBe('group')
+    expect(mock.props).toHaveProperty('brandId', props.brandId)
     expect(mock.props).not.toHaveProperty('getSession')
     expect(screen.queryByRole('button', { name: 'Sign out' })).toBeNull()
   })

@@ -8,6 +8,7 @@ const configuration: {
   targets: Array<DemoTarget>
   embedOrigin: string
   clientId: string
+  brandId?: string
 } = await fetch('/fixture-config').then((response) => response.json())
 const root = document.getElementById('root')
 if (!root) {
