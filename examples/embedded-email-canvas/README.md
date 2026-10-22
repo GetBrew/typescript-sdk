@@ -93,7 +93,7 @@ pnpm build
 pnpm start
 ```
 
-Unit tests cover configuration and save-before-exit behavior. Browser tests use the real SDK controller and demo UI against an isolated protocol fixture, covering group/single mode, renewal, errors and failed saves. For a real isolated Brew backend, set `DEMO_E2E_BREW_ORIGIN` to its loopback origin and `DEMO_E2E_CLIENT_ID` to a synthetic client app allowing `http://localhost:3501`, then run `pnpm test:browser`. The test server refuses remote Brew origins. The Brew repository’s full loopback harness additionally covers tenant isolation, streams, version switching, editing leases, persistence, expiration and revocation.
+Unit tests cover configuration and save-before-exit behavior. Browser tests use the real SDK controller and demo UI against an isolated protocol fixture, covering group/single mode, renewal, errors and failed saves. For a real isolated Brew backend, set `DEMO_E2E_BREW_ORIGIN` to its loopback origin and `DEMO_E2E_CLIENT_ID` to a synthetic client app allowing `http://localhost:3501`. Set `DEMO_E2E_BRAND_ID` to the synthetic brand when using an All brands client ID; the browser test server reads this test-specific setting instead of `BREW_BRAND_ID`. Then run `pnpm test:browser`. The test server refuses remote Brew origins. The Brew repository’s full loopback harness additionally covers tenant isolation, streams, version switching, editing leases, persistence, expiration and revocation.
 
 Set the same environment variables in your deployment, whitelist its exact HTTPS origin, and build/start normally. No authentication provider or secret is required to host this demo. Protect your own app according to your product’s access requirements.
 
