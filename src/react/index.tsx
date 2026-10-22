@@ -50,10 +50,11 @@ export const EmailCanvas = forwardRef<EmailCanvasHandle, EmailCanvasProps>(
     }, [])
     useEffect(() => {
       if (!container.current) return
-      const { embedOrigin, title, commandTimeoutMs, clientId } = latest.current
+      const { embedOrigin, title, commandTimeoutMs, clientId, brandId } =
+        latest.current
       const authentication =
         clientId !== undefined
-          ? { clientId }
+          ? { clientId, ...(brandId !== undefined ? { brandId } : {}) }
           : {
               getSession: (request: CanvasSessionRequest) => {
                 const provider = latest.current.getSession
@@ -91,7 +92,13 @@ export const EmailCanvas = forwardRef<EmailCanvasHandle, EmailCanvasProps>(
         mounted.destroy()
         controller.current = null
       }
-    }, [props.groupId, props.emailId, props.embedOrigin, props.clientId])
+    }, [
+      props.groupId,
+      props.emailId,
+      props.embedOrigin,
+      props.clientId,
+      props.brandId,
+    ])
     return (
       <div
         ref={container}

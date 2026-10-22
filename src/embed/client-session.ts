@@ -9,6 +9,7 @@ import { getCanvasRecoveryId } from './recovery-identity'
 
 type Options = Readonly<{
   clientId: string
+  brandId?: string
   embedOrigin: string
   fetch?: typeof fetch
 }>
@@ -65,6 +66,9 @@ export function createClientCanvasSessionProvider(options: Options) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           target: request.target,
+          ...(options.brandId !== undefined
+            ? { brandId: options.brandId }
+            : {}),
           clientSessionToken,
           recoveryId,
           ...(request.sessionId ? { sessionId: request.sessionId } : {}),
@@ -74,7 +78,7 @@ export function createClientCanvasSessionProvider(options: Options) {
       if (!response.ok)
         throw new BrewEmbedError(
           'AUTHENTICATION_FAILED',
-          'Client app access was denied. Check its allowed origins and target.'
+          'Client app access was denied. Check its allowed origins, brandId and target.'
         )
       const grant: unknown = await response.json()
       if (!isCanvasSession(grant))

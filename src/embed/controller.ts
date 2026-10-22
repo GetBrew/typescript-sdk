@@ -27,8 +27,12 @@ export type CanvasSessionProvider = (
   request: CanvasSessionRequest
 ) => Promise<CanvasSession>
 export type CanvasAuthentication =
-  | Readonly<{ clientId: string; getSession?: never }>
-  | Readonly<{ getSession: CanvasSessionProvider; clientId?: never }>
+  | Readonly<{ clientId: string; brandId?: string; getSession?: never }>
+  | Readonly<{
+      getSession: CanvasSessionProvider
+      clientId?: never
+      brandId?: never
+    }>
 export type EmailCanvasOptions = CanvasTargetProps &
   CanvasAuthentication & {
     /** Trusted Brew hosting origin. Override only for your development/preview deployment. */
@@ -96,6 +100,9 @@ export function createEmailCanvas(
     options.clientId !== undefined
       ? createClientCanvasSessionProvider({
           clientId: options.clientId,
+          ...(options.brandId !== undefined
+            ? { brandId: options.brandId }
+            : {}),
           embedOrigin: origin,
         })
       : undefined

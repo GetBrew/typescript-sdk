@@ -119,7 +119,7 @@ config options (`timeoutMs`, `maxRetries`, `retryOnTimeout`, `signal`,
 ## Documentation
 
 Embed a group or single email in your app with [`EmailCanvas`](docs/embed.md),
-the React component from `@brew.new/sdk/react`, using a publishable `clientId` and exactly one `groupId` or `emailId`. No Clerk keys or browser API keys are required. A plain JavaScript iframe
+the React component from `@brew.new/sdk/react`, using a publishable `clientId` and exactly one `groupId` or `emailId`. In SDK 13.2+, pass `brandId` to reuse an organization-wide client ID across current and future brands; client apps can also be restricted to one brand. No Clerk keys or browser API keys are required. A plain JavaScript iframe
 controller is available from `@brew.new/sdk/embed`.
 
 | Topic                              | File                                                                   |

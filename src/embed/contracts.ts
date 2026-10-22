@@ -55,7 +55,11 @@ export class BrewEmbedError extends Error {
 }
 /** Validate before React or JavaScript hosts narrow the authentication mode. */
 export function validateCanvasAuthentication(
-  options: Readonly<{ clientId?: unknown; getSession?: unknown }>
+  options: Readonly<{
+    clientId?: unknown
+    getSession?: unknown
+    brandId?: unknown
+  }>
 ): void {
   if (
     (options.clientId !== undefined) === (options.getSession !== undefined) ||
@@ -64,6 +68,24 @@ export function validateCanvasAuthentication(
     throw new BrewEmbedError(
       'INVALID_ARGUMENT',
       'Pass exactly one of clientId or getSession.'
+    )
+  }
+  if (options.brandId !== undefined && options.clientId === undefined) {
+    throw new BrewEmbedError(
+      'INVALID_ARGUMENT',
+      'brandId is supported only with clientId. Authorize the brand in getSession.'
+    )
+  }
+  if (
+    options.brandId !== undefined &&
+    (typeof options.brandId !== 'string' ||
+      !options.brandId ||
+      options.brandId.trim() !== options.brandId ||
+      options.brandId.length > 200)
+  ) {
+    throw new BrewEmbedError(
+      'INVALID_ARGUMENT',
+      'brandId must be a nonempty brand ID without surrounding spaces.'
     )
   }
 }
