@@ -29,6 +29,15 @@ import type { BrewRawResponse, RequestOptions } from '../../types'
  *   every contact it writes as `csvFileName`; the response's `importId` is
  *   the batch's id, carried by each contact it wrote until a later import
  *   touches it.
+ * - `dryRun: true` returns the response this import would return and writes
+ *   nothing: no contacts, field definitions or Import History batch. The
+ *   response carries `dryRun: true` and no `importId`; `validate` is not run
+ *   and nothing is charged. A real run on the same data right after returns
+ *   the same counts.
+ * - `onConflict` (`upsert` default | `skip`): `skip` only creates missing
+ *   contacts and leaves every existing one unchanged, counted in
+ *   `summary.skipped` with a `CONTACT_EXISTS_SKIPPED` warning naming its
+ *   `row`.
  */
 export type ImportCsvContactsInput =
   components['schemas']['ContactsImportCsvRequest']
@@ -49,14 +58,15 @@ export type ImportCsvWarning = ImportCsvContactsResponse['warnings'][number]
 /**
  * Bulk-import contacts from a raw CSV string.
  *
- * The wire format is `{ csv, mapping?, validate?, consent?, dateOrder?, fileName? }`.
+ * The wire format is
+ * `{ csv, mapping?, validate?, consent?, dateOrder?, fileName?, dryRun?, onConflict? }`.
  * The server parses the CSV,
  * auto-defines any custom fields it finds (returned in `fieldsCreated`),
- * and upserts each row.
+ * and upserts each row (`onConflict: 'skip'` only creates missing contacts).
  *
  * Returns the full `ContactsImportResponse` envelope: a `summary`
  * (`inserted`, `updated`, `failed`, `skipped`, and their sum `total`), the
- * batch's `importId`, `fieldsCreated`, a per-row `errors` array, and a
+ * batch's `importId` (absent on a `dryRun` preview), `fieldsCreated`, a per-row `errors` array, and a
  * `warnings` array surfacing non-fatal notes. The response is the same
  * shape on full and partial success — inspect `summary.failed` and `errors`
  * to detect row-level problems; the transport does not throw on a
@@ -76,6 +86,10 @@ export type ImportCsvWarning = ImportCsvContactsResponse['warnings'][number]
  * `validationJobId` appears when a background job is queued. Neither field
  * is guaranteed when there are no addresses to check or no work to queue.
  * Insufficient credits fail with `402 INSUFFICIENT_CREDITS`.
+ *
+ * Pass `dryRun: true` to preview the same envelope without writing (see
+ * `ImportCsvContactsInput`), and `onConflict: 'skip'` to leave existing
+ * contacts unchanged.
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<ImportCsvContactsResponse>` instead of the unwrapped

@@ -4,6 +4,9 @@
 
 ### Added
 
+- Generated types follow app revision `87ac2c6242`: email rows carry `lang`,
+  and flows carry their send-stream `kind` and `<domain>/<kind>` slugs.
+
 - Synchronize email categories and template browse groups with app revision
   `9bf2e01f14d8260bdde0825e901a05497b66c70c`. Generation inputs accept
   `onboarding`, `content`, `event-recap`, `product-pitch`, `company-news` and
@@ -26,6 +29,12 @@
   plus one, or CSV data row with the header and blank lines not counted). `CSV_ROW_SKIPPED` warnings
   identify the first 100 skipped CSV rows; a final warning without `row`
   counts any remainder. These fields require the matching API deployment.
+- Both imports take `dryRun` and `onConflict`. `dryRun: true` returns the
+  response the import would return and writes nothing; it carries
+  `dryRun: true` and no `importId` (now optional on `ContactsImportResponse`).
+  `onConflict: 'skip'` creates missing contacts and leaves existing ones
+  unchanged, counted in `summary.skipped` with a `CONTACT_EXISTS_SKIPPED`
+  warning. These options require the matching API deployment.
 
 ### Changed
 
@@ -46,6 +55,12 @@
     }
   }
   ```
+
+### Fixed
+
+- `flows.get` reads a `<domain>/<kind>` slug from `flows.list()` as one send
+  stream's flow (the domain path plus `?kind=`) and takes a `kind` option for
+  a bare-domain slug. It previously encoded the `/` into the path.
 
 ## 13.0.0
 

@@ -118,3 +118,79 @@ describe('contacts.importCsv fileName', () => {
     expect(result.summary.total).toBe(1)
   })
 })
+
+describe('contacts import dryRun and onConflict', () => {
+  it('sends dryRun and returns the dry-run envelope without an importId', async () => {
+    let sent: unknown
+    const body = {
+      summary: { inserted: 1, updated: 1, failed: 0, skipped: 0, total: 2 },
+      fieldsCreated: ['plan'],
+      errors: [],
+      warnings: [],
+      dryRun: true,
+    } satisfies ImportContactsResponse
+    server.use(
+      http.post(
+        'https://brew.new/api/v1/contacts/import',
+        async ({ request }) => {
+          sent = await request.json()
+          return HttpResponse.json(body)
+        }
+      )
+    )
+    const { client } = makeTestHttpClient()
+    const result = await createImportContacts(client)({
+      contacts: [{ email: 'ada@example.com' }, { email: 'grace@example.com' }],
+      dryRun: true,
+    })
+    expect(sent).toEqual({
+      contacts: [{ email: 'ada@example.com' }, { email: 'grace@example.com' }],
+      dryRun: true,
+    })
+    expect(result.dryRun).toBe(true)
+    expect(result.importId).toBeUndefined()
+    expect(result.fieldsCreated).toEqual(['plan'])
+  })
+
+  it('sends onConflict skip on a CSV import and reads the skipped row', async () => {
+    let sent: unknown
+    const body = {
+      summary: { inserted: 1, updated: 0, failed: 0, skipped: 1, total: 2 },
+      fieldsCreated: [],
+      errors: [],
+      warnings: [
+        {
+          code: 'CONTACT_EXISTS_SKIPPED',
+          email: 'ada@example.com',
+          row: 1,
+          message:
+            'ada@example.com already exists, so onConflict: "skip" left it unchanged.',
+        },
+      ],
+      importId: 'imp_123',
+    } satisfies ImportContactsResponse
+    server.use(
+      http.post(
+        'https://brew.new/api/v1/contacts/import-csv',
+        async ({ request }) => {
+          sent = await request.json()
+          return HttpResponse.json(body)
+        }
+      )
+    )
+    const { client } = makeTestHttpClient()
+    const result = await createImportCsvContacts(client)({
+      csv: 'email\nada@example.com\ngrace@example.com',
+      onConflict: 'skip',
+    })
+    expect(sent).toEqual({
+      csv: 'email\nada@example.com\ngrace@example.com',
+      onConflict: 'skip',
+    })
+    expect(result.summary.skipped).toBe(1)
+    expect(result.warnings[0]).toMatchObject({
+      code: 'CONTACT_EXISTS_SKIPPED',
+      row: 1,
+    })
+  })
+})

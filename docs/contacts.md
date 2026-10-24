@@ -665,14 +665,15 @@ for (const error of result.errors) {
 ```
 
 `fileName` names the batch in Import History and is stamped on contacts it
-writes as `csvFileName`. Both imports return the batch's required `importId`;
-each written contact carries it until a later import touches that contact.
+writes as `csvFileName`. Both imports return the batch's `importId` (absent on
+a `dryRun` preview); each written contact carries it until a later import touches that contact.
 Deleting the import removes contacts it created that a later import has not
 since updated.
 
 Both imports return `summary`, `fieldsCreated`, `errors` and `warnings`.
 The required `summary.total` equals `inserted + updated + failed + skipped`;
-`skipped` is always 0 for JSON. Full and partial success (`200` / `207`) have
+for JSON, `skipped` counts only existing contacts left alone by
+`onConflict: 'skip'`. Full and partial success (`200` / `207`) have
 the same response shape, and `207` does not throw. Inspect `summary.failed`
 and `errors` after every call. An error or warning can have an optional,
 positive `row`: a 1-based index into the submitted `contacts` array.
@@ -701,6 +702,8 @@ type ImportCsvContactsInput = {
   consent?: ContactConsentInput // stamped on every imported row
   dateOrder?: 'month_first' | 'day_first'
   fileName?: string // batch name in Import History
+  dryRun?: boolean // preview the response, write nothing
+  onConflict?: 'upsert' | 'skip' // skip leaves existing contacts unchanged
 }
 ```
 
@@ -725,8 +728,8 @@ for (const warning of result.warnings) {
 }
 ```
 
-The response is the same shared envelope as `import`, including required
-`importId` and `summary.total`. Inspect `summary.failed` and `errors` on both
+The response is the same shared envelope as `import`, including
+`importId` (absent on a dry run) and `summary.total`. Inspect `summary.failed` and `errors` on both
 full and partial success. Optional `row` values on errors or warnings name
 the positive, 1-based CSV data row, excluding the header.
 
@@ -744,3 +747,24 @@ Larger files import first and use a background workflow, charged per address
 as it runs; `validationJobId` appears when a job is queued. Neither field is
 guaranteed when no imported addresses can be checked or no work needs to be
 queued.
+
+`dryRun: true` returns the response the import would return and writes
+nothing: no contacts, field definitions or Import History batch. It carries
+`dryRun: true` and no `importId`, runs no `validate` check and charges
+nothing, and a real run on the same data right after returns the same
+counts. `onConflict: 'skip'` only creates missing contacts: each existing
+contact is left unchanged and counted in `summary.skipped`, with a
+`CONTACT_EXISTS_SKIPPED` warning naming its `row`. `brew.contacts.import()`
+takes both options too.
+
+```ts
+const preview = await brew.contacts.importCsv({
+  csv,
+  onConflict: 'skip',
+  dryRun: true,
+})
+if (preview.summary.failed === 0) {
+  const result = await brew.contacts.importCsv({ csv, onConflict: 'skip' })
+  console.log(result.importId, result.summary)
+}
+```

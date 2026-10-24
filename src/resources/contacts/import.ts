@@ -19,6 +19,14 @@ import type { BrewRawResponse, RequestOptions } from '../../types'
  *   guaranteed when there are no addresses to check or no work to queue.
  * - `fileName` names the batch in Brew's Import History and is stamped on
  *   every contact it writes as `csvFileName`.
+ * - `dryRun: true` returns the response this import would return and writes
+ *   nothing (no contacts, field definitions or Import History batch); the
+ *   response carries `dryRun: true` and no `importId`, `validate` is not run
+ *   and nothing is charged.
+ * - `onConflict` (`upsert` default | `skip`): `skip` only creates missing
+ *   contacts and leaves every existing one unchanged, counted in
+ *   `summary.skipped` with a `CONTACT_EXISTS_SKIPPED` warning naming its
+ *   `row`.
  */
 export type ImportContactsInput = components['schemas']['ContactsImportRequest']
 
@@ -38,15 +46,17 @@ export type ImportContactsWarning = ImportContactsResponse['warnings'][number]
  * Bulk-import contacts from JSON rows, recorded as ONE Import History batch.
  *
  * The JSON twin of `importCsv`: missing contacts are created (subscribed
- * unless a row says `subscribed: false`), existing ones updated, and the
- * response carries the batch's `importId`, which each written contact
+ * unless a row says `subscribed: false`), existing ones updated (left alone
+ * with `onConflict: 'skip'`), and the response carries the batch's
+ * `importId` (absent on a `dryRun` preview), which each written contact
  * carries too until a later import touches it (filter on it to list them;
  * deleting the import in the app removes the contacts it created). Use `upsertMany` instead for recurring
  * syncs that should not appear in Import History.
  *
  * The response is the same shape on full and partial success (200 / 207):
  * `summary.total` counts submitted contacts and equals
- * `inserted + updated + failed + skipped` (`skipped` is 0 for JSON).
+ * `inserted + updated + failed + skipped` (`skipped` counts existing
+ * contacts left alone by `onConflict: 'skip'`, else 0 for JSON).
  * Inspect `summary.failed` and `errors` for row-level problems. Errors and
  * warnings can name the contact with `row`: `contacts[row - 1]`.
  */
