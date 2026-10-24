@@ -6,6 +6,14 @@
 
 - Generated types follow app revision `87ac2c6242`: email rows carry `lang`,
   and flows carry their send-stream `kind` and `<domain>/<kind>` slugs.
+- Add the email `lang` field (ISO 639-1, or `zh-Hans` / `zh-Hant`), shipped
+  in GetBrew/brew-v2#2225. `emails.get` returns `lang` on the `EmailDetail`
+  row once Brew has read the copy's language. `emails.generate`
+  (`POST /v1/emails`) accepts `lang` to name it up front, and `emails.edit`
+  (`PATCH /v1/emails/{emailId}`) accepts `lang` as a free envelope patch: no
+  AI run, no new version. A `lang` you set is kept and never re-detected;
+  `emails.edit({ emailId, lang: null })` clears it so Brew reads it again.
+  The new `EmailLanguage` type is derived from the API enum.
 
 - Synchronize email categories and template browse groups with app revision
   `9bf2e01f14d8260bdde0825e901a05497b66c70c`. Generation inputs accept

@@ -520,6 +520,7 @@ export type {
 } from './resources/emails/send'
 export type {
   EmailDetail,
+  EmailLanguage,
   EmailsSortBy,
   EmailStatus,
   EmailSummary,

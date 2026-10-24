@@ -37,7 +37,7 @@ export type EmailsResource = {
   readonly importFigma: ReturnType<typeof createImportFigmaDesign>
   /** `POST /v1/emails/{emailId}/clone` — duplicate a design (optionally an exact historical version) into a new one (scope: `emails`). */
   readonly clone: ReturnType<typeof createCloneEmail>
-  /** `PATCH /v1/emails/{emailId}` — AI edit an existing email (new latest version), or change only `title` / `subjectLine` / `groupId` with no prompt (scope: `emails`). */
+  /** `PATCH /v1/emails/{emailId}` — AI edit an existing email (new latest version), or change only `title` / `subjectLine` / `lang` / `groupId` with no prompt (scope: `emails`). */
   readonly edit: ReturnType<typeof createEditEmail>
   /** `POST /v1/emails/{emailId}/restore` — non-destructive version restore by `emailVersionId` (scope: `emails`). */
   readonly restore: ReturnType<typeof createRestoreEmail>
