@@ -297,6 +297,13 @@ export type {
   GetContactResponse,
 } from './resources/contacts/get'
 export type {
+  ImportContactsError,
+  ImportContactsInput,
+  ImportContactsResponse,
+  ImportContactsSummary,
+  ImportContactsWarning,
+} from './resources/contacts/import'
+export type {
   ImportCsvContactsInput,
   ImportCsvContactsResponse,
   ImportCsvError,

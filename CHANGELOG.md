@@ -2,12 +2,50 @@
 
 ## Unreleased
 
+### Added
+
 - Synchronize email categories and template browse groups with app revision
   `9bf2e01f14d8260bdde0825e901a05497b66c70c`. Generation inputs accept
   `onboarding`, `content`, `event-recap`, `product-pitch`, `company-news` and
   `fundraising`; existing categories remain valid. Template reads accept
   `group` filters and `groupBy: 'group'` counts. These additions require the
   matching API deployment.
+- `brew.contacts.import({ contacts, consent?, validate?, fileName? })` calls
+  `POST /v1/contacts/import`: the JSON twin of `importCsv`, recorded as one
+  batch in Brew's Import History. `ImportContactsInput`,
+  `ImportContactsResponse`, `ImportContactsSummary`, `ImportContactsError` and
+  `ImportContactsWarning` are exported from the package root.
+- `importCsv` takes `fileName`, the name the batch is listed under in Import
+  History (also stamped on each contact as `csvFileName`). Both imports return
+  the batch's `importId`, which each contact they write carries until a later
+  import touches it. Both responses share the `ContactsImportResponse`
+  component (`ImportCsvContactsResponse` keeps its name).
+- Both import responses include `summary.total`: submitted JSON contacts or
+  CSV data rows, equal to `inserted + updated + failed + skipped`. Errors
+  and warnings can include a positive, 1-based `row` (JSON `contacts` index
+  plus one, or CSV data row with the header and blank lines not counted). `CSV_ROW_SKIPPED` warnings
+  identify the first 100 skipped CSV rows; a final warning without `row`
+  counts any remainder. These fields require the matching API deployment.
+
+### Changed
+
+- `contacts.validate` results are discriminated by `checkOutcome` (the
+  generated spec now matches the API). `ContactValidationResult` is a union:
+  `checkOutcome: 'completed'` rows carry `reason?`, `didYouMean?`, `risk?`,
+  `isDisposable?` and `isRole?`; `checkOutcome: 'unavailable'` rows (the
+  provider could not score the address, and its stored verdict was kept)
+  carry only `email`, `valid`, `status` and `reason`. The envelope adds
+  `persistence: { matched, modified, failed }`, and `validation` on
+  `upsert`/`upsertMany`/`importCsv`/`import` may carry the same object.
+  Narrow before reading the provider fields:
+
+  ```ts
+  for (const row of data) {
+    if (row.checkOutcome === 'completed' && row.didYouMean) {
+      // …
+    }
+  }
+  ```
 
 ## 13.0.0
 

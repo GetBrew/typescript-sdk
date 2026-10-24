@@ -122,11 +122,12 @@ describe('contact validation outcome contracts', () => {
   })
   it('preserves inline CSV unscored and save-failure counts', async () => {
     const body = {
-      summary: { inserted: 2, updated: 0, failed: 0, skipped: 0 },
+      summary: { inserted: 2, updated: 0, failed: 0, skipped: 0, total: 2 },
       fieldsCreated: [],
       warnings: [],
       errors: [],
       validation,
+      importId: 'imp_validation_outcomes',
     } satisfies ImportCsvContactsResponse
     server.use(
       http.post('https://brew.new/api/v1/contacts/import-csv', () =>
@@ -134,10 +135,11 @@ describe('contact validation outcome contracts', () => {
       )
     )
     const result = await createImportCsvContacts(makeTestHttpClient().client)({
-      csv: 'email\ngood@example.com',
+      csv: 'email\ngood@example.com\nsecond@example.com',
       validate: true,
     })
     expect(result.validation).toEqual(validation)
     expect(result.summary.failed).toBe(0)
+    expect(result.summary.total).toBe(2)
   })
 })

@@ -14,7 +14,13 @@ export type ValidateContactsInput = {
 export type ValidateContactsResponse =
   components['schemas']['ContactsValidateResponse']
 
-/** One per-email validation result in `ValidateContactsResponse.data`. */
+/**
+ * One per-email validation result in `ValidateContactsResponse.data`,
+ * discriminated by `checkOutcome`: `'completed'` rows carry the provider's
+ * `didYouMean` / `risk` / `isDisposable` / `isRole`; `'unavailable'` rows
+ * (the provider could not score the address) carry only `email`, `valid`,
+ * `status` and `reason`. Narrow on `checkOutcome` before reading those.
+ */
 export type ContactValidationResult = ValidateContactsResponse['data'][number]
 
 /**

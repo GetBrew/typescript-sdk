@@ -10,13 +10,14 @@ import type { BrewRawResponse, RequestOptions } from '../../types'
  * - `mapping` is an optional `{ csvColumn: contactField }` lookup that
  *   overrides header inference. Supply it when the CSV column names do not
  *   match Brew contact fields.
- * - `validate: true` deliverability-checks every imported address and saves
- *   the verdict onto each contact. ≤100 addresses validate INLINE and the
- *   response gains a `validation` counts object
- *   (`{ valid, risky, invalid, unscored }`); >100 addresses import first,
- *   then validate as a BACKGROUND job and the response gains a
- *   `validationJobId` instead. Metered 2 credits per address, charged only
- *   on success; insufficient credits fail with `402 INSUFFICIENT_CREDITS`.
+ * - `validate: true` requests deliverability checks for imported addresses.
+ *   Files of at most 100 submitted CSV data rows select the inline path, with
+ *   `validation` counts when a check runs. Inline checks are metered at
+ *   2 credits per submitted data row, including skipped rows and repeated
+ *   addresses, charged only on success. Larger files use a background
+ *   workflow, charged per address as it runs, with `validationJobId` when
+ *   queued. Neither field is guaranteed when there are no addresses to check
+ *   or no work to queue.
  * - `consent` stamps a marketing consent record on every imported row
  *   (typically `{ source: 'import' }`).
  * - `dateOrder` (`month_first` | `day_first`) says how to read a date column
@@ -24,43 +25,57 @@ import type { BrewRawResponse, RequestOptions } from '../../types'
  *   day over 12 anywhere in the column overrides it. Without it such a
  *   column reads month-first and the response carries a
  *   `DATE_ORDER_ASSUMED` warning naming the field.
+ * - `fileName` names the batch in Brew's Import History and is stamped on
+ *   every contact it writes as `csvFileName`; the response's `importId` is
+ *   the batch's id, carried by each contact it wrote until a later import
+ *   touches it.
  */
 export type ImportCsvContactsInput =
   components['schemas']['ContactsImportCsvRequest']
 
+/** The same envelope as `ImportContactsResponse` (one shared component). */
 export type ImportCsvContactsResponse =
-  components['schemas']['ContactsImportCsvResponse']
+  components['schemas']['ContactsImportResponse']
 
-/** Aggregate counts for a CSV import (inserted/updated/failed/skipped). */
+/** CSV counts: `inserted + updated + failed + skipped === total`. */
 export type ImportCsvSummary = ImportCsvContactsResponse['summary']
 
-/** One per-row failure in `ImportCsvContactsResponse.errors`. */
+/** One failure; optional `row` is a positive CSV data-row number (no header). */
 export type ImportCsvError = ImportCsvContactsResponse['errors'][number]
 
-/** One non-fatal normalization in `ImportCsvContactsResponse.warnings`. */
+/** One non-fatal note; `row` is absent for aggregate or column-level notes. */
 export type ImportCsvWarning = ImportCsvContactsResponse['warnings'][number]
 
 /**
  * Bulk-import contacts from a raw CSV string.
  *
- * The wire format is `{ csv, mapping?, validate?, consent?, dateOrder? }`.
+ * The wire format is `{ csv, mapping?, validate?, consent?, dateOrder?, fileName? }`.
  * The server parses the CSV,
  * auto-defines any custom fields it finds (returned in `fieldsCreated`),
  * and upserts each row.
  *
- * Returns the full `ContactsImportCsvResponse` envelope: a `summary`
- * (inserted/updated/failed/skipped counts), `fieldsCreated`, a per-row
- * `errors` array, and a `warnings` array surfacing non-fatal
- * normalizations. The response is the same shape on full and partial
- * success — inspect `summary.failed` and `errors` to detect row-level
- * problems; the transport does not throw on a partial-failure status.
+ * Returns the full `ContactsImportResponse` envelope: a `summary`
+ * (`inserted`, `updated`, `failed`, `skipped`, and their sum `total`), the
+ * batch's `importId`, `fieldsCreated`, a per-row `errors` array, and a
+ * `warnings` array surfacing non-fatal notes. The response is the same
+ * shape on full and partial success — inspect `summary.failed` and `errors`
+ * to detect row-level problems; the transport does not throw on a
+ * partial-failure status.
  *
- * Pass `validate: true` to deliverability-check every imported address and
- * persist the verdict onto each contact. ≤100 addresses validate inline and
- * the envelope gains a `validation` counts object; >100 addresses import
- * first then validate as a background job and the envelope gains a
- * `validationJobId` instead. Metered 2 credits per address, charged only on
- * success; insufficient credits fail with `402 INSUFFICIENT_CREDITS`.
+ * When present, `row` on an error or warning is a positive, 1-based CSV data
+ * row (the header is excluded). `CSV_ROW_SKIPPED` warnings identify up to
+ * the first 100 skipped rows. If more are skipped, a final warning counts
+ * the remainder without a `row`. Read `summary.skipped` for the full count.
+ *
+ * Pass `validate: true` to request deliverability checks and persist their
+ * verdicts. The inline cutoff is 100 submitted CSV data rows, including
+ * skipped rows and repeated addresses; inline checks are metered at
+ * 2 credits per submitted data row, charged only on success. Larger imports
+ * use a background workflow, charged per address as it runs.
+ * `validation` counts appear when an inline check runs;
+ * `validationJobId` appears when a background job is queued. Neither field
+ * is guaranteed when there are no addresses to check or no work to queue.
+ * Insufficient credits fail with `402 INSUFFICIENT_CREDITS`.
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<ImportCsvContactsResponse>` instead of the unwrapped
