@@ -45,14 +45,16 @@ export const EmailCanvas = forwardRef<EmailCanvasHandle, EmailCanvasProps>(
         fitView: async () => current().fitView(),
         focusEmail: async (id) => current().focusEmail(id),
         flush: async () => current().flush(),
+        clearSelection: async () => current().clearSelection(),
       }
     }, [])
     useEffect(() => {
       if (!container.current) return
-      const { embedOrigin, title, commandTimeoutMs, clientId } = latest.current
+      const { embedOrigin, title, commandTimeoutMs, clientId, brandId } =
+        latest.current
       const authentication =
         clientId !== undefined
-          ? { clientId }
+          ? { clientId, ...(brandId !== undefined ? { brandId } : {}) }
           : {
               getSession: (request: CanvasSessionRequest) => {
                 const provider = latest.current.getSession
@@ -80,6 +82,8 @@ export const EmailCanvas = forwardRef<EmailCanvasHandle, EmailCanvasProps>(
         onReady: () => latest.current.onReady?.(),
         onSaved: (event) => latest.current.onSaved?.(event),
         onSelectionChange: (ids) => latest.current.onSelectionChange?.(ids),
+        onEmailSelectionChange: (emails) =>
+          latest.current.onEmailSelectionChange?.(emails),
         onDirtyChange: (isDirty) => latest.current.onDirtyChange?.(isDirty),
         onError: (error) => latest.current.onError?.(error),
       })
@@ -88,7 +92,13 @@ export const EmailCanvas = forwardRef<EmailCanvasHandle, EmailCanvasProps>(
         mounted.destroy()
         controller.current = null
       }
-    }, [props.groupId, props.emailId, props.embedOrigin, props.clientId])
+    }, [
+      props.groupId,
+      props.emailId,
+      props.embedOrigin,
+      props.clientId,
+      props.brandId,
+    ])
     return (
       <div
         ref={container}

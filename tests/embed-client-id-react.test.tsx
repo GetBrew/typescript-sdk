@@ -11,6 +11,69 @@ afterEach(() => {
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
 })
+it('replaces only the brand-scoped session when one organization client switches brands', async () => {
+  let grants = 0
+  const fetcher = vi.fn<typeof fetch>().mockImplementation((_url, init) => {
+    if (init?.method === 'DELETE')
+      return Promise.resolve(new Response(null, { status: 204 }))
+    grants += 1
+    return Promise.resolve(
+      Response.json({
+        sessionId: `session_${grants}`,
+        target: { type: 'group', groupId: 'ungrouped' },
+        embedUrl: `https://brew.new/embed/canvas/session_${grants}`,
+        bootstrapToken: 'bootstrap',
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      })
+    )
+  })
+  vi.stubGlobal('fetch', fetcher)
+  const view = render(
+    <EmailCanvas clientId={clientId} brandId="brand_a" groupId="ungrouped" />
+  )
+  await waitFor(() =>
+    expect(view.container.querySelector('iframe')).not.toBeNull()
+  )
+  const firstBody = fetcher.mock.calls[0]?.[1]?.body
+  expect(
+    JSON.parse(typeof firstBody === 'string' ? firstBody : '') as Record<
+      string,
+      unknown
+    >
+  ).toHaveProperty('brandId', 'brand_a')
+  const first = view.container.querySelector('iframe')
+  view.rerender(
+    <EmailCanvas
+      clientId={clientId}
+      brandId="brand_a"
+      groupId="ungrouped"
+      onSaved={vi.fn()}
+    />
+  )
+  expect(view.container.querySelector('iframe')).toBe(first)
+  view.rerender(
+    <EmailCanvas clientId={clientId} brandId="brand_b" groupId="ungrouped" />
+  )
+  await waitFor(() => {
+    const replacement = view.container.querySelector('iframe')
+    expect(replacement).not.toBeNull()
+    expect(replacement).not.toBe(first)
+    expect(replacement?.src).toContain('/embed/canvas/session_2')
+  })
+  expect(
+    fetcher.mock.calls.some(([, init]) => {
+      if (init?.method !== 'POST' || typeof init.body !== 'string') return false
+      const body = JSON.parse(init.body) as Record<string, unknown>
+      return body.brandId === 'brand_b'
+    })
+  ).toBe(true)
+  view.unmount()
+  await waitFor(() =>
+    expect(
+      fetcher.mock.calls.filter(([, init]) => init?.method === 'DELETE')
+    ).toHaveLength(2)
+  )
+})
 it('uses clientId as the only required authentication prop and replaces sessions when it changes', async () => {
   let grants = 0
   const fetcher = vi.fn<typeof fetch>().mockImplementation((_url, init) => {
@@ -70,6 +133,36 @@ it('rejects API keys and missing client IDs synchronously in the controller', ()
   expect(() => createEmailCanvas(node, { groupId: 'grp_a' })).toThrow(
     expect.objectContaining({ code: 'INVALID_ARGUMENT' })
   )
+})
+it.each(['', ' brand_a', 'brand_a ', null, 42])(
+  'rejects invalid explicit brand context: %s',
+  (brandId) => {
+    const options: EmailCanvasProps = {
+      clientId,
+      // @ts-expect-error Deliberately exercise invalid untyped JavaScript brand context.
+      brandId,
+      groupId: 'ungrouped',
+    }
+    expect(() =>
+      createEmailCanvas(document.createElement('div'), options)
+    ).toThrow(expect.objectContaining({ code: 'INVALID_ARGUMENT' }))
+  }
+)
+it('rejects brandId with a custom provider before either host can ignore it', () => {
+  const getSession = vi.fn()
+  // @ts-expect-error Deliberately exercise a JavaScript host mixing client-only brand context with a custom provider.
+  const options: EmailCanvasProps = {
+    getSession,
+    brandId: 'brand_a',
+    emailId: 'email_a',
+  }
+  expect(() =>
+    createEmailCanvas(document.createElement('div'), options)
+  ).toThrow(expect.objectContaining({ code: 'INVALID_ARGUMENT' }))
+  expect(() => render(<EmailCanvas {...options} />)).toThrow(
+    expect.objectContaining({ code: 'INVALID_ARGUMENT' })
+  )
+  expect(getSession).not.toHaveBeenCalled()
 })
 it('rejects conflicting authentication props instead of dropping a per-user authorization callback', () => {
   const fetcher = vi

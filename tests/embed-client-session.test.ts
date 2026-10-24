@@ -11,6 +11,32 @@ const grant = {
 const clientId = 'brew_client_0123456789abcdef0123456789abcdef'
 
 describe('client ID session transport', () => {
+  it('carries the selected brand for an all-brands client ID, including ungrouped targets', async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(Response.json(grant))
+    const provider = createClientCanvasSessionProvider({
+      clientId,
+      brandId: 'brand_a',
+      embedOrigin: 'https://brew.new',
+      fetch: fetcher,
+    })
+    await provider.getSession({
+      target: { type: 'group', groupId: 'ungrouped' },
+      signal: new AbortController().signal,
+    })
+    const body = fetcher.mock.calls[0]?.[1]?.body
+    expect(
+      JSON.parse(typeof body === 'string' ? body : '') as Record<
+        string,
+        unknown
+      >
+    ).toMatchObject({
+      brandId: 'brand_a',
+      target: { type: 'group', groupId: 'ungrouped' },
+    })
+    await provider.close()
+  })
   it('authenticates using only a client ID, target and internally generated ownership token; renews in place', async () => {
     const fetcher = vi
       .fn<typeof fetch>()
