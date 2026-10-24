@@ -32,6 +32,12 @@ export type CanvasSavedEvent = Readonly<{
   emailVersionId: string | null
   updatedAt: string
 }>
+/** The resolved displayed row, including historical version pins. */
+export type CanvasSelectedEmail = Readonly<{
+  emailId: string
+  emailVersion: number | 'latest'
+  emailVersionId: string | null
+}>
 export type CanvasErrorCode =
   | 'INVALID_ARGUMENT'
   | 'AUTHENTICATION_FAILED'
@@ -49,7 +55,11 @@ export class BrewEmbedError extends Error {
 }
 /** Validate before React or JavaScript hosts narrow the authentication mode. */
 export function validateCanvasAuthentication(
-  options: Readonly<{ clientId?: unknown; getSession?: unknown }>
+  options: Readonly<{
+    clientId?: unknown
+    getSession?: unknown
+    brandId?: unknown
+  }>
 ): void {
   if (
     (options.clientId !== undefined) === (options.getSession !== undefined) ||
@@ -58,6 +68,24 @@ export function validateCanvasAuthentication(
     throw new BrewEmbedError(
       'INVALID_ARGUMENT',
       'Pass exactly one of clientId or getSession.'
+    )
+  }
+  if (options.brandId !== undefined && options.clientId === undefined) {
+    throw new BrewEmbedError(
+      'INVALID_ARGUMENT',
+      'brandId is supported only with clientId. Authorize the brand in getSession.'
+    )
+  }
+  if (
+    options.brandId !== undefined &&
+    (typeof options.brandId !== 'string' ||
+      !options.brandId ||
+      options.brandId.trim() !== options.brandId ||
+      options.brandId.length > 200)
+  ) {
+    throw new BrewEmbedError(
+      'INVALID_ARGUMENT',
+      'brandId must be a nonempty brand ID without surrounding spaces.'
     )
   }
 }
@@ -95,6 +123,7 @@ export type CanvasCommand =
   | Readonly<{ type: 'fit' }>
   | Readonly<{ type: 'focus'; emailId: string }>
   | Readonly<{ type: 'flush' }>
+  | Readonly<{ type: 'clear-selection' }>
 export type CanvasHostMessage = Readonly<{
   protocol: typeof CANVAS_PROTOCOL
   instanceId: string
@@ -112,6 +141,10 @@ export type CanvasFrameMessage = Readonly<{
     | Readonly<{ type: 'saved'; saved: CanvasSavedEvent }>
     | Readonly<{ type: 'dirty'; hasUnsavedEdits: boolean }>
     | Readonly<{ type: 'selection'; emailIds: ReadonlyArray<string> }>
+    | Readonly<{
+        type: 'email-selection'
+        emails: ReadonlyArray<CanvasSelectedEmail>
+      }>
     | Readonly<{ type: 'error'; code: CanvasErrorCode; message: string }>
     | Readonly<{ type: 'result'; requestId: string; error?: string }>
   )
@@ -165,6 +198,7 @@ export function isCanvasHostMessage(
   return (
     value.command.type === 'fit' ||
     value.command.type === 'flush' ||
+    value.command.type === 'clear-selection' ||
     (value.command.type === 'focus' && isString(value.command.emailId))
   )
 }
@@ -186,6 +220,21 @@ export function isCanvasFrameMessage(
         Array.isArray(value.emailIds) &&
         value.emailIds.length <= 100 &&
         value.emailIds.every(isString)
+      )
+    case 'email-selection':
+      return (
+        Array.isArray(value.emails) &&
+        value.emails.length <= 100 &&
+        value.emails.every(
+          (email: unknown) =>
+            isRecord(email) &&
+            isString(email.emailId) &&
+            (email.emailVersion === 'latest' ||
+              (typeof email.emailVersion === 'number' &&
+                Number.isSafeInteger(email.emailVersion) &&
+                email.emailVersion > 0)) &&
+            (email.emailVersionId === null || isString(email.emailVersionId))
+        )
       )
     case 'saved':
       return (

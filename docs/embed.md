@@ -6,13 +6,15 @@ For a private customer admin app, follow the [white-label integration guide](htt
 
 ## Create a client app
 
-Install SDK 13.0.0 or newer:
+Install SDK 13.2.0 or newer for organization-wide client IDs:
 
 ```bash
-npm install @brew.new/sdk@^13.0.0
+npm install @brew.new/sdk@^13.2.0
 ```
 
-Select the brand in Brew, then open **Settings → API → Client apps → Create client ID**. Name the app, add its exact allowed origins, choose whether editing is enabled, and copy its client ID.
+Open **Settings → API → Client apps → Create client ID**. Name the app, choose **All brands** or a specific brand, add its exact allowed origins, enable editing if required, and copy its client ID. Organization admins can choose either scope; members can select only an authorized brand.
+
+An all-brands client ID works for every current and future brand in its organization. Pass the selected `brandId` with each canvas target. Each session remains bound to that one brand and group/email; the client cannot cross organizations. Existing brand-bound IDs still work without `brandId`, and reject a different brand if one is supplied.
 
 Use HTTPS in production. HTTP loopback origins such as `http://localhost:3500` are accepted for development. Origins include the port and exclude paths and trailing slashes. Wildcards are not accepted.
 
@@ -26,6 +28,7 @@ export function CustomerEmails() {
   return (
     <EmailCanvas
       clientId="brew_client_..."
+      brandId="brand_..."
       groupId="grp_..."
       style={{ height: '80vh' }}
     />
@@ -33,7 +36,7 @@ export function CustomerEmails() {
 }
 ```
 
-For a focused editor, replace `groupId` with `emailId`. Exactly one is required, both in TypeScript and at runtime. The client ID determines the brand and editing permissions. You do not provide an API key, Clerk key, user object, brand ID, parent origin or session endpoint.
+For a focused editor, replace `groupId` with `emailId`. Exactly one is required, both in TypeScript and at runtime. The client ID determines the permitted brand scope and editing policy; `brandId` selects the current brand. It is required for all-brands IDs, including when `groupId` is `ungrouped`. You do not provide an API key, Clerk key, user object, parent origin or session endpoint. Switching brands acquires a new scoped session. Generation, saves and version updates within the same board preserve its iframe.
 
 The component defaults to a height of 640px. React 18 and 19 are supported. React is optional if you use the browser controller.
 
@@ -45,6 +48,7 @@ import { createEmailCanvas } from '@brew.new/sdk/embed'
 const container = document.getElementById('canvas')!
 const canvas = createEmailCanvas(container, {
   clientId: 'brew_client_...',
+  brandId: 'brand_...',
   emailId: 'email_...',
   onReady: () => console.log('Ready'),
   onSaved: ({ emailId }) => console.log('Saved', emailId),
@@ -78,9 +82,9 @@ Keep a group canvas mounted while your backend generates emails in that group: t
 
 ## Access boundaries
 
-Client IDs are publishable app credentials. Brew checks the request’s exact Origin against stored allowed origins before issuing a scoped grant and uses that same origin for iframe framing. Each content, edit and presence operation rechecks current client policy, organization status and brand lifecycle. Revoke the client app in Settings to end access. Changing origins or editing permissions invalidates existing sessions; reopen the canvas afterward.
+Client IDs are publishable app credentials. Brew checks the request’s exact Origin against stored allowed origins before issuing a scoped grant and uses that same origin for iframe framing. Each content, edit and presence operation rechecks current client policy, organization status and brand lifecycle. Revoke the client app in Settings to end access. Changing origins, editing permissions or brand scope invalidates existing sessions; reopen the canvas afterward.
 
-A client ID does not authenticate an individual person. Visitors to an approved origin can access the configured brand’s emails through the canvas, including other group/email IDs in that brand. Browser origin restrictions are not end-user authorization and can be forged by non-browser clients. Use dedicated brands/client apps for tenant isolation. For private per-user or per-target access, use the advanced server session flow below with your existing authentication provider.
+A client ID does not authenticate an individual person. Visitors to an approved origin can access emails within the configured brand scope, including other group/email IDs. An all-brands ID covers every current and future brand in its organization; a specific-brand ID covers only that brand. Browser origin restrictions are not end-user authorization and can be forged by non-browser clients. Use dedicated brands/client apps for tenant isolation. For private per-user or per-target access, use the advanced server session flow below with your existing authentication provider.
 
 Multiplayer means live cursors/selections plus synchronized persisted changes. One person edits an email at a time; simultaneous character-level CRDT editing is not provided. Read-only mode is configured in the client app’s settings. The inspector supports scoped file uploads and cropping; workspace media search, logos, Giphy and AI image generation require separate workspace capabilities.
 
@@ -123,3 +127,46 @@ Set `parentOrigin` from trusted server configuration, choose permissions on your
 The [MIT Next.js example](../examples/embedded-email-canvas/README.md) demonstrates the client ID setup, group and single-email modes, save-before-exit and error recovery. No Clerk dependency or secret credentials are required. Its README covers installation, allowed domains, headless use cases, deployment and tests.
 
 The example installs the released SDK directly from npm. Validate hosted HTTPS framing and real image upload/crop persistence for your deployment; local fixture tests do not establish production hosting/storage readiness.
+
+## Selected emails and locale remixes (SDK 13.1+)
+
+Use `onEmailSelectionChange` to receive the displayed email and version. The
+existing `onSelectionChange` still receives IDs only.
+
+```ts
+const canvas = createEmailCanvas(container, {
+  clientId: configuredClientId,
+  groupId: ownedGroupId,
+  onEmailSelectionChange: (emails) => {
+    // [] on deselection, removal, or while a version is unresolved.
+    const selected = emails[0]
+    // { emailId, emailVersion: number | 'latest', emailVersionId: string | null }
+    retainSelection(selected)
+  },
+})
+```
+
+Keep this group canvas mounted while your backend creates emails into the
+same group. Do not recreate it when the current email or version changes.
+`focusEmail(emailId)` selects an email already in the group.
+
+For a locale variant, call `emails.generate` on your backend with
+`referenceEmailId: selected.emailId`, the same `groupId`, a localized
+`subjectLine`, and a prompt naming the target language and asking to preserve
+layout, imagery, URLs and approved facts. This creates a separate email and
+leaves the source intact. Generation uses the reference's **latest saved row**.
+For an exact historical reference, first `emails.clone({ emailId,
+emailVersionId, title })`, then use the clone's `emailId` as the reference.
+Remixing is AI generation; review the resulting localization and design.
+
+Before an API AI edit, await `canvas.clearSelection()`. It flushes pending
+manual edits and releases the active editing lease without replacing the
+iframe. Block new manual selection until the API request finishes, then call
+`focusEmail(emailId)`. If saving fails, the promise rejects and selection is
+retained; keep the editor open. React refs expose the same `clearSelection()`
+method. Use the selection's exact `emailVersionId` for the AI-edit baseline
+and saved HTML reads; a missing ID must be resolved rather than guessed.
+
+Rename through `emailGroups.update({ groupId, name })` or
+`emails.edit({ emailId, title })`. A metadata-only rename is free, creates no
+new email version, and appears through the existing live subscriptions.

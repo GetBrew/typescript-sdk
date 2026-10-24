@@ -17,6 +17,9 @@ const config = readConfig({
   BREW_EMBED_ORIGIN: realOrigin ?? 'http://127.0.0.1:3501',
   BREW_GROUP_ID: 'grp_validation',
   BREW_EMAIL_ID: 'email_validation',
+  BREW_BRAND_ID: realOrigin
+    ? process.env.DEMO_E2E_BRAND_ID
+    : 'brand_validation',
 })
 const grants = new Map<string, { grant: CanvasSession; owner: string }>()
 const endpoint = `/api/embed/canvas/clients/${config.clientId}/sessions`
@@ -59,6 +62,7 @@ server.middlewares.use(async (request, response, next) => {
       }
       const body = JSON.parse(Buffer.concat(chunks).toString()) as {
         sessionId?: string
+        brandId?: string
         clientSessionToken: string
         target?: CanvasSession['target']
       }
@@ -79,7 +83,11 @@ server.middlewares.use(async (request, response, next) => {
         response.end(JSON.stringify(owned.grant))
         return
       }
-      if (!body.target || !/^[0-9a-f]{64}$/.test(body.clientSessionToken)) {
+      if (
+        body.brandId !== config.brandId ||
+        !body.target ||
+        !/^[0-9a-f]{64}$/.test(body.clientSessionToken)
+      ) {
         response.writeHead(400)
         response.end()
         return
