@@ -50,6 +50,8 @@ type EmailSummary = {
   readonly updatedAt: string
   readonly subjectLine?: string
   readonly previewText?: string
+  // Detail rows only (`get`): the copy's language, once Brew has read it.
+  readonly lang?: EmailLanguage
   readonly group: { groupId: string; groupName: string } | null
   // With `get(emailId, { include })`: `html` and/or `versions`.
   readonly html?: string
@@ -62,6 +64,11 @@ type EmailSummary = {
 // The one v1 vocabulary. The old `streaming` / `complete` / `error`
 // spellings are gone and now 400 as a status FILTER.
 type EmailStatus = 'generating' | 'ready' | 'failed'
+
+// ISO 639-1, plus zh-Hans / zh-Hant. Rendered as the HTML document's
+// `lang` (and `dir` for right-to-left languages) on every send and export.
+// Exported as `EmailLanguage` from '@brew.new/sdk'; derived from the API enum.
+type EmailLanguage = 'en' | 'de' | 'fr' | 'es' | 'ja' | 'zh-Hans' | 'zh-Hant' // …45 codes, see the OpenAPI enum
 
 type GeneratedEmailArtifact = {
   readonly emailId: string
@@ -203,6 +210,9 @@ type GenerateEmailInput = {
   readonly prompt: string
   readonly contentUrls?: ReadonlyArray<string>
   readonly referenceEmailId?: string
+  // Omit and Brew detects it from the finished body; a value you set is
+  // kept and never re-detected.
+  readonly lang?: EmailLanguage
 }
 
 type GenerateEmailResponse =
@@ -308,9 +318,11 @@ URL path. `EditEmailInput` does **not** accept a `brandId` or an
 `emailId` field in the body — sending either returns
 `400 INVALID_REQUEST`.
 
-Send only `title`, `subjectLine` and/or `groupId` (`null` ungroups) with
-no `prompt` to rename, retitle or refile the design without an AI edit or a
-charge; the three apply in one atomic write.
+Send only `title`, `subjectLine`, `lang` and/or `groupId` (`null` ungroups)
+with no `prompt` to rename, retitle, set the language of or refile the design
+without an AI edit or a charge; they apply in one atomic write. A `lang` you
+set is kept: Brew stops re-detecting it after later edits. Send `lang: null`
+to clear it, and Brew reads the language from the email again.
 
 ```ts
 type EditEmailInput = {
@@ -319,6 +331,7 @@ type EditEmailInput = {
   readonly contentUrls?: ReadonlyArray<string>
   readonly title?: string
   readonly subjectLine?: string
+  readonly lang?: EmailLanguage | null // null clears it; Brew reads it again
   readonly groupId?: string | null
 }
 

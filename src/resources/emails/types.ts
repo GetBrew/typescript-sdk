@@ -22,6 +22,16 @@ export type EmailDetail = components['schemas']['EmailDetail'] & {
  */
 export type EmailStatus = EmailSummary['status']
 
+/**
+ * The language of a design's copy: an ISO 639-1 code, or `zh-Hans` /
+ * `zh-Hant`. Read on the detail row (`brew.emails.get`) once Brew has filed
+ * it; accepted by `generate` and `edit`. Derived from the API enum, so a
+ * language the API adds arrives with the next type sync.
+ */
+export type EmailLanguage = NonNullable<
+  components['schemas']['EmailDetail']['lang']
+>
+
 /** The `sortBy` keys `GET /v1/emails` orders on. */
 export type EmailsSortBy = NonNullable<
   NonNullable<operations['listEmails']['parameters']['query']>['sortBy']

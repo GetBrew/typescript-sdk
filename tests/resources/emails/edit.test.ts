@@ -158,4 +158,42 @@ describe('emails.edit', () => {
 
     expect(body).toEqual({ title: 'Renamed', groupId: null })
   })
+
+  it('forwards lang as a free envelope-only edit', async () => {
+    let body: unknown
+    server.use(
+      http.patch('https://brew.new/api/v1/emails/abc', async ({ request }) => {
+        body = await request.json()
+        return HttpResponse.json({
+          emailId: 'abc',
+          emailVersionId: 'v1',
+          group: null,
+        })
+      })
+    )
+
+    const { client } = makeTestHttpClient()
+    await createEditEmail(client)({ emailId: 'abc', lang: 'zh-Hant' })
+
+    expect(body).toEqual({ lang: 'zh-Hant' })
+  })
+
+  it('forwards lang: null to clear a language the caller named', async () => {
+    let body: unknown
+    server.use(
+      http.patch('https://brew.new/api/v1/emails/abc', async ({ request }) => {
+        body = await request.json()
+        return HttpResponse.json({
+          emailId: 'abc',
+          emailVersionId: 'v1',
+          group: null,
+        })
+      })
+    )
+
+    const { client } = makeTestHttpClient()
+    await createEditEmail(client)({ emailId: 'abc', lang: null })
+
+    expect(body).toEqual({ lang: null })
+  })
 })
