@@ -4,6 +4,9 @@
 
 ### Added
 
+- Generated types follow app revision `87ac2c6242`: email rows carry `lang`,
+  and flows carry their send-stream `kind` and `<domain>/<kind>` slugs.
+
 - Synchronize email categories and template browse groups with app revision
   `9bf2e01f14d8260bdde0825e901a05497b66c70c`. Generation inputs accept
   `onboarding`, `content`, `event-recap`, `product-pitch`, `company-news` and
@@ -52,6 +55,12 @@
     }
   }
   ```
+
+### Fixed
+
+- `flows.get` reads a `<domain>/<kind>` slug from `flows.list()` as one send
+  stream's flow (the domain path plus `?kind=`) and takes a `kind` option for
+  a bare-domain slug. It previously encoded the `/` into the path.
 
 ## 13.0.0
 
