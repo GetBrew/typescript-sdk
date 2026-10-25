@@ -1,18 +1,18 @@
 # Changelog
 
-## 13.2.0 (not released yet)
+## 13.6.0 (not released yet)
 
 `brew.appEmails`, which sets up the emails your code sends by key in one
 call, subpath adapters that wire `brew.send` into Resend call sites,
 Better Auth, Auth.js and Supabase Auth, and the import modes a Resend
 migration uses. Additive: nothing is removed or renamed. A minor release
-after 13.1.0, which it builds on. Publish only once GetBrew/brew-v2#2169
+after 13.5.0, which it builds on. Publish only once GetBrew/brew-v2#2169
 (`/v1/app-emails`, the team sandbox and the import modes) is deployed and
 the live spec matches the vendored one (until then the app-email routes
 answer `404`), and once `@brew.new/cli` ships `migrate resend`, which
-`brew_template_required` points to. Spec source: brew-v2 #2169 @
-6f8ef50544, the same file 13.1.0 vendors. Each
-adapter sends by trigger key, so it also needs 13.1.0's by-key route and
+`brew_template_required` points to. Spec source: the same file 13.5.0
+vendors (`main`'s spec plus the brew-v2 #2169 @ 6f8ef50544 delta). Each
+adapter sends by trigger key, so it also needs 13.5.0's by-key route and
 keys whose automations are published (the auth starter kit's `auth.*`
 keys and `lifecycle.welcome` by default). The adapters add no runtime or
 peer dependencies: the libraries they serve are typed structurally.
@@ -89,7 +89,7 @@ stack }`, where each result is `ok: true` with the setup result or
   `senderMode?: 'domain' | 'sandbox'`, and a `'sandbox'` step may omit
   `domainId` (a `'domain'` step, the default, still needs it). The fire
   refusals the sandbox adds (`422 DOMAIN_REQUIRED`, `429
-SANDBOX_DAILY_LIMIT`, `notStarted[].code`) are typed since 13.1.0.
+SANDBOX_DAILY_LIMIT`, `notStarted[].code`) are typed since 13.5.0.
 - **Import modes for a Resend migration** (GetBrew/brew-v2#2064), from the
   regenerated spec: `emails.import` takes `props: 'merge_tags'` (`jsx`
   only: the root component's props become `{{ trigger.<name> }}` merge
