@@ -42,7 +42,7 @@ A setup imports a design, so `upsert` and `setUpKit` also need the
 `{ raw: true }` in `options` for `{ data, status, headers, requestId }`.
 
 > **Availability.** These routes and the `source` import modes ship in the
-> Brew platform release that deploys GetBrew/brew-v2#2169. SDK 13.2.0 is
+> Brew platform release that deploys GetBrew/brew-v2#2169. SDK 13.6.0 is
 > not released before that deploy: until then each route answers `404`.
 
 ## `upsert`: one key
