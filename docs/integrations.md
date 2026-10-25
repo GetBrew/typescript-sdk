@@ -31,7 +31,7 @@ All three are brand-scoped (`X-Brand-Id` on an organization key: pass
 in `options` for `{ data, status, headers, requestId }`.
 
 > **Availability.** The connection routes ship in the Brew platform release
-> that deploys GetBrew/brew-v2#2169. SDK 13.3.0 is not released before that
+> that deploys GetBrew/brew-v2#2169. SDK 13.7.0 is not released before that
 > deploy: until then `connect` and `getConnection` answer `404`.
 
 ## `list`: the catalog

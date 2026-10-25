@@ -1,16 +1,17 @@
 # Changelog
 
-## 13.3.0 (not released yet)
+## 13.7.0 (not released yet)
 
 `brew.integrations.connect` and `brew.integrations.getConnection`, which
 connect a hosted auth email hook (Supabase Auth's Send Email Hook or
 Clerk's `email.created`) over the API, from a setup script or the CLI.
-Additive: nothing is removed or renamed. A minor release after 13.2.0,
-which it builds on (publish 13.2.0 first). Publish only once
+Additive: nothing is removed or renamed. A minor release after 13.6.0,
+which it builds on (publish 13.6.0 first). Publish only once
 GetBrew/brew-v2#2169 (`/v1/integrations/{provider}/connection` and the
 hosted Supabase and Clerk hooks) is deployed and the live spec matches the
 vendored one; until then the connection routes answer `404`. Spec source:
-brew-v2 #2169 @ 6f8ef50544, the same file 13.1.0 and 13.2.0 vendor.
+the same file 13.5.0 and 13.6.0 vendor (`main`'s spec plus the brew-v2
+#2169 @ 6f8ef50544 delta).
 
 ### Added
 
@@ -50,7 +51,7 @@ brew-v2 #2169 @ 6f8ef50544, the same file 13.1.0 and 13.2.0 vendor.
 
 - `docs/app-emails.md` and `docs/adapters/supabase.md` point the kit's
   hosted delivery for `supabase` and `clerk` (`hosted-webhook`, documented
-  since 13.2.0) at `connect`, with the self-hosted `@brew.new/sdk/supabase`
+  since 13.6.0) at `connect`, with the self-hosted `@brew.new/sdk/supabase`
   hook as Supabase's alternative.
 
 ## 13.6.0 (not released yet)
