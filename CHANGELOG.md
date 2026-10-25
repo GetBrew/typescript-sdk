@@ -1,15 +1,17 @@
 # Changelog
 
-## 13.1.0 (not released yet)
+## 13.5.0 (not released yet)
 
 App email by trigger key (GetBrew/brew-v2#2169, which carries trigger keys
-and fire by key). Additive: nothing is removed or renamed. This is a minor
-release after 13.0.0. Publish only once GetBrew/brew-v2#2169 is deployed and
+and fire by key). Additive: nothing is removed or renamed. npm already has
+13.1.0 to 13.3.0 (released from `main` without this work), and 13.4.0 is
+left for the pending release of the Unreleased notes below (email `lang`),
+so this is 13.5.0. Publish only once GetBrew/brew-v2#2169 is deployed and
 the live spec matches the vendored one: until then
 `POST /v1/automations/triggers/by-key/{triggerKey}/fire` answers `404`.
-Spec source: brew-v2 #2169 @ 6f8ef50544 (vendored whole: brew-v2 `main`
-`2db5428b09` plus the developer-platform routes). Routes the later 13.2.0
-and 13.3.0 releases bind (`/v1/app-emails`,
+Spec source: `main`'s spec (brew-v2 `87ac2c6242`) with the brew-v2 #2169 @
+6f8ef50544 developer-platform delta merged in. Routes the later 13.6.0 and
+13.7.0 releases bind (`/v1/app-emails`,
 `/v1/integrations/{provider}/connection`) are typed in the generated file but
 have no method yet.
 
@@ -65,10 +67,6 @@ starterVersion? }`. The fire body gains `triggerKey` on a by-key fire.
   filter on an email sent from a transactional domain, which tracks no
   opens or clicks), and `integrations.list` rows' `provider`
   gains `supabase_auth` (an exhaustive `switch` needs the new case).
-- The template browse-group token `group` joins `TEMPLATE_GROUP_BY_TOKENS`,
-  only because the vendored spec publishes it (`templates.list` already
-  forwards every query field); typescript-sdk#78 documents the browse
-  groups and the category relabel.
 
 ## Unreleased
 

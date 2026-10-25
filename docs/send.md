@@ -25,7 +25,7 @@ await brew.send(
 | `brew.automations.triggers.fireByKey({ triggerKey, payload })` | the same route; the object form, with a `TPayload` generic | `automations` |
 
 > **Availability.** The by-key route and trigger keys ship in the Brew
-> platform release that deploys GetBrew/brew-v2#2169. SDK 13.1.0 is not
+> platform release that deploys GetBrew/brew-v2#2169. SDK 13.5.0 is not
 > released before that deploy: until then the route answers `404` and
 > trigger rows carry no `key`.
 
