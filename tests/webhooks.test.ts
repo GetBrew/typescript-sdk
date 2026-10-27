@@ -7,6 +7,7 @@ import {
   verifyWebhook,
 } from '../src/resources/webhooks/verify'
 import { server } from './msw/server'
+import { startLoopback } from './helpers/loopback-server'
 
 const secret = Buffer.from('a-secret-for-testing-only').toString('base64')
 const payload = JSON.stringify({
@@ -31,6 +32,64 @@ function signed(
   }
 }
 describe('webhooks', () => {
+  it('verifies a raw signed body received over HTTP and refuses a body changed in transit', async () => {
+    const loopback = await startLoopback({
+      route: ({ req, res }) => {
+        const receive = async () => {
+          req.setEncoding('utf8')
+          let raw = ''
+          for await (const chunk of req) raw += String(chunk)
+          const header = (name: string) => {
+            const value = req.headers[name]
+            return typeof value === 'string' ? value : ''
+          }
+          try {
+            const event = await verifyWebhook({
+              payload: raw,
+              webhookSecret: `whsec_${secret}`,
+              headers: {
+                id: header('svix-id'),
+                timestamp: header('svix-timestamp'),
+                signature: header('svix-signature'),
+              },
+            })
+            res
+              .writeHead(200, { 'content-type': 'application/json' })
+              .end(JSON.stringify(event))
+          } catch (error) {
+            res
+              .writeHead(
+                error instanceof BrewWebhookVerificationError ? 401 : 500
+              )
+              .end()
+          }
+        }
+        void receive().catch(() => res.writeHead(500).end())
+      },
+    })
+    const headers = signed()
+    const requestHeaders = {
+      'svix-id': headers.id,
+      'svix-timestamp': headers.timestamp,
+      'svix-signature': headers.signature,
+    }
+    const accepted = await fetch(loopback.baseUrl, {
+      method: 'POST',
+      headers: requestHeaders,
+      body: payload,
+    })
+    expect(accepted.status).toBe(200)
+    expect(await accepted.json()).toEqual(JSON.parse(payload))
+    expect(
+      (
+        await fetch(loopback.baseUrl, {
+          method: 'POST',
+          headers: requestHeaders,
+          body: `${payload} `,
+        })
+      ).status
+    ).toBe(401)
+  }, 10_000)
   it('rejects valid signatures over invalid events, future timestamps and substituted message IDs', async () => {
     const invalid = JSON.stringify({ type: 'email.unknown', data: {} })
     await expect(
