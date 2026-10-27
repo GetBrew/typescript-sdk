@@ -64,7 +64,7 @@ export function createEventsAnalytics(client: HttpClient) {
       if ((input as Record<string, unknown>)[key] !== undefined) {
         throw new BrewInputError({
           param: key,
-          message: `\`${key}\` counts events instead of listing them; call brew.analytics.eventCounts with the same input.`,
+          message: `\`${key}\` counts events instead of listing them; call brew.analytics.eventCounts (its \`groupBy\` is a field list, e.g. \`['eventType']\`).`,
         })
       }
     }

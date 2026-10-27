@@ -64,6 +64,7 @@ describe('analytics.events', () => {
     expect(error).toBeInstanceOf(BrewInputError)
     expect((error as BrewInputError).param).toBe(key)
     expect((error as BrewInputError).message).toContain('eventCounts')
+    expect((error as BrewInputError).message).not.toContain('same input')
     expect(requests).toBe(0)
   })
 
