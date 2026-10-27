@@ -1,6 +1,7 @@
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it } from 'vitest'
 
+import { BrewInputError } from '../../../src/core/errors'
 import {
   createEventsAnalytics,
   createEventsAnalyticsAll,
@@ -42,6 +43,37 @@ describe('analytics.events', () => {
     expect(new URL(url!).searchParams.get('recipient')).toBe('jane@example.com')
     expect(result.data[0]?.eventType).toBe('opened')
     expect(result.range.from).toBe('2026-04-01T00:00:00.000Z')
+  })
+
+  it.each([
+    ['groupBy', { eventType: 'delivered', groupBy: 'eventType' }],
+    ['bucket', { eventType: 'delivered', bucket: 'day' }],
+  ])('refuses %s (a grouped count) before any request', async (key, input) => {
+    let requests = 0
+    server.use(
+      http.get('https://brew.new/api/v1/analytics/events', () => {
+        requests += 1
+        return HttpResponse.json({})
+      })
+    )
+
+    const { client } = makeTestHttpClient()
+    const events = createEventsAnalytics(client)
+
+    const error = await events(input as never).catch((e: unknown) => e)
+    expect(error).toBeInstanceOf(BrewInputError)
+    expect((error as BrewInputError).param).toBe(key)
+    expect((error as BrewInputError).message).toContain('eventCounts')
+    expect((error as BrewInputError).message).not.toContain('same input')
+    expect(requests).toBe(0)
+  })
+
+  it('types groupBy and bucket out of the row input', () => {
+    const { client } = makeTestHttpClient()
+    const events = createEventsAnalytics(client)
+    // @ts-expect-error grouped counts belong to analytics.eventCounts
+    const refused = () => events({ groupBy: 'eventType' })
+    expect(refused).toBeTypeOf('function')
   })
 })
 
@@ -94,5 +126,23 @@ describe('analytics.eventsAll', () => {
     }
 
     expect(ids).toEqual(['evt_1', 'evt_2'])
+  })
+
+  it('refuses a grouped count on the first page, before any request', async () => {
+    let requests = 0
+    server.use(
+      http.get('https://brew.new/api/v1/analytics/events', () => {
+        requests += 1
+        return HttpResponse.json({})
+      })
+    )
+
+    const { client } = makeTestHttpClient()
+    const eventsAll = createEventsAnalyticsAll(client)
+
+    await expect(
+      eventsAll({ bucket: 'day' } as never).next()
+    ).rejects.toBeInstanceOf(BrewInputError)
+    expect(requests).toBe(0)
   })
 })
