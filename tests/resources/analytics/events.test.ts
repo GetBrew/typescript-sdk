@@ -127,4 +127,22 @@ describe('analytics.eventsAll', () => {
 
     expect(ids).toEqual(['evt_1', 'evt_2'])
   })
+
+  it('refuses a grouped count on the first page, before any request', async () => {
+    let requests = 0
+    server.use(
+      http.get('https://brew.new/api/v1/analytics/events', () => {
+        requests += 1
+        return HttpResponse.json({})
+      })
+    )
+
+    const { client } = makeTestHttpClient()
+    const eventsAll = createEventsAnalyticsAll(client)
+
+    await expect(
+      eventsAll({ bucket: 'day' } as never).next()
+    ).rejects.toBeInstanceOf(BrewInputError)
+    expect(requests).toBe(0)
+  })
 })
