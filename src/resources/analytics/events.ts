@@ -1,5 +1,6 @@
 import type { operations } from '../../generated/openapi-types'
 import { autoPaginate, pageReadOptions } from '../../core/pagination'
+import { BrewInputError } from '../../core/errors'
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
@@ -7,10 +8,22 @@ import type { EventRow, EventsAnalyticsResponse } from './types'
 
 export type { EventsAnalyticsResponse }
 
-/** Query params accepted by `brew.analytics.events(...)`. */
-export type EventsAnalyticsInput = NonNullable<
-  operations['getEventsAnalytics']['parameters']['query']
+/**
+ * Query params accepted by `brew.analytics.events(...)`. The route's
+ * `groupBy` and `bucket` return counts instead of rows; they belong to
+ * `brew.analytics.eventCounts`.
+ */
+export type EventsAnalyticsInput = Omit<
+  NonNullable<operations['getEventsAnalytics']['parameters']['query']>,
+  'groupBy' | 'bucket'
 >
+
+/**
+ * Keys the route takes for a grouped count. This row read does not send
+ * them, so it refuses them (from untyped or cast input) rather than
+ * returning rows to a caller who asked for counts.
+ */
+const COUNT_ONLY_KEYS = ['groupBy', 'bucket'] as const
 
 /**
  * `GET /v1/analytics/events` — the unified event explorer across email,
@@ -24,7 +37,9 @@ export type EventsAnalyticsInput = NonNullable<
  * `{ data, pagination, range }`.
  *
  * Per-contact engagement is just `{ recipient }`. To page through the
- * whole feed use `brew.analytics.eventsAll`.
+ * whole feed use `brew.analytics.eventsAll`. For grouped counts
+ * (`groupBy` / `bucket`) use `brew.analytics.eventCounts`; passing either
+ * here throws `BrewInputError` before any request.
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<EventsAnalyticsResponse>` instead of the unwrapped
@@ -45,6 +60,14 @@ export function createEventsAnalytics(client: HttpClient) {
   ): Promise<
     EventsAnalyticsResponse | BrewRawResponse<EventsAnalyticsResponse>
   > {
+    for (const key of COUNT_ONLY_KEYS) {
+      if ((input as Record<string, unknown>)[key] !== undefined) {
+        throw new BrewInputError({
+          param: key,
+          message: `\`${key}\` counts events instead of listing them; call brew.analytics.eventCounts with the same input.`,
+        })
+      }
+    }
     const response = await client.request<EventsAnalyticsResponse>({
       method: 'GET',
       path: '/v1/analytics/events',

@@ -66,6 +66,12 @@
 
 ### Fixed
 
+- `analytics.events` refuses `groupBy` and `bucket` with a `BrewInputError`
+  that points to `analytics.eventCounts`, before any request. It used to drop
+  both, so a caller asking for counts got event rows and no `count`.
+  `EventsAnalyticsInput` (and `EventsAnalyticsAllInput`) no longer accept the
+  two keys. Code that passed them stops compiling, but those keys never had
+  any effect.
 - `flows.get` reads a `<domain>/<kind>` slug from `flows.list()` as one send
   stream's flow (the domain path plus `?kind=`) and takes a `kind` option for
   a bare-domain slug. It previously encoded the `/` into the path.
