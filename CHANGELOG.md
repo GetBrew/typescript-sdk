@@ -4,6 +4,36 @@
 
 ### Added
 
+- Live integration events, shipped in GetBrew/brew-v2#2411: the events a
+  brand's connected live sources send (a PostHog project's own events; the
+  Stripe and Shopify app catalogs), each of which can start an automation.
+  - `brew.integrations.events.list({ provider?, query?, kind?, limit?, cursor? })`
+    calls `GET /v1/integrations/events` and returns
+    `{ data, sources, pagination }`. A page can hold fewer than `limit`
+    rows; follow `pagination.cursor` until `hasMore` is `false`.
+  - `brew.integrations.events.get(eventId)` calls
+    `GET /v1/integrations/events/{eventId}`: the event with each property's
+    template `variable`, `isPersonal` and `isPersonalization`. An unknown id
+    is `404 INTEGRATION_EVENT_NOT_FOUND`.
+  - `brew.automations.triggers.ensureIntegrationEvent({ eventId })` calls
+    `POST /v1/automations/triggers/integration-events` and returns the
+    event's trigger with `created` (`201` the first time, `200` after). It
+    can refuse with `409 TRIGGER_LIMIT_REACHED` (100 triggers per brand) or
+    `409 INTEGRATION_RECONNECT_REQUIRED`.
+  - `IntegrationEvent`, `IntegrationEventDetail`, `IntegrationEventProperty`,
+    `IntegrationEventSource`, `IntegrationEventKind`, `IntegrationEventStage`,
+    `ListIntegrationEventsInput`, `ListIntegrationEventsResponse`,
+    `GetIntegrationEventResponse`, `EnsureIntegrationEventTriggerInput` and
+    `EnsureIntegrationEventTriggerResponse` are exported from the package
+    root. These methods require the matching API deployment.
+- Generated types follow app revision `3fa9800788` (GetBrew/brew-v2#2411
+  on main `19ba489fc7`): trigger and integration providers include
+  `posthog`, error codes add `INTEGRATION_EVENT_NOT_FOUND` and
+  `INTEGRATION_RECONNECT_REQUIRED`, and insight actions add the
+  `draft_automation` intent. From main: the `VALIDATION_SKIPPED` warning
+  code, and integration catalog rows may carry `installationCount`,
+  `capabilities`, `inviteOnly` and `paused` (providers include `notion`).
+
 - Generated types follow app revision `87ac2c6242`: email rows carry `lang`,
   and flows carry their send-stream `kind` and `<domain>/<kind>` slugs.
 - Add the email `lang` field (ISO 639-1, or `zh-Hans` / `zh-Hant`), shipped

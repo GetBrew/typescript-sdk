@@ -147,6 +147,7 @@ controller is available from `@brew.new/sdk/embed`.
 | Emails resource (+ send)           | [`docs/emails.md`](./docs/emails.md)                                   |
 | Fields resource                    | [`docs/fields.md`](./docs/fields.md)                                   |
 | Insights resource                  | [`docs/insights.md`](./docs/insights.md)                               |
+| Integrations resource              | [`docs/integrations.md`](./docs/integrations.md)                       |
 | Notifications resource             | [`docs/notifications.md`](./docs/notifications.md)                     |
 | Error handling                     | [`docs/errors.md`](./docs/errors.md)                                   |
 | Retries + idempotency              | [`docs/retries-and-idempotency.md`](./docs/retries-and-idempotency.md) |

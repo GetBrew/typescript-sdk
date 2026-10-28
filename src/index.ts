@@ -194,6 +194,10 @@ export type {
   EnsureBrewEventTriggerResponse,
 } from './resources/automations/triggers/brew-events'
 export type {
+  EnsureIntegrationEventTriggerInput,
+  EnsureIntegrationEventTriggerResponse,
+} from './resources/automations/triggers/integration-events'
+export type {
   CreateTriggerInput,
   CreateTriggerResponse,
 } from './resources/automations/triggers/create'
@@ -576,6 +580,24 @@ export type {
   InsightSuggestion,
   InsightSummary,
 } from './resources/insights/types'
+// ---------- Integrations: the catalog and live integration events ----------
+// (`client.integrations.list`, `.events.list` / `.events.get`.)
+export type { GetIntegrationEventResponse } from './resources/integrations/events/get'
+export type {
+  ListIntegrationEventsInput,
+  ListIntegrationEventsResponse,
+} from './resources/integrations/events/list'
+export type { IntegrationEventsResource } from './resources/integrations/events/resource'
+export type {
+  IntegrationEvent,
+  IntegrationEventDetail,
+  IntegrationEventKind,
+  IntegrationEventProperty,
+  IntegrationEventSource,
+  IntegrationEventsListResponse,
+  IntegrationEventStage,
+  ListIntegrationEventsQuery,
+} from './resources/integrations/events/types'
 export type { IntegrationsResource } from './resources/integrations/resource'
 export type * from './resources/integrations/types'
 // ---------- Notifications: the app's bell, as a read ----------

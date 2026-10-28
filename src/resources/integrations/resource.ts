@@ -1,5 +1,9 @@
 import type { HttpClient } from '../../core/http'
 
+import {
+  createIntegrationEventsResource,
+  type IntegrationEventsResource,
+} from './events/resource'
 import { createListIntegrations } from './list'
 
 /**
@@ -9,6 +13,8 @@ import { createListIntegrations } from './list'
 export type IntegrationsResource = {
   /** `GET /v1/integrations` — the product integration catalog for the brand in scope, with a `connected` flag per provider. No permission scope. */
   readonly list: ReturnType<typeof createListIntegrations>
+  /** `/v1/integrations/events(/{eventId})` — the events the brand's connected live sources offer as automation triggers: `list` and `get`. No permission scope. */
+  readonly events: IntegrationEventsResource
 }
 
 export function createIntegrationsResource(
@@ -16,5 +22,6 @@ export function createIntegrationsResource(
 ): IntegrationsResource {
   return {
     list: createListIntegrations(client),
+    events: createIntegrationEventsResource(client),
   }
 }
