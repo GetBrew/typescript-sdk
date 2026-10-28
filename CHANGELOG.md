@@ -72,6 +72,10 @@
   `EventsAnalyticsInput` (and `EventsAnalyticsAllInput`) no longer accept the
   two keys. Code that passed them stops compiling, but those keys never had
   any effect.
+- Image-upload finalization errors expose the original `uploadId` alongside
+  `idempotencyKey`, so callers can recover a lost `uploadImage` result through
+  `content.addImage` without opening another upload. API, transport and parse
+  errors retain their existing classes; parse errors now also expose the key.
 - `flows.get` reads a `<domain>/<kind>` slug from `flows.list()` as one send
   stream's flow (the domain path plus `?kind=`) and takes a `kind` option for
   a bare-domain slug. It previously encoded the `/` into the path.

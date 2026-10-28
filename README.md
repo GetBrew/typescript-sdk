@@ -92,6 +92,17 @@ yourself, call `brew.content.createImageUpload({ fileName, contentType,
 size })`, POST the raw bytes to its `uploadUrl` within 15 minutes, then
 `brew.content.addImage({ uploadId })`.
 
+If the final `addImage` answer is lost, its transport error exposes `uploadId`
+and `idempotencyKey`. Recover with `brew.content.addImage({ uploadId },
+{ idempotencyKey })` on the same brand client. Calling `uploadImage` again
+opens a new upload, so reusing the original key there causes
+`IDEMPOTENCY_CONFLICT`. See
+[Recovering an image upload](./docs/retries-and-idempotency.md#recovering-an-image-upload)
+for a typed recovery example and the replay limits.
+
+These recovery fields are part of the next SDK release. SDK 13.3.0 callers
+must use the explicit steps above and retain the upload ID themselves.
+
 ## Pointing at a different environment
 
 `baseUrl` is configurable. By default it points at production

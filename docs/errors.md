@@ -46,6 +46,7 @@ class BrewApiError extends Error {
   readonly body: unknown // The parsed response body exactly as received
   readonly bodyError: Error | undefined // Set when the body was cut off mid-read (see below)
   readonly idempotencyKey: string | undefined // The Idempotency-Key the request carried
+  readonly uploadId: string | undefined // The upload being finalized by addImage, when applicable
 }
 ```
 
@@ -236,6 +237,7 @@ class BrewTransportError extends Error {
   readonly url: string // Full URL. The message leaves the query string out. For an upload URL, the query (its token) is left out of `url`, `message` and `cause`.
   readonly attempts: number // HTTP attempts made, retries included
   readonly idempotencyKey: string | undefined // Replay a write with this key
+  readonly uploadId: string | undefined // Replay image finalization with this upload ID
   readonly inProgress: boolean // A retry found the first attempt still running
   readonly cause: unknown // What the runtime threw, when there was something
 }
@@ -305,8 +307,27 @@ try {
 there, but the body that came back — complete — was not JSON. It is not
 a transport failure (`instanceof BrewTransportError` is false) and it is
 not retried: the same bytes would come back. It carries `status`,
-`requestId`, the first 256 characters as `bodyPreview`, and the
-`SyntaxError` as `cause`.
+`requestId`, the first 256 characters as `bodyPreview`, the
+`SyntaxError` as `cause`, and the request's `idempotencyKey` when present.
+
+## Image upload recovery metadata
+
+The recovery fields below are part of the next SDK release. SDK 13.3.0
+does not expose the original upload ID from `uploadImage()`.
+
+When `content.addImage({ uploadId })` fails, `BrewApiError`,
+`BrewTransportError` (including timeout and connection errors), and
+`BrewParseError` expose that `uploadId`. This includes errors from the
+final step of `content.uploadImage()`. Keep it with `idempotencyKey` to
+replay only `addImage` on the original brand client. See
+[Recovering an image upload](./retries-and-idempotency.md#recovering-an-image-upload).
+
+The ID identifies the upload whose finalization was attempted; it does
+not mean the image was saved. Inspect API errors by `code`, and report
+parse errors with `requestId`. Failures while opening the upload or
+sending its bytes, and requests unrelated to upload finalization, leave
+`uploadId` undefined. Caller aborts still reject with their original
+`reason` without adding recovery fields.
 
 ## Caller-initiated aborts
 

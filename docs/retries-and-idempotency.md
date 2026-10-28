@@ -198,10 +198,10 @@ one — and `PATCH` is never retried either way.
 A timeout, a dropped connection or your own cancel tells you nothing
 about whether the server did the work. **Cancelling does not stop work
 the server has started.** To finish a write without doing it twice,
-replay it later with the key it was sent with. Every SDK error carries
-that key, including one the SDK generated. A cancel rejects with your
-own `reason` instead, so on a write you might cancel, pass your own
-`idempotencyKey` and keep it:
+replay it later with the key it was sent with. API, transport and parse
+errors carry that key when present, including one the SDK generated. A
+cancel rejects with your own `reason` instead, so on a write you might
+cancel, pass your own `idempotencyKey` and keep it:
 
 ```ts
 import { BrewTransportError } from '@brew.new/sdk'
@@ -222,8 +222,8 @@ try {
 await brew.emails.generate({ prompt }, { idempotencyKey })
 ```
 
-`error.idempotencyKey` is on `BrewTimeoutError`, `BrewConnectionError`
-and `BrewApiError` alike.
+`error.idempotencyKey` is on `BrewTimeoutError`, `BrewConnectionError`,
+`BrewApiError` and `BrewParseError` alike.
 
 The server holds a key "in progress" while its first attempt runs (up
 to 15 minutes), and answers any other request with that key
@@ -243,6 +243,93 @@ not happen twice (creating a brand, say), pass `maxRetries: 0` on that call
 — otherwise the SDK's own retry after a timeout or dropped connection can
 re-run it before you can look — and check whether the first attempt landed
 before you retry it yourself.
+
+### Recovering an image upload
+
+The recovery fields below are part of the next SDK release. With SDK
+13.3.0, use the explicit upload steps and retain the upload ID yourself.
+
+`content.uploadImage()` opens an upload, sends the file's bytes, then
+calls `content.addImage({ uploadId })`. If that final call loses its
+answer, the error exposes the original `uploadId` and `idempotencyKey`.
+Automatic retries keep both values. After the helper has returned an
+error, recover by calling only `addImage`, using the original brand
+context. Save both fields with the job when the helper returns an error:
+
+```ts
+import { readFile, writeFile } from 'node:fs/promises'
+import { BrewTransportError } from '@brew.new/sdk'
+
+try {
+  await brew.content.uploadImage({
+    file: await readFile('logo.png'),
+    fileName: 'logo.png',
+  })
+} catch (error) {
+  if (
+    error instanceof BrewTransportError &&
+    error.uploadId &&
+    error.idempotencyKey
+  ) {
+    await writeFile(
+      'logo-upload-recovery.json',
+      JSON.stringify({
+        uploadId: error.uploadId,
+        idempotencyKey: error.idempotencyKey,
+      })
+    )
+  }
+  throw error
+}
+```
+
+On a later attempt, read that job's recovery record and replay finalization
+on the same brand client. Keep one record per job and retain its brand
+association. Wait before replaying if `error.inProgress` was true:
+
+```ts
+const recovery: unknown = JSON.parse(
+  await readFile('logo-upload-recovery.json', 'utf8')
+)
+if (
+  typeof recovery !== 'object' ||
+  recovery === null ||
+  !('uploadId' in recovery) ||
+  typeof recovery.uploadId !== 'string' ||
+  !('idempotencyKey' in recovery) ||
+  typeof recovery.idempotencyKey !== 'string'
+) {
+  throw new TypeError('Invalid image-upload recovery record.')
+}
+
+const image = await brew.content.addImage(
+  { uploadId: recovery.uploadId },
+  { idempotencyKey: recovery.idempotencyKey }
+)
+console.log(image.assetId, image.url)
+```
+
+API and parse errors also expose the recovery fields, but inspect the API
+code or report the parse error before deciding to replay.
+
+Calling `uploadImage()` again opens a different upload, even with the
+same file and key. Its changed `{ uploadId }` body correctly causes
+`409 IDEMPOTENCY_CONFLICT` under the original key. Use the original ID and
+key with `addImage` instead.
+
+A completed upload replays its original result for 24 hours, even if the
+image has since been deleted. An unknown outcome does not prove that
+finalization completed. Bytes must arrive within 15 minutes of opening
+the upload; finalization must start within 15 minutes after they arrive.
+Recovery still reports errors such as `UPLOAD_IN_PROGRESS` or
+`UPLOAD_NOT_FOUND` when applicable.
+
+Earlier upload steps do not expose finalization recovery metadata. This
+example saves the ID only after the helper returns a transport error.
+For recovery after cancellation or a process exit before that save,
+drive the explicit steps with `createImageUpload`, retain the upload ID
+and your chosen final key, send the bytes to `uploadUrl`, then call
+`addImage`. A caller abort's `reason` is returned unchanged.
 
 ## Caps and worst-case behavior
 

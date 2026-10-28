@@ -176,9 +176,20 @@ function toBlob({ file }: Pick<UploadImageInput, 'file'>): Blob {
  * The bytes POST IS retried under the client's normal policy (a dropped
  * connection, a timeout, `408`, `429`, 5xx): repeating it is safe, because
  * the URL names the one upload it fills and a repeat never replaces the
- * file that landed first. Its errors never carry the upload URL's token. A
- * failure after step 1 leaves the opened upload to expire on its own (15
- * minutes).
+ * file that landed first. Its errors never carry the upload URL's token.
+ * An upload awaiting bytes expires after 15 minutes; receiving the bytes
+ * starts a new 15-minute window to finalize it.
+ *
+ * If step 3 fails, its `BrewApiError`, `BrewTransportError` (including
+ * timeout/connection errors) or `BrewParseError` carries `uploadId` and
+ * `idempotencyKey`. After an unknown outcome, use those with
+ * `brew.content.addImage({ uploadId }, { idempotencyKey })` on the same
+ * brand client to recover the result. A completed upload replays its
+ * result for 24 hours. Do not repeat `uploadImage` to recover step 3: it
+ * opens a new upload, whose different body conflicts with the original
+ * key. Caller aborts still reject with the signal's own reason; retain
+ * the ID and key through the explicit steps if you need cancellation or
+ * process-restart recovery.
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<ContentAddImageResponse>` of the final `addImage` call.
