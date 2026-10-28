@@ -4,7 +4,7 @@
 
 ### Added
 
-- Live integration events, shipped in GetBrew/brew-v2#2411: the events a
+- Live integration events, from GetBrew/brew-v2#2411: the events a
   brand's connected live sources send (a PostHog project's own events; the
   Stripe and Shopify app catalogs), each of which can start an automation.
   - `brew.integrations.events.list({ provider?, query?, kind?, limit?, cursor? })`
@@ -17,8 +17,9 @@
     is `404 INTEGRATION_EVENT_NOT_FOUND`.
   - `brew.automations.triggers.ensureIntegrationEvent({ eventId })` calls
     `POST /v1/automations/triggers/integration-events` and returns the
-    event's trigger with `created` (`201` the first time, `200` after). It
-    can refuse with `409 TRIGGER_LIMIT_REACHED` (100 triggers per brand) or
+    event's trigger row with `created` (`201` the first time, `200` after).
+    The row has no `brewEvent` or `skill`. It can refuse with
+    `409 TRIGGER_LIMIT_REACHED` (100 triggers per brand) or
     `409 INTEGRATION_RECONNECT_REQUIRED`.
   - `IntegrationEvent`, `IntegrationEventDetail`, `IntegrationEventProperty`,
     `IntegrationEventSource`, `IntegrationEventKind`, `IntegrationEventStage`,
@@ -33,7 +34,6 @@
   `draft_automation` intent. From main: the `VALIDATION_SKIPPED` warning
   code, and integration catalog rows may carry `installationCount`,
   `capabilities`, `inviteOnly` and `paused` (providers include `notion`).
-
 - Generated types follow app revision `87ac2c6242`: email rows carry `lang`,
   and flows carry their send-stream `kind` and `<domain>/<kind>` slugs.
 - Add the email `lang` field (ISO 639-1, or `zh-Hans` / `zh-Hant`), shipped

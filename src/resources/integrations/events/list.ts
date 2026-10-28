@@ -25,7 +25,7 @@ export type ListIntegrationEventsResponse = IntegrationEventsListResponse
  * `GET /v1/integrations/events` — the events the brand's connected live
  * sources offer as automation triggers, source by source, under
  * `{ data, sources, pagination }`. Brand-scoped (`X-Brand-Id` on an
- * organization credential). No permission scope. Read-only and free.
+ * organization credential). Read-only and free.
  *
  * Events a brand member hid, and internal traffic Brew suppressed, are left
  * out, so a page can hold fewer than `limit` rows: follow

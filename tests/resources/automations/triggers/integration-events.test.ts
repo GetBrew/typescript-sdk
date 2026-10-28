@@ -1,6 +1,7 @@
 import { http, HttpResponse } from 'msw'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, expectTypeOf, it } from 'vitest'
 
+import type { EnsureIntegrationEventTriggerResponse } from '../../../../src/index'
 import { BrewApiError } from '../../../../src/core/errors'
 import { createTriggersResource } from '../../../../src/resources/automations/triggers/resource'
 import { makeTestHttpClient } from '../../../helpers/http-client'
@@ -129,6 +130,21 @@ describe('automations.triggers.ensureIntegrationEvent', () => {
       expect(calls).toBe(1)
     }
   )
+
+  it('types the trigger row without the Brew-event and skill fields', () => {
+    expectTypeOf<EnsureIntegrationEventTriggerResponse>().toHaveProperty(
+      'triggerEventId'
+    )
+    expectTypeOf<EnsureIntegrationEventTriggerResponse>().toHaveProperty(
+      'created'
+    )
+    expectTypeOf<EnsureIntegrationEventTriggerResponse>().not.toHaveProperty(
+      'brewEvent'
+    )
+    expectTypeOf<EnsureIntegrationEventTriggerResponse>().not.toHaveProperty(
+      'skill'
+    )
+  })
 
   it('answers the raw response with its status on raw: true', async () => {
     server.use(

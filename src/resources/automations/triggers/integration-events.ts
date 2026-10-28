@@ -16,13 +16,20 @@ type Responses = operations['ensureIntegrationEventTrigger']['responses']
 type SavedStatus = 200 | 201
 
 /**
- * The event's trigger: the bare `Trigger` row (`provider` is the event's
- * provider, e.g. `'posthog'`, and `providerEventKey` its event name) plus
- * `created` — `true` when this call created it (HTTP 201), `false` when it
- * already existed (HTTP 200). Both statuses answer this one shape.
+ * The event's trigger: `triggerEventId`, `title`, `provider` (the event's
+ * provider, e.g. `'posthog'`), `providerEventKey` (its event name),
+ * `payloadSchema` and timestamps, plus `created` — `true` when this call
+ * created it (HTTP 201), `false` when it already existed (HTTP 200). Both
+ * statuses answer this one shape.
+ *
+ * Derived from the operation, not a named component, so it survives the
+ * response moving to its own schema. `brewEvent` and `skill` are left out:
+ * an integration event's trigger never carries them.
  */
-export type EnsureIntegrationEventTriggerResponse =
-  Responses[SavedStatus]['content']['application/json']
+export type EnsureIntegrationEventTriggerResponse = Omit<
+  Responses[SavedStatus]['content']['application/json'],
+  'brewEvent' | 'skill'
+>
 
 /**
  * `POST /v1/automations/triggers/integration-events` — get or create the

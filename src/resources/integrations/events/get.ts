@@ -12,7 +12,7 @@ export type GetIntegrationEventResponse = IntegrationEventDetail
  * `person.<key>` for a tenant catalog's event, the key itself for a static
  * catalog's), which hold personal data, which Brew suggests for
  * personalization, its lifecycle stage and its roles in the product model.
- * Brand-scoped. No permission scope. Read-only and free.
+ * Brand-scoped. Read-only and free.
  *
  * Pass an `eventId` from `brew.integrations.events.list()`; never compose
  * one. An unknown or other-brand id throws a `BrewApiError` with

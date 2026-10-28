@@ -1,9 +1,9 @@
 # `brew.integrations`
 
 The integration catalog, and the live events connected sources send. Free,
-read-only and brand-scoped (`X-Brand-Id` on an organization key). No
-permission scope. Connecting a provider is a human step in Brew Settings,
-never an API call.
+read-only and brand-scoped (`X-Brand-Id` on an organization key). `list`
+needs no permission scope. Connecting a provider is a human step in Brew
+Settings, never an API call.
 
 | Method                          | HTTP                                    |
 | ------------------------------- | --------------------------------------- |
