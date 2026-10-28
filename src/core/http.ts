@@ -44,6 +44,8 @@ export type HttpRequestInput = {
   readonly query?: BuildUrlInput['query']
   readonly body?: unknown
   readonly options?: RequestOptions
+  /** Internal error context for finalizing an uploaded image; never sent. */
+  readonly uploadId?: string
   /**
    * A long-running method's minimum per-attempt deadline. A FLOOR, never a
    * cap: a per-request `timeoutMs` always wins, and otherwise the attempt
@@ -200,6 +202,7 @@ export function createHttpClient(
       defaultTimeoutMs: input.defaultTimeoutMs,
       defaultMaxRetries: input.defaultMaxRetries,
       idempotencyKey,
+      uploadId: input.uploadId,
       mayRetryPost: idempotencyKey !== undefined || isNeverReplayed,
       redact: undefined,
     })
@@ -221,6 +224,7 @@ export function createHttpClient(
       defaultTimeoutMs: input.defaultTimeoutMs,
       defaultMaxRetries: undefined,
       idempotencyKey: undefined,
+      uploadId: undefined,
       mayRetryPost: true,
       redact: credentialRedactor({ url: input.url }),
     })
@@ -324,6 +328,7 @@ export function createHttpClient(
                 timeoutMs,
                 attempts: attempt + 1,
                 idempotencyKey,
+                uploadId: exchange.uploadId,
                 redact: exchange.redact,
               },
             })
@@ -401,6 +406,7 @@ type Exchange = {
   readonly defaultTimeoutMs: number | undefined
   readonly defaultMaxRetries: number | undefined
   readonly idempotencyKey: string | undefined
+  readonly uploadId: string | undefined
   /**
    * Gates retrying a POST: a repeat cannot write twice (the request carries
    * an idempotency key, or its URL names the one write it makes), or the
@@ -567,6 +573,7 @@ type TerminalRequest = {
   readonly timeoutMs: number
   readonly attempts: number
   readonly idempotencyKey: string | undefined
+  readonly uploadId: string | undefined
   readonly redact: Redactor | undefined
 }
 
@@ -605,6 +612,7 @@ async function toTerminalError<T>({
         body,
         bodyError,
         idempotencyKey: request.idempotencyKey,
+        uploadId: request.uploadId,
       })
       if (
         apiError.code === IDEMPOTENCY_IN_PROGRESS &&
@@ -625,6 +633,8 @@ async function toTerminalError<T>({
       return new BrewParseError({
         status: result.response.status,
         requestId: result.response.headers.get('x-request-id') ?? undefined,
+        idempotencyKey: request.idempotencyKey,
+        uploadId: request.uploadId,
         bodyPreview: result.text.slice(0, 256),
         cause: result.error,
       })
@@ -660,6 +670,7 @@ function transportError({
     url: request.url,
     attempts: request.attempts,
     idempotencyKey: request.idempotencyKey,
+    uploadId: request.uploadId,
     inProgress: isInProgress,
     cause,
   }

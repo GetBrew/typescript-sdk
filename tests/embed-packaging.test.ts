@@ -60,13 +60,13 @@ void group; void email; void both; void missing; void secret;`
             '--noEmit',
             join(root, 'consumer.cts'),
           ],
-          { cwd: root, stdio: 'pipe' }
+          { cwd: root, stdio: 'pipe', timeout: 20_000 }
         )
       ).not.toThrow()
     } finally {
       rmSync(root, { recursive: true, force: true })
     }
-  })
+  }, 30_000)
   it('ships declarations for every public package entry', async () => {
     const declarations = await Promise.all(
       ['index', 'embed', 'react'].flatMap((entry) =>

@@ -13,10 +13,9 @@ export class BrewInputError extends Error {
 
 /**
  * Input shape for the `BrewApiError` constructor. Mirrors the public
- * surface of the class — every field is required and explicit, callers
- * supply `undefined` for any field they don't have. `details` and `body`
- * are the two exceptions: they arrived after the class shipped, so they
- * stay optional and older constructor call sites keep compiling.
+ * surface of the class. Original fields stay required and explicit;
+ * callers supply `undefined` for values they don't have. Fields added
+ * later stay optional so older constructor call sites keep compiling.
  */
 type BrewApiErrorInit = {
   readonly message: string
@@ -32,6 +31,7 @@ type BrewApiErrorInit = {
   readonly body?: unknown
   readonly bodyError?: Error | undefined
   readonly idempotencyKey?: string | undefined
+  readonly uploadId?: string | undefined
 }
 
 /**
@@ -48,6 +48,8 @@ type FromResponseInput = {
   readonly bodyError?: Error | undefined
   /** The `Idempotency-Key` the request carried, if any. */
   readonly idempotencyKey?: string | undefined
+  /** The upload being finalized, when this was `addImage({ uploadId })`. */
+  readonly uploadId?: string | undefined
 }
 
 /** Where the generic fallback points: the public error catalogue. */
@@ -102,6 +104,13 @@ export class BrewApiError extends Error {
    * replay the request (see `docs/retries-and-idempotency.md`).
    */
   readonly idempotencyKey: string | undefined
+  /**
+   * The original upload ID for an `addImage({ uploadId })` failure,
+   * including the final step of `uploadImage`. Use it with
+   * `idempotencyKey` to replay finalization on the same brand client.
+   * Its presence does not mean finalization succeeded.
+   */
+  readonly uploadId: string | undefined
 
   constructor(init: BrewApiErrorInit) {
     super(init.message)
@@ -118,6 +127,7 @@ export class BrewApiError extends Error {
     this.body = init.body
     this.bodyError = init.bodyError
     this.idempotencyKey = init.idempotencyKey
+    this.uploadId = init.uploadId
   }
 
   /**
@@ -153,10 +163,11 @@ export class BrewApiError extends Error {
     body,
     bodyError,
     idempotencyKey,
+    uploadId,
   }: FromResponseInput): BrewApiError {
     const requestId = headers.get('x-request-id') ?? undefined
     const headerRetryAfter = parseRetryAfter(headers.get('retry-after'))
-    const transport = { bodyError, idempotencyKey }
+    const context = { bodyError, idempotencyKey, uploadId }
 
     const envelope = parseErrorEnvelope(body)
     if (envelope) {
@@ -172,7 +183,7 @@ export class BrewApiError extends Error {
         retryAfter: envelope.retryAfter ?? headerRetryAfter,
         details: envelope.details,
         body,
-        ...transport,
+        ...context,
       })
     }
 
@@ -190,7 +201,7 @@ export class BrewApiError extends Error {
         retryAfter: headerRetryAfter,
         details: legacy.details,
         body,
-        ...transport,
+        ...context,
       })
     }
 
@@ -209,7 +220,7 @@ export class BrewApiError extends Error {
       retryAfter: headerRetryAfter,
       details: undefined,
       body,
-      ...transport,
+      ...context,
     })
   }
 }
@@ -240,6 +251,12 @@ export class BrewTransportError extends Error {
   /** The `Idempotency-Key` every attempt carried, when the request had one. */
   readonly idempotencyKey: string | undefined
   /**
+   * The original upload ID when `addImage({ uploadId })` (including
+   * `uploadImage`'s final step) had an unknown outcome. Replay `addImage`
+   * with this ID and `idempotencyKey` on the same brand client.
+   */
+  readonly uploadId: string | undefined
+  /**
    * `true` when a retry of this request was refused with
    * `409 IDEMPOTENCY_IN_PROGRESS`: the first attempt is still running on the
    * server. Wait, then replay with the same `idempotencyKey` to get its result.
@@ -256,6 +273,7 @@ export class BrewTransportError extends Error {
     this.url = init.url
     this.attempts = init.attempts
     this.idempotencyKey = init.idempotencyKey
+    this.uploadId = init.uploadId
     this.inProgress = init.inProgress ?? false
   }
 }
@@ -309,6 +327,10 @@ export class BrewConnectionError extends BrewTransportError {
 export class BrewParseError extends Error {
   readonly status: number
   readonly requestId: string | undefined
+  /** The `Idempotency-Key` the request carried, when it had one. */
+  readonly idempotencyKey: string | undefined
+  /** The original upload ID, when `addImage({ uploadId })` failed to parse. */
+  readonly uploadId: string | undefined
   /** The first 256 characters of the body, for diagnosis. */
   readonly bodyPreview: string
 
@@ -320,6 +342,8 @@ export class BrewParseError extends Error {
     this.name = 'BrewParseError'
     this.status = init.status
     this.requestId = init.requestId
+    this.idempotencyKey = init.idempotencyKey
+    this.uploadId = init.uploadId
     this.bodyPreview = init.bodyPreview
   }
 }
@@ -330,6 +354,7 @@ type BrewTransportErrorInit = {
   readonly url: string
   readonly attempts: number
   readonly idempotencyKey?: string | undefined
+  readonly uploadId?: string | undefined
   readonly inProgress?: boolean | undefined
   readonly cause?: unknown
 }
@@ -343,6 +368,8 @@ type BrewConnectionErrorInit = Omit<BrewTransportErrorInit, 'message'>
 type BrewParseErrorInit = {
   readonly status: number
   readonly requestId?: string | undefined
+  readonly idempotencyKey?: string | undefined
+  readonly uploadId?: string | undefined
   readonly bodyPreview: string
   readonly cause?: unknown
 }
