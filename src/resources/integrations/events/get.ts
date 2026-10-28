@@ -12,7 +12,14 @@ export type GetIntegrationEventResponse = IntegrationEventDetail
  * `person.<key>` for a tenant catalog's event, the key itself for a static
  * catalog's), which hold personal data, which Brew suggests for
  * personalization, its lifecycle stage and its roles in the product model.
- * Brand-scoped. Read-only and free.
+ * Brand-scoped. Requires the `automations` scope. Free.
+ *
+ * The read may call the provider: an event listed bare, or described more
+ * than a day ago, is described there first, on the account's read budget.
+ * `propertiesStatus` says how current `properties` are: `current`, `stored`
+ * (the provider could not be read now), `rate_limited` (the budget is
+ * spent; read again after `retryAfterSeconds`) or `unavailable`. A spent
+ * budget still answers 200 with what Brew stored.
  *
  * Pass an `eventId` from `brew.integrations.events.list()`; never compose
  * one. An unknown or other-brand id throws a `BrewApiError` with

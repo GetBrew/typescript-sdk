@@ -36,11 +36,29 @@ export type IntegrationEventStage = NonNullable<IntegrationEvent['stage']>
 
 /**
  * One live event in full, as `GET /v1/integrations/events/{eventId}` returns
- * it: the list row's fields plus `description`, `derivedFromKey` and
- * `properties`.
+ * it: the list row's fields plus `description`, `derivedFromKey`,
+ * `properties`, `propertiesStatus` (how current `properties` are) and, when
+ * it is `rate_limited`, `retryAfterSeconds`.
  */
 export type IntegrationEventDetail =
   components['schemas']['IntegrationEventDetailResponse']
+
+/**
+ * How current an event's properties are, on `events.get` and
+ * `automations.triggers.ensureIntegrationEvent`. Brew describes an event
+ * listed bare, or described more than a day ago, at the provider first, on
+ * the account's read budget:
+ *
+ * - `current`: listed with the event or read in the last day.
+ * - `stored`: the provider could not be read now; these are its last
+ *   description.
+ * - `rate_limited`: the read budget is spent; these are what Brew stored,
+ *   possibly none. Read again after `retryAfterSeconds`, when the provider
+ *   said.
+ * - `unavailable`: not read, and none stored.
+ */
+export type IntegrationEventPropertiesStatus =
+  IntegrationEventDetail['propertiesStatus']
 
 /**
  * One property of an event: its template `variable` (use it as

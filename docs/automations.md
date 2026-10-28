@@ -242,6 +242,14 @@ same account. Brew owns its title and payload contract. Wire the
 event once an automation using it is published; saving a draft changes
 nothing upstream.
 
+An event listed bare, or described more than a day ago, is described at the
+provider first, on the account's read budget, so `payloadSchema` carries its
+properties. When the provider could not be read, `trigger.propertiesStatus`
+says so: `stored`, `unavailable`, or `rate_limited` with
+`retryAfterSeconds`. The trigger is saved either way;
+[`integrations.events.get`](./integrations.md#read-one-event) lists the
+values.
+
 Refusals: `404 INTEGRATION_EVENT_NOT_FOUND` for an unknown or other-brand
 `eventId`; `404 NOT_FOUND` when the event left its source between the read
 and the write; `409 INTEGRATION_RECONNECT_REQUIRED` when a catalog event's

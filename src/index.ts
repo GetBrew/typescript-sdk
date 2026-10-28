@@ -592,6 +592,7 @@ export type {
   IntegrationEvent,
   IntegrationEventDetail,
   IntegrationEventKind,
+  IntegrationEventPropertiesStatus,
   IntegrationEventProperty,
   IntegrationEventSource,
   IntegrationEventsListResponse,

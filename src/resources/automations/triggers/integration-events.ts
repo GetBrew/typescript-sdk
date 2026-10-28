@@ -16,20 +16,18 @@ type Responses = operations['ensureIntegrationEventTrigger']['responses']
 type SavedStatus = 200 | 201
 
 /**
- * The event's trigger: `triggerEventId`, `title`, `provider` (the event's
- * provider, e.g. `'posthog'`), `providerEventKey` (its event name),
- * `payloadSchema` and timestamps, plus `created` — `true` when this call
- * created it (HTTP 201), `false` when it already existed (HTTP 200). Both
- * statuses answer this one shape.
+ * The event's trigger (`IntegrationEventTriggerSaved`): `triggerEventId`,
+ * `title`, `provider` (the event's provider, e.g. `'posthog'`),
+ * `providerEventKey` (its event name), `payloadSchema` and timestamps, plus
+ * `created` — `true` when this call created it (HTTP 201), `false` when it
+ * already existed (HTTP 200) — and `propertiesStatus`, with
+ * `retryAfterSeconds` when it is `rate_limited`. Both statuses answer this
+ * one shape. It has no `brewEvent` or `skill`.
  *
- * Derived from the operation, not a named component, so it survives the
- * response moving to its own schema. `brewEvent` and `skill` are left out:
- * an integration event's trigger never carries them.
+ * Read from the operation's responses, which name the component.
  */
-export type EnsureIntegrationEventTriggerResponse = Omit<
-  Responses[SavedStatus]['content']['application/json'],
-  'brewEvent' | 'skill'
->
+export type EnsureIntegrationEventTriggerResponse =
+  Responses[SavedStatus]['content']['application/json']
 
 /**
  * `POST /v1/automations/triggers/integration-events` — get or create the
@@ -38,7 +36,14 @@ export type EnsureIntegrationEventTriggerResponse = Omit<
  * app catalogs. The same event always returns the same trigger, across
  * reconnects of the same account. Brew owns its title and payload contract.
  * The provider starts sending the event once an automation using it is
- * published; saving a draft changes nothing upstream.
+ * published; saving a draft changes nothing upstream. Requires the
+ * `automations` scope.
+ *
+ * An event listed bare, or described more than a day ago, is described at
+ * the provider first, on the account's read budget, so `payloadSchema`
+ * carries its properties. When the provider could not be read,
+ * `propertiesStatus` says so (`stored`, `unavailable`, or `rate_limited`
+ * with `retryAfterSeconds`) and the trigger is saved all the same.
  *
  * Refusals: `404 INTEGRATION_EVENT_NOT_FOUND` for an unknown or other-brand
  * `eventId`; `404 NOT_FOUND` when the event left its source between the

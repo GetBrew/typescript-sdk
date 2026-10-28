@@ -5,6 +5,8 @@ import type {
   IntegrationEvent,
   IntegrationEventDetail,
   IntegrationEventKind,
+  IntegrationEventPropertiesStatus,
+  IntegrationEventSource,
   ListIntegrationEventsInput,
 } from '../../../src/index'
 import { BrewApiError } from '../../../src/core/errors'
@@ -14,7 +16,9 @@ import { server } from '../../msw/server'
 
 const EVENTS_URL = 'https://brew.new/api/v1/integrations/events'
 
-const EVENT = {
+// Typed as the SDK rows, so a fixture that leaves out a required field (or
+// keeps one the API dropped) stops compiling.
+const EVENT: IntegrationEvent = {
   eventId: 'k5714pq3vm8x2n6c9d0b7f1h4j6g2r8t',
   provider: 'posthog',
   sourceId: 'cgr_4f2a9c',
@@ -28,7 +32,7 @@ const EVENT = {
   lastSeenAt: '2026-10-26T09:12:00.000Z',
 }
 
-const SOURCE = {
+const SOURCE: IntegrationEventSource = {
   sourceId: 'cgr_4f2a9c',
   provider: 'posthog',
   mode: 'tenant_catalog',
@@ -37,9 +41,10 @@ const SOURCE = {
   lastSyncedAt: '2026-10-26T06:00:00.000Z',
 }
 
-const DETAIL = {
+const DETAIL: IntegrationEventDetail = {
   ...EVENT,
   description: 'A person created a project.',
+  propertiesStatus: 'current',
   properties: [
     {
       key: 'project_name',
@@ -172,7 +177,43 @@ describe('integrations.events.get', () => {
       'person.first_name',
     ])
     expect(event.properties[1]?.isPersonal).toBe(true)
+    expect(event.propertiesStatus).toBe('current')
     expectTypeOf(event).toEqualTypeOf<IntegrationEventDetail>()
+  })
+
+  it('returns the stored properties with propertiesStatus rate_limited and retryAfterSeconds when the provider read budget is spent', async () => {
+    server.use(
+      http.get(`${EVENTS_URL}/:eventId`, () =>
+        HttpResponse.json({
+          ...DETAIL,
+          properties: [],
+          propertiesStatus: 'rate_limited',
+          retryAfterSeconds: 120,
+        } satisfies IntegrationEventDetail)
+      )
+    )
+
+    const { client } = makeTestHttpClient()
+    const event = await createIntegrationsResource(client).events.get(
+      EVENT.eventId
+    )
+
+    // A spent provider budget is a 200 with what Brew stored, not a 429.
+    expect(event.propertiesStatus).toBe('rate_limited')
+    expect(event.retryAfterSeconds).toBe(120)
+    expect(event.properties).toEqual([])
+  })
+
+  it('types propertiesStatus as a required spec enum and retryAfterSeconds as optional', () => {
+    expectTypeOf<IntegrationEventPropertiesStatus>().toEqualTypeOf<
+      'current' | 'stored' | 'rate_limited' | 'unavailable'
+    >()
+    expectTypeOf<
+      IntegrationEventDetail['propertiesStatus']
+    >().toEqualTypeOf<IntegrationEventPropertiesStatus>()
+    expectTypeOf<IntegrationEventDetail['retryAfterSeconds']>().toEqualTypeOf<
+      number | undefined
+    >()
   })
 
   it('URL-encodes the eventId path segment', async () => {

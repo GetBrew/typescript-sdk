@@ -2,8 +2,11 @@
 
 The integration catalog, and the live events connected sources send. Free,
 read-only and brand-scoped (`X-Brand-Id` on an organization key). `list`
-needs no permission scope. Connecting a provider is a human step in Brew
-Settings, never an API call.
+needs no permission scope. `events.list` and `events.get` need the
+`automations` scope, as
+[`automations.triggers.ensureIntegrationEvent`](./automations.md#integration-event-triggers)
+does. Connecting a provider is a human step in Brew Settings, never an API
+call.
 
 | Method                          | HTTP                                    |
 | ------------------------------- | --------------------------------------- |
@@ -62,6 +65,26 @@ Each property has its template `variable` (use it as
 `{{ <variable> | fallback }}`), its `scope` (`event` or `person`), `type`,
 `isPersonal` (personal data: never put it in a subject) and
 `isPersonalization` (Brew suggests it to personalize an email).
+
+The read may call the provider: an event listed bare, or described more than
+a day ago, is described there first, on the account's read budget.
+`event.propertiesStatus` (`IntegrationEventPropertiesStatus`) says how
+current `properties` are:
+
+| `propertiesStatus` | `properties`                                                                                                     |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| `current`          | Listed with the event, or read in the last day.                                                                  |
+| `stored`           | The provider could not be read now: its last description.                                                        |
+| `rate_limited`     | The read budget is spent: what Brew stored, possibly none. Read again after `retryAfterSeconds`, when it is set. |
+| `unavailable`      | Not read, and none stored.                                                                                       |
+
+A spent budget is not an error: `get` resolves with what Brew stored.
+
+```ts
+if (event.propertiesStatus === 'rate_limited') {
+  // event.retryAfterSeconds: seconds until the provider can be read again
+}
+```
 
 Pass an `eventId` from `events.list`; never compose one. An unknown or
 other-brand id throws a `BrewApiError` with `status: 404` and
