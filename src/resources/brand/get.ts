@@ -8,12 +8,13 @@ export type { BrandGetResponse, BrandIncludeToken }
 
 /**
  * Options for `brew.brand.get`. Pass `include` to embed design context in
- * the same call — any subset of `identity` (structured brand facts),
- * `emailDesign` / `imageStyle` (the markdown design system the email
- * agent follows), and `logos` (the CDN logo set). Accepts either an array
- * (`['identity', 'logos']`) or a pre-joined comma string (`'identity,logos'`);
- * the SDK serializes it as the single comma-separated `?include=` value the
- * API expects.
+ * the same call — any subset of `emailDesign` / `imageStyle` (the markdown
+ * design system the email agent follows) and `logos` (the CDN logo set).
+ * `identity` (structured brand facts) is always returned; naming it is
+ * accepted and changes nothing. Accepts either an array
+ * (`['emailDesign', 'logos']`) or a pre-joined comma string
+ * (`'emailDesign,logos'`); the SDK serializes it as the single
+ * comma-separated `?include=` value the API expects.
  */
 export type GetBrandInput = {
   readonly include?: ReadonlyArray<BrandIncludeToken> | string
@@ -26,8 +27,8 @@ export type GetBrandInput = {
  * Requires a credential, without a feature scope.
  *
  * Returns the brand row FLAT (there is no `{ brand: … }` wrapper in
- * v1). Pass `include` (e.g. `['identity', 'logos']`) to embed any of
- * `identity` / `emailDesign` / `imageStyle` / `logos` in the same
+ * v1), with its saved `identity`. Pass `include` (e.g. `['logos']`) to
+ * embed any of `emailDesign` / `imageStyle` / `logos` in the same
  * response. Read `ready` (true ⇔ `status: 'completed'`) before
  * generating or sending — `POST /v1/emails` 422s
  * `BRAND_NOT_READY` until extraction completes. A `404 BRAND_NOT_FOUND`
