@@ -2,10 +2,12 @@
 
 ## Unreleased
 
+## 13.4.0
+
 ### Added
 
-- Generated types follow app revision `3d6a8e188d`. No method signature
-  changed.
+- Generated types follow app revision `3d6a8e188d`. The type sync changes
+  no method signature.
   - Contact write and import warnings include `FIELD_TYPE_COERCED` (a
     custom-field value converted to its field's type; `field`, `from`, `to`;
     GetBrew/brew-v2#2472) and `VALIDATION_SKIPPED`. When two requests create
@@ -22,8 +24,7 @@
     `installationCount` and `capabilities`.
   - Audience run ids are documented as passed exactly as returned; a keyed
     launch returns a longer id (GetBrew/brew-v2#2468).
-- Generated types follow app revision `87ac2c6242`: email rows carry `lang`,
-  and flows carry their send-stream `kind` and `<domain>/<kind>` slugs.
+
 - Add the email `lang` field (ISO 639-1, or `zh-Hans` / `zh-Hant`), shipped
   in GetBrew/brew-v2#2225. `emails.get` returns `lang` on the `EmailDetail`
   row once Brew has read the copy's language. `emails.generate`
@@ -33,28 +34,53 @@
   `emails.edit({ emailId, lang: null })` clears it so Brew reads it again.
   The new `EmailLanguage` type is derived from the API enum.
 
+### Fixed
+
+- `analytics.events` refuses `groupBy` and `bucket` with a `BrewInputError`
+  that points to `analytics.eventCounts`, before any request. It used to drop
+  both, so a caller asking for counts got event rows and no `count`.
+  `EventsAnalyticsInput` (and `EventsAnalyticsAllInput`) no longer accept the
+  two keys. Code that passed them stops compiling, but those keys never had
+  any effect.
+
+- Image-upload finalization errors expose the original `uploadId` alongside
+  `idempotencyKey`, so callers can recover a lost `uploadImage` result through
+  `content.addImage` without opening another upload. API, transport and parse
+  errors retain their existing classes; parse errors now also expose the key.
+
+## 13.1.0 – 13.3.0
+
+### Added
+
+- Generated types follow app revision `87ac2c6242`: email rows carry `lang`,
+  and flows carry their send-stream `kind` and `<domain>/<kind>` slugs.
+
 - Synchronize email categories and template browse groups with app revision
   `9bf2e01f14d8260bdde0825e901a05497b66c70c`. Generation inputs accept
   `onboarding`, `content`, `event-recap`, `product-pitch`, `company-news` and
   `fundraising`; existing categories remain valid. Template reads accept
   `group` filters and `groupBy: 'group'` counts. These additions require the
   matching API deployment.
+
 - `brew.contacts.import({ contacts, consent?, validate?, fileName? })` calls
   `POST /v1/contacts/import`: the JSON twin of `importCsv`, recorded as one
   batch in Brew's Import History. `ImportContactsInput`,
   `ImportContactsResponse`, `ImportContactsSummary`, `ImportContactsError` and
   `ImportContactsWarning` are exported from the package root.
+
 - `importCsv` takes `fileName`, the name the batch is listed under in Import
   History (also stamped on each contact as `csvFileName`). Both imports return
   the batch's `importId`, which each contact they write carries until a later
   import touches it. Both responses share the `ContactsImportResponse`
   component (`ImportCsvContactsResponse` keeps its name).
+
 - Both import responses include `summary.total`: submitted JSON contacts or
   CSV data rows, equal to `inserted + updated + failed + skipped`. Errors
   and warnings can include a positive, 1-based `row` (JSON `contacts` index
   plus one, or CSV data row with the header and blank lines not counted). `CSV_ROW_SKIPPED` warnings
   identify the first 100 skipped CSV rows; a final warning without `row`
   counts any remainder. These fields require the matching API deployment.
+
 - Both imports take `dryRun` and `onConflict`. `dryRun: true` returns the
   response the import would return and writes nothing; it carries
   `dryRun: true` and no `importId` (now optional on `ContactsImportResponse`).
@@ -74,26 +100,8 @@
   `upsert`/`upsertMany`/`importCsv`/`import` may carry the same object.
   Narrow before reading the provider fields:
 
-  ```ts
-  for (const row of data) {
-    if (row.checkOutcome === 'completed' && row.didYouMean) {
-      // …
-    }
-  }
-  ```
-
 ### Fixed
 
-- `analytics.events` refuses `groupBy` and `bucket` with a `BrewInputError`
-  that points to `analytics.eventCounts`, before any request. It used to drop
-  both, so a caller asking for counts got event rows and no `count`.
-  `EventsAnalyticsInput` (and `EventsAnalyticsAllInput`) no longer accept the
-  two keys. Code that passed them stops compiling, but those keys never had
-  any effect.
-- Image-upload finalization errors expose the original `uploadId` alongside
-  `idempotencyKey`, so callers can recover a lost `uploadImage` result through
-  `content.addImage` without opening another upload. API, transport and parse
-  errors retain their existing classes; parse errors now also expose the key.
 - `flows.get` reads a `<domain>/<kind>` slug from `flows.list()` as one send
   stream's flow (the domain path plus `?kind=`) and takes a `kind` option for
   a bare-domain slug. It previously encoded the `/` into the path.
