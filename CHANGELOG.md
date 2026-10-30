@@ -4,6 +4,13 @@
 
 ### Added
 
+- Generated types follow app revision `e958a02fc8`: contact write and import
+  warnings include `FIELD_TYPE_COERCED` (a custom-field value converted to its
+  field's type; `field`, `from`, `to`), shipped in GetBrew/brew-v2#2472. When
+  two requests create the same new custom field at once, the first definition
+  wins, the other request's values are converted or refused against it, and
+  `fieldsCreated` lists the field only on the request that created it. No
+  method signature changed.
 - Generated types follow app revision `87ac2c6242`: email rows carry `lang`,
   and flows carry their send-stream `kind` and `<domain>/<kind>` slugs.
 - Add the email `lang` field (ISO 639-1, or `zh-Hans` / `zh-Hant`), shipped

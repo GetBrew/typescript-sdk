@@ -386,7 +386,7 @@ type ContactConsentInput = {
 type UpsertContactResponse = {
   readonly contact: Contact
   readonly created: boolean        // true if newly inserted, false if updated
-  readonly fieldsCreated: string[] // any custom fields auto-defined
+  readonly fieldsCreated: string[] // custom fields this request auto-defined
   readonly warnings: ReadonlyArray<UpsertWarning>
 }
 
@@ -407,6 +407,15 @@ console.log(result.contact.email)
 console.log(result.created) // true if this was an insert
 console.log(result.fieldsCreated) // ['plan'] if 'plan' was a new custom field
 ```
+
+A new custom field is typed from the values that create it. Later values are
+converted to that type, with a `FIELD_TYPE_COERCED` warning naming `field`,
+`from` (the type sent) and `to` (the type stored), or refused with
+`409 FIELD_TYPE_MISMATCH` (a per-row error in `upsertMany` and the imports).
+When two requests create the same new field at the same moment, the first
+definition wins: the other request's values are converted or refused against
+it, and only the winner lists the field in `fieldsCreated`. Create the field
+first with `brew.fields.create()` to pin its type.
 
 Record `consent` where you collect the address: `emails.send` refuses an
 inline marketing recipient whose contact has no consent record

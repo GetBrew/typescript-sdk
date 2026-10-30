@@ -48,9 +48,10 @@ export type UpsertContactResponse =
  * Returns the full `ContactsPostSingleResponse` envelope (contact +
  * `created` flag + `fieldsCreated` array + `warnings`) rather than just
  * the contact, because all four fields carry signal — `created`
- * distinguishes insert from update, `fieldsCreated` lists any custom
- * fields the upsert auto-defined, and `warnings` surfaces non-fatal
- * normalizations.
+ * distinguishes insert from update, `fieldsCreated` lists the custom
+ * fields this upsert auto-defined (not one another request created first),
+ * and `warnings` surfaces non-fatal normalizations, such as a value
+ * converted to its field's type (`FIELD_TYPE_COERCED`).
  *
  * Pass `validate: true` to deliverability-check the address after the
  * upsert and persist the verdict onto the contact. On the single-upsert
