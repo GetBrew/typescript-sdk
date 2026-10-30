@@ -48,15 +48,17 @@ if (!brand.ready) {
 }
 ```
 
-Embed the design context in the same call with `include` — any subset of
-`identity` (structured brand facts), `emailDesign` / `imageStyle` (the
-markdown design system the email agent follows), and `logos` (the CDN logo
-set). Accepts an array or a comma string; the SDK sends it as the single
-comma-separated `?include=` value the API expects.
+The response always carries `identity` (structured brand facts: saved name,
+tagline, description, links). Embed the rest of the design context in the
+same call with `include` — any subset of `emailDesign` / `imageStyle` (the
+markdown design system the email agent follows) and `logos` (the CDN logo
+set). Naming `identity` is accepted and changes nothing. Accepts an array or
+a comma string; the SDK sends it as the single comma-separated `?include=`
+value the API expects.
 
 ```ts
 const { brandId, identity, emailDesign, logos } = await brew.brand.get({
-  include: ['identity', 'emailDesign', 'logos'],
+  include: ['emailDesign', 'logos'],
 })
 ```
 

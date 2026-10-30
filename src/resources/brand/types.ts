@@ -28,7 +28,7 @@ export type Brand = Omit<
 /** Lifecycle status of the bound brand's extraction. */
 export type BrandStatus = Brand['status']
 
-/** Structured brand identity (embedded via `?include=identity`). */
+/** Structured brand identity: saved name, tagline, description, links. `GET` and `PATCH /v1/brand` always return it. */
 export type BrandIdentity = NonNullable<BrandGetResponse['identity']>
 
 /** A single CDN-hosted logo variant (embedded via `?include=logos`). */

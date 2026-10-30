@@ -4,6 +4,24 @@
 
 ### Added
 
+- Generated types follow app revision `3d6a8e188d`. No method signature
+  changed.
+  - Contact write and import warnings include `FIELD_TYPE_COERCED` (a
+    custom-field value converted to its field's type; `field`, `from`, `to`;
+    GetBrew/brew-v2#2472) and `VALIDATION_SKIPPED`. When two requests create
+    the same new custom field at once, the first definition wins, the other
+    request's values are converted or refused against it, and
+    `fieldsCreated` lists the field only on the request that created it.
+  - `ApiErrorCode` includes `FIELD_NAME_COLLISION` (`422`): two keys in one
+    request that name the same contact field, such as `plan` and `Plan`
+    (GetBrew/brew-v2#2469).
+  - `brand.get` and `brand.patch` responses always carry `identity` (the type
+    is no longer optional); `include: ['identity']` is still accepted and
+    changes nothing (GetBrew/brew-v2#2470).
+  - Integration catalog rows may carry `inviteOnly`, `paused`,
+    `installationCount` and `capabilities`.
+  - Audience run ids are documented as passed exactly as returned; a keyed
+    launch returns a longer id (GetBrew/brew-v2#2468).
 - Generated types follow app revision `87ac2c6242`: email rows carry `lang`,
   and flows carry their send-stream `kind` and `<domain>/<kind>` slugs.
 - Add the email `lang` field (ISO 639-1, or `zh-Hans` / `zh-Hant`), shipped
