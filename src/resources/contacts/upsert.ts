@@ -51,7 +51,8 @@ export type UpsertContactResponse =
  * distinguishes insert from update, `fieldsCreated` lists the custom
  * fields this upsert auto-defined (not one another request created first),
  * and `warnings` surfaces non-fatal normalizations, such as a value
- * converted to its field's type (`FIELD_TYPE_COERCED`).
+ * converted to its field's type (`FIELD_TYPE_COERCED`; a date written to a
+ * `date` field is converted without one).
  *
  * Pass `validate: true` to deliverability-check the address after the
  * upsert and persist the verdict onto the contact. On the single-upsert

@@ -423,9 +423,11 @@ console.log(result.fieldsCreated) // ['plan'] if 'plan' was a new custom field
 ```
 
 A new custom field is typed from the values that create it. Later values are
-converted to that type, with a `FIELD_TYPE_COERCED` warning naming `field`,
-`from` (the type sent) and `to` (the type stored), or refused with
-`409 FIELD_TYPE_MISMATCH` (a per-row error in `upsertMany` and the imports).
+converted to that type or refused with `409 FIELD_TYPE_MISMATCH` (a per-row
+error in `upsertMany` and the imports). A converted value adds a
+`FIELD_TYPE_COERCED` warning naming `field`, `from` (the type sent) and `to`
+(the type stored), except a date written to a `date` field, which is
+converted silently.
 When two requests create the same new field at the same moment, the first
 definition wins: the other request's values are converted or refused against
 it, and only the winner lists the field in `fieldsCreated`. Create the field
