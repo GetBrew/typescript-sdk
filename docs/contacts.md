@@ -383,6 +383,20 @@ type ContactConsentInput = {
   readonly evidence?: string
 }
 
+// A non-fatal note on a write. upsert, upsertMany and patch share this shape:
+// UpsertContactResponse['warnings'][number] (or PatchContactResponse's).
+type UpsertWarning = {
+  readonly code: string // e.g. FIELD_TYPE_COERCED, DATE_ORDER_ASSUMED
+  readonly message: string
+  readonly email?: string
+  readonly row?: number // 1-based; batch and import rows only
+  readonly field?: string
+  readonly from?: string // FIELD_TYPE_COERCED: the type sent
+  readonly to?: string //   FIELD_TYPE_COERCED: the type stored
+  readonly original?: string
+  readonly normalized?: string
+}
+
 type UpsertContactResponse = {
   readonly contact: Contact
   readonly created: boolean        // true if newly inserted, false if updated
@@ -509,7 +523,7 @@ type PatchContactInput = {
 type PatchContactResponse = {
   readonly contact: Contact
   readonly updated: ReadonlyArray<string>  // fields whose stored value changed; [] = nothing written
-  readonly warnings: ReadonlyArray<UpsertWarning> // DATE_ORDER_ASSUMED, FIELD_TYPE_COERCED
+  readonly warnings: ReadonlyArray<UpsertWarning> // see upsert; DATE_ORDER_ASSUMED, FIELD_TYPE_COERCED
 }
 
 patch(
