@@ -524,12 +524,28 @@ is impossible to merge silently.
 
 ---
 
+## The `brew.send` exception
+
+Public methods take `(input, options?)`, or an identity positional then
+`options?` (see AGENTS.md § Function signatures). The top-level
+`brew.send(key, payload, options?)` is the one documented exception to
+both: two positionals. It is the first line most apps write
+(`brew.send('auth.password-reset', { email, confirmationUrl })`), it
+mirrors the shape of every email SDK it replaces, and the key types the
+payload through `BrewTriggerKeyRegistry`. Its object form is
+`automations.triggers.fireByKey({ triggerKey, payload }, options?)`. Do
+not copy the two-positional shape to other methods.
+
+---
+
 ## Repo layout
 
 ```
 src/
 ├── index.ts                    Public barrel — every consumer-facing export
 ├── client.ts                   createBrewClient factory
+├── send.ts                     brew.send(key, payload) on top of triggers.fireByKey
+├── send-registry.ts            BrewTriggerKeyRegistry (augmentable) + send key/payload types
 ├── version.ts                  SDK_NAME + SDK_VERSION (version is injected at build time from package.json)
 ├── types.ts                    Public types (BrewClientConfig, RequestOptions, BrewErrorEnvelope)
 ├── generated/

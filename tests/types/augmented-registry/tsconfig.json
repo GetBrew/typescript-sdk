@@ -1,0 +1,13 @@
+{
+  // A program of its own: augmenting `BrewTriggerKeyRegistry` is global to
+  // whatever program sees it, so the root tsconfig excludes this directory
+  // and `tests/types/send-registry.test.ts` compiles it separately.
+  "extends": "../../../tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "@brew.new/sdk": ["../../../src/index.ts"]
+    }
+  },
+  "include": ["./*.ts"],
+  "exclude": []
+}

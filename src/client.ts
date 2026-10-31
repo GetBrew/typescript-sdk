@@ -92,6 +92,8 @@ import {
   createUsageResource,
   type UsageResource,
 } from './resources/usage/resource'
+import { createSend } from './send'
+import type { BrewSend } from './send-registry'
 import type { BrewClientConfig, ResolvedBrewClientConfig } from './types'
 import {
   createCanvasResource,
@@ -111,6 +113,18 @@ import {
  */
 export type BrewClient = {
   readonly canvas: CanvasResource
+  /**
+   * `brew.send(key, payload, options?)` — send the app email behind a
+   * trigger key (`auth.password-reset`, `order.paid`): fires
+   * `POST /v1/automations/triggers/by-key/{key}/fire` with `{ payload }`
+   * and resolves to the accepted fire (`triggerInstanceId`,
+   * `automationRunIds`, …). `payload.email` is the recipient. Pass
+   * `{ idempotencyKey }` so a retried request never sends twice. Augment
+   * `BrewTriggerKeyRegistry` to type-check keys and payloads.
+   *
+   * Not `emails.send`, which sends a saved design to a list or as a test.
+   */
+  readonly send: BrewSend
   /**
    * Return a client pinned to `brandId` (sent as `X-Brand-Id`). Same auth,
    * transport and tuning; only the brand differs. Use this with an
@@ -276,8 +290,10 @@ function buildClient(
     config.brandId === undefined
       ? httpClient
       : createHttpClient({ ...config, brandId: undefined }, tuning)
+  const automations = createAutomationsResource(httpClient)
   return {
     canvas: createCanvasResource(httpClient),
+    send: createSend(automations.triggers.fireByKey),
     withBrand: (brandId: string): BrewClient => {
       if (typeof brandId !== 'string' || brandId.trim() === '') {
         throw new TypeError('withBrand: `brandId` must be a non-empty string')
@@ -288,7 +304,7 @@ function buildClient(
     analytics: createAnalyticsResource(httpClient),
     apiKeys: createApiKeysResource(organizationHttpClient),
     audiences: createAudiencesResource(httpClient),
-    automations: createAutomationsResource(httpClient),
+    automations,
     brand: createBrandResource(httpClient),
     chats: createChatsResource(httpClient),
     contacts: createContactsResource(httpClient),
