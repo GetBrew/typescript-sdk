@@ -361,5 +361,9 @@ await brew.automations.unpublish({
 })
 ```
 
+Unpublishing an automation that is not live is
+`422 AUTOMATION_NOT_PUBLISHED`, except `stopInFlight: true` on a draft that
+still has contacts mid-flow, which stops them.
+
 A publish whose graph fails validation returns
 `422 PUBLISH_VALIDATION_FAILED` (it was `409` before 10.0.0).

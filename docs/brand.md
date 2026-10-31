@@ -89,7 +89,7 @@ const { data, pagination } = await brew.brand.getImages({
   limit: 50,
 })
 
-// Semantic search (1 credit per new search, relevance order).
+// Semantic search (free, relevance order).
 const hits = await brew.brand.getImages({ q: 'team photo', kind: 'brand' })
 ```
 

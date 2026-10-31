@@ -167,8 +167,10 @@ await brew.sends.pause('snd_8fK2mQ4p')
 // { sendId: 'snd_8fK2mQ4p', status: 'paused' }
 ```
 
-`409 SEND_NOT_PAUSABLE` when the send is already `completed`, `canceled`,
-or was never a gradual send.
+Pausing a send you already paused returns the same `200` and changes
+nothing. `409 SEND_NOT_PAUSABLE` when the send is already `completed` or
+`canceled`, was never a gradual send, or is held at the plan limit or for
+its domain.
 
 ## `resume`
 

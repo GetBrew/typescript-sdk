@@ -170,8 +170,10 @@ export function createPublishAutomation(client: HttpClient) {
  * take the automation off live (its trigger stops matching fires;
  * in-flight runs finish unless you pass `stopInFlight: true`). Returns
  * the bare row with `published: false`,
- * or `422 AUTOMATION_NOT_PUBLISHED` if the automation was never live
- * (surfaced as a `BrewApiError`).
+ * or `422 AUTOMATION_NOT_PUBLISHED` when the automation is not live
+ * (surfaced as a `BrewApiError`). On an automation that is already a
+ * draft, `stopInFlight: true` still stops its in-flight contacts and is the
+ * same 422 only when none are in flight.
  *
  * (Convenience wrapper over `PATCH /v1/automations/{automationId}` — the
  * old `POST …/unpublish` sub-route no longer exists.)
