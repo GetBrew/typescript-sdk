@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+### Changed
+
+- Generated types follow app revision `373e900a9a`. The type sync changes
+  no method signature.
+  - `brand.getImages({ q })` semantic search is free; it used to cost 1
+    credit on its first page, and the endpoint no longer lists `402` or
+    `503` responses. Search pages with the same opaque `pagination.cursor`
+    as browse (GetBrew/brew-v2#2492).
+  - `sends.pause` on a send its operator already paused returns the same
+    `200` and changes nothing (GetBrew/brew-v2#2492).
+  - `contacts.patch` returns `warnings` (`DATE_ORDER_ASSUMED`,
+    `FIELD_TYPE_COERCED`) beside `updated`, which lists only the fields
+    whose stored value changed and is empty when nothing was written. A
+    JSON number past 2^53 - 1 is refused with `409 FIELD_TYPE_MISMATCH`;
+    send large ids as strings (GetBrew/brew-v2#2488).
+  - Automation save warnings include `NODE_ID_REPLACED`
+    (GetBrew/brew-v2#2486). `stopInFlight: true` on an automation that is
+    already a draft stops its in-flight contacts, and is a
+    `422 AUTOMATION_NOT_PUBLISHED` when none are in flight
+    (GetBrew/brew-v2#2489).
+  - A date written to a `date` field no longer adds a `FIELD_TYPE_COERCED`
+    warning (GetBrew/brew-v2#2490).
+  - Email import asset warnings include `element_dropped` at location
+    `markup`: source elements a design could not keep.
+
 ## 13.4.0
 
 ### Added

@@ -12,14 +12,13 @@ export type { BrandImagesResponse, ListBrandImagesInput }
  * carries its `assetId`, `kind`, `addedAt` and dimensions. Requires the
  * `emails` scope.
  *
- * Two modes on the same read:
- * - Browse (default, free): every asset, `sort` `newest` (default) or
+ * Two modes on the same read, both free:
+ * - Browse (default): every asset, `sort` `newest` (default) or
  *   `oldest`, paginated via `limit` + `cursor`. Pass `pagination.cursor`
  *   back as `cursor` to fetch the next page while `pagination.hasMore` is
  *   `true`.
- * - Semantic search: pass `q` to rank images by what they show (1 credit
- *   per new search; relevance order, `sort` ignored). Logos are not
- *   searchable.
+ * - Semantic search: pass `q` to rank images by what they show
+ *   (relevance order, `sort` ignored). Logos are not searchable.
  *
  * Narrow either mode with `kind` (`logo`, `brand` or `generated`). The
  * `type` and `aspectRatio` filters were retired by the API

@@ -508,7 +508,8 @@ type PatchContactInput = {
 
 type PatchContactResponse = {
   readonly contact: Contact
-  readonly updated: ReadonlyArray<string>  // field names that actually changed
+  readonly updated: ReadonlyArray<string>  // fields whose stored value changed; [] = nothing written
+  readonly warnings: ReadonlyArray<UpsertWarning> // DATE_ORDER_ASSUMED, FIELD_TYPE_COERCED
 }
 
 patch(
