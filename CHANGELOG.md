@@ -1,5 +1,59 @@
 # Changelog
 
+## 13.7.0 (not released yet)
+
+`brew.integrations.connect` and `brew.integrations.getConnection`, which
+connect a hosted auth email hook (Supabase Auth's Send Email Hook or
+Clerk's `email.created`) over the API, from a setup script or the CLI.
+Additive: nothing is removed or renamed. A minor release after 13.6.0,
+which it builds on (publish 13.6.0 first). Publish only once
+GetBrew/brew-v2#2169 (`/v1/integrations/{provider}/connection` and the
+hosted Supabase and Clerk hooks) is deployed and the live spec matches the
+vendored one; until then the connection routes answer `404`. Spec source:
+the same file 13.5.0 and 13.6.0 vendor (`main`'s spec plus the brew-v2
+#2169 @ 6f8ef50544 delta).
+
+### Added
+
+- **`brew.integrations.connect({ provider, signingSecret, settings? }, options?)`**:
+  `PUT /v1/integrations/{provider}/connection` (scopes `emails` and
+  `automations`: the call also runs the app email kit). `provider` is
+  `supabase_auth` or `clerk`; `signingSecret` is the secret the provider
+  signs deliveries with (Supabase `v1,whsec_…`, Clerk `whsec_…`);
+  `settings.projectUrl` (Supabase only) is where confirmation links point.
+  Resolves to `{ provider, connectionId, webhookUrl, status, authEmails }`:
+  the `webhookUrl` to paste into the provider, `status`
+  (`pending_verification` until the first signed delivery, then `active`)
+  and one `authEmails` row per auth key the connect set up or kept
+  (`ok: false` rows carry `error` and never throw; connecting again
+  finishes them). Re-runs are safe: the connection id and URL never change
+  for a brand and provider. A PUT, so no `Idempotency-Key` and retried like
+  any idempotent request. `400 INVALID_REQUEST` for a secret in the wrong
+  format, an unsupported provider or a `projectUrl` that is not https.
+  `CONNECT_INTEGRATION_DEFAULT_TIMEOUT_MS` (300 s, a floor under the
+  client `timeoutMs`), since the kit imports a design per key.
+- **`brew.integrations.getConnection(provider, options?)`**:
+  `GET /v1/integrations/{provider}/connection` (no permission scope), the
+  connection without its secret; `404 NOT_FOUND` when the provider is not
+  connected for the brand.
+- The provider rides the path percent-encoded; an empty provider, `.` or
+  `..` throws `TypeError` before any request, so a secret never reaches
+  another route. The SDK sends `signingSecret` in the request body only:
+  it is never logged, never put in a URL or header, and never part of a
+  returned value or a thrown error (a canary test holds it to that).
+- Types: `ConnectIntegrationInput`, `ConnectIntegrationResponse`,
+  `GetIntegrationConnectionResponse`, `IntegrationConnectionProvider`,
+  `IntegrationConnection`, `IntegrationConnectionBody`,
+  `IntegrationConnectionResult`, `IntegrationConnectionAuthEmail`. See
+  `docs/integrations.md`.
+
+### Changed
+
+- `docs/app-emails.md` and `docs/adapters/supabase.md` point the kit's
+  hosted delivery for `supabase` and `clerk` (`hosted-webhook`, documented
+  since 13.6.0) at `connect`, with the self-hosted `@brew.new/sdk/supabase`
+  hook as Supabase's alternative.
+
 ## 13.6.0 (not released yet)
 
 `brew.appEmails`, which sets up the emails your code sends by key in one

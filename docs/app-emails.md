@@ -195,8 +195,10 @@ stack.snippets // [{ title, file, code }] for your auth library
 - `stack`: `better-auth`, `authjs`, `supabase`, `clerk`, `firebase` or
   `custom`. It narrows the auth keys to the ones that library sends and
   picks the code snippets. Supabase and Clerk hand their auth emails to
-  Brew once connected in Brew (`authDelivery: 'hosted-webhook'`). Supabase
-  can instead self-host its Send Email Hook as an Edge Function
+  Brew (`authDelivery: 'hosted-webhook'`): connect them with
+  [`brew.integrations.connect`](./integrations.md), which also runs this
+  kit for their auth keys. Supabase can instead self-host its Send Email
+  Hook as an Edge Function
   ([`@brew.new/sdk/supabase`](./adapters/supabase.md); the snippets carry
   it). For Clerk, turn off Clerk's own delivery for the templates
   `stack.note` lists. Every other stack answers `authDelivery: 'code'`:
