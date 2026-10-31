@@ -383,10 +383,24 @@ type ContactConsentInput = {
   readonly evidence?: string
 }
 
+// A non-fatal note on a write. upsert, upsertMany and patch share this shape:
+// UpsertContactResponse['warnings'][number] (or PatchContactResponse's).
+type UpsertWarning = {
+  readonly code: string // e.g. FIELD_TYPE_COERCED, DATE_ORDER_ASSUMED
+  readonly message: string
+  readonly email?: string
+  readonly row?: number // 1-based; batch and import rows only
+  readonly field?: string
+  readonly from?: string // FIELD_TYPE_COERCED: the type sent
+  readonly to?: string //   FIELD_TYPE_COERCED: the type stored
+  readonly original?: string
+  readonly normalized?: string
+}
+
 type UpsertContactResponse = {
   readonly contact: Contact
   readonly created: boolean        // true if newly inserted, false if updated
-  readonly fieldsCreated: string[] // any custom fields auto-defined
+  readonly fieldsCreated: string[] // custom fields this request auto-defined
   readonly warnings: ReadonlyArray<UpsertWarning>
 }
 
@@ -407,6 +421,17 @@ console.log(result.contact.email)
 console.log(result.created) // true if this was an insert
 console.log(result.fieldsCreated) // ['plan'] if 'plan' was a new custom field
 ```
+
+A new custom field is typed from the values that create it. Later values are
+converted to that type or refused with `409 FIELD_TYPE_MISMATCH` (a per-row
+error in `upsertMany` and the imports). A converted value adds a
+`FIELD_TYPE_COERCED` warning naming `field`, `from` (the type sent) and `to`
+(the type stored), except a date written to a `date` field, which is
+converted silently.
+When two requests create the same new field at the same moment, the first
+definition wins: the other request's values are converted or refused against
+it, and only the winner lists the field in `fieldsCreated`. Create the field
+first with `brew.fields.create()` to pin its type.
 
 Record `consent` where you collect the address: `emails.send` refuses an
 inline marketing recipient whose contact has no consent record
@@ -499,7 +524,8 @@ type PatchContactInput = {
 
 type PatchContactResponse = {
   readonly contact: Contact
-  readonly updated: ReadonlyArray<string>  // field names that actually changed
+  readonly updated: ReadonlyArray<string>  // fields whose stored value changed; [] = nothing written
+  readonly warnings: ReadonlyArray<UpsertWarning> // see upsert; DATE_ORDER_ASSUMED, FIELD_TYPE_COERCED
 }
 
 patch(

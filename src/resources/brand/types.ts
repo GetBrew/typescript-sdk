@@ -4,13 +4,14 @@ import type { components, paths } from '../../generated/openapi-types'
  * Body returned by `GET /v1/brand` and `PATCH /v1/brand` — the brand row
  * itself, FLAT. There is no `{ brand: … }` wrapper in v1.
  *
- * The optional `identity` / `emailDesign` / `imageStyle` / `logos`
- * fields are populated on a `GET` only for the sub-resources named in
- * `?include=`, and on a `PATCH` only for the fields that were touched.
+ * `identity` (the saved brand name, tagline, description, contact details
+ * and links) is always present. The optional `emailDesign` / `imageStyle` /
+ * `logos` fields are populated on a `GET` only for the sub-resources named
+ * in `?include=`, and on a `PATCH` only for the markdown that was written.
  */
 export type BrandGetResponse = components['schemas']['BrandGetResponse']
 
-/** Echoed by `PATCH /v1/brand` — same envelope, only the touched fields. */
+/** Echoed by `PATCH /v1/brand` — same envelope: `identity` plus the markdown the call wrote. */
 export type BrandPatchResponse = BrandGetResponse
 
 /**
@@ -28,7 +29,7 @@ export type Brand = Omit<
 /** Lifecycle status of the bound brand's extraction. */
 export type BrandStatus = Brand['status']
 
-/** Structured brand identity (embedded via `?include=identity`). */
+/** Structured brand identity: saved name, tagline, description, links. `GET` and `PATCH /v1/brand` always return it. */
 export type BrandIdentity = NonNullable<BrandGetResponse['identity']>
 
 /** A single CDN-hosted logo variant (embedded via `?include=logos`). */

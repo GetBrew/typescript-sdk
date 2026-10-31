@@ -34,17 +34,64 @@
     `GetIntegrationEventResponse`, `EnsureIntegrationEventTriggerInput` and
     `EnsureIntegrationEventTriggerResponse` are exported from the package
     root. These methods require the matching API deployment.
-- Generated types follow app revision `0ad06ba02b` (GetBrew/brew-v2#2411
-  on main `12987cc424`): trigger and integration providers include
+- Generated types follow app revision `ed644c50ed` (GetBrew/brew-v2#2411
+  on main `373e900a9a`): trigger and integration providers include
   `posthog`, error codes add `INTEGRATION_EVENT_NOT_FOUND` and
   `INTEGRATION_RECONNECT_REQUIRED`, insight actions add the
   `draft_automation` intent, `IntegrationEventDetailResponse` carries
   `propertiesStatus` and `retryAfterSeconds`, and the ensure response is
-  the named `IntegrationEventTriggerSaved` component. From main: the `VALIDATION_SKIPPED` warning
-  code, and integration catalog rows may carry `installationCount`,
-  `capabilities`, `inviteOnly` and `paused` (providers include `notion`).
-- Generated types follow app revision `87ac2c6242`: email rows carry `lang`,
-  and flows carry their send-stream `kind` and `<domain>/<kind>` slugs.
+  the named `IntegrationEventTriggerSaved` component.
+
+### Changed
+
+- Generated types follow app revision `373e900a9a`. The type sync changes
+  no method parameters.
+  - `brand.getImages({ q })` semantic search is free; it used to cost 1
+    credit on its first page, and the endpoint no longer lists `402` or
+    `503` responses. Search pages with the same opaque `pagination.cursor`
+    as browse (GetBrew/brew-v2#2492).
+  - `sends.pause` on a send its operator already paused returns the same
+    `200` and changes nothing (GetBrew/brew-v2#2492).
+  - `contacts.patch` returns `warnings` (`DATE_ORDER_ASSUMED`,
+    `FIELD_TYPE_COERCED`; required on `PatchContactResponse`, so code that
+    builds the type, such as a test fake, adds `warnings: []`) beside
+    `updated`, which lists only the fields whose stored value changed and
+    is empty when nothing was written. A
+    JSON number past 2^53 - 1 is refused with `409 FIELD_TYPE_MISMATCH`;
+    send large ids as strings (GetBrew/brew-v2#2488).
+  - Automation save warnings include `NODE_ID_REPLACED`
+    (GetBrew/brew-v2#2486). `stopInFlight: true` on an automation that is
+    already a draft stops its in-flight contacts, and is a
+    `422 AUTOMATION_NOT_PUBLISHED` when none are in flight
+    (GetBrew/brew-v2#2489).
+  - A date written to a `date` field no longer adds a `FIELD_TYPE_COERCED`
+    warning (GetBrew/brew-v2#2490).
+  - Email import asset warnings include `element_dropped` at location
+    `markup`: source elements a design could not keep.
+
+## 13.4.0
+
+### Added
+
+- Generated types follow app revision `3d6a8e188d`. The type sync changes
+  no method signature.
+  - Contact write and import warnings include `FIELD_TYPE_COERCED` (a
+    custom-field value converted to its field's type; `field`, `from`, `to`;
+    GetBrew/brew-v2#2472) and `VALIDATION_SKIPPED`. When two requests create
+    the same new custom field at once, the first definition wins, the other
+    request's values are converted or refused against it, and
+    `fieldsCreated` lists the field only on the request that created it.
+  - `ApiErrorCode` includes `FIELD_NAME_COLLISION` (`422`): two keys in one
+    request that name the same contact field, such as `plan` and `Plan`
+    (GetBrew/brew-v2#2469).
+  - `brand.get` and `brand.patch` responses always carry `identity` (the type
+    is no longer optional); `include: ['identity']` is still accepted and
+    changes nothing (GetBrew/brew-v2#2470).
+  - Integration catalog rows may carry `inviteOnly`, `paused`,
+    `installationCount` and `capabilities`.
+  - Audience run ids are documented as passed exactly as returned; a keyed
+    launch returns a longer id (GetBrew/brew-v2#2468).
+
 - Add the email `lang` field (ISO 639-1, or `zh-Hans` / `zh-Hant`), shipped
   in GetBrew/brew-v2#2225. `emails.get` returns `lang` on the `EmailDetail`
   row once Brew has read the copy's language. `emails.generate`
@@ -54,28 +101,53 @@
   `emails.edit({ emailId, lang: null })` clears it so Brew reads it again.
   The new `EmailLanguage` type is derived from the API enum.
 
+### Fixed
+
+- `analytics.events` refuses `groupBy` and `bucket` with a `BrewInputError`
+  that points to `analytics.eventCounts`, before any request. It used to drop
+  both, so a caller asking for counts got event rows and no `count`.
+  `EventsAnalyticsInput` (and `EventsAnalyticsAllInput`) no longer accept the
+  two keys. Code that passed them stops compiling, but those keys never had
+  any effect.
+
+- Image-upload finalization errors expose the original `uploadId` alongside
+  `idempotencyKey`, so callers can recover a lost `uploadImage` result through
+  `content.addImage` without opening another upload. API, transport and parse
+  errors retain their existing classes; parse errors now also expose the key.
+
+## 13.1.0 – 13.3.0
+
+### Added
+
+- Generated types follow app revision `87ac2c6242`: email rows carry `lang`,
+  and flows carry their send-stream `kind` and `<domain>/<kind>` slugs.
+
 - Synchronize email categories and template browse groups with app revision
   `9bf2e01f14d8260bdde0825e901a05497b66c70c`. Generation inputs accept
   `onboarding`, `content`, `event-recap`, `product-pitch`, `company-news` and
   `fundraising`; existing categories remain valid. Template reads accept
   `group` filters and `groupBy: 'group'` counts. These additions require the
   matching API deployment.
+
 - `brew.contacts.import({ contacts, consent?, validate?, fileName? })` calls
   `POST /v1/contacts/import`: the JSON twin of `importCsv`, recorded as one
   batch in Brew's Import History. `ImportContactsInput`,
   `ImportContactsResponse`, `ImportContactsSummary`, `ImportContactsError` and
   `ImportContactsWarning` are exported from the package root.
+
 - `importCsv` takes `fileName`, the name the batch is listed under in Import
   History (also stamped on each contact as `csvFileName`). Both imports return
   the batch's `importId`, which each contact they write carries until a later
   import touches it. Both responses share the `ContactsImportResponse`
   component (`ImportCsvContactsResponse` keeps its name).
+
 - Both import responses include `summary.total`: submitted JSON contacts or
   CSV data rows, equal to `inserted + updated + failed + skipped`. Errors
   and warnings can include a positive, 1-based `row` (JSON `contacts` index
   plus one, or CSV data row with the header and blank lines not counted). `CSV_ROW_SKIPPED` warnings
   identify the first 100 skipped CSV rows; a final warning without `row`
   counts any remainder. These fields require the matching API deployment.
+
 - Both imports take `dryRun` and `onConflict`. `dryRun: true` returns the
   response the import would return and writes nothing; it carries
   `dryRun: true` and no `importId` (now optional on `ContactsImportResponse`).
@@ -95,26 +167,8 @@
   `upsert`/`upsertMany`/`importCsv`/`import` may carry the same object.
   Narrow before reading the provider fields:
 
-  ```ts
-  for (const row of data) {
-    if (row.checkOutcome === 'completed' && row.didYouMean) {
-      // …
-    }
-  }
-  ```
-
 ### Fixed
 
-- `analytics.events` refuses `groupBy` and `bucket` with a `BrewInputError`
-  that points to `analytics.eventCounts`, before any request. It used to drop
-  both, so a caller asking for counts got event rows and no `count`.
-  `EventsAnalyticsInput` (and `EventsAnalyticsAllInput`) no longer accept the
-  two keys. Code that passed them stops compiling, but those keys never had
-  any effect.
-- Image-upload finalization errors expose the original `uploadId` alongside
-  `idempotencyKey`, so callers can recover a lost `uploadImage` result through
-  `content.addImage` without opening another upload. API, transport and parse
-  errors retain their existing classes; parse errors now also expose the key.
 - `flows.get` reads a `<domain>/<kind>` slug from `flows.list()` as one send
   stream's flow (the domain path plus `?kind=`) and takes a `kind` option for
   a bare-domain slug. It previously encoded the `/` into the path.
