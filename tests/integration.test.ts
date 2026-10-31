@@ -75,6 +75,9 @@ describe('createBrewClient — end-to-end', () => {
     expect(typeof brew.emailGroups.delete).toBe('function')
     // `GET /v1/integrations` — the product integration catalog.
     expect(typeof brew.integrations.list).toBe('function')
+    // `GET /v1/integrations/events[/{eventId}]` — live integration events.
+    expect(typeof brew.integrations.events.list).toBe('function')
+    expect(typeof brew.integrations.events.get).toBe('function')
     // Organization-level API key lifecycle.
     expect(typeof brew.apiKeys.list).toBe('function')
     expect(typeof brew.apiKeys.create).toBe('function')
@@ -88,6 +91,9 @@ describe('createBrewClient — end-to-end', () => {
     expect(typeof brew.automations.triggers.get).toBe('function')
     expect(typeof brew.automations.triggers.fire).toBe('function')
     expect(typeof brew.automations.triggers.readiness).toBe('function')
+    expect(typeof brew.automations.triggers.ensureIntegrationEvent).toBe(
+      'function'
+    )
     expect(typeof brew.automations.runs.list).toBe('function')
     expect(typeof brew.automations.runs.get).toBe('function')
     expect(typeof brew.automations.runs.cancel).toBe('function')
