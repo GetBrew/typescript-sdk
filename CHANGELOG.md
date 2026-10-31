@@ -4,12 +4,12 @@
 
 App email by trigger key (GetBrew/brew-v2#2169, which carries trigger keys
 and fire by key). Additive: nothing is removed or renamed. npm already has
-13.1.0 to 13.3.0 (released from `main` without this work), and 13.4.0 is
-left for the pending release of the Unreleased notes below (email `lang`),
-so this is 13.5.0. Publish only once GetBrew/brew-v2#2169 is deployed and
-the live spec matches the vendored one: until then
+13.1.0 to 13.4.0 (released from `main` without this work), so this is
+13.5.0, and it also carries the Unreleased notes below. Publish only once
+GetBrew/brew-v2#2169 is deployed and the live spec matches the vendored
+one: until then
 `POST /v1/automations/triggers/by-key/{triggerKey}/fire` answers `404`.
-Spec source: `main`'s spec (brew-v2 `87ac2c6242`) with the brew-v2 #2169 @
+Spec source: `main`'s spec (brew-v2 `373e900a9a`) with the brew-v2 #2169 @
 6f8ef50544 developer-platform delta merged in. Routes the later 13.6.0 and
 13.7.0 releases bind (`/v1/app-emails`,
 `/v1/integrations/{provider}/connection`) are typed in the generated file but
