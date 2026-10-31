@@ -5,7 +5,7 @@
 ### Changed
 
 - Generated types follow app revision `373e900a9a`. The type sync changes
-  no method signature.
+  no method parameters.
   - `brand.getImages({ q })` semantic search is free; it used to cost 1
     credit on its first page, and the endpoint no longer lists `402` or
     `503` responses. Search pages with the same opaque `pagination.cursor`
@@ -13,8 +13,10 @@
   - `sends.pause` on a send its operator already paused returns the same
     `200` and changes nothing (GetBrew/brew-v2#2492).
   - `contacts.patch` returns `warnings` (`DATE_ORDER_ASSUMED`,
-    `FIELD_TYPE_COERCED`) beside `updated`, which lists only the fields
-    whose stored value changed and is empty when nothing was written. A
+    `FIELD_TYPE_COERCED`; required on `PatchContactResponse`, so code that
+    builds the type, such as a test fake, adds `warnings: []`) beside
+    `updated`, which lists only the fields whose stored value changed and
+    is empty when nothing was written. A
     JSON number past 2^53 - 1 is refused with `409 FIELD_TYPE_MISMATCH`;
     send large ids as strings (GetBrew/brew-v2#2488).
   - Automation save warnings include `NODE_ID_REPLACED`
