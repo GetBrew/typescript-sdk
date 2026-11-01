@@ -80,7 +80,10 @@ tool.
 **Errors** (`BrewApiError`): `400 INVALID_REQUEST` for a secret in the
 wrong format, a provider the API does not connect or a `projectUrl` that
 is not https; `403 INSUFFICIENT_PERMISSIONS` for a key without both
-scopes. An empty provider, `.` or `..` throws `TypeError` before any
+scopes; `409 INTEGRATION_CONNECTED_IN_APP` when Clerk was connected on its
+integration page in Brew with another signing secret (the API never
+replaces that connection: rotate the secret on the integration page, or
+send the one it already has, which answers the connection as it is). An empty provider, `.` or `..` throws `TypeError` before any
 request.
 
 ## `getConnection`

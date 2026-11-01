@@ -48,9 +48,12 @@ export const CONNECT_INTEGRATION_DEFAULT_TIMEOUT_MS = 300_000
  *
  * Re-runs are safe: the `connectionId` and `webhookUrl` never change for a
  * brand and provider, a new secret replaces the old one, and an app email
- * edited in Brew is kept. A PUT carries no `Idempotency-Key`; a retried
- * attempt converges on the same connection. A secret in the wrong format,
- * a provider the API does not connect, or a `projectUrl` that is not https
+ * edited in Brew is kept. A Clerk connection made on its integration page
+ * in Brew keeps its secret there: the same secret answers the connection
+ * as it is, and another is `409 INTEGRATION_CONNECTED_IN_APP` (rotate it on
+ * that page). A PUT carries no `Idempotency-Key`; a retried attempt
+ * converges on the same connection. A secret in the wrong format, a
+ * provider the API does not connect, or a `projectUrl` that is not https
  * is `400 INVALID_REQUEST`.
  *
  * The SDK sends `signingSecret` in the request body only: it is never

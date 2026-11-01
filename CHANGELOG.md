@@ -10,8 +10,8 @@ which it builds on (publish 13.6.0 first). Publish only once
 GetBrew/brew-v2#2169 (`/v1/integrations/{provider}/connection` and the
 hosted Supabase and Clerk hooks) is deployed and the live spec matches the
 vendored one; until then the connection routes answer `404`. Spec source:
-the same file 13.5.0 and 13.6.0 vendor (`main`'s spec plus the brew-v2
-#2169 @ 6f8ef50544 delta).
+the same file 13.5.0 and 13.6.0 vendor (the brew-v2 #2169 head
+`5084a5202f`).
 
 ### Added
 
@@ -29,7 +29,10 @@ the same file 13.5.0 and 13.6.0 vendor (`main`'s spec plus the brew-v2
   finishes them). Re-runs are safe: the connection id and URL never change
   for a brand and provider. A PUT, so no `Idempotency-Key` and retried like
   any idempotent request. `400 INVALID_REQUEST` for a secret in the wrong
-  format, an unsupported provider or a `projectUrl` that is not https.
+  format, an unsupported provider or a `projectUrl` that is not https;
+  `409 INTEGRATION_CONNECTED_IN_APP` (a new code in
+  `BrewApiError['code']`) when Clerk was connected on its integration page
+  in Brew with another signing secret, which the API never replaces.
   `CONNECT_INTEGRATION_DEFAULT_TIMEOUT_MS` (300 s, a floor under the
   client `timeoutMs`), since the kit imports a design per key.
 - **`brew.integrations.getConnection(provider, options?)`**:

@@ -220,6 +220,44 @@ describe('integrations.connect', () => {
     expect(attempts).toBe(1)
   })
 
+  it('surfaces 409 INTEGRATION_CONNECTED_IN_APP once (never retried)', async () => {
+    let attempts = 0
+    server.use(
+      http.put(`${BASE}/:provider/connection`, () => {
+        attempts += 1
+        return HttpResponse.json(
+          {
+            error: {
+              code: 'INTEGRATION_CONNECTED_IN_APP',
+              type: 'conflict',
+              message:
+                'The provider is connected on its integration page in Brew with another signing secret; the API connect never replaces that connection.',
+              docs: 'https://docs.brew.new/api-reference/api/errors',
+              details: { provider: 'clerk' },
+            },
+          },
+          { status: 409 }
+        )
+      })
+    )
+
+    const { client } = makeTestHttpClient()
+    const error: unknown = await createIntegrationsResource(client)
+      .connect({ provider: 'clerk', signingSecret: 'whsec_another' })
+      .catch((caught: unknown) => caught)
+
+    expect(error).toBeInstanceOf(BrewApiError)
+    expect(error).toMatchObject({
+      status: 409,
+      code: 'INTEGRATION_CONNECTED_IN_APP',
+      details: { provider: 'clerk' },
+    })
+    expect(attempts).toBe(1)
+    expectTypeOf<'INTEGRATION_CONNECTED_IN_APP'>().toMatchTypeOf<
+      BrewApiError['code']
+    >()
+  })
+
   it('refuses an empty or dot-segment provider before the secret is sent', async () => {
     const { client } = makeTestHttpClient()
     const integrations = createIntegrationsResource(client)
