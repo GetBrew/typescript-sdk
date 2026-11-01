@@ -11,7 +11,7 @@ after 13.5.0, which it builds on. Publish only once GetBrew/brew-v2#2169
 the live spec matches the vendored one (until then the app-email routes
 answer `404`), and once `@brew.new/cli` ships `migrate resend`, which
 `brew_template_required` points to. Spec source: the same file 13.5.0
-vendors (`main`'s spec plus the brew-v2 #2169 @ 6f8ef50544 delta). Each
+vendors (the brew-v2 #2169 head `5084a5202f`). Each
 adapter sends by trigger key, so it also needs 13.5.0's by-key route and
 keys whose automations are published (the auth starter kit's `auth.*`
 keys and `lifecycle.welcome` by default). The adapters add no runtime or
@@ -49,8 +49,10 @@ published, created, sender, payloadSchema, fireExample, warnings }`
     `payloadSchema` that drops or retypes a field the live automation reads,
     `409 CONTRACT_LOCKED_BY_PUBLISHED_AUTOMATIONS`; other setups of the key
     writing first, `409 APP_EMAIL_SETUP_IN_PROGRESS` (retry later); a
-    marketing `domainId` on a transactional key (auth, trial ending,
-    payment failed), `422 APP_EMAIL_DOMAIN_PURPOSE_MISMATCH`. A setup
+    `domainId` of the other purpose on a kit key (a marketing domain on a
+    transactional key such as auth, trial ending or payment failed, or a
+    transactional domain on a marketing key such as welcome or win-back),
+    `422 APP_EMAIL_DOMAIN_PURPOSE_MISMATCH`. A setup
     publishes only the version it wrote: a draft saved in Brew since, or a
     `publish: false` change while live, answers `DRAFT_SAVED_NOT_LIVE`.
   - `setUpKit(input?, options?)`: `POST /v1/app-emails/kit` with `sets`,
@@ -59,8 +61,8 @@ stack }`, where each result is `ok: true` with the setup result or
     `ok: false` with its `error` (per-key failures never throw), and
     `stack` carries `provider`, `authDelivery` (`hosted-webhook` for
     `supabase` and `clerk`, whose auth emails reach Brew once connected;
-    else `code`), `note`, `keys` and `snippets`. A marketing `domainId`
-    sets up the marketing keys and answers each transactional key
+    else `code`), `note`, `keys` and `snippets`. A `domainId` sets up the
+    keys of its purpose and answers each key of the other purpose
     `ok: false` with `APP_EMAIL_DOMAIN_PURPOSE_MISMATCH`. Sends an
     `Idempotency-Key`.
   - Keys ride the path percent-encoded, like `fireByKey`; an empty key,

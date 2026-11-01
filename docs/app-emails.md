@@ -100,10 +100,12 @@ nested path such as `{{ trigger.user.name }}` or a loop over
 declares keeps its stored type and markers, so a re-run without
 `payloadSchema` never drops a `secret`.
 
-A transactional key (the auth keys, trial ending, payment failed) never
-sends from a marketing domain: a marketing `domainId` throws
-`422 APP_EMAIL_DOMAIN_PURPOSE_MISMATCH`. Leave `domainId` out and the setup
-picks a verified transactional domain, or the sandbox until one verifies.
+A kit key never sends from a domain of the other purpose: a marketing
+`domainId` on a transactional key (the auth keys, trial ending, payment
+failed), or a transactional one on a marketing key (welcome, win-back),
+throws `422 APP_EMAIL_DOMAIN_PURPOSE_MISMATCH`. Leave `domainId` out and the
+setup picks a verified domain of the key's purpose, or the sandbox until one
+verifies.
 
 ```ts
 await brew.appEmails.upsert({
@@ -203,8 +205,8 @@ stack.snippets // [{ title, file, code }] for your auth library
   your app fires the auth keys.
 - `keys`: exactly these kit keys, instead of `sets` and `stack`.
 - `domainId`, `overwrite`: applied to every key, as in `upsert`. A
-  marketing `domainId` sets up the marketing keys, and each transactional
-  key comes back `ok: false` with `APP_EMAIL_DOMAIN_PURPOSE_MISMATCH`.
+  `domainId` sets up the keys of its purpose, and each key of the other
+  purpose comes back `ok: false` with `APP_EMAIL_DOMAIN_PURPOSE_MISMATCH`.
 
 Each key is set up exactly as `upsert` sets it up, a few at a time.
 `results` come back in kit order; one key failing (`ok: false` with its
@@ -261,7 +263,7 @@ A refused call throws `BrewApiError` (see [`errors.md`](./errors.md)):
 | 409    | `APP_EMAIL_SETUP_IN_PROGRESS`              | `upsert`: other setups of the key kept writing first; retry later.            |
 | 409    | `TRIGGER_KEY_TAKEN`                        | `upsert`: another setup of the key won a race; run it again.                  |
 | 409    | `TRIGGER_LIMIT_REACHED`                    | `upsert`: the brand holds the maximum number of triggers.                     |
-| 422    | `APP_EMAIL_DOMAIN_PURPOSE_MISMATCH`        | `upsert`: a marketing `domainId` for a transactional key.                     |
+| 422    | `APP_EMAIL_DOMAIN_PURPOSE_MISMATCH`        | `upsert`: a `domainId` of the other purpose for a kit key.                    |
 | 422    | `EMAIL_IMPORT_FAILED`                      | `upsert`: the `source` could not be imported as an email.                     |
 | 413    | `PAYLOAD_TOO_LARGE`                        | `upsert`: the `source` exceeds the route cap.                                 |
 
