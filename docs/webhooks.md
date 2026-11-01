@@ -47,3 +47,10 @@ sending an email or changing email statistics. Test fixtures are marked with
 reusable design. Open/click events are raw tracking observations and may come
 from scanners and privacy proxies. They do not establish human engagement or
 inbox placement. Brew's final dashboard statistics apply additional filtering.
+
+`email.failed` includes provider-reported failures and definitive recipient
+rejections before acceptance. Pre-acceptance rejections count as pre-send skips
+in analytics and do not reduce pending accepted messages. Rendering, admission,
+and sender configuration failures do not emit lifecycle webhooks. Message
+acceptance time uses mapping or provider evidence when available; otherwise
+`data.created_at` falls back to the event occurrence time.
