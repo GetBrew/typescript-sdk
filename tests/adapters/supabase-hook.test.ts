@@ -1,6 +1,6 @@
 import { createHmac } from 'node:crypto'
 
-import { HttpResponse } from 'msw'
+import { delay, HttpResponse, http } from 'msw'
 import { describe, expect, it, vi } from 'vitest'
 
 import {
@@ -11,9 +11,12 @@ import {
   type SupabaseSendEmailHookPayload,
 } from '../../src/adapters/supabase'
 
+import { createBrewClient } from '../../src/index'
+import { server } from '../msw/server'
 import {
   acceptedFire,
   apiError,
+  baseUrl,
   captureFires,
   expectedIdempotencyKey,
   notStartedFire,
@@ -610,4 +613,65 @@ describe('createSupabaseSendEmailHook', () => {
       reporterFailure
     )
   })
+})
+
+// Supabase Auth gives the hook 5 seconds for all its attempts and retries a
+// 503 itself, so a send gets one attempt under a deadline that leaves time
+// to answer, whatever retries and timeout the app's client has.
+describe("createSupabaseSendEmailHook: inside Supabase's 5-second budget", () => {
+  /** The client the setup example builds: default retries and timeout. */
+  function defaultHook() {
+    return createSupabaseSendEmailHook({
+      client: createBrewClient({ apiKey: 'brew_test_adapters', baseUrl }),
+      secret: SECRET,
+      onError: () => undefined,
+    })
+  }
+
+  it('answers a Brew 429 with Retry-After at once, without waiting it out', async () => {
+    const fires = captureFires(() => {
+      const response = apiError(429, 'RATE_LIMITED', 'rate_limit')
+      response.headers.set('retry-after', '30')
+      return response
+    })
+
+    const response = await defaultHook()(
+      await signedRequest({ user: USER, email_data: emailData('recovery') })
+    )
+
+    expect(fires).toHaveLength(1)
+    await expect(response.json()).resolves.toMatchObject({
+      error: { http_code: 429 },
+    })
+  })
+
+  it('answers a Brew 503 with its own 503 after one attempt', async () => {
+    const fires = captureFires(() =>
+      apiError(503, 'SERVICE_UNAVAILABLE', 'api_error')
+    )
+
+    const response = await defaultHook()(
+      await signedRequest({ user: USER, email_data: emailData('recovery') })
+    )
+
+    expect(fires).toHaveLength(1)
+    expect(response.status).toBe(503)
+  })
+
+  it('answers 503 for a stalled send before Supabase gives up', async () => {
+    server.use(
+      http.post(`${baseUrl}/v1/automations/triggers/by-key/:key/fire`, () =>
+        delay('infinite')
+      )
+    )
+    const started = Date.now()
+
+    const response = await defaultHook()(
+      await signedRequest({ user: USER, email_data: emailData('recovery') })
+    )
+
+    expect(response.status).toBe(503)
+    expect(response.headers.get('retry-after')).toBe('1')
+    expect(Date.now() - started).toBeLessThan(4_500)
+  }, 10_000)
 })

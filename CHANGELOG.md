@@ -166,7 +166,9 @@ SANDBOX_DAILY_LIMIT`, `notStarted[].code`) are typed since 13.5.0.
   It answers `200 {}`, every refusal as `200` with
   `{ error: { http_code, message } }` (the only error body Supabase
   reads), and a timeout, dropped connection or Brew `5xx` as `503` with
-  `Retry-After`. Idempotency keys hash `supabaseHookCallId` (an HMAC of
+  `Retry-After`. Each send gets one attempt with a 3.5-second deadline,
+  whatever the client's `timeoutMs` and `maxRetries`, so the hook answers
+  inside Supabase's 5-second budget. Idempotency keys hash `supabaseHookCallId` (an HMAC of
   the body under the hook secret), not the `webhook-id`, which Supabase
   changes on every retry.
   Also `verifyStandardWebhook({ payload, headers, secret })` (WebCrypto

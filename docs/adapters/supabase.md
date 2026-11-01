@@ -87,7 +87,10 @@ status becomes a generic 500 and the message is lost. So every refusal is a
 `200` whose `{ error: { http_code, message } }` fails the auth request with
 that status and message, and only a failure a retry may get past answers
 `503` with `Retry-After`, which Supabase retries at once (at most 3
-attempts in 5 seconds).
+attempts in 5 seconds). So each send gets one attempt with a 3.5-second
+deadline, whatever the client's `timeoutMs` and `maxRetries`: a stalled
+send still answers `503` in time, and a `429` is answered at once, not
+waited out.
 
 | Outcome                                              | Status | Body                                        |
 | ---------------------------------------------------- | ------ | ------------------------------------------- |

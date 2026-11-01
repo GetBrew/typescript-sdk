@@ -161,6 +161,20 @@ const NOTIFICATION_SUFFIX = '_notification'
 const LOG_LABEL = '[@brew.new/sdk/supabase]'
 
 /**
+ * Supabase Auth gives the hook 5 seconds for all its attempts
+ * (`hookshttp.go`, `defaultHTTPHookTimeout`) and retries a `503` itself. So
+ * each send gets one attempt under this deadline, whatever timeout and
+ * retries the app's client has: a stalled send still answers its `503`, and
+ * a `429` is answered at once instead of waited out. Brew's hosted hook
+ * accepts within the same 3.5 seconds.
+ */
+const SEND_DEADLINE = {
+  timeoutMs: 3_500,
+  maxRetries: 0,
+  retryOnTimeout: false,
+} as const
+
+/**
  * Supabase's verify link, as its Send Email Hook guide builds it:
  * `${site_url}/auth/v1/verify?token=${token_hash}&type=${email_action_type}&redirect_to=${redirect_to}`.
  * `site_url` is the Auth API URL (`https://<ref>.supabase.co`); one that
@@ -489,7 +503,10 @@ function refusalCode(error: unknown): number {
  * reads: `401` for a bad signature, `400` for a body it cannot use, Brew's
  * status when Brew refused (`500` for an API key it does not accept), `500`
  * for anything else. A timeout, a dropped connection or a Brew `5xx`
- * answers `503` with `Retry-After`, which Supabase retries at once.
+ * answers `503` with `Retry-After`, which Supabase retries at once. Each
+ * send gets one attempt with a 3.5-second deadline, whatever the client's
+ * `timeoutMs` and `maxRetries`, so the hook answers inside Supabase's
+ * 5-second budget.
  * Each send's idempotency key hashes `supabaseHookCallId` of the body, the
  * same on every retry, so a retried call never emails twice.
  */
@@ -542,6 +559,7 @@ export function createSupabaseSendEmailHook(
               verified.email_data.email_action_type,
               send.unique,
             ]),
+            deadline: SEND_DEADLINE,
           })
         })
       )

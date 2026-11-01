@@ -2,7 +2,11 @@
 // Adapters import the SDK only as `@brew.new/sdk` (never a relative path
 // into `src/`), so each subpath bundle reuses the root build and there is
 // ONE `BrewApiError` class at runtime.
-import type { BrewClient, BrewSendResponse } from '@brew.new/sdk'
+import type {
+  BrewClient,
+  BrewSendResponse,
+  RequestOptions,
+} from '@brew.new/sdk'
 
 import { IDEMPOTENCY_KEY_MAX_LENGTH, sha256Hex } from './idempotency'
 
@@ -131,19 +135,26 @@ function compactPayload(
  * `brew.send` of one auth email (its payload compacted), rejecting with
  * `AuthEmailNotStartedError` when Brew started no run and listed failures,
  * so a caller never reports an email that will not arrive as sent.
+ * `deadline` overrides the client's timeout and retries for this send.
  */
 export async function sendAuthEmail({
   client,
   key,
   payload,
   idempotencyKey,
+  deadline,
 }: {
   readonly client: BrewClient
   readonly key: string
   readonly payload: AuthEmailPayload
   readonly idempotencyKey: string
+  readonly deadline?: Pick<
+    RequestOptions,
+    'timeoutMs' | 'maxRetries' | 'retryOnTimeout'
+  >
 }): Promise<void> {
   const result = await client.send(key, compactPayload(payload), {
+    ...deadline,
     idempotencyKey,
   })
   if (
