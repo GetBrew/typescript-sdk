@@ -12,9 +12,11 @@ import {
 } from '../../src/adapters/supabase'
 
 import {
+  acceptedFire,
   apiError,
   captureFires,
   expectedIdempotencyKey,
+  notStartedFire,
   testClient,
 } from './helpers'
 
@@ -526,6 +528,42 @@ describe('createSupabaseSendEmailHook', () => {
       })
     }
   )
+
+  it('answers 200 { error: 500 } when Brew accepted the send but started no run', async () => {
+    captureFires((fire) => notStartedFire(fire.key))
+
+    const response = await hook()(
+      await signedRequest({ user: USER, email_data: emailData('recovery') })
+    )
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({
+      error: {
+        http_code: 500,
+        message:
+          'Brew could not send the email: No automation started for auth.password-reset: Send Email step incomplete.',
+      },
+    })
+  })
+
+  it('answers 200 {} when one automation started and another did not', async () => {
+    captureFires((fire) =>
+      HttpResponse.json(
+        {
+          ...acceptedFire(fire.key),
+          notStarted: [{ automationId: 'auto_other', reason: 'Incomplete.' }],
+        },
+        { status: 202 }
+      )
+    )
+
+    const response = await hook()(
+      await signedRequest({ user: USER, email_data: emailData('recovery') })
+    )
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({})
+  })
 
   it.each([
     ['a 503', () => apiError(503, 'SERVICE_UNAVAILABLE', 'api_error')],

@@ -57,6 +57,7 @@ brew.send(key, {
 with the idempotency key `${key}:${sha256(token)}`. The body is the same
 on every retry (`expiresInMinutes` is the lifetime, not a countdown to
 `expires`), so a retried request replays instead of sending a second
-link. A failed send throws (a `BrewApiError` or a
-transport error), so Auth.js shows its error page instead of "check your
-email".
+link. A failed send throws (a `BrewApiError`, a transport error, or
+`AuthEmailNotStartedError` when Brew accepted the send but its automation
+failed to start, with `notStarted` saying why), so Auth.js shows its error
+page instead of "check your email".

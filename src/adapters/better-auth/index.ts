@@ -39,11 +39,11 @@ import {
   type AuthEmailKind,
   type AuthEmailPayload,
   type BrewClientSource,
-  compactPayload,
   idempotencyKeyFor,
   lazyClient,
   reportSafely,
   resolveKey,
+  sendAuthEmail,
 } from '../shared/auth'
 
 export type {
@@ -52,7 +52,10 @@ export type {
   AuthEmailPayload,
   BrewClientSource,
 } from '../shared/auth'
-export { DEFAULT_AUTH_EMAIL_KEYS } from '../shared/auth'
+export {
+  AuthEmailNotStartedError,
+  DEFAULT_AUTH_EMAIL_KEYS,
+} from '../shared/auth'
 
 /** The user fields the callbacks read (Better Auth's `User` has them all). */
 export type BetterAuthUserLike = {
@@ -235,17 +238,17 @@ export function brewAuthEmails(options: BrewAuthEmailsOptions): BrewAuthEmails {
   }: Dispatch): Promise<void> => {
     const key = resolveKey(options.keys, kind)
     const sending = (async () => {
-      const idempotencyKey = await idempotencyKeyFor(key, unique)
-      await getClient().send(
+      await sendAuthEmail({
+        client: getClient(),
         key,
-        compactPayload({
+        payload: {
           ...payload,
           ...(options.appName === undefined
             ? {}
             : { appName: options.appName }),
-        }),
-        { idempotencyKey }
-      )
+        },
+        idempotencyKey: await idempotencyKeyFor(key, unique),
+      })
     })()
     const context = { key, kind }
     const report = (error: unknown) => {

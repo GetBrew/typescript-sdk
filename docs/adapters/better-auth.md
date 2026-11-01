@@ -71,7 +71,9 @@ nothing.
 Without `waitUntil`, each callback returns the send itself. Better Auth
 awaits it, or hands it to its own background handler when you set
 `advanced.backgroundTasks.handler`. A failed send rejects, and Better Auth
-reports it.
+reports it. A send Brew accepted but started no run for (its automation
+failed to start) fails too, with `AuthEmailNotStartedError`, whose
+`notStarted` says why.
 
 With `waitUntil`, each callback hands the send to it and returns at once,
 so the response does not wait for Brew:

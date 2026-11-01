@@ -96,6 +96,7 @@ attempts in 5 seconds).
 | A body it cannot use, unknown action                 | `200`  | `{ error: { http_code: 400, message } }`    |
 | Brew refused (`422`, `404`, `429` rate limit or cap) | `200`  | `{ error: { http_code: status, message } }` |
 | Brew refused the API key (`401` / `403`)             | `200`  | `{ error: { http_code: 500, message } }`    |
+| No automation started (`AuthEmailNotStartedError`)   | `200`  | `{ error: { http_code: 500, message } }`    |
 | A secret that is not `v1,whsec_…`, anything else     | `200`  | `{ error: { http_code: 500, message } }`    |
 | Timeout, dropped connection or Brew `5xx`            | `503`  | `{ error: { http_code: 503, message } }`    |
 | Not a `POST` (not a hook call)                       | `405`  | `{ error: { http_code: 405, message } }`    |

@@ -24,12 +24,13 @@
  */
 import {
   type BrewClientSource,
-  compactPayload,
   idempotencyKeyFor,
   lazyClient,
+  sendAuthEmail,
 } from '../shared/auth'
 
 export type { BrewClientSource } from '../shared/auth'
+export { AuthEmailNotStartedError } from '../shared/auth'
 
 /** Auth.js's default sign-in link lifetime: 24 hours. */
 export const BREW_EMAIL_DEFAULT_MAX_AGE_SECONDS = 24 * 60 * 60
@@ -128,19 +129,19 @@ export function BrewEmail(
     from: '',
     options: {},
     async sendVerificationRequest({ identifier, url, token, provider }) {
-      const idempotencyKey = await idempotencyKeyFor(key, [token ?? url])
-      await getClient().send(
+      await sendAuthEmail({
+        client: getClient(),
         key,
-        compactPayload({
+        payload: {
           email: identifier,
           confirmationUrl: url,
           expiresInMinutes: lifetimeMinutes(provider, maxAge),
           ...(options.appName === undefined
             ? {}
             : { appName: options.appName }),
-        }),
-        { idempotencyKey }
-      )
+        },
+        idempotencyKey: await idempotencyKeyFor(key, [token ?? url]),
+      })
     },
   }
 }

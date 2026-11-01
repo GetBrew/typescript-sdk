@@ -139,6 +139,10 @@ SANDBOX_DAILY_LIMIT`, `notStarted[].code`) are typed since 13.5.0.
   callback returns the send for Better Auth to await; with it, the send
   runs in the background. Idempotency keys are `${key}:${sha256(token)}`
   (recipient, type and code for a code; the invitation id for an invite).
+  A send Brew accepted that started no run, with failures in
+  `notStarted`, fails with `AuthEmailNotStartedError` (`key`,
+  `triggerInstanceId`, `notStarted`), as it does in `/next-auth` and
+  `/supabase`, which export it too.
   See `docs/adapters/better-auth.md`.
 - **`@brew.new/sdk/next-auth`** and its alias **`@brew.new/sdk/auth-js`**:
   `BrewEmail(options)` (`client`, `key`, `appName`, `maxAge`, `id`), an

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import * as authJs from '../../src/adapters/next-auth'
 import {
+  AuthEmailNotStartedError,
   BrewEmail,
   type BrewEmailOptions,
   type BrewEmailProvider,
@@ -12,6 +13,7 @@ import {
   apiError,
   captureFires,
   expectedIdempotencyKey,
+  notStartedFire,
   testClient,
 } from './helpers'
 
@@ -148,8 +150,20 @@ describe('@brew.new/sdk/next-auth BrewEmail', () => {
     expect(error).toMatchObject({ code: 'TRIGGER_KEY_NOT_FOUND' })
   })
 
-  it('exports the provider and its default lifetime', () => {
+  it('throws when Brew accepted the send but started no run, so Auth.js shows its error page', async () => {
+    captureFires((fire) => notStartedFire(fire.key))
+
+    const error: unknown = await BrewEmail({ client: testClient() })
+      .sendVerificationRequest({ identifier: 'jane@example.com', url: 'u' })
+      .catch((caught: unknown) => caught)
+
+    expect(error).toBeInstanceOf(AuthEmailNotStartedError)
+    expect(error).toMatchObject({ key: 'auth.magic-link' })
+  })
+
+  it('exports the provider, its default lifetime and its not-started error', () => {
     expect(Object.keys(authJs).sort()).toEqual([
+      'AuthEmailNotStartedError',
       'BREW_EMAIL_DEFAULT_MAX_AGE_SECONDS',
       'BrewEmail',
     ])

@@ -1,12 +1,16 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { brewAuthEmails } from '../../src/adapters/better-auth'
+import {
+  AuthEmailNotStartedError,
+  brewAuthEmails,
+} from '../../src/adapters/better-auth'
 import { BrewApiError } from '../../src/index'
 
 import {
   apiError,
   captureFires,
   expectedIdempotencyKey,
+  notStartedFire,
   testClient,
 } from './helpers'
 
@@ -296,6 +300,31 @@ describe('@brew.new/sdk/better-auth brewAuthEmails', () => {
       .catch((caught: unknown) => caught)
 
     expect(error).toBeInstanceOf(BrewApiError)
+    expect(onError).toHaveBeenCalledWith(error, {
+      key: 'auth.password-reset',
+      kind: 'passwordReset',
+    })
+  })
+
+  it('rejects when Brew accepted the send but started no run, so no one is told to check their email', async () => {
+    captureFires((fire) => notStartedFire(fire.key))
+    const onError = vi.fn()
+    const emails = brewAuthEmails({ client: testClient(), onError })
+
+    const error: unknown = await emails
+      .sendResetPassword({ user, url: 'u', token: 'r5' })
+      .catch((caught: unknown) => caught)
+
+    expect(error).toBeInstanceOf(AuthEmailNotStartedError)
+    expect(error).toMatchObject({
+      key: 'auth.password-reset',
+      triggerInstanceId: 'tin_0',
+      notStarted: [
+        { automationId: 'auto_adapter', reason: 'Send Email step incomplete.' },
+      ],
+      message:
+        'No automation started for auth.password-reset: Send Email step incomplete.',
+    })
     expect(onError).toHaveBeenCalledWith(error, {
       key: 'auth.password-reset',
       kind: 'passwordReset',

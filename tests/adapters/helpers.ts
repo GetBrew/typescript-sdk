@@ -37,6 +37,20 @@ export function acceptedFire(triggerKey: string, index = 0) {
   }
 }
 
+/** A fire Brew accepted (`202 triggered`) that started no run: its one automation failed to start. */
+export function notStartedFire(triggerKey: string): Response {
+  return HttpResponse.json(
+    {
+      ...acceptedFire(triggerKey),
+      automationRunIds: [],
+      notStarted: [
+        { automationId: 'auto_adapter', reason: 'Send Email step incomplete.' },
+      ],
+    },
+    { status: 202 }
+  )
+}
+
 /**
  * Accept every `POST /v1/automations/triggers/by-key/{key}/fire` and record
  * it, in arrival order. `respond` overrides the answer for one fire.

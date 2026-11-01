@@ -24,11 +24,11 @@ import {
   type AuthEmailKind,
   type AuthEmailPayload,
   type BrewClientSource,
-  compactPayload,
   idempotencyKeyFor,
   lazyClient,
   reportSafely,
   resolveKey,
+  sendAuthEmail,
 } from '../shared/auth'
 
 import {
@@ -43,7 +43,10 @@ export type {
   AuthEmailPayload,
   BrewClientSource,
 } from '../shared/auth'
-export { DEFAULT_AUTH_EMAIL_KEYS } from '../shared/auth'
+export {
+  AuthEmailNotStartedError,
+  DEFAULT_AUTH_EMAIL_KEYS,
+} from '../shared/auth'
 export {
   decodeWebhookSecret,
   signStandardWebhook,
@@ -530,13 +533,15 @@ export function createSupabaseSendEmailHook(
       await Promise.all(
         plan.map(async (send) => {
           const key = resolveKey(options.keys, send.kind)
-          const idempotencyKey = await idempotencyKeyFor(key, [
-            send.payload.email,
-            verified.email_data.email_action_type,
-            send.unique,
-          ])
-          await client.send(key, compactPayload(send.payload), {
-            idempotencyKey,
+          await sendAuthEmail({
+            client,
+            key,
+            payload: send.payload,
+            idempotencyKey: await idempotencyKeyFor(key, [
+              send.payload.email,
+              verified.email_data.email_action_type,
+              send.unique,
+            ]),
           })
         })
       )

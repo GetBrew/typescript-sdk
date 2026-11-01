@@ -2,9 +2,31 @@
 // Adapters import the SDK only as `@brew.new/sdk` (never a relative path
 // into `src/`), so each subpath bundle reuses the root build and there is
 // ONE `BrewApiError` class at runtime.
-import type { BrewClient } from '@brew.new/sdk'
+import type { BrewClient, BrewSendResponse } from '@brew.new/sdk'
 
 import { IDEMPOTENCY_KEY_MAX_LENGTH, sha256Hex } from './idempotency'
+
+/**
+ * Brew accepted the send but started no run for it, and `notStarted` lists
+ * the automations that failed to start and why (such as an incomplete Send
+ * Email step), so no email goes out.
+ */
+export class AuthEmailNotStartedError extends Error {
+  readonly key: string
+  readonly triggerInstanceId: string
+  readonly notStarted: NonNullable<BrewSendResponse['notStarted']>
+
+  constructor(key: string, result: BrewSendResponse) {
+    const notStarted = result.notStarted ?? []
+    super(
+      `No automation started for ${key}: ${notStarted.map((entry) => entry.reason).join('; ')}`
+    )
+    this.name = 'AuthEmailNotStartedError'
+    this.key = key
+    this.triggerInstanceId = result.triggerInstanceId
+    this.notStarted = notStarted
+  }
+}
 
 /** The starter-kit trigger keys each auth email fires by default. */
 export const DEFAULT_AUTH_EMAIL_KEYS = {
@@ -90,7 +112,7 @@ const OPTIONAL_PAYLOAD_FIELDS = [
  * carries only what the email uses and the body is the same on every retry
  * (an idempotent replay must repeat the exact body).
  */
-export function compactPayload(
+function compactPayload(
   payload: AuthEmailPayload
 ): { email: string } & Record<string, string | number> {
   const compact: { email: string } & Record<string, string | number> = {
@@ -103,6 +125,33 @@ export function compactPayload(
     }
   }
   return compact
+}
+
+/**
+ * `brew.send` of one auth email (its payload compacted), rejecting with
+ * `AuthEmailNotStartedError` when Brew started no run and listed failures,
+ * so a caller never reports an email that will not arrive as sent.
+ */
+export async function sendAuthEmail({
+  client,
+  key,
+  payload,
+  idempotencyKey,
+}: {
+  readonly client: BrewClient
+  readonly key: string
+  readonly payload: AuthEmailPayload
+  readonly idempotencyKey: string
+}): Promise<void> {
+  const result = await client.send(key, compactPayload(payload), {
+    idempotencyKey,
+  })
+  if (
+    result.automationRunIds.length === 0 &&
+    (result.notStarted ?? []).length > 0
+  ) {
+    throw new AuthEmailNotStartedError(key, result)
+  }
 }
 
 /**
