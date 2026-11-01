@@ -9,9 +9,12 @@ migration uses. Additive: nothing is removed or renamed. A minor release
 after 13.5.0, which it builds on. Publish only once GetBrew/brew-v2#2169
 (`/v1/app-emails`, the team sandbox and the import modes) is deployed and
 the live spec matches the vendored one (until then the app-email routes
-answer `404`), and once `@brew.new/cli` ships `migrate resend`, which
-`brew_template_required` points to. Spec source: the same file 13.5.0
-vendors (the brew-v2 #2169 head `02a3946b18`). Each
+answer `404`). Release order: SDK 13.5.0, 13.6.0 and 13.7.0 first, then
+the `@brew.new/cli` releases, which call the methods these three add. So
+for the short window between this publish and the CLI release that ships
+`migrate resend` (0.22.0), the command `brew_template_required` names
+(`npx @brew.new/cli migrate resend`) is not on npm yet. Spec source: the
+same file 13.5.0 vendors (the brew-v2 #2169 head `02a3946b18`). Each
 adapter sends by trigger key, so it also needs 13.5.0's by-key route and
 keys whose automations are published (the auth starter kit's `auth.*`
 keys and `lifecycle.welcome` by default). The adapters add no runtime or
@@ -54,7 +57,10 @@ published, created, sender, payloadSchema, fireExample, warnings }`
     transactional domain on a marketing key such as welcome or win-back),
     `422 APP_EMAIL_DOMAIN_PURPOSE_MISMATCH`. A setup
     publishes only the version it wrote: a draft saved in Brew since, or a
-    `publish: false` change while live, answers `DRAFT_SAVED_NOT_LIVE`.
+    `publish: false` change while live, answers `DRAFT_SAVED_NOT_LIVE`. An
+    email unpublished in Brew stays off (`APP_EMAIL_NOT_PUBLISHED`) until
+    it is published in Brew or the same setup (same `starter` or `source`)
+    runs with `publish: true`.
   - `setUpKit(input?, options?)`: `POST /v1/app-emails/kit` with `sets`,
     `stack`, `keys`, `domainId`, `overwrite`; resolves to `{ results,
 stack }`, where each result is `ok: true` with the setup result or

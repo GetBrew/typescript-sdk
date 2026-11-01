@@ -162,8 +162,13 @@ A setup publishes only the automation version it wrote. A draft saved in
 Brew since then takes the setup's changes but stays unpublished, with a
 `DRAFT_SAVED_NOT_LIVE` warning; a change made with `publish: false` while
 the email is live answers the same warning. An email unpublished in Brew
-after setup stays unpublished (`APP_EMAIL_NOT_PUBLISHED`) until a call
-passes `publish: true`. A key whose trigger already
+after setup stays unpublished (`APP_EMAIL_NOT_PUBLISHED`) on a re-run, a
+`setUpKit` or a hosted auth hook connect. To turn it back on, publish it
+in Brew, or repeat the same setup with `publish: true`: `upsert` with the
+same `starter` or `source` you set the key up with. A bare
+`{ triggerKey, publish: true }` is not that: on a kit key it sets up from
+the kit's starter, replacing a design built from a `source`, and on a key
+of your own it throws `400 INVALID_REQUEST`. A key whose trigger already
 starts a published automation that no setup made throws
 `409 APP_EMAIL_TRIGGER_IN_USE` (`details.automationIds`), since every fire
 would send both: unpublish or delete those automations, or keep sending
