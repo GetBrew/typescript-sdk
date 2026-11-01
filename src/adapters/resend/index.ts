@@ -430,6 +430,16 @@ export class Resend {
             )
           )
         }
+        // Checked before the per-email keys append `:${i}`: a blank key
+        // would become `:0`, `:1`, … and replay every other blank-key batch.
+        if (requestOptions.idempotencyKey?.trim() === '') {
+          return failure(
+            resendError(
+              'validation_error',
+              'batch.send: idempotencyKey must not be blank. Nothing was sent.'
+            )
+          )
+        }
         const prepared: Array<Extract<Prepared, { ok: true }>> = []
         for (const [index, input] of list.entries()) {
           const one = prepare(input, templates)

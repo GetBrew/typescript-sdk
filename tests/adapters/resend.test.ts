@@ -457,6 +457,30 @@ describe('@brew.new/sdk/resend batch.send', () => {
     expect(result.error?.message).toContain('same idempotencyKey')
   })
 
+  it.each(['', '   '])(
+    'refuses a blank idempotencyKey (%j) before sending, as emails.send does',
+    async (idempotencyKey) => {
+      const fires = captureFires()
+
+      const result = await resend().batch.send(
+        [{ to: 'a@example.com', template: { id: 'auth.magic-link' } }],
+        { idempotencyKey }
+      )
+
+      expect(fires).toEqual([])
+      expect(result).toEqual({
+        data: null,
+        error: {
+          name: 'validation_error',
+          message:
+            'batch.send: idempotencyKey must not be blank. Nothing was sent.',
+          statusCode: 422,
+        },
+        headers: null,
+      })
+    }
+  )
+
   it('refuses an empty batch and one over 100 emails', async () => {
     const one = { to: 'a@example.com', template: { id: 'auth.magic-link' } }
 
