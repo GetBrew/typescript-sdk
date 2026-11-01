@@ -27,8 +27,12 @@ the same file 13.5.0 and 13.6.0 vendor (the brew-v2 #2169 head
   and one `authEmails` row per auth key the connect set up or kept
   (`ok: false` rows carry `error` and never throw; connecting again
   finishes them). Re-runs are safe: the connection id and URL never change
-  for a brand and provider. A PUT, so no `Idempotency-Key` and retried like
-  any idempotent request. `400 INVALID_REQUEST` for a secret in the wrong
+  for a brand and provider. A re-run leaves an auth app email unpublished
+  in Brew off, so that auth email is refused, and its row stays
+  `ok: true` with no warning: check `published` with
+  `brew.appEmails.list()`, then publish it in Brew or repeat its setup
+  (`brew.appEmails.upsert`, same input) with `publish: true`. A PUT, so no
+  `Idempotency-Key` and retried like any idempotent request. `400 INVALID_REQUEST` for a secret in the wrong
   format, an unsupported provider or a `projectUrl` that is not https;
   `409 INTEGRATION_CONNECTED_IN_APP` (a new code in
   `BrewApiError['code']`) when Clerk was connected on its integration page

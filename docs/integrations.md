@@ -66,7 +66,14 @@ links use the URL Supabase sends with each email.
 
 Run it again any time: the `connectionId` and `webhookUrl` never change
 for a brand and provider, a new secret replaces the old one, and an app
-email someone edited in Brew is kept. The call is a `PUT`, so it carries no
+email someone edited in Brew is kept. An auth app email unpublished in
+Brew stays off, so the provider's email for that key is refused until it
+is published again. The response carries no warning for it (its row is
+still `ok: true`): check `published` with `brew.appEmails.list()`. To turn
+it back on, publish it in Brew, or repeat its setup with `publish: true`
+([`brew.appEmails.upsert`](./app-emails.md) with the same input; a bare
+`publish: true` re-plans the key from the kit's starter, replacing a
+design built from a `source`). The call is a `PUT`, so it carries no
 `Idempotency-Key` and the SDK retries it like any idempotent request. It
 defaults to a 5-minute timeout (`CONNECT_INTEGRATION_DEFAULT_TIMEOUT_MS`),
 since the kit imports a design per key.

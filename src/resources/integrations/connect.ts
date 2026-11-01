@@ -48,7 +48,11 @@ export const CONNECT_INTEGRATION_DEFAULT_TIMEOUT_MS = 300_000
  *
  * Re-runs are safe: the `connectionId` and `webhookUrl` never change for a
  * brand and provider, a new secret replaces the old one, and an app email
- * edited in Brew is kept. A Clerk connection made on its integration page
+ * edited in Brew is kept. An auth app email unpublished in Brew stays off
+ * (that auth email is refused) and its row is still `ok: true` with no
+ * warning: check `published` with `brew.appEmails.list()`, and turn it
+ * back on in Brew or with `brew.appEmails.upsert` (the same input plus
+ * `publish: true`). A Clerk connection made on its integration page
  * in Brew keeps its secret there: the same secret answers the connection
  * as it is, and another is `409 INTEGRATION_CONNECTED_IN_APP` (rotate it on
  * that page). A PUT carries no `Idempotency-Key`; a retried attempt
