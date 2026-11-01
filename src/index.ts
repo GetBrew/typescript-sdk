@@ -677,3 +677,21 @@ export type {
 } from './embed/contracts'
 
 export type { CanvasSessionRevokeResponse } from './resources/canvas/resource'
+
+export type { AgentGoalsResource } from './resources/agent-goals/resource'
+export type {
+  AgentGoalsList,
+  AgentGoal,
+  AgentGoalDetail,
+  AgentGoalTasks,
+  AgentGoalDocuments,
+  AgentGoalFollowUp,
+  AgentGoalPublication,
+  AgentGoalListInput,
+  CreateAgentGoalInput,
+  UpdateAgentGoalInput,
+  AgentGoalTasksInput,
+  AgentGoalDocumentsInput,
+  AgentGoalFollowUpInput,
+  PublishAgentGoalDocumentInput,
+} from './resources/agent-goals/types'
