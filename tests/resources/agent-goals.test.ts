@@ -149,12 +149,12 @@ describe('agentGoals', () => {
       goalId: 'goal_1',
       message: 'Review results',
       sourceId: 'campaign_1:review',
-      dueAt: 1793404800000,
+      dueAt: '2027-01-01T00:00:00.000Z',
     })
     expect(body).toEqual({
       message: 'Review results',
       sourceId: 'campaign_1:review',
-      dueAt: 1793404800000,
+      dueAt: '2027-01-01T00:00:00.000Z',
     })
     await expect(
       brew.agentGoals.tasks({ goalId: 'goal_1', limit: 5 })

@@ -15,7 +15,7 @@ await brew.agentGoals.followUp(
     goalId: detail.goal.goalId,
     message: 'Review campaign results',
     sourceId: 'send_123:day-one-review',
-    dueAt: Date.now() + 86_400_000,
+    dueAt: new Date(Date.now() + 86_400_000).toISOString(),
   },
   { idempotencyKey: 'send_123:day-one-review' }
 )
@@ -41,3 +41,6 @@ All methods accept `RequestOptions`, including cancellation, timeouts,
 `idempotencyKey` for writes, and `{ raw: true }` for response metadata. Keep a
 stable occurrence identifier and idempotency key when resuming work after a
 network failure.
+
+Follow-up `dueAt` values are ISO 8601 timestamps with a timezone, like all
+public API instants. Brew stores the resolved instant internally as milliseconds.
