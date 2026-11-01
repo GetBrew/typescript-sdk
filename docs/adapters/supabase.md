@@ -23,6 +23,13 @@ Deploy it with `supabase functions deploy send-email --no-verify-jwt`,
 then point **Authentication > Hooks > Send Email** at the function's URL
 and store the secret Supabase shows as `SEND_EMAIL_HOOK_SECRET`.
 
+**Nothing to deploy?** Brew can be the hook itself:
+`brew.integrations.connect({ provider: 'supabase_auth', signingSecret })`
+returns the `webhookUrl` to point the Send Email hook at, and sets up the
+auth emails. This adapter is the self-hosted alternative, for renamed
+keys, your own confirmation links or codes in link emails. See
+[Hosted or self-hosted](../integrations.md#hosted-or-self-hosted-supabase).
+
 ## What it sends
 
 The hook verifies the Standard Webhooks signature, maps

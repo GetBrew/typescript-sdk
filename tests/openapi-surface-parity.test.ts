@@ -19,8 +19,6 @@ import { SENDS_INCLUDE_TOKENS } from '../src/resources/sends/get'
 import { TEMPLATE_GROUP_BY_TOKENS } from '../src/resources/templates/list'
 import { TEMPLATES_INCLUDE_TOKENS } from '../src/resources/templates/get'
 
-import { PENDING_IN_STACK } from './helpers/pending-in-stack'
-
 const ROOT = process.cwd()
 const HTTP_METHODS = new Set(['get', 'post', 'put', 'patch', 'delete'])
 
@@ -83,20 +81,11 @@ describe('OpenAPI to SDK surface parity', () => {
     const openApiOperations = readOpenApiOperations()
     const sdkOperations = readSdkOperations()
     const missing = [...openApiOperations].filter(
-      (operation) =>
-        !(sdkOperations.has(operation) || operation in PENDING_IN_STACK)
+      (operation) => !sdkOperations.has(operation)
     )
 
     expect(openApiOperations.size).toBeGreaterThan(0)
     expect(missing).toEqual([])
-
-    // Staleness: an entry the SDK now sends, or the spec no longer
-    // documents, must be deleted so the list never masks a real gap.
-    const stale = Object.keys(PENDING_IN_STACK).filter(
-      (operation) =>
-        sdkOperations.has(operation) || !openApiOperations.has(operation)
-    )
-    expect(stale).toEqual([])
   })
 
   it('has no SDK request for a route the spec no longer documents', () => {
