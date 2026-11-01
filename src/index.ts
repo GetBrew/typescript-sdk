@@ -28,6 +28,15 @@ export { autoPaginate, BrewPaginationError } from './core/pagination'
 // (replaces the removed `TransactionalPayloadValue`).
 export type { SendPayloadValue } from './generated/openapi-types'
 export type { AutomationAnalyticsInput } from './resources/analytics/automations'
+export type {
+  CreateProductAnalyticsIdentityTokenInput,
+  CreateProductAnalyticsIdentityTokenResponse,
+} from './resources/analytics/create-identity-token'
+export type {
+  ProductAnalyticsEvent,
+  TrackProductAnalyticsInput,
+  TrackProductAnalyticsResponse,
+} from './resources/analytics/track'
 export {
   type EventCountsInput,
   type EventCountsResponse,
@@ -44,7 +53,7 @@ export type {
 // ---------- Resource shapes ----------
 export type { AnalyticsResource } from './resources/analytics/resource'
 // ---------- Analytics: domain types + method outputs ----------
-// (`analytics` keeps only reports in v1. Send rows moved to `sends.*`
+// (Send rows moved to `sends.*`
 // and fired-trigger history to `automations.triggerInstances.*`.)
 export type {
   AutomationAnalyticsResponse,
