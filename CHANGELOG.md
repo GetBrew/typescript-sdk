@@ -11,7 +11,7 @@ after 13.5.0, which it builds on. Publish only once GetBrew/brew-v2#2169
 the live spec matches the vendored one (until then the app-email routes
 answer `404`), and once `@brew.new/cli` ships `migrate resend`, which
 `brew_template_required` points to. Spec source: the same file 13.5.0
-vendors (the brew-v2 #2169 head `b884e78157`). Each
+vendors (the brew-v2 #2169 head `02a3946b18`). Each
 adapter sends by trigger key, so it also needs 13.5.0's by-key route and
 keys whose automations are published (the auth starter kit's `auth.*`
 keys and `lifecycle.welcome` by default). The adapters add no runtime or
