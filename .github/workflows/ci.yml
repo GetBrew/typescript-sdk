@@ -32,6 +32,13 @@ jobs:
         with:
           bun-version: 1.3.10
 
+      - name: Set up Node
+        # The package smoke packs with npm and loads every subpath under
+        # Node itself, on the lowest Node the package supports.
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
       - name: Root agent guidance budget
         run: |
           python3 - <<'PYCODE'
@@ -72,6 +79,16 @@ jobs:
         # Catches dts generation failures, tsup config breakage, and any
         # import that doesn't survive bundling.
         run: bun run build
+
+      - name: Package exports (publint + attw + pack smoke)
+        # Checks the built package as npm would publish it: publint (exports
+        # map and files), are-the-types-wrong (every subpath resolves types
+        # under node10, node16 CJS/ESM and bundler), and
+        # scripts/smoke-exports.mjs (npm pack, install into a scratch app,
+        # import() + require() every subpath, one BrewApiError class shared
+        # by root and adapters, no runtime dependencies and no peer but the
+        # canvas's optional react, tsc against the packed .d.ts files).
+        run: bun run check:exports
 
       - name: Generated types are up to date
         # If someone updated openapi/public-api-v1.yaml without

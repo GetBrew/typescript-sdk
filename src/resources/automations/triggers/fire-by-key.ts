@@ -1,4 +1,5 @@
 import { type HttpClient, unwrapResponse } from '../../../core/http'
+import { assertTriggerKey } from '../../../core/trigger-key'
 import type { components } from '../../../generated/openapi-types'
 import type { BrewRawResponse, RequestOptions } from '../../../types'
 
@@ -41,24 +42,6 @@ export type FireTriggerByKeyResponse = Omit<
 > & { triggerKey: string }
 
 /**
- * `.` and `..` survive `encodeURIComponent` and a URL resolves them as
- * dot segments, so they would address another route. The API's key grammar
- * never produces them (nor an empty key); refuse them before any request.
- */
-function assertTriggerKey(triggerKey: unknown): asserts triggerKey is string {
-  if (
-    typeof triggerKey !== 'string' ||
-    triggerKey === '' ||
-    triggerKey === '.' ||
-    triggerKey === '..'
-  ) {
-    throw new TypeError(
-      `fireByKey: \`triggerKey\` must be a trigger key such as 'order.paid'; got ${JSON.stringify(triggerKey)}.`
-    )
-  }
-}
-
-/**
  * `POST /v1/automations/triggers/by-key/{triggerKey}/fire` (scope:
  * `automations`) — fire the trigger whose `key` matches, exactly as `fire`
  * does by id: the server validates the payload against the trigger's
@@ -92,7 +75,7 @@ export function createFireTriggerByKey(client: HttpClient) {
     FireTriggerByKeyResponse | BrewRawResponse<FireTriggerByKeyResponse>
   > {
     const { triggerKey, ...body } = input
-    assertTriggerKey(triggerKey)
+    assertTriggerKey(triggerKey, 'fireByKey')
     const response = await client.request<FireTriggerByKeyResponse>({
       method: 'POST',
       path: `/v1/automations/triggers/by-key/${encodeURIComponent(triggerKey)}/fire`,

@@ -45,7 +45,10 @@ and the sender. `brew.send` fires that trigger with your `payload`:
   organization-scoped key names the brand: `brew.withBrand(brandId).send(…)`.
 
 Each key needs a trigger with that `key` and a published automation that
-sends the email. To wire one, create a trigger with a `key`
+sends the email. `brew.appEmails.upsert({ triggerKey })` sets up one key in
+one call, and `brew.appEmails.setUpKit()` sets up the starter kit (see
+[`app-emails.md`](./app-emails.md)). To wire one by hand, create a trigger
+with a `key`
 (`brew.automations.triggers.create({ title, key: 'order.paid', payloadSchema })`,
 or `patch` an existing one), attach an automation to it, and publish.
 

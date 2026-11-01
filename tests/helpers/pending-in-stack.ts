@@ -5,10 +5,6 @@
  * or the spec dropped the route); the PR that implements a route deletes it.
  */
 export const PENDING_IN_STACK: Readonly<Record<string, string>> = {
-  'GET /v1/app-emails': 'brew.appEmails (typescript-sdk#64)',
-  'GET /v1/app-emails/{}': 'brew.appEmails (typescript-sdk#64)',
-  'PUT /v1/app-emails/{}': 'brew.appEmails (typescript-sdk#64)',
-  'POST /v1/app-emails/kit': 'brew.appEmails (typescript-sdk#64)',
   'GET /v1/integrations/{}/connection':
     'integrations.getConnection (typescript-sdk#74)',
   'PUT /v1/integrations/{}/connection':

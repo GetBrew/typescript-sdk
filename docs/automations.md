@@ -59,6 +59,30 @@ if (!report.valid) {
 }
 ```
 
+## Sender: a domain or the sandbox
+
+A `sendEmail` node's `config.senderMode` picks who sends. `'domain'`, the
+default, sends from `config.domainId`, a verified domain of the brand.
+`'sandbox'` sends from the Brew sandbox before any domain verifies: an
+event automation then emails your organization's members only, and the
+node needs no `domainId`. Move the step to a domain with `patch` once one
+verifies.
+
+```ts
+const sendNode = {
+  id: 'send_welcome',
+  label: 'Welcome',
+  type: 'sendEmail',
+  config: {
+    emailId,
+    emailVersionId,
+    senderMode: 'sandbox',
+    subject: 'Welcome',
+    previewText: 'Thanks for signing up',
+  },
+} satisfies AutomationNodeInput
+```
+
 ## Reading one automation
 
 ```ts
