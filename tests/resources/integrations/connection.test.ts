@@ -288,19 +288,17 @@ describe('integrations.connect never logs or echoes the signing secret', () => {
     )
   }
 
-  /** Everything an error or a result exposes, as one searchable string. */
+  /**
+   * Everything an error or a result exposes, as one searchable string. An
+   * error's own non-enumerable fields (`message`, `stack`, `cause`) are read
+   * by name; the spread carries every other field it sets.
+   */
   function exposed(value: unknown): string {
     if (value instanceof Error) {
-      const fields = Object.fromEntries(
-        Object.getOwnPropertyNames(value).map((name) => [
-          name,
-          (value as unknown as Record<string, unknown>)[name],
-        ])
-      )
       return [
         String(value),
         value.stack ?? '',
-        JSON.stringify(fields),
+        JSON.stringify({ ...value }),
         exposed(value.cause),
       ].join('\n')
     }
