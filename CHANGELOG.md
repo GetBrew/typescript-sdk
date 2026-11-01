@@ -14,7 +14,7 @@ the `@brew.new/cli` releases, which call the methods these three add. So
 for the short window between this publish and the CLI release that ships
 `migrate resend` (0.22.0), the command `brew_template_required` names
 (`npx @brew.new/cli migrate resend`) is not on npm yet. Spec source: the
-same file 13.5.0 vendors (the brew-v2 #2169 head `02a3946b18`). Each
+same file 13.5.0 vendors (the brew-v2 #2169 head `6e4accea4c`). Each
 adapter sends by trigger key, so it also needs 13.5.0's by-key route and
 keys whose automations are published (the auth starter kit's `auth.*`
 keys and `lifecycle.welcome` by default). The adapters add no runtime or
