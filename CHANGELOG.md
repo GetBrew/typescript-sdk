@@ -9,7 +9,7 @@ and fire by key). Additive: nothing is removed or renamed. npm already has
 GetBrew/brew-v2#2169 is deployed and the live spec matches the vendored
 one: until then
 `POST /v1/automations/triggers/by-key/{triggerKey}/fire` answers `404`.
-Spec source: the brew-v2 #2169 head `b884e78157`, which carries `main`'s
+Spec source: the brew-v2 #2169 head `02a3946b18`, which carries `main`'s
 spec (brew-v2 `373e900a9a`) plus the developer-platform delta. Routes the
 later 13.6.0 and 13.7.0 releases bind (`/v1/app-emails`,
 `/v1/integrations/{provider}/connection`) are typed in the generated file but
