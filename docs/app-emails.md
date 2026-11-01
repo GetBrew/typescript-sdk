@@ -161,7 +161,9 @@ domain picked on a transactional key's send step is not kept.
 A setup publishes only the automation version it wrote. A draft saved in
 Brew since then takes the setup's changes but stays unpublished, with a
 `DRAFT_SAVED_NOT_LIVE` warning; a change made with `publish: false` while
-the email is live answers the same warning. A key whose trigger already
+the email is live answers the same warning. An email unpublished in Brew
+after setup stays unpublished (`APP_EMAIL_NOT_PUBLISHED`) until a call
+passes `publish: true`. A key whose trigger already
 starts a published automation that no setup made throws
 `409 APP_EMAIL_TRIGGER_IN_USE` (`details.automationIds`), since every fire
 would send both: unpublish or delete those automations, or keep sending
