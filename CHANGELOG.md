@@ -11,7 +11,7 @@ GetBrew/brew-v2#2169 (`/v1/integrations/{provider}/connection` and the
 hosted Supabase and Clerk hooks) is deployed and the live spec matches the
 vendored one; until then the connection routes answer `404`. Spec source:
 the same file 13.5.0 and 13.6.0 vendor (the brew-v2 #2169 head
-`02a3946b18`).
+`6e4accea4c`).
 
 ### Added
 
