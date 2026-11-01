@@ -112,6 +112,7 @@ export function BrewEmail(
 export function BrewEmail<TId extends string>(
   options: BrewEmailOptions & { readonly id: TId }
 ): BrewEmailProvider<TId>
+export function BrewEmail(options: BrewEmailOptions): BrewEmailProvider<string>
 export function BrewEmail(
   options: BrewEmailOptions
 ): BrewEmailProvider<string> {

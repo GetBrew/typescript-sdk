@@ -1,7 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import * as authJs from '../../src/adapters/next-auth'
-import { BrewEmail } from '../../src/adapters/next-auth'
+import {
+  BrewEmail,
+  type BrewEmailOptions,
+  type BrewEmailProvider,
+} from '../../src/adapters/next-auth'
 import { BrewApiError } from '../../src/index'
 
 import {
@@ -29,6 +33,10 @@ describe('@brew.new/sdk/next-auth BrewEmail', () => {
     expect(BrewEmail({ client: testClient(), maxAge: 600 }).maxAge).toBe(600)
     // next-auth v4 types accept only the id `email`.
     expect(BrewEmail({ client: testClient(), id: 'email' }).id).toBe('email')
+    // Options typed as `BrewEmailOptions`, whose `id` may or may not be set.
+    const shared: BrewEmailOptions = { client: testClient() }
+    const fromShared: BrewEmailProvider<string> = BrewEmail(shared)
+    expect(fromShared.id).toBe('brew')
   })
 
   it('sends the sign-in link to auth.magic-link and awaits Brew', async () => {
