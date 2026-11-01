@@ -7,7 +7,7 @@ import {
   verifyWebhook,
 } from '../src/resources/webhooks/verify'
 import { server } from './msw/server'
-import { startLoopback } from './helpers/loopback-server'
+import { useLoopbackServers } from './helpers/loopback-server'
 
 const secret = Buffer.from('a-secret-for-testing-only').toString('base64')
 const payload = JSON.stringify({
@@ -32,8 +32,9 @@ function signed(
   }
 }
 describe('webhooks', () => {
+  const loopbacks = useLoopbackServers()
   it('verifies a raw signed body received over HTTP and refuses a body changed in transit', async () => {
-    const loopback = await startLoopback({
+    const loopback = await loopbacks.start({
       route: ({ req, res }) => {
         const receive = async () => {
           req.setEncoding('utf8')
