@@ -8,7 +8,10 @@ export type CreateProductAnalyticsIdentityTokenInput =
 export type CreateProductAnalyticsIdentityTokenResponse =
   components['schemas']['ProductAnalyticsIdentityTokenResponse']
 
-/** Issue a five-minute token for an authenticated application user and an existing brand contact. */
+/**
+ * Issue a five-minute token for an authenticated application user and an existing brand contact.
+ * Tokens are never replayed; retries require a per-request maxRetries opt-in.
+ */
 export function createProductAnalyticsIdentityToken(client: HttpClient) {
   function createIdentityToken(
     input: CreateProductAnalyticsIdentityTokenInput,
@@ -31,6 +34,7 @@ export function createProductAnalyticsIdentityToken(client: HttpClient) {
         path: '/v1/analytics/identity-token',
         body: input,
         idempotency: 'none',
+        defaultMaxRetries: 0,
         ...(options ? { options } : {}),
       })
     return unwrapResponse(response, options)
