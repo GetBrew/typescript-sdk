@@ -9,9 +9,9 @@ and fire by key). Additive: nothing is removed or renamed. npm already has
 GetBrew/brew-v2#2169 is deployed and the live spec matches the vendored
 one: until then
 `POST /v1/automations/triggers/by-key/{triggerKey}/fire` answers `404`.
-Spec source: `main`'s spec (brew-v2 `373e900a9a`) with the brew-v2 #2169 @
-6f8ef50544 developer-platform delta merged in. Routes the later 13.6.0 and
-13.7.0 releases bind (`/v1/app-emails`,
+Spec source: the brew-v2 #2169 head `5084a5202f`, which carries `main`'s
+spec (brew-v2 `373e900a9a`) plus the developer-platform delta. Routes the
+later 13.6.0 and 13.7.0 releases bind (`/v1/app-emails`,
 `/v1/integrations/{provider}/connection`) are typed in the generated file but
 have no method yet.
 
@@ -64,9 +64,10 @@ starterVersion? }`. The fire body gains `triggerKey` on a by-key fire.
   record, with `suggestedNames` (subdomains to add instead). Also from the
   regenerated spec: `automations.publish` (and `patch` with
   `published: true`) can warn `ENGAGEMENT_NOT_TRACKED` (an engagement
-  filter on an email sent from a transactional domain, which tracks no
-  opens or clicks), and `integrations.list` rows' `provider`
-  gains `supabase_auth` (an exhaustive `switch` needs the new case).
+  filter on an email sent from a transactional domain or the Brew
+  sandbox, which track no opens or clicks), and `integrations.list` rows'
+  `provider` gains `supabase_auth` (an exhaustive `switch` needs the new
+  case).
 
 ## Unreleased
 
