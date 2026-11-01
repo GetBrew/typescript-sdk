@@ -11,7 +11,13 @@ import {
 import type { BrewClient } from '../../src/index'
 import { server } from '../msw/server'
 
-import { apiError, baseUrl, captureFires, testClient } from './helpers'
+import {
+  apiError,
+  baseUrl,
+  captureFires,
+  notStartedFire,
+  testClient,
+} from './helpers'
 
 function resend(options: ConstructorParameters<typeof Resend>[1] = {}) {
   return new Resend(undefined, {
@@ -274,6 +280,26 @@ describe('@brew.new/sdk/resend error mapping', () => {
     })
   })
 
+  it('answers validation_error when Brew accepted the send but started no run', async () => {
+    captureFires((fire) => notStartedFire(fire.key))
+
+    const result = await resend().emails.send({
+      to: 'jane@example.com',
+      template: { id: 'auth.password-reset' },
+    })
+
+    expect(result).toEqual({
+      data: null,
+      error: {
+        name: 'validation_error',
+        message:
+          'No automation started for auth.password-reset: Send Email step incomplete.',
+        statusCode: 422,
+      },
+      headers: null,
+    })
+  })
+
   it('maps a dropped connection to application_error with statusCode null', async () => {
     captureFires(() => HttpResponse.error())
 
@@ -455,6 +481,33 @@ describe('@brew.new/sdk/resend batch.send', () => {
     expect(result.error?.message).toContain('emails[1]:')
     expect(result.error?.message).toContain('1 of 3 were sent')
     expect(result.error?.message).toContain('same idempotencyKey')
+  })
+
+  it('stops at an email Brew accepted but started no run for', async () => {
+    const fires = captureFires((fire, index) =>
+      index === 1 ? notStartedFire(fire.key) : undefined
+    )
+
+    const result = await resend().batch.send(
+      [
+        { to: 'a@example.com', template: { id: 'auth.magic-link' } },
+        { to: 'b@example.com', template: { id: 'auth.magic-link' } },
+        { to: 'c@example.com', template: { id: 'auth.magic-link' } },
+      ],
+      { idempotencyKey: 'batch-1' }
+    )
+
+    expect(fires).toHaveLength(2)
+    expect(result).toEqual({
+      data: null,
+      error: {
+        name: 'validation_error',
+        message:
+          'emails[1]: No automation started for auth.magic-link: Send Email step incomplete. The batch stopped there: 1 of 3 were sent.',
+        statusCode: 422,
+      },
+      headers: null,
+    })
   })
 
   it.each(['', '   '])(

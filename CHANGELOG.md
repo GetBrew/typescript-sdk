@@ -123,7 +123,9 @@ SANDBOX_DAILY_LIMIT`, `notStarted[].code`) are typed since 13.5.0.
   `brew_unsupported_field`; `from` and `subject` are ignored with one
   warning. `batch.send` sends in order, is not atomic, and keys email `i`
   as `${idempotencyKey}:${i}` (a key over 97 characters is shortened to
-  fit the 100-character limit). The API key defaults to `BREW_API_KEY`.
+  fit the 100-character limit). A send Brew accepted that started no run,
+  with failures in `notStarted`, answers `validation_error` (and stops a
+  batch there). The API key defaults to `BREW_API_KEY`.
   See `docs/adapters/resend.md`.
 - **`@brew.new/sdk/better-auth`**: `brewAuthEmails(options)` (`client`,
   `keys`, `appName`, `invitationUrl`, `waitUntil`, `onError`) returns

@@ -20,6 +20,7 @@
  */
 import {
   type BrewClient,
+  type BrewSendResponse,
   createBrewClient,
   type SendPayloadValue,
 } from '@brew.new/sdk'
@@ -397,6 +398,10 @@ export class Resend {
           prepared.payload,
           idempotencyOption(requestOptions.idempotencyKey)
         )
+        const notStarted = notStartedError(prepared.key, result)
+        if (notStarted !== undefined) {
+          return failure(notStarted)
+        }
         return {
           data: { id: result.triggerInstanceId },
           error: null,
@@ -473,6 +478,13 @@ export class Resend {
               one.payload,
               idempotencyOption(idempotencyKey)
             )
+            const notStarted = notStartedError(one.key, result)
+            if (notStarted !== undefined) {
+              return failure({
+                ...notStarted,
+                message: `emails[${index}]: ${notStarted.message} The batch stopped there: ${index} of ${prepared.length} were sent.`,
+              })
+            }
             ids.push({ id: result.triggerInstanceId })
           } catch (error) {
             const mapped = toResendError(error)
@@ -495,6 +507,25 @@ export class Resend {
     this.emails = { send }
     this.batch = { send: sendBatch }
   }
+}
+
+/**
+ * Brew accepted the send but started no run, and `notStarted` says why (an
+ * incomplete Send Email step, or a sandbox sender and a recipient outside
+ * the team): no email goes out, so the send answers an error, not `{ id }`.
+ */
+function notStartedError(
+  key: string,
+  result: BrewSendResponse
+): ResendCompatError | undefined {
+  const notStarted = result.notStarted ?? []
+  if (result.automationRunIds.length > 0 || notStarted.length === 0) {
+    return undefined
+  }
+  return resendError(
+    'validation_error',
+    `No automation started for ${key}: ${notStarted.map((entry) => entry.reason).join('; ')}`
+  )
 }
 
 function isClient(value: BrewClient | ResendCompatError): value is BrewClient {
