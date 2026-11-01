@@ -127,7 +127,7 @@ describe('createBrewClient — end-to-end', () => {
 
     // Removed: no top-level me/account resources. The send ACTION still
     // lives on `emails.send`, but the send READS moved to the `sends`
-    // root, so `analytics` keeps only reports. `integrations` was
+    // root. `integrations` was
     // dropped in the v8 surface migration and reintroduced by a later
     // OpenAPI resync as a real read (`GET /v1/integrations`) — asserted
     // positively above instead of negatively here.
@@ -138,13 +138,15 @@ describe('createBrewClient — end-to-end', () => {
     const removedAuditMethod = ['audit', 'Access', 'ibility'].join('')
     expect(removedAuditMethod in brew.emails).toBe(false)
     expect('versions' in brew.automations).toBe(false)
-    // v1 cleanup: analytics keeps only reports.
+    // Reports and product-event ingestion share the analytics resource.
     expect(Object.keys(brew.analytics).sort()).toEqual([
       'automations',
+      'createIdentityToken',
       'eventCounts',
       'events',
       'eventsAll',
       'overview',
+      'track',
     ])
     expect('campaigns' in brew.analytics).toBe(false)
     expect('sends' in brew.analytics).toBe(false)
