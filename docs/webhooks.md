@@ -29,11 +29,14 @@ Methods: `list`, `create`, `get`, `update`, `remove`, `rotateSecret`, `test`,
 `events`, `attempts`, `replay`, and `verify`. Identity-only methods take an ID;
 methods with bodies or queries take an object. HTTP methods support the shared
 `RequestOptions`, including `raw: true`, cancellation and idempotency keys.
+For a manual retry after an uncertain creation response, reuse the same
+`idempotencyKey` for the unchanged request. Use a new key for a changed request
+or a new creation after confirmed success.
 
 ```ts
 const page = await brew.webhooks.events({ webhookId: endpoint.id, limit: 20 })
 const delivery = page.data[0]
-if (delivery) {
+if (delivery?.payload) {
   await brew.webhooks.replay({ webhookId: endpoint.id, eventId: delivery.id })
 }
 ```
