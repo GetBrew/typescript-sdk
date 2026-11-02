@@ -36,6 +36,9 @@ export type UpdateAudienceResponse = AudienceWriteResult
  * counting and saving. A registered numeric tier uses numeric comparisons;
  * unknown fields retain string comparisons. Explicit types are supported.
  * Date range operands require `type: 'date'` for request validation.
+ * List operators (`in`, `not_in`, `contains_any`, `not_contains_any`) take
+ * an array: a comma-joined string such as `'pro,enterprise'` is a `400`
+ * (`email in` still splits on commas).
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<UpdateAudienceResponse>` instead of the unwrapped row.
