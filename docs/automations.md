@@ -4,28 +4,29 @@ Create and manage deterministic automation graphs, run test or manual-audience
 executions, and inspect their lifecycle. All methods require the `automations`
 scope.
 
-| Method                                                     | HTTP                                                      |
-| ---------------------------------------------------------- | --------------------------------------------------------- |
-| `create`                                                   | `POST /v1/automations`                                    |
-| `list`                                                     | `GET /v1/automations`                                     |
-| `get`                                                      | `GET /v1/automations/{automationId}`                      |
-| `patch` / `publish` / `unpublish`                          | `PATCH /v1/automations/{automationId}`                    |
-| `delete`                                                   | `DELETE /v1/automations/{automationId}`                   |
-| `test`                                                     | `POST /v1/automations/{automationId}/test`                |
-| [`run`](#manual-audience-runs)                             | `POST /v1/automations/{automationId}/run`                 |
-| `runs.list`                                                | `GET /v1/automations/runs`                                |
-| `runs.get`                                                 | `GET /v1/automations/runs/{automationRunId}`              |
-| [`runs.cancel`](#cancel-a-run)                             | `POST /v1/automations/runs/{automationRunId}/cancel`      |
-| `audienceRuns.list`                                        | `GET /v1/automations/audience-runs`                       |
-| `audienceRuns.get`                                         | `GET /v1/automations/audience-runs/{audienceRunId}`       |
-| `audienceRuns.pause` / `resume` / `cancel`                 | `POST …/audience-runs/{audienceRunId}/{action}`           |
-| [`triggerInstances.list` / `get`](#fired-trigger-history)  | `/v1/automations/trigger-instances[/{triggerInstanceId}]` |
-| `triggers.list` / `create` / `patch` / `delete`            | `/v1/automations/triggers[/{triggerEventId}]`             |
-| `triggers.get`                                             | `GET /v1/automations/triggers/{triggerEventId}`           |
-| [`triggers.ensureBrewEvent`](#unsubscribe-triggers)        | `POST /v1/automations/triggers/brew-events`               |
-| [`triggers.fire`](#transactional-email--firing-triggers)   | `POST /v1/automations/triggers/{triggerEventId}/fire`     |
-| `triggers.readiness`                                       | `GET /v1/automations/triggers/{triggerEventId}/readiness` |
-| `triggers.getContract` / `putContract` / `validatePayload` | `/v1/automations/triggers/{triggerEventId}/contract[…]`   |
+| Method                                                           | HTTP                                                      |
+| ---------------------------------------------------------------- | --------------------------------------------------------- |
+| `create`                                                         | `POST /v1/automations`                                    |
+| `list`                                                           | `GET /v1/automations`                                     |
+| `get`                                                            | `GET /v1/automations/{automationId}`                      |
+| `patch` / `publish` / `unpublish`                                | `PATCH /v1/automations/{automationId}`                    |
+| `delete`                                                         | `DELETE /v1/automations/{automationId}`                   |
+| `test`                                                           | `POST /v1/automations/{automationId}/test`                |
+| [`run`](#manual-audience-runs)                                   | `POST /v1/automations/{automationId}/run`                 |
+| `runs.list`                                                      | `GET /v1/automations/runs`                                |
+| `runs.get`                                                       | `GET /v1/automations/runs/{automationRunId}`              |
+| [`runs.cancel`](#cancel-a-run)                                   | `POST /v1/automations/runs/{automationRunId}/cancel`      |
+| `audienceRuns.list`                                              | `GET /v1/automations/audience-runs`                       |
+| `audienceRuns.get`                                               | `GET /v1/automations/audience-runs/{audienceRunId}`       |
+| `audienceRuns.pause` / `resume` / `cancel`                       | `POST …/audience-runs/{audienceRunId}/{action}`           |
+| [`triggerInstances.list` / `get`](#fired-trigger-history)        | `/v1/automations/trigger-instances[/{triggerInstanceId}]` |
+| `triggers.list` / `create` / `patch` / `delete`                  | `/v1/automations/triggers[/{triggerEventId}]`             |
+| `triggers.get`                                                   | `GET /v1/automations/triggers/{triggerEventId}`           |
+| [`triggers.ensureBrewEvent`](#unsubscribe-triggers)              | `POST /v1/automations/triggers/brew-events`               |
+| [`triggers.ensureIntegrationEvent`](#integration-event-triggers) | `POST /v1/automations/triggers/integration-events`        |
+| [`triggers.fire`](#transactional-email--firing-triggers)         | `POST /v1/automations/triggers/{triggerEventId}/fire`     |
+| `triggers.readiness`                                             | `GET /v1/automations/triggers/{triggerEventId}/readiness` |
+| `triggers.getContract` / `putContract` / `validatePayload`       | `/v1/automations/triggers/{triggerEventId}/contract[…]`   |
 
 > **Changed in 10.0.0.** Detail reads are real routes now — `get` on every
 > collection returns the bare row and `404`s on an unknown id, instead of a
@@ -216,6 +217,45 @@ Refusals: `400 INVALID_REQUEST` when `domainId` is missing for
 `422 DOMAIN_PURPOSE_NOT_ALLOWED` for a transactional domain, which keeps no
 list; `409 TRIGGER_LIMIT_REACHED` when the brand holds the most triggers it
 can.
+
+## Integration event triggers
+
+A live integration event is one a connected source sends: a PostHog
+project's own events, or the Stripe and Shopify app catalogs. Find one with
+[`brew.integrations.events.list()`](./integrations.md#live-integration-events),
+then get its trigger. `triggers.ensureIntegrationEvent` creates it the first
+time:
+
+```ts
+const trigger = await brew.automations.triggers.ensureIntegrationEvent({
+  eventId: 'k5714pq3vm8x2n6c9d0b7f1h4j6g2r8t', // from integrations.events.list()
+})
+
+trigger.created // true the first time, false on every later call
+trigger.provider // e.g. 'posthog'
+trigger.providerEventKey // the provider's event name, e.g. 'created_project'
+```
+
+The same event always returns the same trigger, across reconnects of the
+same account. Brew owns its title and payload contract. Wire the
+`triggerEventId` into `automations.create`. The provider starts sending the
+event once an automation using it is published; saving a draft changes
+nothing upstream.
+
+An event listed bare, or described more than a day ago, is described at the
+provider first, on the account's read budget, so `payloadSchema` carries its
+properties. When the provider could not be read, `trigger.propertiesStatus`
+says so: `stored`, `unavailable`, or `rate_limited` with
+`retryAfterSeconds`. The trigger is saved either way;
+[`integrations.events.get`](./integrations.md#read-one-event) lists the
+values.
+
+Refusals: `404 INTEGRATION_EVENT_NOT_FOUND` for an unknown or other-brand
+`eventId`; `404 NOT_FOUND` when the event left its source between the read
+and the write; `409 INTEGRATION_RECONNECT_REQUIRED` when a catalog event's
+trigger was removed with its connection (reconnect the integration in Brew);
+`409 TRIGGER_LIMIT_REACHED` when the brand already holds 100 triggers
+(delete an unused one with `triggers.delete`).
 
 ## Fired-trigger history
 
