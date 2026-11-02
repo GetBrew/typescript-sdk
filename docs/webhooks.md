@@ -41,7 +41,8 @@ if (delivery) {
 Delivery is at least once and unordered. Deduplicate on `svix-id` or
 `event.data.brew.event_id`. Replay sends the same notification again, without
 sending an email or changing email statistics. Test fixtures are marked with
-`data.brew.test: true`. Payload retention defaults to 30 days.
+`data.brew.test: true`. Customer event payload retention is 30 days; synthetic
+fixtures may follow a different provider retention period.
 
 `data.email_id` identifies a message, while `data.brew.design_id` identifies its
 reusable design. Open/click events are raw tracking observations and may come
@@ -54,3 +55,7 @@ in analytics and do not reduce pending accepted messages. Rendering, admission,
 and sender configuration failures do not emit lifecycle webhooks. Message
 acceptance time uses mapping or provider evidence when available; otherwise
 `data.created_at` falls back to the event occurrence time.
+
+Bounce details can include `bounce.diagnosticCode`, an array of SMTP response
+strings. Secret-rendered messages omit these diagnostics and free-form
+`bounce.message` while retaining the bounce classification.

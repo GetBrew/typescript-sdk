@@ -240,6 +240,43 @@ describe('webhooks', () => {
       })
     ).resolves.toMatchObject({ type: 'email.delivered' })
   })
+  it.each([
+    { diagnosticCode: ['550 5.1.1 Mailbox unavailable'], isValid: true },
+    {
+      diagnosticCode: [{ code: '550', message: 'Unavailable' }],
+      isValid: false,
+    },
+    { diagnosticCode: 550, isValid: false },
+  ])(
+    'validates signed bounce diagnostics: $diagnosticCode',
+    async ({ diagnosticCode, isValid }) => {
+      const body = JSON.stringify({
+        type: 'email.bounced',
+        created_at: new Date().toISOString(),
+        data: {
+          email_id: 'email_1',
+          to: ['reader@example.com'],
+          created_at: new Date().toISOString(),
+          brew: { event_id: 'event_1', schema_version: 1 },
+          bounce: { type: 'Permanent', diagnosticCode },
+        },
+      })
+      const result = verifyWebhook({
+        payload: body,
+        headers: signed(undefined, body),
+        webhookSecret: `whsec_${secret}`,
+      })
+      if (isValid) {
+        await expect(result).resolves.toMatchObject({
+          data: { bounce: { diagnosticCode } },
+        })
+      } else {
+        await expect(result).rejects.toBeInstanceOf(
+          BrewWebhookVerificationError
+        )
+      }
+    }
+  )
   it('creates a brand-scoped endpoint and keeps replay separate from email sends', async () => {
     const requests: Array<{
       path: string

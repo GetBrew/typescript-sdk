@@ -80,7 +80,12 @@ function isEmailWebhookEvent(value: unknown): value is EmailWebhookEvent {
     data.bounce !== undefined &&
     (!isRecord(data.bounce) ||
       typeof data.bounce.type !== 'string' ||
-      !optionalStrings(data.bounce, ['subType', 'message']))
+      !optionalStrings(data.bounce, ['subType', 'message']) ||
+      (data.bounce.diagnosticCode !== undefined &&
+        (!Array.isArray(data.bounce.diagnosticCode) ||
+          !data.bounce.diagnosticCode.every(
+            (code: unknown) => typeof code === 'string'
+          ))))
   )
     return false
   if (
