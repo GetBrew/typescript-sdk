@@ -1,6 +1,10 @@
 import type { components } from '../../../generated/openapi-types'
 
-/** A single trigger row. */
+/**
+ * A single trigger row. `key` is the developer key it fires by (absent when
+ * unset); `appEmail` links a keyed trigger to the automation and design an
+ * app-email setup wired to it.
+ */
 export type Trigger = components['schemas']['TriggerRow']
 
 /**
