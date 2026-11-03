@@ -4,6 +4,17 @@
 
 ### Changed
 
+- Generated types follow app revision `507dbacf45`. The type sync changes
+  descriptions only, no types or method parameters (GetBrew/brew-v2#2571).
+  - `audiences.create` and `audiences.update` refuse a comma-joined string
+    for a list operator (`in`, `not_in`, `contains_any`,
+    `not_contains_any`), such as `value: 'pro,enterprise'`, with a `400`;
+    pass an array. Such a clause used to save and match nobody. `email in`
+    still splits on commas, and a stored legacy clause does not block
+    `addEmails` / `removeEmails`.
+  - `flows.get({ kind })` is documented as the flow's hyphenated kind
+    (`onboarding`, `trial`, `events`, `product-updates`, `promotions`,
+    optionally `-2`, `-3`…).
 - Generated types follow app revision `373e900a9a`. The type sync changes
   no method parameters.
   - `brand.getImages({ q })` semantic search is free; it used to cost 1
