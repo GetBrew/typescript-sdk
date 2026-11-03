@@ -4,7 +4,7 @@
 
 ### Changed
 
-- Generated types follow app revision `0c78bf6a27` (GetBrew/brew-v2#2579, one
+- Generated types follow app revision `8faea94168` (GetBrew/brew-v2#2579, one
   template language for email variables; not merged yet). No method
   parameters change.
   - `emails.send({ test: true, ... })` takes `strict: true`, which answers
