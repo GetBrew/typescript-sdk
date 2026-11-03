@@ -4,6 +4,19 @@
 
 ### Changed
 
+- Generated types follow app revision `8faea94168` (GetBrew/brew-v2#2579, one
+  template language for email variables; not merged yet). No method
+  parameters change.
+  - `emails.send({ test: true, ... })` takes `strict: true`, which answers
+    `422 LIQUID_RENDER_ERROR` instead of sending when the template reads a
+    value that is missing.
+  - A `sendEmail` node in an automation graph takes `strict` (skip a
+    recipient whose template reads a missing value) and a `replyTo` that is
+    either an address or a Liquid template rendering one; the `email` format
+    is gone from its type docs.
+  - Publish-gate findings (`blockingIssues[].surface`) can name
+    `fromAddress`, `recipients` and `variables`. Code that switches on
+    `surface` gains three cases.
 - Generated types follow app revision `507dbacf45`. The type sync changes
   descriptions only, no types or method parameters (GetBrew/brew-v2#2571).
   - `audiences.create` and `audiences.update` refuse a comma-joined string

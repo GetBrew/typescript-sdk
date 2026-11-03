@@ -13,6 +13,8 @@ import type { BrewRawResponse, RequestOptions } from '../../types'
  *   (merge-tag example values) and `payload` — nested JSON template
  *   data rendered via Liquid as `trigger.*` (scalar keys also resolve
  *   `{{ tag | fallback }}` merge tags), matching live-fire semantics.
+ *   `strict: true` answers 422 `LIQUID_RENDER_ERROR` instead of sending
+ *   when the template reads a value that is missing.
  * - `{ emailId, subject, domainId, audienceId | to, ... }` — a real
  *   campaign send. Provide a recipient target (`audienceId`, or `'all'`
  *   for every contact in the brand, or inline `to`) and the verified
