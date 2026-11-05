@@ -305,10 +305,11 @@ The three lifecycle actions are their own sub-paths — `pause`, `resume`, and
 `cancel` each POST to `…/audience-runs/{audienceRunId}/{action}` with no body.
 `control({ action })` is gone.
 
-`cancel` is permanent; already-sent messages cannot be recalled. Invalid state
-transitions return `409` (`RUN_NOT_PAUSABLE` / `RUN_NOT_RESUMABLE` /
-`RUN_NOT_CANCELLABLE`), an exhausted quota on resume returns
-`402 SEND_QUOTA_EXCEEDED`, and unknown or cross-brand ids return
+`cancel` is permanent; already-sent messages cannot be recalled. Pausing a run
+that is already paused returns the same `200` and changes nothing. Invalid state
+transitions return `409` (`RUN_NOT_PAUSABLE` for a scheduled, completed, failed
+or canceled run / `RUN_NOT_RESUMABLE` / `RUN_NOT_CANCELLABLE`), an exhausted
+quota on resume returns `402 SEND_QUOTA_EXCEEDED`, and unknown or cross-brand ids return
 `404 AUDIENCE_RUN_NOT_FOUND`. A `run` call names the missing entity precisely:
 `404 AUTOMATION_NOT_FOUND` or `404 AUDIENCE_NOT_FOUND`, never a generic
 `NOT_FOUND`.
