@@ -13,8 +13,12 @@
 
 ### Changed
 
-- Generated types follow app revision `984911b6e5` (GetBrew/brew-v2#2592).
-  The type sync narrows `eventType` (see Breaking) and adds optional fields.
+- Generated types follow app revision `19c7b0d9da` (GetBrew/brew-v2#2592,
+  GetBrew/brew-v2#2604). The type sync narrows `eventType` (see Breaking) and
+  adds optional fields.
+  - Import `assetReport.warnings` codes include `text_dropped`: source words
+    the editable design does not carry, named once (`host` is the words);
+    version 1 keeps the exact source (GetBrew/brew-v2#2604).
   - `BrewErrorCode` includes `TEST_RECIPIENT_NOT_ALLOWED` (`422`): a test
     send (`emails.send({ test: true })`) or an `automations.test`
     `testRecipient` reaches only a teammate with access to the brand, an
