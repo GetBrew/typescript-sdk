@@ -43,8 +43,11 @@ export type EventCountsInput = Omit<
 /**
  * The total `count`, the largest 200 `groups` (`key` maps each grouped field
  * to its value; `bucket` is the ISO period start) and `otherCount` for the
- * rest. `truncated: true` with `coveredFrom` when the window held more than
- * the newest 20,000 events.
+ * rest. Each group's `count` counts events, so repeat opens each count. A
+ * group of opened, clicked or delivered events not grouped by `link` also
+ * carries `recipients`: each recipient counted once per message, within
+ * `range`. `truncated: true` with `coveredFrom` when the window held more
+ * than the newest 20,000 events.
  */
 export type EventCountsResponse =
   components['schemas']['EventsBreakdownResponse']
@@ -53,7 +56,10 @@ export type EventCountsResponse =
  * `GET /v1/analytics/events` with `groupBy` / `bucket` (scope: `emails`) —
  * counts of the email events the same filters list: events per type per
  * day, clicks per link (`groupBy: ['link']` with `eventType: 'clicked'`),
- * unsubscribes per stated reason. Counts EVENTS, not unique recipients.
+ * unsubscribes per stated reason. `count` counts EVENTS; opened, clicked
+ * and delivered groups not grouped by `link` add `recipients` (each
+ * recipient once per message, within `range`). Without `from`, the window
+ * is the last 7 days, or the whole send when `sendId` is given.
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<EventCountsResponse>` instead of the unwrapped envelope.

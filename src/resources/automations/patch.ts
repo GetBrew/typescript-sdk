@@ -13,7 +13,10 @@ import type { Automation, AutomationDryRunReport } from './types'
  *
  * 1. **Content** — at least one of `name | description | nodes |
  *    connections | triggerEventId`. Graph updates persist a new
- *    `automationVersionId` on the same `automationId`.
+ *    `automationVersionId` on the same `automationId`. A graph the save
+ *    refuses is `400 AUTOMATION_GRAPH_INVALID`; `details.issues[]` lists
+ *    each problem as `{ kind, code?, nodeId?, nodeLabel?, message }`
+ *    (`code` names the topology fault on a `kind: 'structure'` issue).
  * 2. **Lifecycle** — `published: true` promotes the stored latest version
  *    live (the graph is validated first → `422 PUBLISH_VALIDATION_FAILED`
  *    on blockers); optionally pin `automationVersionId` to publish a
@@ -32,6 +35,11 @@ export type PatchAutomationInput = {
   name?: string
   description?: string
   nodes?: ReadonlyArray<AutomationNodeInput>
+  /**
+   * The full edge list; it replaces the stored one. Omit to keep the stored
+   * edges (also when sending `nodes`); an edge whose end no longer exists is
+   * then refused with `AUTOMATION_GRAPH_INVALID`.
+   */
   connections?: ReadonlyArray<AutomationConnectionInput>
   triggerEventId?: string
   /**
@@ -54,9 +62,17 @@ export type PatchAutomationInput = {
    * unpublishing; held contacts resume from the same point.
    */
   paused?: boolean
-  /** Optimistic concurrency guard — the exact version read before this update. */
+  /**
+   * Optimistic concurrency guard — the `automationVersionId` read before
+   * deriving this update. The save is refused with
+   * `409 AUTOMATION_VERSION_CONFLICT` when the automation has changed since.
+   */
   expectedBaseVersionId?: string
-  /** Optimistic concurrency guard — SHA-256 of the definition read before this update. */
+  /**
+   * Optional stricter guard — SHA-256 of the exact definition read before
+   * deriving this update. Requires `expectedBaseVersionId` (alone it is a
+   * `400 INVALID_REQUEST`).
+   */
   expectedBaseDefinitionSha256?: string
 }
 

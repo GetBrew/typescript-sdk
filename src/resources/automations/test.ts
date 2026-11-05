@@ -15,7 +15,13 @@ export type TestAutomationResponse =
  * `POST /v1/automations/{automationId}/test` (scope: `automations`) — start a
  * TEST run of the saved automation. Omit `testRecipient` for a dry run that
  * delivers nothing. Set it to deliver every send node's email for real to that
- * inbox. Test redirects skip the live contact suppression gate. Verified
+ * inbox. The address must be a teammate's with access to the brand, on a
+ * verified sending domain of the brand, or, for a signed-in person (not an API
+ * key), their own address or one on their company domain. An API key has no
+ * person behind it, so with a key only teammates and verified sending domains
+ * qualify; any other address is `422 TEST_RECIPIENT_NOT_ALLOWED`
+ * (`details.recipients` lists it). Test redirects skip the live contact
+ * suppression gate. Verified
  * configured sender domains are preserved; otherwise delivery uses the Brew
  * test domain. Real test deliveries count toward send usage; dry runs do not.
  * Test runs never count against analytics rollups. The optional `payload` must
