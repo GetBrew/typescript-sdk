@@ -58,6 +58,26 @@ if (!report.valid) {
 }
 ```
 
+## Graph refusals and concurrent edits
+
+`create` and `patch` refuse a graph they cannot save with
+`400 AUTOMATION_GRAPH_INVALID`. `details.issues[]` lists every problem as
+`{ kind, code?, nodeId?, nodeLabel?, message }`. `kind` is one of
+`duplicate_node_id`, `connection_unknown_from`, `connection_unknown_to`,
+`connection_targets_trigger`, `connection_self_loop`, `email_not_found`,
+`email_version_mismatch`, `domain_not_found`, `domain_not_ready`,
+`domain_purpose_not_allowed` or `structure`. A `structure` issue's `code`
+names the topology fault: `missing_trigger`, `multiple_triggers`,
+`duplicate_connection`, `edge_to_trigger`, `ambiguous_branch`,
+`invalid_branch`, `cycle` or `unreachable_node`.
+
+On `patch`, `connections` is the full edge list and replaces the stored one;
+omit it to keep the stored edges, also when you send `nodes`. To guard against
+a concurrent edit, pass the `automationVersionId` you read as
+`expectedBaseVersionId`: the save is `409 AUTOMATION_VERSION_CONFLICT` when the
+automation has changed since. `expectedBaseDefinitionSha256` is an optional
+stricter guard and requires `expectedBaseVersionId`.
+
 ## Reading one automation
 
 ```ts

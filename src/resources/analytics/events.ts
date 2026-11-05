@@ -29,12 +29,14 @@ const COUNT_ONLY_KEYS = ['groupBy', 'bucket'] as const
  * `GET /v1/analytics/events` — the unified event explorer across email,
  * automation, trigger, and inbound domains. Requires the `emails` scope.
  *
- * Filters: `from`/`to` (ISO; default last 7d), `recipient` (renamed
- * from `recipientEmail` in v1), `eventType`, `domain`, `source`,
- * `messageClass`, `automationId`, `automationRunId`, `triggerEventId`,
- * `audienceId`, `emailId`, `sendId`, the `includeMachineClicks` /
- * `includeMachineOpens` bot toggles, plus `limit`/`cursor`. Returns
- * `{ data, pagination, range }`.
+ * Filters: `from`/`to` (ISO; default last 7d, except a `sendId` or
+ * `automationRunId` read, which is bounded by that send or run),
+ * `recipient` (renamed from `recipientEmail` in v1), `eventType` (one of
+ * the API's event types, spelled exactly: `'opened'`, not `'open'`),
+ * `domain` (a sending domain), `source`, `messageClass`, `automationId`,
+ * `automationRunId`, `triggerEventId`, `audienceId`, `emailId`, `sendId`,
+ * the `includeMachineClicks` / `includeMachineOpens` bot toggles, plus
+ * `limit`/`cursor`. Returns `{ data, pagination, range }`.
  *
  * Per-contact engagement is just `{ recipient }`. To page through the
  * whole feed use `brew.analytics.eventsAll`. For grouped counts
