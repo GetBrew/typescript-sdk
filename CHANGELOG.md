@@ -13,6 +13,11 @@
 
 ### Changed
 
+- `automations.audienceRuns.pause` is documented as idempotent: pausing a run
+  that is already paused returns the same `200` and changes nothing, as the
+  API always has. `409 RUN_NOT_PAUSABLE` is only for a scheduled, completed,
+  failed or canceled run (GetBrew/brew-v2#2615). No behavior or types change.
+
 - Generated types follow app revision `19c7b0d9da` (GetBrew/brew-v2#2592,
   GetBrew/brew-v2#2604). The type sync narrows `eventType` (see Breaking) and
   adds optional fields.
