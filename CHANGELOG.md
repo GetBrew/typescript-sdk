@@ -4,6 +4,15 @@
 
 ### Breaking
 
+- `content.gif` `fps` for a `prompt` or `image` source now sets playback
+  speed over `frameCount` frames (a loop lasts `frameCount / fps` seconds);
+  it used to sample a fixed 5-second clip. `fps: 15` alone now loops in
+  0.6 s; raise `frameCount` for smoother motion (GetBrew/brew-v2#2668).
+- `ContentGifResponse` drops `videoUrl` and `generatedImageUrl`. A
+  `content.gif` from a `prompt` or an `image` is now one GPT Image 2.6
+  generation, with no source video or intermediate still
+  (GetBrew/brew-v2#2668).
+
 - `analytics.events`, `analytics.eventsAll` and `analytics.eventCounts` type
   `eventType` as the API's 26 event types (`'sent'`, `'delivered'`,
   `'opened'`, `'clicked'`, …, plus the `automation_*` and `trigger_*`
@@ -12,6 +21,13 @@
   `400 INVALID_REQUEST` (GetBrew/brew-v2#2592).
 
 ### Changed
+
+- `content.gif` takes `frameCount` (2–16, default 9) for a `prompt` or
+  `image` source; `fps` (default 5) sets playback speed. The response adds
+  `frameCount`. Generated types also carry `EMAIL_IMPORT_PERSISTENCE_FAILED`
+  (`502`) on `emails.import` (GetBrew/brew-v2#2668, GetBrew/brew-v2#2620).
+  `GIF_DEFAULT_TIMEOUT_MS` stays 300 s: generation ends within 180 s, a
+  `video` conversion can take up to 300 s.
 
 - `automations.audienceRuns.pause` is documented as idempotent: pausing a run
   that is already paused returns the same `200` and changes nothing, as the
