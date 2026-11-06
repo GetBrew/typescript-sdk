@@ -4,6 +4,10 @@
 
 ### Breaking
 
+- `content.gif` `fps` for a `prompt` or `image` source now sets playback
+  speed over `frameCount` frames (a loop lasts `frameCount / fps` seconds);
+  it used to sample a fixed 5-second clip. `fps: 15` alone now loops in
+  0.6 s; raise `frameCount` for smoother motion (GetBrew/brew-v2#2668).
 - `ContentGifResponse` drops `videoUrl` and `generatedImageUrl`. A
   `content.gif` from a `prompt` or an `image` is now one GPT Image 2.6
   generation, with no source video or intermediate still
