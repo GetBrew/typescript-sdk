@@ -100,8 +100,8 @@ export type SendEmailStatus = SendEmailResponse['status']
  *   refused addresses). Omit `domainId` for the Brew default sender, or
  *   supply a verified, org-owned sending domain. Invalid domains are
  *   rejected. No audience is required, and it never creates a send row.
- *   Real test deliveries count toward send usage. Resolves synchronously
- *   (HTTP 200) with `{ status: 'completed', recipient }`.
+ *   Test deliveries do not count toward the plan's email sends. Resolves
+ *   synchronously (HTTP 200) with `{ status: 'completed', recipient }`.
  * - Otherwise it is a real campaign send: provide a recipient target
  *   (`audienceId` or inline `to`) and the verified `domainId`. A design
  *   can be sent unlimited times; every call mints a new send. This
