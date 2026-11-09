@@ -187,7 +187,9 @@ class. `requestId` comes from the `x-request-id` response header.
 `retryAfter` is read from the body envelope first, then falls back to
 the `Retry-After` header — the body wins because it is specific to
 the exact error. `details`, when the server attached one, is passed
-through untouched.
+through untouched. A `400 INVALID_REQUEST` names the first offender in
+`param`; when the request had more than one problem, `details.issues[]` lists
+each one (`{ param?, message }`, at most 20).
 
 If the response body is neither envelope (an HTML 502 from an upstream
 proxy, an empty body, etc.) the SDK falls back to a generic envelope:

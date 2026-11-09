@@ -23,6 +23,13 @@ with `value: 10` excludes tier 10. Unknown fields retain string comparisons;
 explicit types remain supported. Date range operands require `type: 'date'`
 for request validation.
 
+List operators (`in`, `not_in`, `contains_any`, `not_contains_any`) take an
+array. `create` and `update` refuse a comma-joined string such as
+`value: 'pro,enterprise'` with a `400` (`param: "filters.filters.N.value"`);
+it used to save a clause that matched nobody. `email in` still splits on
+commas, and a stored legacy clause does not block `addEmails` /
+`removeEmails`.
+
 ## Shared types
 
 ```ts

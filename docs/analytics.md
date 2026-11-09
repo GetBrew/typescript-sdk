@@ -83,7 +83,8 @@ for (const a of data) {
 
 The unified event explorer across `email`, `automation`, `trigger`, and
 `inbound` domains. When `from`/`to` are omitted the API defaults to the last 7
-days. Returns `{ data, pagination, range }`.
+days, except for a `sendId` or `automationRunId` read, which is bounded by
+that send or run. Returns `{ data, pagination, range }`.
 
 Per-contact engagement is just `{ recipient }` — the filter was
 `recipientEmail` before 10.0.0.
@@ -93,8 +94,36 @@ type EventsAnalyticsInput = {
   from?: string // ISO-8601
   to?: string // ISO-8601
   recipient?: string // was `recipientEmail`
-  eventType?: string
-  domain?: 'email' | 'automation' | 'trigger' | 'inbound'
+  // One event type, spelled exactly ('opened', not 'open'). Any other
+  // value is `400 INVALID_REQUEST`.
+  eventType?:
+    | 'sent'
+    | 'delivered'
+    | 'delivery_delayed'
+    | 'opened'
+    | 'clicked'
+    | 'bounced'
+    | 'complained'
+    | 'failed'
+    | 'provider_suppressed'
+    | 'suppressed'
+    | 'quota_skipped'
+    | 'received'
+    | 'unsubscribed'
+    | 'automation_started'
+    | 'automation_completed'
+    | 'automation_failed'
+    | 'automation_skipped_suppressed'
+    | 'automation_step_succeeded'
+    | 'automation_step_failed'
+    | 'trigger_success'
+    | 'trigger_failure'
+    | 'trigger_received'
+    | 'trigger_deduplicated'
+    | 'trigger_signature_failed'
+    | 'trigger_rejected'
+    | 'trigger_dead_letter'
+  domain?: string // a sending domain (`fromEmail` match); narrows to email events
   source?: string
   messageClass?: 'marketing' | 'transactional'
   automationId?: string
@@ -102,7 +131,7 @@ type EventsAnalyticsInput = {
   triggerEventId?: string
   audienceId?: string
   emailId?: string
-  sendId?: string
+  sendId?: string // not windowed unless `from`/`to` are given
   includeMachineClicks?: boolean
   includeMachineOpens?: boolean
   limit?: number // 1–100
@@ -145,7 +174,11 @@ one or two fields (`groupBy`), per UTC `day`, `week` or `month` (`bucket`),
 or both. Returns `count`, the largest 200 `groups` (`key` maps each field
 to its value, `bucket` is the ISO period start), `otherCount` for the rest,
 `range`, and `truncated` with `coveredFrom` when the window held more than
-the newest 20,000 events. It counts events, not unique recipients.
+the newest 20,000 events. `count` counts events, so repeat opens each count.
+A group of opened, clicked or delivered events (not grouped by `link`) also
+carries `recipients`: each recipient counted once per message, within
+`range`. Without `from`, the window is the last 7 days, or the whole send
+when `sendId` is given.
 
 ```ts
 // Clicks per link on one send.

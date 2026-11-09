@@ -8,9 +8,9 @@ export type { ContentGifRequest, ContentGifResponse }
 /**
  * Default per-call timeout for `POST /v1/content/gif`.
  *
- * A prompt- or image-to-GIF run is a video generation: healthy runs take
- * 37–125 s (production p95 ≈ 130 s) and the server allows up to 360 s. On
- * the 30 s client default most calls would time out while the server kept
+ * A prompt- or image-to-GIF generation takes 7–20 s and the server bounds it
+ * at 180 s; a `video` conversion runs in a sandbox for up to 300 s. On the
+ * 30 s client default a slow call would time out while the server kept
  * working — and billed the GIF — and the retry would find the first attempt
  * still holding its idempotency key. 300 s is also the longest Node's
  * built-in `fetch` waits for a response (see `docs/configuration.md`).
@@ -25,15 +25,19 @@ export const GIF_DEFAULT_TIMEOUT_MS = 300_000
  * `POST /v1/content/gif` — produce an animated GIF. The body is a
  * discriminated union on `from`:
  *
- * - `{ from: 'prompt', prompt, duration?, fps?, aspectRatio?, loop? }` —
+ * - `{ from: 'prompt', prompt, frameCount?, fps?, aspectRatio?, loop? }` —
  *   generate from a text prompt.
- * - `{ from: 'image', imageUrl, prompt?, duration?, fps?, aspectRatio?, loop? }` —
- *   animate a source image.
+ * - `{ from: 'image', imageUrl, prompt?, frameCount?, fps?, aspectRatio?, loop? }` —
+ *   animate a source image (`prompt` is the motion to add).
  * - `{ from: 'video', videoUrl, fps?, width? }` — transcode a source video.
  *
- * Requires the `emails` scope. Returns a `ContentGifResponse` (`{ gifUrl,
- * videoUrl?, altText?, duration?, fps?, aspectRatio?, loop? }`). This
- * operation is credit-metered. An insufficient balance surfaces as
+ * A generated GIF has `frameCount` frames (2–16, default 9) at `fps` (default
+ * 5) in the `aspectRatio` shape (`16:9` 768×432, `9:16` 432×768, `1:1`
+ * 640×640). Requires the `emails` scope. Returns a `ContentGifResponse`
+ * (`{ gifUrl, altText?, duration?, fps?, frameCount?, aspectRatio?, width?,
+ * height?, loop? }`). An image the model cannot read, or a request it
+ * refuses, is `422 CONTENT_OPERATION_FAILED`. This operation is
+ * credit-metered. An insufficient balance surfaces as
  * `402 INSUFFICIENT_CREDITS`.
  *
  * Long-running: the SDK applies a 5-minute default timeout
