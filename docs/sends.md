@@ -39,6 +39,7 @@ type SendStats = {
   readonly opened: number
   readonly clicked: number
   readonly bounced: number
+  readonly hardBounced?: number // permanent bounces, a subset of `bounced`; absent on older sends
   readonly complained: number
   readonly unsubscribed: number
 }
@@ -49,6 +50,12 @@ type Send = {
   readonly messageClass?: 'marketing' | 'transactional'
   readonly emailId: string
   readonly status: SendStatus
+  // While `paused`: why it is held (see `resume`).
+  readonly pauseReason?:
+    | 'manual'
+    | 'plan_limit'
+    | 'domain_unsendable'
+    | 'bounce_rate'
   // Provenance for an automation send — trace a row back to the fire.
   readonly automationId?: string
   readonly nodeId?: string
@@ -174,7 +181,11 @@ its domain.
 
 ## `resume`
 
-Pick a paused ramp back up where it left off.
+Pick a paused ramp back up where it left off, or continue a campaign Brew
+paused for its bounce or complaint rate (`pauseReason: 'bounce_rate'`: at
+least 4% of its recipients hard-bounced or 0.3% marked it as spam). Check
+the list before resuming; a resumed send is never paused for that rate
+again.
 
 ```ts
 await brew.sends.resume('snd_8fK2mQ4p')
@@ -182,7 +193,8 @@ await brew.sends.resume('snd_8fK2mQ4p')
 ```
 
 `409 SEND_NOT_RESUMABLE` when the send is canceled, finished, or was
-never paused.
+never paused, and for a send held at the plan limit or for its domain,
+which resumes on its own.
 
 Pass `{ raw: true }` in `options` on any method to receive the full
 `BrewRawResponse<T>` (status, headers, request id) instead of the

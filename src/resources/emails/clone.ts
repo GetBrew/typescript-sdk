@@ -29,7 +29,10 @@ export type CloneEmailResponse =
  *
  * The returned `emailId` is the CLONE, so subsequent edits and sends should
  * target it. Supply `options.idempotencyKey` to make retries safe; one is
- * generated automatically otherwise.
+ * generated automatically otherwise. When other writes to the brand keep
+ * conflicting with it, nothing is saved and the API answers
+ * `503 WRITE_CONFLICT` with `Retry-After`; the client retries that with the
+ * same key.
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<CloneEmailResponse>` instead of the unwrapped payload.

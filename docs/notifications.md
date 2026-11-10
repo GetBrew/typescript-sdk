@@ -52,9 +52,9 @@ page, not an error.
 | `domain_status`, `domain_score_run`                                                                                           | `domains` (`emails` implies it)                                                      |
 | `import_job`, `validation_job`                                                                                                | `contacts`                                                                           |
 | `automation_pause_window_closed`                                                                                              | `automations`                                                                        |
-| `brand_extracted`, `brand_image_import`                                                                                       | every key on the brand                                                               |
+| `brand_extracted`, `brand_image_import`, `integration_attention`                                                              | every key on the brand                                                               |
 | `api_key_created`                                                                                                             | the `all` scope                                                                      |
-| `send_limit_reached`                                                                                                          | organization admins only (an organization-wide key holding `all`), never a brand key |
+| `send_limit_reached`, `trial_ending`, `trial_expired`, `payment_failed`                                                       | organization admins only (an organization-wide key holding `all`), never a brand key |
 | `comment_mention`, `comment_reply` (`isPersonal: true`)                                                                       | only the person addressed, never an API key                                          |
 
 ---
