@@ -35,6 +35,13 @@ export type RunAutomationResponse =
  * the automation is unknown, `404 AUDIENCE_NOT_FOUND` when its audience
  * is. Neither is the generic `NOT_FOUND` any more, so error mapping can
  * branch on which one is missing.
+ *
+ * An automation the agent is still generating is
+ * `409 AUTOMATION_IN_PROGRESS`. An event automation, which runs when its
+ * trigger fires, is `422 AUTOMATION_NOT_RUNNABLE`. A saved flow that cannot
+ * launch (an incomplete or invalid step, an unverified sender domain,
+ * failed generation, or no usable audience) is `422 AUTOMATION_NOT_READY`,
+ * and the message names which.
  */
 export function createRunAutomation(client: HttpClient) {
   function runAutomation(

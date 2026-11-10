@@ -25,7 +25,10 @@ export type TestAutomationResponse =
  * configured sender domains are preserved; otherwise delivery uses the Brew
  * test domain. Test deliveries never count toward the plan's email sends.
  * Test runs never count against analytics rollups. The optional `payload` must
- * match the trigger's schema.
+ * match the trigger's schema (`400 INVALID_PAYLOAD` otherwise). A flow that
+ * failed generation or has an incomplete or invalid step is
+ * `422 AUTOMATION_NOT_READY` (the message names it); an automation the agent
+ * is still generating is `409 AUTOMATION_IN_PROGRESS`.
  *
  * Pass `scenario` to simulate engagement (opens and clicks after a delay) and
  * force split branches; the response's `testMode` is then `'scenario'`.
