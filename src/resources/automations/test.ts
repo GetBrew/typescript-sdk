@@ -23,7 +23,7 @@ export type TestAutomationResponse =
  * (`details.recipients` lists it). Test redirects skip the live contact
  * suppression gate. Verified
  * configured sender domains are preserved; otherwise delivery uses the Brew
- * test domain. Real test deliveries count toward send usage; dry runs do not.
+ * test domain. Test deliveries never count toward the plan's email sends.
  * Test runs never count against analytics rollups. The optional `payload` must
  * match the trigger's schema.
  *

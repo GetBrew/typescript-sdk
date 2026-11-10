@@ -846,8 +846,8 @@ The single polymorphic send. The input is a union discriminated by
   `422 TEST_RECIPIENT_NOT_ALLOWED` (`details.recipients` lists the refused
   addresses). Omit `domainId` for the Brew default sender, or supply a verified,
   org-owned sending domain. Invalid domains are rejected. No saved audience
-  is required, and it never creates a send row. Real test deliveries count
-  toward send usage. Resolves synchronously (HTTP 200) with
+  is required, and it never creates a send row. Test deliveries never count
+  toward the plan's email sends. Resolves synchronously (HTTP 200) with
   `{ status: 'completed', recipient }`.
 - **Campaign send** (omit `test`) — delivers a saved design to a target.
   Provide EXACTLY ONE recipient target — `audienceId` (a saved audience,
