@@ -184,8 +184,8 @@ its domain.
 Pick a paused ramp back up where it left off, or continue a campaign Brew
 paused for its bounce or complaint rate (`pauseReason: 'bounce_rate'`: at
 least 4% of its recipients hard-bounced or 0.3% marked it as spam). Check
-the list before resuming; a resumed send is never paused for that rate
-again.
+its recipient list before resuming; a resumed send is never paused for
+that rate again.
 
 ```ts
 await brew.sends.resume('snd_8fK2mQ4p')
