@@ -22,6 +22,21 @@
 
 ### Changed
 
+- Generated types follow app revision `dd8826f468`. They add optional
+  fields and enum values only.
+  - `ApiErrorCode` adds `WRITE_CONFLICT` (`503`, with `Retry-After`) and
+    `NO_ACTIVE_PLAN` (`402`). `emails.clone` can answer
+    `503 WRITE_CONFLICT` when concurrent writes keep conflicting; the
+    retry layer already retries it (GetBrew/brew-v2#2624).
+  - `Send.pauseReason` adds `bounce_rate`, and `Send.stats` adds optional
+    `hardBounced`. `sends.resume` also resumes a send paused for its bounce
+    or complaint rate (GetBrew/brew-v2#2756).
+  - Notification `type` adds `trial_ending`, `trial_expired` and
+    `payment_failed`.
+  - `emails.send` test mode and `automations.test` help no longer say test
+    deliveries count toward send usage: they never count toward the plan's
+    email sends (GetBrew/brew-v2#2770).
+
 - `content.gif` takes `frameCount` (2–16, default 9) for a `prompt` or
   `image` source; `fps` (default 5) sets playback speed. The response adds
   `frameCount`. Generated types also carry `EMAIL_IMPORT_PERSISTENCE_FAILED`
