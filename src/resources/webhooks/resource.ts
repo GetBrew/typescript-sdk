@@ -27,6 +27,34 @@ export function createWebhooksResource(client: HttpClient) {
       options
     )
   }
+  /** Delivers a retained event again; never resends the email. */
+  function replay(
+    webhookId: string,
+    eventId: string,
+    options: RequestOptions & { readonly raw: true }
+  ): Promise<BrewRawResponse<T.ReplayWebhookResponse>>
+  function replay(
+    webhookId: string,
+    eventId: string,
+    options?: RequestOptions
+  ): Promise<T.ReplayWebhookResponse>
+  async function replay(
+    webhookId: string,
+    eventId: string,
+    options?: RequestOptions
+  ): Promise<
+    T.ReplayWebhookResponse | BrewRawResponse<T.ReplayWebhookResponse>
+  > {
+    return unwrapResponse(
+      await client.request<T.ReplayWebhookResponse>({
+        method: 'POST',
+        path: `/v1/webhooks/${encodeURIComponent(webhookId)}/events/${encodeURIComponent(eventId)}/replay`,
+        body: {},
+        ...(options ? { options } : {}),
+      }),
+      options
+    )
+  }
   return {
     list,
     verify: verifyWebhook,
@@ -46,7 +74,7 @@ export function createWebhooksResource(client: HttpClient) {
         body,
       })
     ),
-    remove: webhookMethod<string, T.RemoveWebhookResponse>(client, (input) => ({
+    delete: webhookMethod<string, T.DeleteWebhookResponse>(client, (input) => ({
       method: 'DELETE',
       path: `/v1/webhooks/${encodeURIComponent(input)}`,
     })),
@@ -74,14 +102,7 @@ export function createWebhooksResource(client: HttpClient) {
         query: { limit: input.limit, cursor: input.cursor },
       })
     ),
-    replay: webhookMethod<T.WebhookReplayInput, T.ReplayWebhookResponse>(
-      client,
-      (input) => ({
-        method: 'POST',
-        path: `/v1/webhooks/${encodeURIComponent(input.webhookId)}/events/${encodeURIComponent(input.eventId)}/replay`,
-        body: {},
-      })
-    ),
+    replay,
     test: webhookMethod<T.WebhookTestInput, T.TestWebhookResponse>(
       client,
       (input) => ({

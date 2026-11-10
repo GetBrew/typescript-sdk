@@ -18,11 +18,11 @@ export type WebhookListInput = Readonly<
 export type WebhookEventsInput = Readonly<
   { webhookId: string } & WebhookListInput
 >
-export type WebhookReplayInput = Readonly<{
+export type WebhookAttemptsInput = Readonly<{
   webhookId: string
   eventId: string
-}>
-export type WebhookAttemptsInput = WebhookReplayInput & WebhookListInput
+}> &
+  WebhookListInput
 export type WebhookTestInput = Readonly<{
   webhookId: string
   type: EmailWebhookType
@@ -33,7 +33,7 @@ export type GetWebhookResponse =
   operations['getWebhook']['responses'][200]['content']['application/json']
 export type UpdateWebhookResponse =
   operations['updateWebhook']['responses'][200]['content']['application/json']
-export type RemoveWebhookResponse =
+export type DeleteWebhookResponse =
   operations['deleteWebhook']['responses'][200]['content']['application/json']
 export type RotateSecretWebhookResponse =
   operations['rotateWebhookSecret']['responses'][200]['content']['application/json']

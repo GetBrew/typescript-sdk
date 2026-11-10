@@ -91,29 +91,53 @@ describe('webhooks', () => {
       ).status
     ).toBe(401)
   }, 10_000)
-  it('rejects valid signatures over invalid events, future timestamps and substituted message IDs', async () => {
-    const invalid = JSON.stringify({ type: 'email.unknown', data: {} })
+  it('rejects non-envelope bodies, future timestamps and substituted message IDs with a reason', async () => {
+    const invalid = JSON.stringify(['not', 'an', 'event'])
     await expect(
       verifyWebhook({
         payload: invalid,
         headers: signed(undefined, invalid),
         webhookSecret: secret,
       })
-    ).rejects.toBeInstanceOf(BrewWebhookVerificationError)
+    ).rejects.toMatchObject({ reason: 'payload' })
     await expect(
       verifyWebhook({
         payload,
         headers: signed(String(Math.floor(Date.now() / 1000) + 600)),
         webhookSecret: secret,
       })
-    ).rejects.toBeInstanceOf(BrewWebhookVerificationError)
+    ).rejects.toMatchObject({ reason: 'timestamp' })
     await expect(
       verifyWebhook({
         payload,
         headers: { ...signed(), id: 'substituted_id' },
         webhookSecret: secret,
       })
-    ).rejects.toBeInstanceOf(BrewWebhookVerificationError)
+    ).rejects.toMatchObject({ reason: 'signature' })
+  })
+  it('accepts a signed event type or schema version this SDK does not know yet', async () => {
+    // Brew adds events over time; an older SDK must not reject real deliveries.
+    const future = JSON.stringify({
+      type: 'email.future_event',
+      created_at: new Date().toISOString(),
+      data: { brew: { event_id: 'event_2', schema_version: 2 }, extra: 1 },
+    })
+    await expect(
+      verifyWebhook({
+        payload: future,
+        headers: signed(undefined, future),
+        webhookSecret: secret,
+      })
+    ).resolves.toMatchObject({ type: 'email.future_event' })
+  })
+  it('verifies a raw byte body such as a Node Buffer', async () => {
+    await expect(
+      verifyWebhook({
+        payload: new TextEncoder().encode(payload),
+        headers: signed(),
+        webhookSecret: `whsec_${secret}`,
+      })
+    ).resolves.toMatchObject({ type: 'email.delivered' })
   })
   it('routes every resource method through the shared branded transport, including raw responses', async () => {
     const seen: Array<{
@@ -200,8 +224,8 @@ describe('webhooks', () => {
       cursor: 'next',
     })
     await brew.webhooks.test({ webhookId: 'ep_1', type: 'email.delivered' })
-    await brew.webhooks.replay({ webhookId: 'ep_1', eventId: 'msg_1' })
-    await brew.webhooks.remove('ep_1')
+    await brew.webhooks.replay('ep_1', 'msg_1')
+    await brew.webhooks.delete('ep_1')
     expect(seen).toHaveLength(9)
     expect(seen.every((request) => request.brand === 'selected')).toBe(true)
     expect(new URLSearchParams(seen[0]?.query).get('cursor')).toBe('cursor/+')
@@ -240,43 +264,27 @@ describe('webhooks', () => {
       })
     ).resolves.toMatchObject({ type: 'email.delivered' })
   })
-  it.each([
-    { diagnosticCode: ['550 5.1.1 Mailbox unavailable'], isValid: true },
-    {
-      diagnosticCode: [{ code: '550', message: 'Unavailable' }],
-      isValid: false,
-    },
-    { diagnosticCode: 550, isValid: false },
-  ])(
-    'validates signed bounce diagnostics: $diagnosticCode',
-    async ({ diagnosticCode, isValid }) => {
-      const body = JSON.stringify({
-        type: 'email.bounced',
+  it('returns signed bounce diagnostics as sent', async () => {
+    const diagnosticCode = ['550 5.1.1 Mailbox unavailable']
+    const body = JSON.stringify({
+      type: 'email.bounced',
+      created_at: new Date().toISOString(),
+      data: {
+        email_id: 'email_1',
+        to: ['reader@example.com'],
         created_at: new Date().toISOString(),
-        data: {
-          email_id: 'email_1',
-          to: ['reader@example.com'],
-          created_at: new Date().toISOString(),
-          brew: { event_id: 'event_1', schema_version: 1 },
-          bounce: { type: 'Permanent', diagnosticCode },
-        },
-      })
-      const result = verifyWebhook({
+        brew: { event_id: 'event_1', schema_version: 1 },
+        bounce: { type: 'Permanent', diagnosticCode },
+      },
+    })
+    await expect(
+      verifyWebhook({
         payload: body,
         headers: signed(undefined, body),
         webhookSecret: `whsec_${secret}`,
       })
-      if (isValid) {
-        await expect(result).resolves.toMatchObject({
-          data: { bounce: { diagnosticCode } },
-        })
-      } else {
-        await expect(result).rejects.toBeInstanceOf(
-          BrewWebhookVerificationError
-        )
-      }
-    }
-  )
+    ).resolves.toMatchObject({ data: { bounce: { diagnosticCode } } })
+  })
   it('creates a brand-scoped endpoint and keeps replay separate from email sends', async () => {
     const requests: Array<{
       path: string
@@ -325,8 +333,9 @@ describe('webhooks', () => {
       },
     })
     expect(requests[0]?.key).toBeTruthy()
-    await expect(
-      brew.webhooks.replay({ webhookId: 'ep_1', eventId: 'msg_1' })
-    ).resolves.toEqual({ id: 'msg_1', accepted: true })
+    await expect(brew.webhooks.replay('ep_1', 'msg_1')).resolves.toEqual({
+      id: 'msg_1',
+      accepted: true,
+    })
   })
 })

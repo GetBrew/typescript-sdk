@@ -1,13 +1,35 @@
 import type { EmailWebhookEvent } from './types'
 
+/** Why {@link verifyWebhook} refused a request. */
+export type BrewWebhookVerificationReason =
+  /** A Svix header is missing or malformed, or the secret is empty. */
+  | 'headers'
+  /** The timestamp is more than five minutes from now (replay protection). */
+  | 'timestamp'
+  /** No `v1` signature matches the body under this secret. */
+  | 'signature'
+  /** The signed body is not a JSON event envelope. */
+  | 'payload'
+
+const MESSAGES: Record<BrewWebhookVerificationReason, string> = {
+  headers: 'The webhook headers or secret are missing or malformed.',
+  timestamp: 'The webhook timestamp is outside the five-minute tolerance.',
+  signature: 'The webhook signature does not match the body.',
+  payload: 'The signed webhook body is not a JSON event.',
+}
+
 export class BrewWebhookVerificationError extends Error {
-  constructor() {
-    super('The webhook signature, timestamp, or payload is invalid.')
+  readonly reason: BrewWebhookVerificationReason
+  constructor(reason: BrewWebhookVerificationReason) {
+    super(MESSAGES[reason])
     this.name = 'BrewWebhookVerificationError'
+    this.reason = reason
   }
 }
+
 export type VerifyWebhookInput = {
-  readonly payload: string
+  /** The unmodified request body: a string, or its bytes (a Node `Buffer`). */
+  readonly payload: string | Uint8Array
   readonly headers: {
     readonly id: string
     readonly timestamp: string
@@ -16,133 +38,67 @@ export type VerifyWebhookInput = {
   readonly webhookSecret: string
 }
 
+const TOLERANCE_SECONDS = 300
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
-function optionalStrings(
-  value: Record<string, unknown>,
-  keys: ReadonlyArray<string>
-): boolean {
-  return keys.every(
-    (key) => value[key] === undefined || typeof value[key] === 'string'
-  )
-}
-function isEmailWebhookEvent(value: unknown): value is EmailWebhookEvent {
-  if (
-    !isRecord(value) ||
-    typeof value.type !== 'string' ||
-    typeof value.created_at !== 'string' ||
-    !isRecord(value.data)
-  )
-    return false
-  const types: Record<EmailWebhookEvent['type'], true> = {
-    'email.sent': true,
-    'email.delivered': true,
-    'email.delivery_delayed': true,
-    'email.bounced': true,
-    'email.complained': true,
-    'email.failed': true,
-    'email.opened': true,
-    'email.clicked': true,
-  }
-  if (!Object.hasOwn(types, value.type)) return false
-  const data = value.data
-  if (
-    typeof data.email_id !== 'string' ||
-    typeof data.created_at !== 'string' ||
-    !Array.isArray(data.to) ||
-    !data.to.every((recipient: unknown) => typeof recipient === 'string')
-  )
-    return false
-  if (!optionalStrings(data, ['from', 'subject']) || !isRecord(data.brew))
-    return false
-  const brew = data.brew
-  if (
-    typeof brew.event_id !== 'string' ||
-    brew.schema_version !== 1 ||
-    !optionalStrings(brew, [
-      'recipient',
-      'send_id',
-      'design_id',
-      'automation_id',
-      'provider_message_id',
-    ]) ||
-    (brew.test !== undefined && brew.test !== true)
-  )
-    return false
-  if (
-    data.tags !== undefined &&
-    (!isRecord(data.tags) ||
-      !Object.values(data.tags).every((tag) => typeof tag === 'string'))
-  )
-    return false
-  if (
-    data.bounce !== undefined &&
-    (!isRecord(data.bounce) ||
-      typeof data.bounce.type !== 'string' ||
-      !optionalStrings(data.bounce, ['subType', 'message']) ||
-      (data.bounce.diagnosticCode !== undefined &&
-        (!Array.isArray(data.bounce.diagnosticCode) ||
-          !data.bounce.diagnosticCode.every(
-            (code: unknown) => typeof code === 'string'
-          ))))
-  )
-    return false
-  if (
-    data.failed !== undefined &&
-    (!isRecord(data.failed) || typeof data.failed.reason !== 'string')
-  )
-    return false
-  if (
-    data.click !== undefined &&
-    (!isRecord(data.click) ||
-      typeof data.click.link !== 'string' ||
-      !optionalStrings(data.click, ['timestamp', 'ipAddress', 'userAgent']))
-  )
-    return false
-  if (
-    data.open !== undefined &&
-    (!isRecord(data.open) ||
-      !optionalStrings(data.open, ['timestamp', 'ipAddress', 'userAgent']))
-  )
-    return false
-  return true
-}
+
 function decodeBase64(value: string): Uint8Array<ArrayBuffer> {
   return Uint8Array.from(atob(value), (character) => character.charCodeAt(0))
 }
 
-/** Verify the unmodified body using the same HMAC protocol and five-minute tolerance as Svix. */
-export async function verifyWebhook(
-  input: VerifyWebhookInput
-): Promise<EmailWebhookEvent> {
+async function importSecret(secret: string): Promise<CryptoKey> {
+  const keyText = secret.replace(/^whsec_/, '')
+  if (!keyText) throw new BrewWebhookVerificationError('headers')
   try {
-    const { id, timestamp, signature } = input.headers
-    const seconds = Number(timestamp)
-    if (
-      !id ||
-      !/^\d+$/.test(timestamp) ||
-      !Number.isSafeInteger(seconds) ||
-      Math.abs(Date.now() / 1000 - seconds) > 300
-    )
-      throw new BrewWebhookVerificationError()
-    const keyText = input.webhookSecret.replace(/^whsec_/, '')
-    if (!keyText) throw new BrewWebhookVerificationError()
-    const key = await crypto.subtle.importKey(
+    return await crypto.subtle.importKey(
       'raw',
       decodeBase64(keyText),
       { name: 'HMAC', hash: 'SHA-256' },
       false,
       ['verify']
     )
-    const content = new TextEncoder().encode(
-      `${id}.${timestamp}.${input.payload}`
-    )
-    const candidates = signature
+  } catch {
+    throw new BrewWebhookVerificationError('headers')
+  }
+}
+
+/**
+ * Verify the unmodified body with Svix's HMAC protocol and five-minute
+ * tolerance, then return the event.
+ *
+ * Only the signature is authority: after it matches, the body needs only the
+ * event envelope (`type`, `created_at`, `data`). Brew adds event types and
+ * fields over time, so handle an unknown `type` with a default branch instead
+ * of expecting this function to refuse it.
+ */
+export async function verifyWebhook(
+  input: VerifyWebhookInput
+): Promise<EmailWebhookEvent> {
+  const { id, timestamp, signature } = input.headers
+  const seconds = Number(timestamp)
+  if (
+    !id ||
+    !signature ||
+    !/^\d+$/.test(timestamp) ||
+    !Number.isSafeInteger(seconds)
+  )
+    throw new BrewWebhookVerificationError('headers')
+  if (Math.abs(Date.now() / 1000 - seconds) > TOLERANCE_SECONDS)
+    throw new BrewWebhookVerificationError('timestamp')
+  const key = await importSecret(input.webhookSecret)
+  const body =
+    typeof input.payload === 'string'
+      ? input.payload
+      : new TextDecoder().decode(input.payload)
+  const content = new TextEncoder().encode(`${id}.${timestamp}.${body}`)
+  // Several signatures during a secret rotation: any one may match.
+  const checks = await Promise.all(
+    signature
       .split(' ')
       .filter((candidate) => candidate.startsWith('v1,'))
-    const checks = await Promise.all(
-      candidates.map(async (candidate) => {
+      .map(async (candidate) => {
         try {
           return await crypto.subtle.verify(
             'HMAC',
@@ -154,12 +110,20 @@ export async function verifyWebhook(
           return false
         }
       })
-    )
-    if (!checks.some(Boolean)) throw new BrewWebhookVerificationError()
-    const parsed: unknown = JSON.parse(input.payload)
-    if (!isEmailWebhookEvent(parsed)) throw new BrewWebhookVerificationError()
-    return parsed
+  )
+  if (!checks.some(Boolean)) throw new BrewWebhookVerificationError('signature')
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(body)
   } catch {
-    throw new BrewWebhookVerificationError()
+    throw new BrewWebhookVerificationError('payload')
   }
+  if (
+    !isRecord(parsed) ||
+    typeof parsed.type !== 'string' ||
+    typeof parsed.created_at !== 'string' ||
+    !isRecord(parsed.data)
+  )
+    throw new BrewWebhookVerificationError('payload')
+  return parsed as EmailWebhookEvent
 }

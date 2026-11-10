@@ -12,6 +12,7 @@ what you know about the request:
 | `BrewParseError`                               | The server answered 2xx, but the body was not JSON. Report it with `requestId`.                                                                                                                                         |
 | `BrewPaginationError`                          | A list endpoint repeated a cursor. The iterator stops with `code: 'PAGINATION_CURSOR_CYCLE'`, `cursor`, `pagesFetched`, and `itemsYielded`. Already-yielded items are incomplete; do not treat them as a complete list. |
 | `BrewBrandExtractionTimeoutError`              | `brands.waitForExtraction()` reached its total `maxWaitMs` deadline. Inspect `brandId` and `lastStatus`; extraction may still be running.                                                                               |
+| `BrewWebhookVerificationError`                 | `verifyWebhook()` refused an incoming webhook; `reason` is `headers`, `timestamp`, `signature` or `payload`.                                                                                                            |
 | your signal's `reason`                         | You cancelled — the `signal` you passed (request- or client-level) aborted.                                                                                                                                             |
 
 All SDK error classes extend `Error`, so the two-branch pattern below —

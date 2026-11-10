@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Added
+
+- `brew.webhooks` manages brand-scoped email webhooks: `list`, `create`,
+  `get`, `update`, `delete`, `rotateSecret`, `test`, `events`, `attempts`,
+  `replay(webhookId, eventId)` and `verify`. `verifyWebhook` and
+  `BrewWebhookVerificationError` (with a `reason`) are also exported for
+  receivers without an API key. See `docs/webhooks.md`
+  (GetBrew/brew-v2#2398).
+
 ### Breaking
 
 - `content.gif` `fps` for a `prompt` or `image` source now sets playback

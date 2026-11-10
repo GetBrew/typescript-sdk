@@ -21,13 +21,21 @@ const event = await brew.webhooks.verify({
 })
 ```
 
-Verification uses Web Crypto, rejects timestamps outside five minutes, and throws
-`BrewWebhookVerificationError` for invalid signatures or payloads. Verify the
-unmodified raw body. `verifyWebhook` is also exported independently of the client.
+Verification uses Web Crypto and rejects timestamps outside five minutes. It
+throws `BrewWebhookVerificationError`, whose `reason` is `headers`, `timestamp`,
+`signature` or `payload`; answer `400` so the provider retries. Verify the
+unmodified raw body: a string, or its bytes (an Express `raw()` `Buffer`).
+`verifyWebhook` is also exported independently of the client, so a receiver
+needs no API key.
 
-Methods: `list`, `create`, `get`, `update`, `remove`, `rotateSecret`, `test`,
-`events`, `attempts`, `replay`, and `verify`. Identity-only methods take an ID;
-methods with bodies or queries take an object. HTTP methods support the shared
+Only the signature is authority. Brew adds event types and fields over time,
+and `verify` returns any signed event envelope, so give your `switch
+(event.type)` a default branch that acknowledges unknown types.
+
+Methods: `list`, `create`, `get`, `update`, `delete`, `rotateSecret`, `test`,
+`events`, `attempts`, `replay`, and `verify`. Identity-only methods take their
+IDs positionally (`get(webhookId)`, `replay(webhookId, eventId)`); methods with
+bodies or queries take an object. HTTP methods support the shared
 `RequestOptions`, including `raw: true`, cancellation and idempotency keys.
 For a manual retry after an uncertain creation response, reuse the same
 `idempotencyKey` for the unchanged request. Use a new key for a changed request
@@ -37,14 +45,15 @@ or a new creation after confirmed success.
 const page = await brew.webhooks.events({ webhookId: endpoint.id, limit: 20 })
 const delivery = page.data[0]
 if (delivery?.payload) {
-  await brew.webhooks.replay({ webhookId: endpoint.id, eventId: delivery.id })
+  await brew.webhooks.replay(endpoint.id, delivery.id)
 }
 ```
 
-Delivery is at least once and unordered. Deduplicate on `svix-id` or
-`event.data.brew.event_id`. Replay sends the same notification again, without
-sending an email or changing email statistics. Test fixtures are marked with
-`data.brew.test: true`. Customer event payload retention is 30 days; synthetic
+Delivery is at least once and unordered. Deduplicate on the `svix-id` header.
+`event.data.brew.event_id` names the underlying email fact; test events
+(`data.brew.test: true`) all reuse one fixture `event_id`, so leave them out if
+you deduplicate on it. Replay sends the same notification again, with the same
+`svix-id`, without sending an email or changing email statistics. Customer event payload retention is 30 days; synthetic
 fixtures may follow a different provider retention period.
 
 `data.email_id` identifies a message, while `data.brew.design_id` identifies its

@@ -683,5 +683,6 @@ export type * from './resources/webhooks/types'
 export {
   verifyWebhook,
   BrewWebhookVerificationError,
+  type BrewWebhookVerificationReason,
   type VerifyWebhookInput,
 } from './resources/webhooks/verify'
