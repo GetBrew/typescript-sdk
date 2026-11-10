@@ -51,6 +51,47 @@ describe('analytics.eventCounts', () => {
     expect(counts.otherCount).toBe(12)
   })
 
+  it('keeps measured, zero and absent recipients in normal and raw replies', async () => {
+    const body = {
+      count: 11,
+      groups: [
+        {
+          key: { eventType: 'opened' },
+          bucket: '2026-10-01T00:00:00.000Z',
+          count: 7,
+          recipients: 2,
+        },
+        { key: { eventType: 'delivered' }, count: 1, recipients: 0 },
+        { key: { eventType: 'sent' }, count: 3 },
+      ],
+      otherCount: 0,
+      range: {
+        from: '2026-10-01T00:00:00.000Z',
+        to: '2026-10-02T00:00:00.000Z',
+      },
+      truncated: false,
+    }
+    server.use(
+      http.get('https://brew.new/api/v1/analytics/events', () =>
+        HttpResponse.json(body, {
+          headers: { 'x-request-id': 'req_event_counts' },
+        })
+      )
+    )
+    const { client } = makeTestHttpClient()
+    const eventCounts = createEventCounts(client)
+
+    const counts = await eventCounts({ groupBy: ['eventType'] })
+    const raw = await eventCounts({ groupBy: ['eventType'] }, { raw: true })
+
+    expect(counts).toEqual(body)
+    expect(raw.data).toEqual(body)
+    expect(raw.requestId).toBe('req_event_counts')
+    // A measured zero stays zero; an unmeasured group stays without the key.
+    expect(counts.groups[1]?.recipients).toBe(0)
+    expect(counts.groups[2]).not.toHaveProperty('recipients')
+  })
+
   it('counts per period alone, with no groupBy', async () => {
     let url: URL | undefined
     server.use(
