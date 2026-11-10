@@ -16,8 +16,10 @@ export type CancelAudienceRunResponse = AudienceRunActionResponse
  * This is one of the three action sub-paths that replaced the old
  * `control({ action })` body verb.
  *
- * A run that already finished surfaces as `409 RUN_NOT_CANCELLABLE`; an
- * unknown or cross-brand id is `404 AUDIENCE_RUN_NOT_FOUND`.
+ * A run that already completed, failed or was canceled surfaces as
+ * `409 RUN_NOT_CANCELLABLE`, including a repeat cancel with a new
+ * `idempotencyKey` (a retry with the same key replays the first answer);
+ * an unknown or cross-brand id is `404 AUDIENCE_RUN_NOT_FOUND`.
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<CancelAudienceRunResponse>` instead of the unwrapped

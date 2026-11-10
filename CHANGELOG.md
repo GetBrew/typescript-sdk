@@ -22,7 +22,7 @@
 
 ### Changed
 
-- Generated types follow app revision `dd8826f468`. The type sync widens
+- Generated types follow app revision `57a327ed7f`. The type sync widens
   closed unions (a `switch` that checks exhaustiveness needs the new
   members) and adds optional fields; no method parameters change.
   - `BrewErrorCode` includes `NO_ACTIVE_PLAN` (`402`): the trial ended, the
@@ -57,6 +57,30 @@
   - `audiences.list` recounts a listed `count` when contacts changed since
     it or it is a day old; one that cannot be recounted keeps its saved
     total (GetBrew/brew-v2#2674).
+  - `BrewErrorCode` includes `AUTOMATION_IN_PROGRESS` (`409`),
+    `AUTOMATION_NOT_READY` (`422`) and `AUTOMATION_NOT_RUNNABLE` (`422`).
+    `automations.delete`, `automations.test` and `automations.run` return
+    `409 AUTOMATION_IN_PROGRESS` while the agent is still generating the
+    automation; `test` and `run` return `422 AUTOMATION_NOT_READY` for a flow
+    that cannot run (the message names the problem); `run` returns
+    `422 AUTOMATION_NOT_RUNNABLE` for an event automation. These replace
+    `500 INTERNAL_ERROR`, `400 INVALID_PAYLOAD` and `422 INVALID_REQUEST`, so
+    match on the new codes (GetBrew/brew-v2#2839).
+    `automations.audienceRuns.resume` returns `422 AUTOMATION_NOT_READY`
+    instead of `422 INVALID_REQUEST` when a send step still to go can no
+    longer send (GetBrew/brew-v2#2841).
+  - `automations.audienceRuns.cancel` no longer lists
+    `503 RUN_STOP_FAILED`, which it never returned; a repeat cancel with a new
+    idempotency key is `409 RUN_NOT_CANCELLABLE`. `automations.delete` no
+    longer lists `404 AUTOMATION_NOT_FOUND` (an unknown id has always
+    resolved `deleted: false`), and it cancels unfinished manual-audience
+    runs and keeps them as history (GetBrew/brew-v2#2838).
+  - `contacts.importCsv` refuses two columns that fill one core field
+    (`email,Email`, `First Name,firstName`) with
+    `422 FIELD_NAME_COLLISION` instead of dropping one; an opt-out in any
+    column that fills `subscribed` wins (GetBrew/brew-v2#2835).
+    `emails.import` converts SVG images to hosted PNGs instead of failing
+    the import (GetBrew/brew-v2#2842).
   - Descriptions only: rate-limit examples for `emails.generate` (20) and
     for automation and trigger writes (60) (GetBrew/brew-v2#2737), and the
     `automations.runs.list`
@@ -69,10 +93,13 @@
   `GIF_DEFAULT_TIMEOUT_MS` stays 300 s: generation ends within 180 s, a
   `video` conversion can take up to 300 s.
 
-- `automations.audienceRuns.pause` is documented as idempotent: pausing a run
-  that is already paused returns the same `200` and changes nothing, as the
-  API always has. `409 RUN_NOT_PAUSABLE` is only for a scheduled, completed,
-  failed or canceled run (GetBrew/brew-v2#2615). No behavior or types change.
+- `automations.audienceRuns.pause` is idempotent: pausing a run its operator
+  already paused returns the same `200` and changes nothing
+  (GetBrew/brew-v2#2615). A run held at the plan limit
+  (`pauseReason: 'plan_limit'`) now returns `409 RUN_NOT_PAUSABLE`, like a
+  scheduled, completed, failed or canceled run; it used to return `200` and
+  still resume on its own once the monthly send allowance had room, so
+  cancel it to stop it (GetBrew/brew-v2#2838).
 
 - Generated types follow app revision `19c7b0d9da` (GetBrew/brew-v2#2592,
   GetBrew/brew-v2#2604). The type sync narrows `eventType` (see Breaking) and
