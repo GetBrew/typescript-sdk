@@ -23,11 +23,12 @@ export type { ListNotificationsInput, NotificationsListResponse }
  * chats and email previews need `emails`; sends need `sends` (`emails`
  * implies it); domain checks and score runs need `domains` (`emails`
  * implies it); imports and validations need `contacts`; automation pause
- * windows need `automations`; brand extraction and image imports need
- * nothing; `api_key_created` needs the `all` scope; `send_limit_reached`
- * is for organization admins (an organization-wide key holding `all`),
- * never a brand key; comment mentions and replies (`isPersonal: true`)
- * reach only the person addressed, never an API key.
+ * windows need `automations`; brand extraction, image imports and
+ * `integration_attention` need nothing; `api_key_created` needs the `all`
+ * scope; `send_limit_reached`, `trial_ending`, `trial_expired` and
+ * `payment_failed` are for organization admins (an organization-wide key
+ * holding `all`), never a brand key; comment mentions and replies
+ * (`isPersonal: true`) reach only the person addressed, never an API key.
  *
  * Filter with `type`; page with `limit` (1–100, default 100) and `cursor`
  * (an opaque native cursor, up to 8,192 characters). A page can hold FEWER

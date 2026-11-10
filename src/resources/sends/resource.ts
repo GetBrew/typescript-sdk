@@ -17,7 +17,7 @@ export type SendsResource = {
   readonly cancel: ReturnType<typeof createCancel>
   /** `POST /v1/sends/{sendId}/pause` — pause an in-flight gradual send, halting the ramp without discarding it; reversible with `resume` (scope: `sends`). */
   readonly pause: ReturnType<typeof createPause>
-  /** `POST /v1/sends/{sendId}/resume` — resume a paused gradual send, picking the ramp back up where it left off (scope: `sends`). */
+  /** `POST /v1/sends/{sendId}/resume` — resume a paused gradual send where the ramp left off, or a campaign paused for its bounce or complaint rate (scope: `sends`). */
   readonly resume: ReturnType<typeof createResume>
 }
 

@@ -22,20 +22,45 @@
 
 ### Changed
 
-- Generated types follow app revision `dd8826f468`. They add optional
-  fields and enum values only.
-  - `ApiErrorCode` adds `WRITE_CONFLICT` (`503`, with `Retry-After`) and
-    `NO_ACTIVE_PLAN` (`402`). `emails.clone` can answer
-    `503 WRITE_CONFLICT` when concurrent writes keep conflicting; the
-    retry layer already retries it (GetBrew/brew-v2#2624).
-  - `Send.pauseReason` adds `bounce_rate`, and `Send.stats` adds optional
-    `hardBounced`. `sends.resume` also resumes a send paused for its bounce
-    or complaint rate (GetBrew/brew-v2#2756).
-  - Notification `type` adds `trial_ending`, `trial_expired` and
-    `payment_failed`.
-  - `emails.send` test mode and `automations.test` help no longer say test
-    deliveries count toward send usage: they never count toward the plan's
-    email sends (GetBrew/brew-v2#2770).
+- Generated types follow app revision `dd8826f468`. The type sync widens
+  closed unions (a `switch` that checks exhaustiveness needs the new
+  members) and adds optional fields; no method parameters change.
+  - `BrewErrorCode` includes `NO_ACTIVE_PLAN` (`402`): the trial ended, the
+    plan was cancelled or the last charge failed, so no credit top-up helps
+    (`details.reason` is `NO_PLAN` or `PAYMENT_BLOCKED`). Credit-charging
+    methods can return it: `brands.create`, `contacts.upsert`,
+    `contacts.upsertMany`, `contacts.import`, `contacts.importCsv`,
+    `contacts.validate`, `content.generateImage`, `content.gif`,
+    `content.transform`, `content.htmlToPng`, `emails.generate`,
+    `emails.edit`, `emails.auditEmail`, `emails.previewClients` and
+    `emails.inboxPlacementTests.create`. `NotificationType` adds
+    `trial_ending`, `trial_expired` and `payment_failed`, shown to
+    organization admins only (GetBrew/brew-v2#1937).
+  - `BrewErrorCode` includes `WRITE_CONFLICT` (`503` with `Retry-After`) on
+    `emails.clone`: other writes to the brand kept conflicting, and nothing
+    was saved. The client retries it with the same idempotency key
+    (GetBrew/brew-v2#2624).
+  - Send `pauseReason` adds `bounce_rate`: Brew paused a campaign because
+    at least 4% of its recipients hard-bounced or 0.3% marked it as spam.
+    `sends.resume` continues it, and it is never paused for that rate again.
+    Send `stats` add optional `hardBounced`, a subset of `bounced`
+    (GetBrew/brew-v2#2756).
+  - Test sends (`emails.send({ test: true })`), `automations.test`
+    deliveries and inbox placement tests no longer count toward the plan's
+    email sends, and a plan at its limit no longer refuses them.
+    `emails.inboxPlacementTests.create` no longer lists
+    `402 SEND_QUOTA_EXCEEDED` (GetBrew/brew-v2#2770).
+  - `contacts.search({ audienceId: 'all' })` searches every contact, the
+    same as omitting `audienceId`. `TestAutomationResponse` gains an
+    optional `runs` that only MCP fills; HTTP responses never carry it
+    (GetBrew/brew-v2#2748).
+  - `audiences.list` recounts a listed `count` when contacts changed since
+    it or it is a day old; one that cannot be recounted keeps its saved
+    total (GetBrew/brew-v2#2674).
+  - Descriptions only: rate-limit examples for `emails.generate` (20) and
+    for automation and trigger writes (60) (GetBrew/brew-v2#2737), and the
+    `automations.runs.list`
+    `recipientEmail` filter (GetBrew/brew-v2#2757).
 
 - `content.gif` takes `frameCount` (2–16, default 9) for a `prompt` or
   `image` source; `fps` (default 5) sets playback speed. The response adds

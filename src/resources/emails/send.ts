@@ -100,8 +100,9 @@ export type SendEmailStatus = SendEmailResponse['status']
  *   refused addresses). Omit `domainId` for the Brew default sender, or
  *   supply a verified, org-owned sending domain. Invalid domains are
  *   rejected. No audience is required, and it never creates a send row.
- *   Test deliveries never count toward the plan's email sends. Resolves
- *   synchronously (HTTP 200) with `{ status: 'completed', recipient }`.
+ *   Test deliveries never count toward the plan's email sends, and a plan
+ *   at its limit still sends tests. Resolves synchronously (HTTP 200) with
+ *   `{ status: 'completed', recipient }`.
  * - Otherwise it is a real campaign send: provide a recipient target
  *   (`audienceId` or inline `to`) and the verified `domainId`. A design
  *   can be sent unlimited times; every call mints a new send. This
@@ -109,8 +110,9 @@ export type SendEmailStatus = SendEmailResponse['status']
  *   sendId }` — it does not wait for delivery. Poll
  *   `brew.sends.get(sendId)` for lifecycle + stats.
  *
- * An exhausted plan quota is `402 SEND_QUOTA_EXCEEDED` (which absorbed
- * the old `INSUFFICIENT_EMAIL_SENDS`).
+ * A campaign that would exceed the plan's monthly email volume is
+ * `402 SEND_QUOTA_EXCEEDED` (which absorbed the old
+ * `INSUFFICIENT_EMAIL_SENDS`).
  *
  * Supply `options.idempotencyKey` to make campaign retries safe.
  *
