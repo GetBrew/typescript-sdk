@@ -857,7 +857,7 @@ The single polymorphic send. The input is a union discriminated by
   delivery completes, with `{ status, sendId }`.
 
 Both modes require the `sends` scope. A design can be sent unlimited
-times; every campaign call mints a new send. A campaign that would exhaust
+times; every campaign call mints a new send. A campaign that would exceed
 the plan's monthly email volume is `402 SEND_QUOTA_EXCEEDED`, the code that
 absorbed the old `INSUFFICIENT_EMAIL_SENDS`.
 

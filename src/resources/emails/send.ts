@@ -110,7 +110,7 @@ export type SendEmailStatus = SendEmailResponse['status']
  *   sendId }` — it does not wait for delivery. Poll
  *   `brew.sends.get(sendId)` for lifecycle + stats.
  *
- * A campaign that would exhaust the plan's monthly email volume is
+ * A campaign that would exceed the plan's monthly email volume is
  * `402 SEND_QUOTA_EXCEEDED` (which absorbed the old
  * `INSUFFICIENT_EMAIL_SENDS`).
  *
