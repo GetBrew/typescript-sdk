@@ -77,8 +77,11 @@
     runs and keeps them as history (GetBrew/brew-v2#2838).
   - `contacts.importCsv` refuses two columns that fill one core field
     (`email,Email`, `First Name,firstName`) with
-    `422 FIELD_NAME_COLLISION` instead of dropping one; an opt-out in any
-    column that fills `subscribed` wins (GetBrew/brew-v2#2835).
+    `422 FIELD_NAME_COLLISION` instead of dropping one. A `mapping` onto
+    `subscribed` (or another core field) comes first: the column that would
+    fill it by default is left out with a `CSV_COLUMN_IGNORED` warning. Among
+    the columns still filling `subscribed`, an opt-out in any of them wins
+    (GetBrew/brew-v2#2835).
     `emails.import` converts SVG images to hosted PNGs instead of failing
     the import (GetBrew/brew-v2#2842).
   - Descriptions only: rate-limit examples for `emails.generate` (20) and
