@@ -37,8 +37,8 @@ export type AutomationsResource = {
   readonly create: ReturnType<typeof createCreateAutomation>
   /**
    * `POST /v1/automations/{automationId}/test` (scope: `automations`).
-   * Omit `testRecipient` for a dry run; set it for real operator-inbox delivery
-   * that counts toward send usage and bypasses the live contact gate.
+   * Omit `testRecipient` for a dry run; set it for real delivery to an allowed
+   * test inbox that counts toward send usage and bypasses the live contact gate.
    */
   readonly test: ReturnType<typeof createTestAutomation>
   /** `POST /v1/automations/{automationId}/run` — preview, launch, or schedule a manual-audience run (scope: `automations`). */

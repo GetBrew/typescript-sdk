@@ -2,8 +2,78 @@
 
 ## Unreleased
 
+### Breaking
+
+- `content.gif` `fps` for a `prompt` or `image` source now sets playback
+  speed over `frameCount` frames (a loop lasts `frameCount / fps` seconds);
+  it used to sample a fixed 5-second clip. `fps: 15` alone now loops in
+  0.6 s; raise `frameCount` for smoother motion (GetBrew/brew-v2#2668).
+- `ContentGifResponse` drops `videoUrl` and `generatedImageUrl`. A
+  `content.gif` from a `prompt` or an `image` is now one GPT Image 2.6
+  generation, with no source video or intermediate still
+  (GetBrew/brew-v2#2668).
+
+- `analytics.events`, `analytics.eventsAll` and `analytics.eventCounts` type
+  `eventType` as the API's 26 event types (`'sent'`, `'delivered'`,
+  `'opened'`, `'clicked'`, …, plus the `automation_*` and `trigger_*`
+  lifecycle types) instead of `string`. A value typed as `string` no longer
+  compiles; narrow it or cast it. The API now refuses any other value with
+  `400 INVALID_REQUEST` (GetBrew/brew-v2#2592).
+
 ### Changed
 
+- `content.gif` takes `frameCount` (2–16, default 9) for a `prompt` or
+  `image` source; `fps` (default 5) sets playback speed. The response adds
+  `frameCount`. Generated types also carry `EMAIL_IMPORT_PERSISTENCE_FAILED`
+  (`502`) on `emails.import` (GetBrew/brew-v2#2668, GetBrew/brew-v2#2620).
+  `GIF_DEFAULT_TIMEOUT_MS` stays 300 s: generation ends within 180 s, a
+  `video` conversion can take up to 300 s.
+
+- `automations.audienceRuns.pause` is documented as idempotent: pausing a run
+  that is already paused returns the same `200` and changes nothing, as the
+  API always has. `409 RUN_NOT_PAUSABLE` is only for a scheduled, completed,
+  failed or canceled run (GetBrew/brew-v2#2615). No behavior or types change.
+
+- Generated types follow app revision `19c7b0d9da` (GetBrew/brew-v2#2592,
+  GetBrew/brew-v2#2604). The type sync narrows `eventType` (see Breaking) and
+  adds optional fields.
+  - Import `assetReport.warnings` codes include `text_dropped`: source words
+    the editable design does not carry, named once (`host` is the words);
+    version 1 keeps the exact source (GetBrew/brew-v2#2604).
+  - `BrewErrorCode` includes `TEST_RECIPIENT_NOT_ALLOWED` (`422`): a test
+    send (`emails.send({ test: true })`) or an `automations.test`
+    `testRecipient` reaches only a teammate with access to the brand, an
+    address on a verified sending domain of the brand, or, for a signed-in
+    person (not an API key), their own address or one on their company
+    domain. `details.recipients` lists the refused addresses
+    (GetBrew/brew-v2#2578).
+  - `eventCounts` groups carry an optional `recipients`: on a group of
+    opened, clicked or delivered events not grouped by `link`, each recipient
+    counted once per message within `range`. `count` still counts events
+    (GetBrew/brew-v2#2582).
+  - `emails.generate({ title })` names the canvas (1 to 200 characters).
+    Omitted, Brew derives it from `subjectLine`, else from the prompt's first
+    sentence, capped at 60 characters at a word boundary (instead of the
+    prompt's first 120 characters).
+  - An events read filtered by `sendId` is bounded by that send instead of
+    the last 7 days unless `from`/`to` are given, as an `automationRunId`
+    read already was.
+  - `automations.patch` accepts `expectedBaseVersionId` alone (a changed
+    automation is `409 AUTOMATION_VERSION_CONFLICT`);
+    `expectedBaseDefinitionSha256` is an optional stricter guard that
+    requires it, and sending the hash without it is a `400`. Omitting
+    `connections` keeps the stored edges.
+  - `automations.create` and `automations.patch` refuse a topology fault
+    (no or several triggers, a duplicate or ambiguous edge, an unknown
+    branch, a cycle, an unreachable step) with `400 AUTOMATION_GRAPH_INVALID`
+    before the write. `details.issues[]` entries are
+    `{ kind, code?, nodeId?, nodeLabel?, message }`, with `code` on a
+    `kind: 'structure'` issue.
+  - A `400 INVALID_REQUEST` with more than one problem lists each in
+    `details.issues[]` (`{ param?, message }`, at most 20); `param` still
+    names the first.
+  - Event feed `pagination.cursor` values are base64url. They stay opaque,
+    and cursors issued before this change still work.
 - Generated types follow app revision `507dbacf45`. The type sync changes
   descriptions only, no types or method parameters (GetBrew/brew-v2#2571).
   - `audiences.create` and `audiences.update` refuse a comma-joined string
