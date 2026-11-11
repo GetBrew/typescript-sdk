@@ -677,3 +677,12 @@ export type {
 } from './embed/contracts'
 
 export type { CanvasSessionRevokeResponse } from './resources/canvas/resource'
+
+export type { WebhooksResource } from './resources/webhooks/resource'
+export type * from './resources/webhooks/types'
+export {
+  verifyWebhook,
+  BrewWebhookVerificationError,
+  type BrewWebhookVerificationReason,
+  type VerifyWebhookInput,
+} from './resources/webhooks/verify'
