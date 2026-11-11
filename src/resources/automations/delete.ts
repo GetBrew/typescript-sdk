@@ -16,6 +16,12 @@ export type DeleteAutomationResponse =
  * `DELETE /v1/automations/{automationId}` — cascade-delete. The id
  * travels in the PATH (no body). Idempotent (deleting an
  * already-deleted automation returns all zeros, not 404).
+ *
+ * Event and test runs go with it. Manual-audience runs that have not
+ * finished are canceled and kept as history, so
+ * `automations.audienceRuns.list` still returns them. An automation the
+ * agent is still generating is `409 AUTOMATION_IN_PROGRESS`; retry once it
+ * finishes.
  */
 export function createDeleteAutomation(client: HttpClient) {
   function deleteAutomation(

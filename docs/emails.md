@@ -846,9 +846,9 @@ The single polymorphic send. The input is a union discriminated by
   `422 TEST_RECIPIENT_NOT_ALLOWED` (`details.recipients` lists the refused
   addresses). Omit `domainId` for the Brew default sender, or supply a verified,
   org-owned sending domain. Invalid domains are rejected. No saved audience
-  is required, and it never creates a send row. Real test deliveries count
-  toward send usage. Resolves synchronously (HTTP 200) with
-  `{ status: 'completed', recipient }`.
+  is required, and it never creates a send row. Test deliveries never count
+  toward the plan's email sends, and a plan at its limit still sends tests.
+  Resolves synchronously (HTTP 200) with `{ status: 'completed', recipient }`.
 - **Campaign send** (omit `test`) — delivers a saved design to a target.
   Provide EXACTLY ONE recipient target — `audienceId` (a saved audience,
   or the string `'all'` to target every contact in the brand) or `to` (a
@@ -857,9 +857,9 @@ The single polymorphic send. The input is a union discriminated by
   delivery completes, with `{ status, sendId }`.
 
 Both modes require the `sends` scope. A design can be sent unlimited
-times; every campaign call mints a new send. An exhausted plan quota is
-`402 SEND_QUOTA_EXCEEDED`, the code that absorbed the old
-`INSUFFICIENT_EMAIL_SENDS`.
+times; every campaign call mints a new send. A campaign that would exceed
+the plan's monthly email volume is `402 SEND_QUOTA_EXCEEDED`, the code that
+absorbed the old `INSUFFICIENT_EMAIL_SENDS`.
 
 Campaign send:
 

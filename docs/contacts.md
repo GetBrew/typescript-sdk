@@ -197,7 +197,7 @@ newest-first.
 
 ```ts
 type SearchContactsInput = Readonly<{
-  audienceId?: string // scope to a saved audience's members
+  audienceId?: string // scope to a saved audience's members; 'all' (or omitted) searches every contact
   search?: string // case-insensitive search across email/first/last
   filters?: ReadonlyArray<ContactsFilterClause>
   logic?: 'and' | 'or' // default 'and'

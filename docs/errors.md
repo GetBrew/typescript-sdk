@@ -83,7 +83,11 @@ code the API documents — import it when you want exhaustive branching:
 import type { BrewErrorCode } from '@brew.new/sdk'
 
 function isRetryableLater(code: BrewErrorCode): boolean {
-  return code === 'RATE_LIMITED' || code === 'SERVICE_UNAVAILABLE'
+  return (
+    code === 'RATE_LIMITED' ||
+    code === 'SERVICE_UNAVAILABLE' ||
+    code === 'WRITE_CONFLICT'
+  )
 }
 ```
 
@@ -96,8 +100,16 @@ function isRetryableLater(code: BrewErrorCode): boolean {
 | `EVENT_NOT_FOUND`               | `TRIGGER_INSTANCE_NOT_FOUND`        |
 | assorted 429 codes              | `RATE_LIMITED` only                 |
 
-`Retry-After` rides the `429` alone now, so `error.retryAfter` is only
-populated on a rate-limit error.
+`Retry-After` rides the `429` and the transient `503` answers (for
+example `SERVICE_UNAVAILABLE` and `WRITE_CONFLICT`), so `error.retryAfter`
+is only populated on those. When the client retries one, it waits that
+long first.
+
+`402 NO_ACTIVE_PLAN` means nothing entitles the organization: the trial
+ended, the plan was cancelled, or the last charge failed (`details.reason`
+is `NO_PLAN` or `PAYMENT_BLOCKED`). Unlike `INSUFFICIENT_CREDITS`, a credit
+top-up does not fix it; an organization admin must choose a plan or update
+the payment method.
 
 An API key bound to ONE BRAND that calls an organization operation — for
 example `GET /v1/usage`, which needs organization standing — gets
