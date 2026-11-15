@@ -68,7 +68,7 @@
 
 ### Changed
 
-- Generated types follow app revision `dae739fab5`. The type sync widens
+- Generated types follow app revision `fd75d6c1f5`. The type sync widens
   closed unions (a `switch` that checks exhaustiveness needs the new
   members); no method parameters change.
   - `BrewErrorCode` includes `FIELD_NAME_INVALID` and `FIELD_NAME_AMBIGUOUS`
@@ -91,6 +91,15 @@
   - Trigger `provider` adds `hubspot` (GetBrew/brew-v2#2910), and an inbox
     placement test's `diagnosis` ids add `seed_delivery_blocked`
     (GetBrew/brew-v2#2931).
+  - `409 IDEMPOTENCY_CONFLICT` has a second cause on fixed-price credited
+    methods (`contacts.upsert`, `contacts.upsertMany`, `contacts.import`,
+    `contacts.importCsv`, `contacts.validate`, `content.generateImage`,
+    `content.gif`, `content.transform`, `content.htmlToPng`,
+    `emails.generate`, `emails.auditEmail`, `emails.previewClients` and
+    `emails.inboxPlacementTests.create`): an idempotency key that already
+    paid for a request whose stored response is gone. The request is not
+    run or charged again; send a new key to repeat it. No type changes
+    (GetBrew/brew-v2#2876).
 
 - Generated types follow app revision `57a327ed7f`. The type sync widens
   closed unions (a `switch` that checks exhaustiveness needs the new
