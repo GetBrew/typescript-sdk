@@ -13,13 +13,13 @@ export type ContentImageResponse = components['schemas']['ContentImageResponse']
 /**
  * Request body for `POST /v1/content/gif`. A discriminated union on
  * `from`:
- *   - `{ from: 'prompt', prompt, duration?, fps?, aspectRatio?, loop? }`
- *   - `{ from: 'image', imageUrl, prompt?, duration?, fps?, aspectRatio?, loop? }`
+ *   - `{ from: 'prompt', prompt, frameCount?, fps?, aspectRatio?, loop? }`
+ *   - `{ from: 'image', imageUrl, prompt?, frameCount?, fps?, aspectRatio?, loop? }`
  *   - `{ from: 'video', videoUrl, fps?, width? }`
  */
 export type ContentGifRequest = components['schemas']['ContentGifRequest']
 
-/** The generated GIF (plus source video) returned by `POST /v1/content/gif`. */
+/** The GIF returned by `POST /v1/content/gif`. */
 export type ContentGifResponse = components['schemas']['ContentGifResponse']
 
 /**

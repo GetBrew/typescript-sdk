@@ -59,6 +59,26 @@ if (!report.valid) {
 }
 ```
 
+## Graph refusals and concurrent edits
+
+`create` and `patch` refuse a graph they cannot save with
+`400 AUTOMATION_GRAPH_INVALID`. `details.issues[]` lists every problem as
+`{ kind, code?, nodeId?, nodeLabel?, message }`. `kind` is one of
+`duplicate_node_id`, `connection_unknown_from`, `connection_unknown_to`,
+`connection_targets_trigger`, `connection_self_loop`, `email_not_found`,
+`email_version_mismatch`, `domain_not_found`, `domain_not_ready`,
+`domain_purpose_not_allowed` or `structure`. A `structure` issue's `code`
+names the topology fault: `missing_trigger`, `multiple_triggers`,
+`duplicate_connection`, `edge_to_trigger`, `ambiguous_branch`,
+`invalid_branch`, `cycle` or `unreachable_node`.
+
+On `patch`, `connections` is the full edge list and replaces the stored one;
+omit it to keep the stored edges, also when you send `nodes`. To guard against
+a concurrent edit, pass the `automationVersionId` you read as
+`expectedBaseVersionId`: the save is `409 AUTOMATION_VERSION_CONFLICT` when the
+automation has changed since. `expectedBaseDefinitionSha256` is an optional
+stricter guard and requires `expectedBaseVersionId`.
+
 ## Reading one automation
 
 ```ts
@@ -325,9 +345,15 @@ The three lifecycle actions are their own sub-paths — `pause`, `resume`, and
 `cancel` each POST to `…/audience-runs/{audienceRunId}/{action}` with no body.
 `control({ action })` is gone.
 
-`cancel` is permanent; already-sent messages cannot be recalled. Invalid state
-transitions return `409` (`RUN_NOT_PAUSABLE` / `RUN_NOT_RESUMABLE` /
-`RUN_NOT_CANCELLABLE`), an exhausted quota on resume returns
+`cancel` is permanent; already-sent messages cannot be recalled. Pausing a run
+its operator already paused returns the same `200` and changes nothing. Invalid
+state transitions return `409`: `RUN_NOT_PAUSABLE` for a scheduled, completed,
+failed or canceled run, or one held at the plan limit (it resumes on its own
+once the monthly send allowance has room, so cancel it to stop it);
+`RUN_NOT_PAUSED` when resuming a run that is neither paused nor failed;
+`RUN_NOT_RESUMABLE`; and `RUN_NOT_CANCELLABLE`, also for a repeat cancel with a
+new idempotency key. A resume whose remaining send step can no longer send
+returns `422 AUTOMATION_NOT_READY`, an exhausted quota on resume returns
 `402 SEND_QUOTA_EXCEEDED`, and unknown or cross-brand ids return
 `404 AUDIENCE_RUN_NOT_FOUND`. A `run` call names the missing entity precisely:
 `404 AUTOMATION_NOT_FOUND` or `404 AUDIENCE_NOT_FOUND`, never a generic
