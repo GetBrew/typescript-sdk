@@ -68,7 +68,7 @@
 
 ### Changed
 
-- Generated types follow app revision `fd75d6c1f5`. The type sync widens
+- Generated types follow app revision `b2df757e44`. The type sync widens
   closed unions (a `switch` that checks exhaustiveness needs the new
   members); no method parameters change.
   - `BrewErrorCode` includes `FIELD_NAME_INVALID` and `FIELD_NAME_AMBIGUOUS`
@@ -100,6 +100,9 @@
     paid for a request whose stored response is gone. The request is not
     run or charged again; send a new key to repeat it. No type changes
     (GetBrew/brew-v2#2876).
+  - `content.gif` from an `image` with no `prompt` now adds one deliberate
+    move of the image's main subject; the default was a subtle motion. No
+    type changes (GetBrew/brew-v2#2854).
 
 - Generated types follow app revision `57a327ed7f`. The type sync widens
   closed unions (a `switch` that checks exhaustiveness needs the new
