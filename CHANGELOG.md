@@ -34,8 +34,8 @@
     `GetIntegrationEventResponse`, `EnsureIntegrationEventTriggerInput` and
     `EnsureIntegrationEventTriggerResponse` are exported from the package
     root. These methods require the matching API deployment.
-- Generated types follow app revision `ed644c50ed` (GetBrew/brew-v2#2411
-  on main `373e900a9a`): trigger and integration providers include
+- Generated types for GetBrew/brew-v2#2411 (the current app revision is
+  under Changed): trigger and integration providers include
   `posthog`, error codes add `INTEGRATION_EVENT_NOT_FOUND` and
   `INTEGRATION_RECONNECT_REQUIRED`, insight actions add the
   `draft_automation` intent, `IntegrationEventDetailResponse` carries
