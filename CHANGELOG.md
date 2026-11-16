@@ -4,6 +4,43 @@
 
 ### Added
 
+- Live integration events, from GetBrew/brew-v2#2411: the events a
+  brand's connected live sources send (a PostHog project's own events; the
+  Stripe and Shopify app catalogs), each of which can start an automation.
+  All three methods require the `automations` scope.
+  - `brew.integrations.events.list({ provider?, query?, kind?, limit?, cursor? })`
+    calls `GET /v1/integrations/events` and returns
+    `{ data, sources, pagination }`. A page can hold fewer than `limit`
+    rows; follow `pagination.cursor` until `hasMore` is `false`.
+  - `brew.integrations.events.get(eventId)` calls
+    `GET /v1/integrations/events/{eventId}`: the event with each property's
+    template `variable`, `isPersonal` and `isPersonalization`, and
+    `propertiesStatus`: `current`, `stored`, `rate_limited` (with
+    `retryAfterSeconds`) or `unavailable`. The read may describe the event
+    at the provider first, on the account's read budget; a spent budget
+    answers with what Brew stored, not an error. An unknown id is
+    `404 INTEGRATION_EVENT_NOT_FOUND`.
+  - `brew.automations.triggers.ensureIntegrationEvent({ eventId })` calls
+    `POST /v1/automations/triggers/integration-events` and returns the
+    event's trigger row (`IntegrationEventTriggerSaved`) with `created`
+    (`201` the first time, `200` after) and the same `propertiesStatus` and
+    `retryAfterSeconds`. The row has no `brewEvent` or `skill`. It can
+    refuse with `409 TRIGGER_LIMIT_REACHED` (100 triggers per brand) or
+    `409 INTEGRATION_RECONNECT_REQUIRED`.
+  - `IntegrationEvent`, `IntegrationEventDetail`, `IntegrationEventProperty`,
+    `IntegrationEventPropertiesStatus`, `IntegrationEventSource`,
+    `IntegrationEventKind`, `IntegrationEventStage`,
+    `ListIntegrationEventsInput`, `ListIntegrationEventsResponse`,
+    `GetIntegrationEventResponse`, `EnsureIntegrationEventTriggerInput` and
+    `EnsureIntegrationEventTriggerResponse` are exported from the package
+    root. These methods require the matching API deployment.
+- Generated types for GetBrew/brew-v2#2411 (the current app revision is
+  under Changed): trigger and integration providers include
+  `posthog`, error codes add `INTEGRATION_EVENT_NOT_FOUND` and
+  `INTEGRATION_RECONNECT_REQUIRED`, insight actions add the
+  `draft_automation` intent, `IntegrationEventDetailResponse` carries
+  `propertiesStatus` and `retryAfterSeconds`, and the ensure response is
+  the named `IntegrationEventTriggerSaved` component.
 - `brew.webhooks` manages brand-scoped email webhooks: `list`, `create`,
   `get`, `update`, `delete`, `rotateSecret`, `test`, `events`, `attempts`,
   `replay(webhookId, eventId)` and `verify`. `verifyWebhook` and
@@ -30,6 +67,42 @@
   `400 INVALID_REQUEST` (GetBrew/brew-v2#2592).
 
 ### Changed
+
+- Generated types follow app revision `b2df757e44`. The type sync widens
+  closed unions (a `switch` that checks exhaustiveness needs the new
+  members); no method parameters change.
+  - `BrewErrorCode` includes `FIELD_NAME_INVALID` and `FIELD_NAME_AMBIGUOUS`
+    (both `422`). `contacts.upsert`, `contacts.upsertMany` and
+    `contacts.import` refuse a custom-field name with no ASCII letter or
+    digit (`名前`, `#`) with `FIELD_NAME_INVALID`: it cannot become a field
+    key, so its value would be lost. `contacts.importCsv` returns
+    `FIELD_NAME_AMBIGUOUS` when such a CSV column matches several existing
+    fields labeled with that name; `details.columns` lists the candidate
+    keys, and `mapping` picks one (GetBrew/brew-v2#2884).
+  - Warning codes add `BLANK_FIELD_NAME_IGNORED` and
+    `CSV_COLUMN_MATCHED_FIELD`. A blank `customFields` key (`""` or only
+    spaces) is dropped with `BLANK_FIELD_NAME_IGNORED` while the rest of the
+    contact is stored. `contacts.importCsv`
+    reports `CSV_COLUMN_MATCHED_FIELD` when a column named with no ASCII
+    letter or digit was imported into the existing field labeled with its
+    name (GetBrew/brew-v2#2884).
+  - `ChatSummary['origin']` adds `'teams'`, `'google-chat'` and `'telegram'`
+    beside `'slack'` (GetBrew/brew-v2#2846).
+  - Trigger `provider` adds `hubspot` (GetBrew/brew-v2#2910), and an inbox
+    placement test's `diagnosis` ids add `seed_delivery_blocked`
+    (GetBrew/brew-v2#2931).
+  - `409 IDEMPOTENCY_CONFLICT` has a second cause on fixed-price credited
+    methods (`contacts.upsert`, `contacts.upsertMany`, `contacts.import`,
+    `contacts.importCsv`, `contacts.validate`, `content.generateImage`,
+    `content.gif`, `content.transform`, `content.htmlToPng`,
+    `emails.generate`, `emails.auditEmail`, `emails.previewClients` and
+    `emails.inboxPlacementTests.create`): an idempotency key that already
+    paid for a request whose stored response is gone. The request is not
+    run or charged again; send a new key to repeat it. No type changes
+    (GetBrew/brew-v2#2876).
+  - `content.gif` from an `image` with no `prompt` now adds one deliberate
+    move of the image's main subject; the default was a subtle motion. No
+    type changes (GetBrew/brew-v2#2854).
 
 - Generated types follow app revision `57a327ed7f`. The type sync widens
   closed unions (a `switch` that checks exhaustiveness needs the new
