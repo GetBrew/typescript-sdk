@@ -52,6 +52,8 @@ export type AutomationSendEmailNodeConfig = {
   fromName?: string
   /** Reply-to address — optional. Resolved from the domain default when unset. */
   replyTo?: string
+  /** Skip recipients whose template reads a missing value. */
+  strict?: boolean
   /** Pinned `emails._id` — set server-side at publish; round-trips on GET. */
   emailRowId?: string
   emailTitle?: string
