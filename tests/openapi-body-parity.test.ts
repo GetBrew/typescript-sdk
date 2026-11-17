@@ -184,14 +184,8 @@ function readSdkBodies(
       continue
     }
     const visit = (node: ts.Node): void => {
-      const request = ts.isCallExpression(node) ? node.arguments[0] : undefined
-      if (
-        ts.isCallExpression(node) &&
-        ts.isPropertyAccessExpression(node.expression) &&
-        node.expression.name.text === 'request' &&
-        request !== undefined &&
-        ts.isObjectLiteralExpression(request)
-      ) {
+      const request = requestLiteral(node)
+      if (request !== undefined && ts.isObjectLiteralExpression(request)) {
         const text = (name: string) => {
           const property = request.properties.find(
             (candidate): candidate is ts.PropertyAssignment =>
@@ -230,6 +224,29 @@ function readSdkBodies(
     visit(file)
   }
   return sent
+}
+
+/** The webhook factory returns the same typed request literal it passes to client.request. */
+function requestLiteral(node: ts.Node): ts.Expression | undefined {
+  if (
+    ts.isCallExpression(node) &&
+    ts.isPropertyAccessExpression(node.expression) &&
+    node.expression.name.text === 'request'
+  ) {
+    return node.arguments[0]
+  }
+  if (
+    ts.isArrowFunction(node) &&
+    ts.isCallExpression(node.parent) &&
+    ts.isIdentifier(node.parent.expression) &&
+    node.parent.expression.text === 'webhookMethod' &&
+    node.parent.arguments[1] === node
+  ) {
+    return ts.isParenthesizedExpression(node.body)
+      ? node.body.expression
+      : undefined
+  }
+  return undefined
 }
 
 describe('request body parity', () => {

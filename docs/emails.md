@@ -210,9 +210,21 @@ type GenerateEmailInput = {
   readonly prompt: string
   readonly contentUrls?: ReadonlyArray<string>
   readonly referenceEmailId?: string
+  // Steers the design treatment; omit for a general treatment.
+  readonly category?: 'welcome' | 'newsletter' | 'receipt' | 'general' // …30 values, see the OpenAPI enum
+  // Canvas name, 2-4 words (e.g. 'Newsletter Welcome'), 1-200 characters.
+  // Omit and Brew derives one from `subjectLine`, else from the prompt.
+  readonly title?: string
+  // Inbox subject line saved on the design (distinct from `title`, the
+  // canvas name); a send still takes its own `subject`.
+  readonly subjectLine?: string
   // Omit and Brew detects it from the finished body; a value you set is
   // kept and never re-detected.
   readonly lang?: EmailLanguage
+  // File the design under a group: `groupId` (`grp_…` or 'ungrouped') or
+  // `groupName` (resolved or created), not both. Omit to land Ungrouped.
+  readonly groupId?: string
+  readonly groupName?: string
 }
 
 type GenerateEmailResponse =
@@ -826,11 +838,17 @@ The single polymorphic send. The input is a union discriminated by
 `test`, and the response shape follows the input:
 
 - **Test send** (`test: true`) — a one-off [TEST] delivery to a single
-  recipient. Omit `domainId` for the Brew default sender, or supply a verified,
+  recipient. A test reaches only a teammate with access to the brand, an
+  address on a verified sending domain of the brand, or, for a signed-in
+  person (not an API key), their own address or one on their company domain.
+  An API key has no person behind it, so with a key only teammates and
+  verified sending domains qualify; any other address is
+  `422 TEST_RECIPIENT_NOT_ALLOWED` (`details.recipients` lists the refused
+  addresses). Omit `domainId` for the Brew default sender, or supply a verified,
   org-owned sending domain. Invalid domains are rejected. No saved audience
-  is required, and it never creates a send row. Real test deliveries count
-  toward send usage. Resolves synchronously (HTTP 200) with
-  `{ status: 'completed', recipient }`.
+  is required, and it never creates a send row. Test deliveries never count
+  toward the plan's email sends, and a plan at its limit still sends tests.
+  Resolves synchronously (HTTP 200) with `{ status: 'completed', recipient }`.
 - **Campaign send** (omit `test`) — delivers a saved design to a target.
   Provide EXACTLY ONE recipient target — `audienceId` (a saved audience,
   or the string `'all'` to target every contact in the brand) or `to` (a
@@ -839,9 +857,9 @@ The single polymorphic send. The input is a union discriminated by
   delivery completes, with `{ status, sendId }`.
 
 Both modes require the `sends` scope. A design can be sent unlimited
-times; every campaign call mints a new send. An exhausted plan quota is
-`402 SEND_QUOTA_EXCEEDED`, the code that absorbed the old
-`INSUFFICIENT_EMAIL_SENDS`.
+times; every campaign call mints a new send. A campaign that would exceed
+the plan's monthly email volume is `402 SEND_QUOTA_EXCEEDED`, the code that
+absorbed the old `INSUFFICIENT_EMAIL_SENDS`.
 
 Campaign send:
 

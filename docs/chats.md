@@ -30,7 +30,8 @@ type ChatSummary = {
   // 'streaming' or 'background_finalizing' while a run is still going;
   // null before the first run.
   readonly status: ChatStatus
-  readonly origin: 'slack' | null // null for the Brew web app
+  // The chat app it started in; null for the Brew web app.
+  readonly origin: 'slack' | 'teams' | 'google-chat' | 'telegram' | null
   readonly updatedAt: string // ISO-8601
   readonly url: string // opens the chat in Brew
 }

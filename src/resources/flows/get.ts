@@ -21,7 +21,9 @@ export type GetFlowOptions = RequestOptions & {
    */
   readonly include?: ReadonlyArray<FlowsIncludeToken> | string
   /**
-   * One send stream's flow for a bare-domain `slug` (`welcome`). A
+   * The flow's kind for a bare-domain `slug`, hyphenated (`onboarding`,
+   * `trial`, `events`, `product-updates`, `promotions`, optionally followed
+   * by `-2`, `-3`… for a brand's later flow of that kind). A
    * `<domain>/<kind>` slug from `brew.flows.list()` already names it.
    */
   readonly kind?: string
@@ -33,8 +35,8 @@ export type GetFlowResponse = Flow
 /**
  * `GET /v1/flows/{slug}` — one public flow, returned as the BARE row. The
  * slug is what every `brew.flows.list()` card carries: a brand domain
- * (`brew.new`, its primary flow) or `<domain>/<kind>` for one send stream's
- * flow (`brew.new/welcome`), case-insensitive. The row adds `anchor` (what day 0 means)
+ * (`brew.new`, its primary flow) or `<domain>/<kind>` for one kind's flow
+ * (`brew.new/onboarding`), case-insensitive. The row adds `anchor` (what day 0 means)
  * and `steps[]` (`order`, `dayOffset`, `delayDays`, `subject`,
  * `previewText`, `category`, `previewImage`, `emailId`) to the card fields.
  *

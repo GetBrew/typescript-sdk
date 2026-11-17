@@ -18,9 +18,13 @@ export type ResumeAudienceRunResponse = AudienceRunActionResponse
  * This is one of the three action sub-paths that replaced the old
  * `control({ action })` body verb.
  *
- * A run that is not resumable surfaces as `409 RUN_NOT_RESUMABLE`; an
- * exhausted send quota is `402 SEND_QUOTA_EXCEEDED`; an unknown or
- * cross-brand id is `404 AUDIENCE_RUN_NOT_FOUND`.
+ * A run that is neither paused nor failed surfaces as
+ * `409 RUN_NOT_PAUSED`; one that cannot pick up (held at the plan limit,
+ * or a failed run with nothing left to deliver) as `409 RUN_NOT_RESUMABLE`;
+ * a send step still to go that can no longer send, such as a sender domain
+ * that lost verification, as `422 AUTOMATION_NOT_READY` (the message names
+ * the step). An exhausted send quota is `402 SEND_QUOTA_EXCEEDED`; an
+ * unknown or cross-brand id is `404 AUDIENCE_RUN_NOT_FOUND`.
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<ResumeAudienceRunResponse>` instead of the unwrapped
