@@ -2,6 +2,10 @@ import {
   createAgentGoalsResource,
   type AgentGoalsResource,
 } from './resources/agent-goals/resource'
+import {
+  createWebhooksResource,
+  type WebhooksResource,
+} from './resources/webhooks/resource'
 import { resolveConfig } from './core/config'
 import { createHttpClient, type HttpTuning } from './core/http'
 import {
@@ -115,6 +119,7 @@ import {
  */
 export type BrewClient = {
   readonly agentGoals: AgentGoalsResource
+  readonly webhooks: WebhooksResource
   readonly canvas: CanvasResource
   /**
    * Return a client pinned to `brandId` (sent as `X-Brand-Id`). Same auth,
@@ -284,6 +289,7 @@ function buildClient(
   return {
     canvas: createCanvasResource(httpClient),
     agentGoals: createAgentGoalsResource(httpClient),
+    webhooks: createWebhooksResource(httpClient),
     withBrand: (brandId: string): BrewClient => {
       if (typeof brandId !== 'string' || brandId.trim() === '') {
         throw new TypeError('withBrand: `brandId` must be a non-empty string')

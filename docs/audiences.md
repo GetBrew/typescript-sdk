@@ -76,6 +76,12 @@ for (const audience of data) {
 const { data: matches } = await brew.audiences.list({ search: 'founders' })
 ```
 
+A listed `count` is the saved member total, recounted before the list
+answers when contacts changed since that count or it is a day old. An
+audience that cannot be recounted (still building, unusable filters, a
+failed or timed-out count) keeps its saved total; `get` with
+`include: 'count'` returns the exact total.
+
 ## `get`
 
 One audience, as the bare row. An unknown or cross-brand id is

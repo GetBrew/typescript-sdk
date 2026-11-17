@@ -2,8 +2,230 @@
 
 ## Unreleased
 
+### Added
+
+- Live integration events, from GetBrew/brew-v2#2411: the events a
+  brand's connected live sources send (a PostHog project's own events; the
+  Stripe and Shopify app catalogs), each of which can start an automation.
+  All three methods require the `automations` scope.
+  - `brew.integrations.events.list({ provider?, query?, kind?, limit?, cursor? })`
+    calls `GET /v1/integrations/events` and returns
+    `{ data, sources, pagination }`. A page can hold fewer than `limit`
+    rows; follow `pagination.cursor` until `hasMore` is `false`.
+  - `brew.integrations.events.get(eventId)` calls
+    `GET /v1/integrations/events/{eventId}`: the event with each property's
+    template `variable`, `isPersonal` and `isPersonalization`, and
+    `propertiesStatus`: `current`, `stored`, `rate_limited` (with
+    `retryAfterSeconds`) or `unavailable`. The read may describe the event
+    at the provider first, on the account's read budget; a spent budget
+    answers with what Brew stored, not an error. An unknown id is
+    `404 INTEGRATION_EVENT_NOT_FOUND`.
+  - `brew.automations.triggers.ensureIntegrationEvent({ eventId })` calls
+    `POST /v1/automations/triggers/integration-events` and returns the
+    event's trigger row (`IntegrationEventTriggerSaved`) with `created`
+    (`201` the first time, `200` after) and the same `propertiesStatus` and
+    `retryAfterSeconds`. The row has no `brewEvent` or `skill`. It can
+    refuse with `409 TRIGGER_LIMIT_REACHED` (100 triggers per brand) or
+    `409 INTEGRATION_RECONNECT_REQUIRED`.
+  - `IntegrationEvent`, `IntegrationEventDetail`, `IntegrationEventProperty`,
+    `IntegrationEventPropertiesStatus`, `IntegrationEventSource`,
+    `IntegrationEventKind`, `IntegrationEventStage`,
+    `ListIntegrationEventsInput`, `ListIntegrationEventsResponse`,
+    `GetIntegrationEventResponse`, `EnsureIntegrationEventTriggerInput` and
+    `EnsureIntegrationEventTriggerResponse` are exported from the package
+    root. These methods require the matching API deployment.
+- Generated types for GetBrew/brew-v2#2411 (the current app revision is
+  under Changed): trigger and integration providers include
+  `posthog`, error codes add `INTEGRATION_EVENT_NOT_FOUND` and
+  `INTEGRATION_RECONNECT_REQUIRED`, insight actions add the
+  `draft_automation` intent, `IntegrationEventDetailResponse` carries
+  `propertiesStatus` and `retryAfterSeconds`, and the ensure response is
+  the named `IntegrationEventTriggerSaved` component.
+- `brew.webhooks` manages brand-scoped email webhooks: `list`, `create`,
+  `get`, `update`, `delete`, `rotateSecret`, `test`, `events`, `attempts`,
+  `replay(webhookId, eventId)` and `verify`. `verifyWebhook` and
+  `BrewWebhookVerificationError` (with a `reason`) are also exported for
+  receivers without an API key. See `docs/webhooks.md`
+  (GetBrew/brew-v2#2398).
+
+### Breaking
+
+- `content.gif` `fps` for a `prompt` or `image` source now sets playback
+  speed over `frameCount` frames (a loop lasts `frameCount / fps` seconds);
+  it used to sample a fixed 5-second clip. `fps: 15` alone now loops in
+  0.6 s; raise `frameCount` for smoother motion (GetBrew/brew-v2#2668).
+- `ContentGifResponse` drops `videoUrl` and `generatedImageUrl`. A
+  `content.gif` from a `prompt` or an `image` is now one GPT Image 2.6
+  generation, with no source video or intermediate still
+  (GetBrew/brew-v2#2668).
+
+- `analytics.events`, `analytics.eventsAll` and `analytics.eventCounts` type
+  `eventType` as the API's 26 event types (`'sent'`, `'delivered'`,
+  `'opened'`, `'clicked'`, …, plus the `automation_*` and `trigger_*`
+  lifecycle types) instead of `string`. A value typed as `string` no longer
+  compiles; narrow it or cast it. The API now refuses any other value with
+  `400 INVALID_REQUEST` (GetBrew/brew-v2#2592).
+
 ### Changed
 
+- Generated types follow app revision `b2df757e44`. The type sync widens
+  closed unions (a `switch` that checks exhaustiveness needs the new
+  members); no method parameters change.
+  - `BrewErrorCode` includes `FIELD_NAME_INVALID` and `FIELD_NAME_AMBIGUOUS`
+    (both `422`). `contacts.upsert`, `contacts.upsertMany` and
+    `contacts.import` refuse a custom-field name with no ASCII letter or
+    digit (`名前`, `#`) with `FIELD_NAME_INVALID`: it cannot become a field
+    key, so its value would be lost. `contacts.importCsv` returns
+    `FIELD_NAME_AMBIGUOUS` when such a CSV column matches several existing
+    fields labeled with that name; `details.columns` lists the candidate
+    keys, and `mapping` picks one (GetBrew/brew-v2#2884).
+  - Warning codes add `BLANK_FIELD_NAME_IGNORED` and
+    `CSV_COLUMN_MATCHED_FIELD`. A blank `customFields` key (`""` or only
+    spaces) is dropped with `BLANK_FIELD_NAME_IGNORED` while the rest of the
+    contact is stored. `contacts.importCsv`
+    reports `CSV_COLUMN_MATCHED_FIELD` when a column named with no ASCII
+    letter or digit was imported into the existing field labeled with its
+    name (GetBrew/brew-v2#2884).
+  - `ChatSummary['origin']` adds `'teams'`, `'google-chat'` and `'telegram'`
+    beside `'slack'` (GetBrew/brew-v2#2846).
+  - Trigger `provider` adds `hubspot` (GetBrew/brew-v2#2910), and an inbox
+    placement test's `diagnosis` ids add `seed_delivery_blocked`
+    (GetBrew/brew-v2#2931).
+  - `409 IDEMPOTENCY_CONFLICT` has a second cause on fixed-price credited
+    methods (`contacts.upsert`, `contacts.upsertMany`, `contacts.import`,
+    `contacts.importCsv`, `contacts.validate`, `content.generateImage`,
+    `content.gif`, `content.transform`, `content.htmlToPng`,
+    `emails.generate`, `emails.auditEmail`, `emails.previewClients` and
+    `emails.inboxPlacementTests.create`): an idempotency key that already
+    paid for a request whose stored response is gone. The request is not
+    run or charged again; send a new key to repeat it. No type changes
+    (GetBrew/brew-v2#2876).
+  - `content.gif` from an `image` with no `prompt` now adds one deliberate
+    move of the image's main subject; the default was a subtle motion. No
+    type changes (GetBrew/brew-v2#2854).
+
+- Generated types follow app revision `57a327ed7f`. The type sync widens
+  closed unions (a `switch` that checks exhaustiveness needs the new
+  members) and adds optional fields; no method parameters change.
+  - `BrewErrorCode` includes `NO_ACTIVE_PLAN` (`402`): the trial ended, the
+    plan was cancelled or the last charge failed, so no credit top-up helps
+    (`details.reason` is `NO_PLAN` or `PAYMENT_BLOCKED`). Credit-charging
+    methods can return it: `brands.create`, `contacts.upsert`,
+    `contacts.upsertMany`, `contacts.import`, `contacts.importCsv`,
+    `contacts.validate`, `content.generateImage`, `content.gif`,
+    `content.transform`, `content.htmlToPng`, `emails.generate`,
+    `emails.edit`, `emails.auditEmail`, `emails.previewClients` and
+    `emails.inboxPlacementTests.create`. `NotificationType` adds
+    `trial_ending`, `trial_expired` and `payment_failed`, shown to
+    organization admins only (GetBrew/brew-v2#1937).
+  - `BrewErrorCode` includes `WRITE_CONFLICT` (`503` with `Retry-After`) on
+    `emails.clone`: other writes to the brand kept conflicting, and nothing
+    was saved. The client retries it with the same idempotency key
+    (GetBrew/brew-v2#2624).
+  - Send `pauseReason` adds `bounce_rate`: Brew paused a campaign because
+    at least 4% of its recipients hard-bounced or 0.3% marked it as spam.
+    `sends.resume` continues it, and it is never paused for that rate again.
+    Send `stats` add optional `hardBounced`, a subset of `bounced`
+    (GetBrew/brew-v2#2756).
+  - Test sends (`emails.send({ test: true })`), `automations.test`
+    deliveries and inbox placement tests no longer count toward the plan's
+    email sends, and a plan at its limit no longer refuses them.
+    `emails.inboxPlacementTests.create` no longer lists
+    `402 SEND_QUOTA_EXCEEDED` (GetBrew/brew-v2#2770).
+  - `contacts.search({ audienceId: 'all' })` searches every contact, the
+    same as omitting `audienceId`. `TestAutomationResponse` gains an
+    optional `runs` that only MCP fills; HTTP responses never carry it
+    (GetBrew/brew-v2#2748).
+  - `audiences.list` recounts a listed `count` when contacts changed since
+    it or it is a day old; one that cannot be recounted keeps its saved
+    total (GetBrew/brew-v2#2674).
+  - `BrewErrorCode` includes `AUTOMATION_IN_PROGRESS` (`409`),
+    `AUTOMATION_NOT_READY` (`422`) and `AUTOMATION_NOT_RUNNABLE` (`422`).
+    `automations.delete`, `automations.test` and `automations.run` return
+    `409 AUTOMATION_IN_PROGRESS` while the agent is still generating the
+    automation; `test` and `run` return `422 AUTOMATION_NOT_READY` for a flow
+    that cannot run (the message names the problem); `run` returns
+    `422 AUTOMATION_NOT_RUNNABLE` for an event automation. These replace
+    `500 INTERNAL_ERROR`, `400 INVALID_PAYLOAD` and `422 INVALID_REQUEST`, so
+    match on the new codes (GetBrew/brew-v2#2839).
+    `automations.audienceRuns.resume` returns `422 AUTOMATION_NOT_READY`
+    instead of `422 INVALID_REQUEST` when a send step still to go can no
+    longer send (GetBrew/brew-v2#2841).
+  - `automations.audienceRuns.cancel` no longer lists
+    `503 RUN_STOP_FAILED`, which it never returned; a repeat cancel with a new
+    idempotency key is `409 RUN_NOT_CANCELLABLE`. `automations.delete` no
+    longer lists `404 AUTOMATION_NOT_FOUND` (an unknown id has always
+    resolved `deleted: false`), and it cancels unfinished manual-audience
+    runs and keeps them as history (GetBrew/brew-v2#2838).
+  - `contacts.importCsv` refuses two columns that fill one core field
+    (`email,Email`, `First Name,firstName`) with
+    `422 FIELD_NAME_COLLISION` instead of dropping one. A `mapping` onto
+    `subscribed` (or another core field) comes first: the column that would
+    fill it by default is left out with a `CSV_COLUMN_IGNORED` warning. Among
+    the columns still filling `subscribed`, an opt-out in any of them wins
+    (GetBrew/brew-v2#2835).
+    `emails.import` converts SVG images to hosted PNGs instead of failing
+    the import (GetBrew/brew-v2#2842).
+  - Descriptions only: rate-limit examples for `emails.generate` (20) and
+    for automation and trigger writes (60) (GetBrew/brew-v2#2737), and the
+    `automations.runs.list`
+    `recipientEmail` filter (GetBrew/brew-v2#2757).
+
+- `content.gif` takes `frameCount` (2–16, default 9) for a `prompt` or
+  `image` source; `fps` (default 5) sets playback speed. The response adds
+  `frameCount`. Generated types also carry `EMAIL_IMPORT_PERSISTENCE_FAILED`
+  (`502`) on `emails.import` (GetBrew/brew-v2#2668, GetBrew/brew-v2#2620).
+  `GIF_DEFAULT_TIMEOUT_MS` stays 300 s: generation ends within 180 s, a
+  `video` conversion can take up to 300 s.
+
+- `automations.audienceRuns.pause` is idempotent: pausing a run its operator
+  already paused returns the same `200` and changes nothing
+  (GetBrew/brew-v2#2615). A run held at the plan limit
+  (`pauseReason: 'plan_limit'`) now returns `409 RUN_NOT_PAUSABLE`, like a
+  scheduled, completed, failed or canceled run; it used to return `200` and
+  still resume on its own once the monthly send allowance had room, so
+  cancel it to stop it (GetBrew/brew-v2#2838).
+
+- Generated types follow app revision `19c7b0d9da` (GetBrew/brew-v2#2592,
+  GetBrew/brew-v2#2604). The type sync narrows `eventType` (see Breaking) and
+  adds optional fields.
+  - Import `assetReport.warnings` codes include `text_dropped`: source words
+    the editable design does not carry, named once (`host` is the words);
+    version 1 keeps the exact source (GetBrew/brew-v2#2604).
+  - `BrewErrorCode` includes `TEST_RECIPIENT_NOT_ALLOWED` (`422`): a test
+    send (`emails.send({ test: true })`) or an `automations.test`
+    `testRecipient` reaches only a teammate with access to the brand, an
+    address on a verified sending domain of the brand, or, for a signed-in
+    person (not an API key), their own address or one on their company
+    domain. `details.recipients` lists the refused addresses
+    (GetBrew/brew-v2#2578).
+  - `eventCounts` groups carry an optional `recipients`: on a group of
+    opened, clicked or delivered events not grouped by `link`, each recipient
+    counted once per message within `range`. `count` still counts events
+    (GetBrew/brew-v2#2582).
+  - `emails.generate({ title })` names the canvas (1 to 200 characters).
+    Omitted, Brew derives it from `subjectLine`, else from the prompt's first
+    sentence, capped at 60 characters at a word boundary (instead of the
+    prompt's first 120 characters).
+  - An events read filtered by `sendId` is bounded by that send instead of
+    the last 7 days unless `from`/`to` are given, as an `automationRunId`
+    read already was.
+  - `automations.patch` accepts `expectedBaseVersionId` alone (a changed
+    automation is `409 AUTOMATION_VERSION_CONFLICT`);
+    `expectedBaseDefinitionSha256` is an optional stricter guard that
+    requires it, and sending the hash without it is a `400`. Omitting
+    `connections` keeps the stored edges.
+  - `automations.create` and `automations.patch` refuse a topology fault
+    (no or several triggers, a duplicate or ambiguous edge, an unknown
+    branch, a cycle, an unreachable step) with `400 AUTOMATION_GRAPH_INVALID`
+    before the write. `details.issues[]` entries are
+    `{ kind, code?, nodeId?, nodeLabel?, message }`, with `code` on a
+    `kind: 'structure'` issue.
+  - A `400 INVALID_REQUEST` with more than one problem lists each in
+    `details.issues[]` (`{ param?, message }`, at most 20); `param` still
+    names the first.
+  - Event feed `pagination.cursor` values are base64url. They stay opaque,
+    and cursors issued before this change still work.
 - Generated types follow app revision `507dbacf45`. The type sync changes
   descriptions only, no types or method parameters (GetBrew/brew-v2#2571).
   - `audiences.create` and `audiences.update` refuse a comma-joined string
