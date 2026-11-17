@@ -135,6 +135,7 @@ controller is available from `@brew.new/sdk/embed`.
 
 | Topic                              | File                                                                   |
 | ---------------------------------- | ---------------------------------------------------------------------- |
+| Marketing goals                    | [`docs/agent-goals.md`](docs/agent-goals.md)                           |
 | Analytics resource                 | [`docs/analytics.md`](./docs/analytics.md)                             |
 | Automations resource               | [`docs/automations.md`](./docs/automations.md)                         |
 | Audiences resource                 | [`docs/audiences.md`](./docs/audiences.md)                             |

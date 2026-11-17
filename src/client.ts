@@ -1,4 +1,8 @@
 import {
+  createAgentGoalsResource,
+  type AgentGoalsResource,
+} from './resources/agent-goals/resource'
+import {
   createWebhooksResource,
   type WebhooksResource,
 } from './resources/webhooks/resource'
@@ -114,6 +118,7 @@ import {
  * that pin.
  */
 export type BrewClient = {
+  readonly agentGoals: AgentGoalsResource
   readonly webhooks: WebhooksResource
   readonly canvas: CanvasResource
   /**
@@ -283,6 +288,7 @@ function buildClient(
       : createHttpClient({ ...config, brandId: undefined }, tuning)
   return {
     canvas: createCanvasResource(httpClient),
+    agentGoals: createAgentGoalsResource(httpClient),
     webhooks: createWebhooksResource(httpClient),
     withBrand: (brandId: string): BrewClient => {
       if (typeof brandId !== 'string' || brandId.trim() === '') {
