@@ -19,6 +19,9 @@ export type PayloadContractGetResponse =
   components['schemas']['PayloadContractGetResponse']
 export type PayloadContractField =
   components['schemas']['PayloadContractFieldNode']
+/** Normalized fields returned by getContract and putContract. */
+export type PayloadContractStoredField =
+  components['schemas']['PayloadContractStoredFieldNode']
 export type PayloadContractPutRequest =
   components['schemas']['PayloadContractPutRequest']
 export type PayloadContractPutResponse =

@@ -1,7 +1,7 @@
 import { HttpResponse, http } from 'msw'
 import { describe, expect, expectTypeOf, it } from 'vitest'
 
-import type { PayloadContractField } from '../../src/resources/automations/triggers/contract'
+import type { PayloadContractStoredField } from '../../src/resources/automations/triggers/contract'
 import { createTriggersResource } from '../../src/resources/automations/triggers/resource'
 import { createPayloadContractsResource } from '../../src/resources/payload-contracts/resource'
 import { makeTestHttpClient } from '../helpers/http-client'
@@ -50,7 +50,9 @@ describe('payload contract methods', () => {
       expect(url?.searchParams.get('format')).toBe(format ?? null)
       expect(body.format).toBe('json')
       if (body.format !== 'json') throw new Error('Expected a JSON contract')
-      expectTypeOf(body.fields).toEqualTypeOf<Array<PayloadContractField>>()
+      expectTypeOf(body.fields).toEqualTypeOf<
+        Array<PayloadContractStoredField>
+      >()
       expect(body.fields).toEqual(STORED_CONTRACT.fields)
     }
   )

@@ -7706,6 +7706,19 @@ export interface components {
         };
         IntegrationEventTriggerSaved: {
             triggerEventId: string;
+            /** @description Stable developer key your code names this trigger by; unique in the brand. Fire by it with `POST /v1/automations/triggers/by-key/{triggerKey}/fire`. Absent when the trigger has none. */
+            key?: string;
+            /** @description Present when an app-email setup wired this keyed trigger to an automation and design. */
+            appEmail?: {
+                /** @description The automation that sends this app email. */
+                automationId: string;
+                /** @description The email design it sends. */
+                emailId: string;
+                /** @description The starter-kit template the design came from, if any. */
+                starterId?: string;
+                /** @description Version of that starter template. */
+                starterVersion?: number;
+            };
             title: string;
             description?: string;
             /** @enum {string} */
@@ -7925,7 +7938,7 @@ export interface components {
             driftStatus?: "fresh" | "stale";
             /** @enum {string} */
             format: "json";
-            fields: components["schemas"]["PayloadContractFieldNode"][];
+            fields: components["schemas"]["PayloadContractStoredFieldNode"][];
         } | {
             /** @enum {string} */
             subjectKind: "trigger";
@@ -7977,7 +7990,7 @@ export interface components {
             driftStatus?: "fresh" | "stale";
             /** @enum {string} */
             format: "json";
-            fields: components["schemas"]["PayloadContractFieldNode"][];
+            fields: components["schemas"]["PayloadContractStoredFieldNode"][];
             warnings: components["schemas"]["ApiWarning"][];
         };
         PayloadContractPutRequest: {
@@ -9878,6 +9891,14 @@ export interface components {
                 remaining: number | null;
                 reserved?: number;
             };
+            onDemand: {
+                active: boolean;
+                capUsd: number | null;
+                budgetUsd: number;
+                spentUsd: number;
+                creditsRemaining: number;
+                emailSendsRemaining: number;
+            };
             period: {
                 /** Format: date-time */
                 start: string | null;
@@ -10530,6 +10551,25 @@ export interface components {
             };
             /** @description Create a connection only if none exists. An unchanged secret and settings replay safely; an existing different connection returns 409 INTEGRATION_ALREADY_CONNECTED. */
             createOnly?: boolean;
+        };
+        PayloadContractStoredFieldNode: {
+            key: string;
+            /** @enum {string} */
+            type: "string" | "int" | "float" | "boolean" | "date" | "enum" | "object" | "array" | "unknown";
+            required: boolean;
+            description?: string;
+            exampleValue?: string | number | boolean;
+            fallbackValue?: string | number | boolean;
+            /** @enum {string} */
+            pii?: "none" | "low" | "high";
+            /** @description True for a value used only to render this email: never stored on contacts, in logs or analytics; cannot be used in filters, splits or recipient fields. Scalars only, never `email`. False explicitly permits ordinary PII outside rendering; pii still controls log masking. When omitted, legacy high-PII scalar protection applies except for email and top-level firstName/lastName. */
+            secret?: boolean;
+            /** @description false keeps this value off the contact record: it reaches the email and nothing else. Omitted means true. The top-level email always identifies the contact. */
+            syncToContact?: boolean;
+            enumValues?: string[];
+            itemType?: ("string" | "int" | "float" | "boolean" | "date" | "enum") | "unknown";
+            usedIn?: ("body" | "subject" | "previewText")[];
+            children?: components["schemas"]["PayloadContractStoredFieldNode"][];
         };
     };
     responses: never;
@@ -36883,6 +36923,17 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
+            /** @description `NO_ACTIVE_PLAN`: Nothing entitles the organization because the trial ended, the plan was cancelled, or the last charge failed; `details.reason` is `NO_PLAN` or `PAYMENT_BLOCKED`, and no top up fixes it. */
+            402: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
             /**
              * @description `ACCOUNT_SUSPENDED`: The organization behind the credential is suspended.
              *
@@ -37042,6 +37093,17 @@ export interface operations {
                     "application/json": components["schemas"]["ApiErrorEnvelope"];
                 };
             };
+            /** @description `NO_ACTIVE_PLAN`: Nothing entitles the organization because the trial ended, the plan was cancelled, or the last charge failed; `details.reason` is `NO_PLAN` or `PAYMENT_BLOCKED`, and no top up fixes it. */
+            402: {
+                headers: {
+                    /** @description Unique request identifier. Share this with support when debugging a request. */
+                    "x-request-id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiErrorEnvelope"];
+                };
+            };
             /**
              * @description `ACCOUNT_SUSPENDED`: The organization behind the credential is suspended.
              *
@@ -37077,7 +37139,9 @@ export interface operations {
                 };
             };
             /**
-             * @description `INTEGRATION_ALREADY_CONNECTED`: A create-only hook connect found an existing connection with different credentials or settings.
+             * @description `IDEMPOTENCY_IN_PROGRESS`: A request with this Idempotency-Key is still executing.
+             *
+             *     `INTEGRATION_ALREADY_CONNECTED`: A create-only hook connect found an existing connection with different credentials or settings.
              *
              *     `INTEGRATION_CONNECTED_IN_APP`: The provider is connected on its integration page in Brew with another signing secret; the API connect never replaces that connection.
              */
