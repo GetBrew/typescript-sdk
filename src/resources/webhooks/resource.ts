@@ -1,5 +1,5 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 import type * as T from './types'
 import { webhookMethod } from './method'
 import { verifyWebhook } from './verify'
@@ -11,12 +11,16 @@ export function createWebhooksResource(client: HttpClient) {
   ): Promise<BrewRawResponse<T.ListWebhooksResponse>>
   function list(
     input?: T.WebhookListInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<T.ListWebhooksResponse>
+  function list(
+    input?: T.WebhookListInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<T.ListWebhooksResponse>>
   async function list(
     input: T.WebhookListInput = {},
     options?: RequestOptions
-  ): Promise<T.ListWebhooksResponse | BrewRawResponse<T.ListWebhooksResponse>> {
+  ): Promise<BrewResponse<T.ListWebhooksResponse>> {
     return unwrapResponse(
       await client.request<T.ListWebhooksResponse>({
         method: 'GET',
@@ -36,15 +40,18 @@ export function createWebhooksResource(client: HttpClient) {
   function replay(
     webhookId: string,
     eventId: string,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<T.ReplayWebhookResponse>
+  function replay(
+    webhookId: string,
+    eventId: string,
+    options?: RequestOptions
+  ): Promise<BrewResponse<T.ReplayWebhookResponse>>
   async function replay(
     webhookId: string,
     eventId: string,
     options?: RequestOptions
-  ): Promise<
-    T.ReplayWebhookResponse | BrewRawResponse<T.ReplayWebhookResponse>
-  > {
+  ): Promise<BrewResponse<T.ReplayWebhookResponse>> {
     return unwrapResponse(
       await client.request<T.ReplayWebhookResponse>({
         method: 'POST',

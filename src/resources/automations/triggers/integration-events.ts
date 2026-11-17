@@ -1,6 +1,10 @@
 import { unwrapResponse, type HttpClient } from '../../../core/http'
 import type { components, operations } from '../../../generated/openapi-types'
-import type { BrewRawResponse, RequestOptions } from '../../../types'
+import type {
+  BrewResponse,
+  BrewRawResponse,
+  RequestOptions,
+} from '../../../types'
 
 /**
  * The live integration event to get a trigger for: `eventId` from
@@ -59,15 +63,16 @@ export function createEnsureIntegrationEventTrigger(client: HttpClient) {
   ): Promise<BrewRawResponse<EnsureIntegrationEventTriggerResponse>>
   function ensureIntegrationEvent(
     input: EnsureIntegrationEventTriggerInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<EnsureIntegrationEventTriggerResponse>
+  function ensureIntegrationEvent(
+    input: EnsureIntegrationEventTriggerInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<EnsureIntegrationEventTriggerResponse>>
   async function ensureIntegrationEvent(
     input: EnsureIntegrationEventTriggerInput,
     options?: RequestOptions
-  ): Promise<
-    | EnsureIntegrationEventTriggerResponse
-    | BrewRawResponse<EnsureIntegrationEventTriggerResponse>
-  > {
+  ): Promise<BrewResponse<EnsureIntegrationEventTriggerResponse>> {
     const response =
       await client.request<EnsureIntegrationEventTriggerResponse>({
         method: 'POST',

@@ -130,6 +130,11 @@ describe('raw response inference', () => {
     visit(checker.getTypeFromTypeNode(declaration.type), 'brew')
     expect(methods.length).toBeGreaterThan(125)
     expect(methods).toContain('brew.canvas.sessions.revoke')
+    expect(methods).toContain('brew.webhooks.rotateSecret')
+    expect(methods).toContain('brew.integrations.events.get')
+    expect(methods).toContain(
+      'brew.automations.triggers.ensureIntegrationEvent'
+    )
     expect(checkConsumer(preamble + calls.join('\n'))).toEqual([])
   }, 120_000)
 
