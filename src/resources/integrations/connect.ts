@@ -59,6 +59,9 @@ export const CONNECT_INTEGRATION_DEFAULT_TIMEOUT_MS = 300_000
  * converges on the same connection. A secret in the wrong format, a
  * provider the API does not connect, or a `projectUrl` that is not https
  * is `400 INVALID_REQUEST`.
+ * Set `createOnly: true` for coordinated initial setup: unchanged credentials
+ * and settings replay, while a different existing connection is refused with
+ * `409 INTEGRATION_ALREADY_CONNECTED` instead of rotating its secret.
  *
  * The SDK sends `signingSecret` in the request body only: it is never
  * logged, never put in a URL or header, and never part of an error it

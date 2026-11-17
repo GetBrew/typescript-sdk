@@ -58,7 +58,12 @@ throw; connecting again finishes it.
 
 For Clerk, also turn off Delivered by Clerk for exactly the templates Brew
 sends (`stack.note` from `appEmails.setUpKit({ stack: 'clerk' })` lists
-them). Until a template is off, Clerk sends it and Brew sends nothing.
+them), after verifying that it is the same instance whose current signed
+webhook Brew received. The optional `verifiedInstanceId` in a connection
+response identifies that instance; compare it with the instance selected by
+your Clerk Backend API key before automating a delivery change. Missing
+proof is not evidence that two instances match. Until a template is off,
+Clerk sends it and Brew sends nothing.
 
 `settings.projectUrl` (Supabase only) is the URL the confirmation links
 point at: `https://<ref>.supabase.co` or a custom auth domain. Omitted, the
@@ -77,6 +82,13 @@ design built from a `source`). The call is a `PUT`, so it carries no
 `Idempotency-Key` and the SDK retries it like any idempotent request. It
 defaults to a 5-minute timeout (`CONNECT_INTEGRATION_DEFAULT_TIMEOUT_MS`),
 since the kit imports a design per key.
+
+For initial setup spanning Brew and the provider, pass `createOnly: true`.
+It accepts an unchanged existing secret and settings, but refuses a
+different existing connection with `409 INTEGRATION_ALREADY_CONNECTED`.
+Persist the generated secret securely before the call so an interrupted
+setup can retry with the same credential. Omitting this option keeps the
+explicit secret-rotation behavior above.
 
 **The signing secret.** The SDK sends `signingSecret` in the request body
 only. It is never logged, never put in a URL or header, and never part of
