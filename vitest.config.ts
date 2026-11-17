@@ -1,6 +1,7 @@
 import { configDefaults, defineConfig } from 'vitest/config'
 
 const packagingTests = [
+  'tests/analytics-response-types.test.ts',
   'tests/embed-packaging.test.ts',
   'tests/embed-runtime-sharing.test.tsx',
   'tests/source-install-packaging.test.ts',
