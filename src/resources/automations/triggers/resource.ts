@@ -11,6 +11,7 @@ import { createDeleteTrigger } from './delete'
 import { createFireTrigger } from './fire'
 import { createFireTriggerByKey } from './fire-by-key'
 import { createGetTrigger } from './get'
+import { createEnsureIntegrationEventTrigger } from './integration-events'
 import { createListTriggers } from './list'
 import { createPatchTrigger } from './patch'
 import { createTriggerReadiness } from './readiness'
@@ -30,6 +31,17 @@ export type TriggersResource = {
    * `automations`).
    */
   readonly ensureBrewEvent: ReturnType<typeof createEnsureBrewEventTrigger>
+  /**
+   * `POST /v1/automations/triggers/integration-events` — get or create the
+   * trigger for one live integration event (an `eventId` from
+   * `brew.integrations.events.list()`). Returns the row plus `created`; the
+   * same event always returns the same trigger. The provider starts sending
+   * the event once an automation using it is published (scope:
+   * `automations`).
+   */
+  readonly ensureIntegrationEvent: ReturnType<
+    typeof createEnsureIntegrationEventTrigger
+  >
   /** `POST /v1/automations/triggers/{triggerEventId}/fire` — fire a trigger; starts one run per published automation attached to it (scope: `automations`). */
   readonly fire: ReturnType<typeof createFireTrigger>
   /**
@@ -65,6 +77,7 @@ export function createTriggersResource(client: HttpClient): TriggersResource {
     get: createGetTrigger(client),
     create: createCreateTrigger(client),
     ensureBrewEvent: createEnsureBrewEventTrigger(client),
+    ensureIntegrationEvent: createEnsureIntegrationEventTrigger(client),
     fire: createFireTrigger(client),
     fireByKey: createFireTriggerByKey(client),
     readiness: createTriggerReadiness(client),
