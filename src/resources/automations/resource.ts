@@ -35,7 +35,12 @@ export type AutomationsResource = {
   readonly get: ReturnType<typeof createGetAutomation>
   /** `POST /v1/automations` — deterministic create (scope: `automations`). */
   readonly create: ReturnType<typeof createCreateAutomation>
-  /** `POST /v1/automations/{automationId}/test` — start a suppression-aware TEST run (no real mail) (scope: `automations`). */
+  /**
+   * `POST /v1/automations/{automationId}/test` (scope: `automations`).
+   * Omit `testRecipient` for a dry run; set it for real delivery to an allowed
+   * test inbox that bypasses the live contact gate. Test deliveries never
+   * count toward the plan's email sends.
+   */
   readonly test: ReturnType<typeof createTestAutomation>
   /** `POST /v1/automations/{automationId}/run` — preview, launch, or schedule a manual-audience run (scope: `automations`). */
   readonly run: ReturnType<typeof createRunAutomation>

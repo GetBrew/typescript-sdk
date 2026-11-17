@@ -4,9 +4,15 @@ import globals from 'globals'
 import tseslint from 'typescript-eslint'
 
 export default defineConfig([
-  globalIgnores(['dist', 'node_modules', 'src/generated/**']),
+  // The generated customer example has its own Biome config and CI checks.
+  globalIgnores([
+    'dist',
+    'node_modules',
+    'src/generated/**',
+    'examples/embedded-email-canvas/**',
+  ]),
   {
-    files: ['**/*.ts'],
+    files: ['**/*.{ts,tsx}'],
     extends: [js.configs.recommended, tseslint.configs.recommendedTypeChecked],
     languageOptions: {
       ecmaVersion: 2022,

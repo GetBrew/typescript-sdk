@@ -31,3 +31,30 @@ export type ChatArtifact = ChatContextResponse['artifacts'][number]
  * the trimmed transcript tail (`role` + `text`).
  */
 export type ChatMessage = ChatContextResponse['recentMessages'][number]
+
+/**
+ * The page `GET /v1/chats` returns (`brew.chats.list()`): the brand's
+ * chats, most recently active first, under `{ data, pagination }`.
+ * Derived from the generated `listChats` operation so a rename of the
+ * response component cannot break it.
+ */
+export type ChatsListResponse =
+  operations['listChats']['responses'][200]['content']['application/json']
+
+/**
+ * One chat as the app's chat list shows it: `chatId` (resume it with
+ * `brew.chats.get(chatId)`), `title`, `firstUserPrompt` (cut at 80
+ * characters), `lastAssistantPreview` (cut at 140), `status` (`streaming`
+ * or `background_finalizing` while a run is still going; `null` before the
+ * first run), `origin` (the chat app it started in; `null` for the Brew
+ * web app), `updatedAt` and `url`. No transcript and no participants.
+ */
+export type ChatSummary = ChatsListResponse['data'][number]
+
+/** A chat's run state on `ChatSummary.status` (`null` before the first run). */
+export type ChatStatus = ChatSummary['status']
+
+/** The generated query `GET /v1/chats` takes: `limit` and `cursor`. */
+export type ListChatsInput = Readonly<
+  NonNullable<operations['listChats']['parameters']['query']>
+>

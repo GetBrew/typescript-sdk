@@ -1,31 +1,616 @@
 # Changelog
 
-## 11.6.0
-
-`brew.emails.auditEmail` takes the audit's new sources and returns its new
-evidence, matching the rebuilt audit (GetBrew/brew-v2 email audit PR).
-Additive for callers: an `emailHtml` body is sent unchanged.
+## Unreleased
 
 ### Added
 
-- **`auditEmail` takes exactly one source**: `emailHtml` (as before),
-  `emailJsx` (a React Email module Brew renders with the renderer it sends
-  with; one that does not render is `422`) or `emailId` with an optional
-  `emailVersionId` (a saved design, whose subject and preview fill any you
-  omit). `AuditEmailInput` is the generated union of the three.
-- **`policy.source: 'inferred'`** with `policy.confidence`: omit
-  `sendingPurpose` and the audit infers it from the content.
-- **`findings[].evidence`**: `{ kind: 'http', status, failure? }`,
-  `{ kind: 'clients', unsupported }` or
-  `{ kind: 'judgment', question, probability }`.
+- Live integration events, from GetBrew/brew-v2#2411: the events a
+  brand's connected live sources send (a PostHog project's own events; the
+  Stripe and Shopify app catalogs), each of which can start an automation.
+  All three methods require the `automations` scope.
+  - `brew.integrations.events.list({ provider?, query?, kind?, limit?, cursor? })`
+    calls `GET /v1/integrations/events` and returns
+    `{ data, sources, pagination }`. A page can hold fewer than `limit`
+    rows; follow `pagination.cursor` until `hasMore` is `false`.
+  - `brew.integrations.events.get(eventId)` calls
+    `GET /v1/integrations/events/{eventId}`: the event with each property's
+    template `variable`, `isPersonal` and `isPersonalization`, and
+    `propertiesStatus`: `current`, `stored`, `rate_limited` (with
+    `retryAfterSeconds`) or `unavailable`. The read may describe the event
+    at the provider first, on the account's read budget; a spent budget
+    answers with what Brew stored, not an error. An unknown id is
+    `404 INTEGRATION_EVENT_NOT_FOUND`.
+  - `brew.automations.triggers.ensureIntegrationEvent({ eventId })` calls
+    `POST /v1/automations/triggers/integration-events` and returns the
+    event's trigger row (`IntegrationEventTriggerSaved`) with `created`
+    (`201` the first time, `200` after) and the same `propertiesStatus` and
+    `retryAfterSeconds`. The row has no `brewEvent` or `skill`. It can
+    refuse with `409 TRIGGER_LIMIT_REACHED` (100 triggers per brand) or
+    `409 INTEGRATION_RECONNECT_REQUIRED`.
+  - `IntegrationEvent`, `IntegrationEventDetail`, `IntegrationEventProperty`,
+    `IntegrationEventPropertiesStatus`, `IntegrationEventSource`,
+    `IntegrationEventKind`, `IntegrationEventStage`,
+    `ListIntegrationEventsInput`, `ListIntegrationEventsResponse`,
+    `GetIntegrationEventResponse`, `EnsureIntegrationEventTriggerInput` and
+    `EnsureIntegrationEventTriggerResponse` are exported from the package
+    root. These methods require the matching API deployment.
+- Generated types for GetBrew/brew-v2#2411 (the current app revision is
+  under Changed): trigger and integration providers include
+  `posthog`, error codes add `INTEGRATION_EVENT_NOT_FOUND` and
+  `INTEGRATION_RECONNECT_REQUIRED`, insight actions add the
+  `draft_automation` intent, `IntegrationEventDetailResponse` carries
+  `propertiesStatus` and `retryAfterSeconds`, and the ensure response is
+  the named `IntegrationEventTriggerSaved` component.
+- `brew.webhooks` manages brand-scoped email webhooks: `list`, `create`,
+  `get`, `update`, `delete`, `rotateSecret`, `test`, `events`, `attempts`,
+  `replay(webhookId, eventId)` and `verify`. `verifyWebhook` and
+  `BrewWebhookVerificationError` (with a `reason`) are also exported for
+  receivers without an API key. See `docs/webhooks.md`
+  (GetBrew/brew-v2#2398).
+
+### Breaking
+
+- `content.gif` `fps` for a `prompt` or `image` source now sets playback
+  speed over `frameCount` frames (a loop lasts `frameCount / fps` seconds);
+  it used to sample a fixed 5-second clip. `fps: 15` alone now loops in
+  0.6 s; raise `frameCount` for smoother motion (GetBrew/brew-v2#2668).
+- `ContentGifResponse` drops `videoUrl` and `generatedImageUrl`. A
+  `content.gif` from a `prompt` or an `image` is now one GPT Image 2.6
+  generation, with no source video or intermediate still
+  (GetBrew/brew-v2#2668).
+
+- `analytics.events`, `analytics.eventsAll` and `analytics.eventCounts` type
+  `eventType` as the API's 26 event types (`'sent'`, `'delivered'`,
+  `'opened'`, `'clicked'`, …, plus the `automation_*` and `trigger_*`
+  lifecycle types) instead of `string`. A value typed as `string` no longer
+  compiles; narrow it or cast it. The API now refuses any other value with
+  `400 INVALID_REQUEST` (GetBrew/brew-v2#2592).
 
 ### Changed
 
-- **`AUDIT_EMAIL_DEFAULT_TIMEOUT_MS` is 40 s** (was 65 s): the audit's checks
-  now share a 25-second budget. A longer client-wide `timeoutMs` is still
-  kept.
-- An omitted `subject` is no longer reported as missing (an empty one still
-  is).
+- Generated types follow app revision `b2df757e44`. The type sync widens
+  closed unions (a `switch` that checks exhaustiveness needs the new
+  members); no method parameters change.
+  - `BrewErrorCode` includes `FIELD_NAME_INVALID` and `FIELD_NAME_AMBIGUOUS`
+    (both `422`). `contacts.upsert`, `contacts.upsertMany` and
+    `contacts.import` refuse a custom-field name with no ASCII letter or
+    digit (`名前`, `#`) with `FIELD_NAME_INVALID`: it cannot become a field
+    key, so its value would be lost. `contacts.importCsv` returns
+    `FIELD_NAME_AMBIGUOUS` when such a CSV column matches several existing
+    fields labeled with that name; `details.columns` lists the candidate
+    keys, and `mapping` picks one (GetBrew/brew-v2#2884).
+  - Warning codes add `BLANK_FIELD_NAME_IGNORED` and
+    `CSV_COLUMN_MATCHED_FIELD`. A blank `customFields` key (`""` or only
+    spaces) is dropped with `BLANK_FIELD_NAME_IGNORED` while the rest of the
+    contact is stored. `contacts.importCsv`
+    reports `CSV_COLUMN_MATCHED_FIELD` when a column named with no ASCII
+    letter or digit was imported into the existing field labeled with its
+    name (GetBrew/brew-v2#2884).
+  - `ChatSummary['origin']` adds `'teams'`, `'google-chat'` and `'telegram'`
+    beside `'slack'` (GetBrew/brew-v2#2846).
+  - Trigger `provider` adds `hubspot` (GetBrew/brew-v2#2910), and an inbox
+    placement test's `diagnosis` ids add `seed_delivery_blocked`
+    (GetBrew/brew-v2#2931).
+  - `409 IDEMPOTENCY_CONFLICT` has a second cause on fixed-price credited
+    methods (`contacts.upsert`, `contacts.upsertMany`, `contacts.import`,
+    `contacts.importCsv`, `contacts.validate`, `content.generateImage`,
+    `content.gif`, `content.transform`, `content.htmlToPng`,
+    `emails.generate`, `emails.auditEmail`, `emails.previewClients` and
+    `emails.inboxPlacementTests.create`): an idempotency key that already
+    paid for a request whose stored response is gone. The request is not
+    run or charged again; send a new key to repeat it. No type changes
+    (GetBrew/brew-v2#2876).
+  - `content.gif` from an `image` with no `prompt` now adds one deliberate
+    move of the image's main subject; the default was a subtle motion. No
+    type changes (GetBrew/brew-v2#2854).
+
+- Generated types follow app revision `57a327ed7f`. The type sync widens
+  closed unions (a `switch` that checks exhaustiveness needs the new
+  members) and adds optional fields; no method parameters change.
+  - `BrewErrorCode` includes `NO_ACTIVE_PLAN` (`402`): the trial ended, the
+    plan was cancelled or the last charge failed, so no credit top-up helps
+    (`details.reason` is `NO_PLAN` or `PAYMENT_BLOCKED`). Credit-charging
+    methods can return it: `brands.create`, `contacts.upsert`,
+    `contacts.upsertMany`, `contacts.import`, `contacts.importCsv`,
+    `contacts.validate`, `content.generateImage`, `content.gif`,
+    `content.transform`, `content.htmlToPng`, `emails.generate`,
+    `emails.edit`, `emails.auditEmail`, `emails.previewClients` and
+    `emails.inboxPlacementTests.create`. `NotificationType` adds
+    `trial_ending`, `trial_expired` and `payment_failed`, shown to
+    organization admins only (GetBrew/brew-v2#1937).
+  - `BrewErrorCode` includes `WRITE_CONFLICT` (`503` with `Retry-After`) on
+    `emails.clone`: other writes to the brand kept conflicting, and nothing
+    was saved. The client retries it with the same idempotency key
+    (GetBrew/brew-v2#2624).
+  - Send `pauseReason` adds `bounce_rate`: Brew paused a campaign because
+    at least 4% of its recipients hard-bounced or 0.3% marked it as spam.
+    `sends.resume` continues it, and it is never paused for that rate again.
+    Send `stats` add optional `hardBounced`, a subset of `bounced`
+    (GetBrew/brew-v2#2756).
+  - Test sends (`emails.send({ test: true })`), `automations.test`
+    deliveries and inbox placement tests no longer count toward the plan's
+    email sends, and a plan at its limit no longer refuses them.
+    `emails.inboxPlacementTests.create` no longer lists
+    `402 SEND_QUOTA_EXCEEDED` (GetBrew/brew-v2#2770).
+  - `contacts.search({ audienceId: 'all' })` searches every contact, the
+    same as omitting `audienceId`. `TestAutomationResponse` gains an
+    optional `runs` that only MCP fills; HTTP responses never carry it
+    (GetBrew/brew-v2#2748).
+  - `audiences.list` recounts a listed `count` when contacts changed since
+    it or it is a day old; one that cannot be recounted keeps its saved
+    total (GetBrew/brew-v2#2674).
+  - `BrewErrorCode` includes `AUTOMATION_IN_PROGRESS` (`409`),
+    `AUTOMATION_NOT_READY` (`422`) and `AUTOMATION_NOT_RUNNABLE` (`422`).
+    `automations.delete`, `automations.test` and `automations.run` return
+    `409 AUTOMATION_IN_PROGRESS` while the agent is still generating the
+    automation; `test` and `run` return `422 AUTOMATION_NOT_READY` for a flow
+    that cannot run (the message names the problem); `run` returns
+    `422 AUTOMATION_NOT_RUNNABLE` for an event automation. These replace
+    `500 INTERNAL_ERROR`, `400 INVALID_PAYLOAD` and `422 INVALID_REQUEST`, so
+    match on the new codes (GetBrew/brew-v2#2839).
+    `automations.audienceRuns.resume` returns `422 AUTOMATION_NOT_READY`
+    instead of `422 INVALID_REQUEST` when a send step still to go can no
+    longer send (GetBrew/brew-v2#2841).
+  - `automations.audienceRuns.cancel` no longer lists
+    `503 RUN_STOP_FAILED`, which it never returned; a repeat cancel with a new
+    idempotency key is `409 RUN_NOT_CANCELLABLE`. `automations.delete` no
+    longer lists `404 AUTOMATION_NOT_FOUND` (an unknown id has always
+    resolved `deleted: false`), and it cancels unfinished manual-audience
+    runs and keeps them as history (GetBrew/brew-v2#2838).
+  - `contacts.importCsv` refuses two columns that fill one core field
+    (`email,Email`, `First Name,firstName`) with
+    `422 FIELD_NAME_COLLISION` instead of dropping one. A `mapping` onto
+    `subscribed` (or another core field) comes first: the column that would
+    fill it by default is left out with a `CSV_COLUMN_IGNORED` warning. Among
+    the columns still filling `subscribed`, an opt-out in any of them wins
+    (GetBrew/brew-v2#2835).
+    `emails.import` converts SVG images to hosted PNGs instead of failing
+    the import (GetBrew/brew-v2#2842).
+  - Descriptions only: rate-limit examples for `emails.generate` (20) and
+    for automation and trigger writes (60) (GetBrew/brew-v2#2737), and the
+    `automations.runs.list`
+    `recipientEmail` filter (GetBrew/brew-v2#2757).
+
+- `content.gif` takes `frameCount` (2–16, default 9) for a `prompt` or
+  `image` source; `fps` (default 5) sets playback speed. The response adds
+  `frameCount`. Generated types also carry `EMAIL_IMPORT_PERSISTENCE_FAILED`
+  (`502`) on `emails.import` (GetBrew/brew-v2#2668, GetBrew/brew-v2#2620).
+  `GIF_DEFAULT_TIMEOUT_MS` stays 300 s: generation ends within 180 s, a
+  `video` conversion can take up to 300 s.
+
+- `automations.audienceRuns.pause` is idempotent: pausing a run its operator
+  already paused returns the same `200` and changes nothing
+  (GetBrew/brew-v2#2615). A run held at the plan limit
+  (`pauseReason: 'plan_limit'`) now returns `409 RUN_NOT_PAUSABLE`, like a
+  scheduled, completed, failed or canceled run; it used to return `200` and
+  still resume on its own once the monthly send allowance had room, so
+  cancel it to stop it (GetBrew/brew-v2#2838).
+
+- Generated types follow app revision `19c7b0d9da` (GetBrew/brew-v2#2592,
+  GetBrew/brew-v2#2604). The type sync narrows `eventType` (see Breaking) and
+  adds optional fields.
+  - Import `assetReport.warnings` codes include `text_dropped`: source words
+    the editable design does not carry, named once (`host` is the words);
+    version 1 keeps the exact source (GetBrew/brew-v2#2604).
+  - `BrewErrorCode` includes `TEST_RECIPIENT_NOT_ALLOWED` (`422`): a test
+    send (`emails.send({ test: true })`) or an `automations.test`
+    `testRecipient` reaches only a teammate with access to the brand, an
+    address on a verified sending domain of the brand, or, for a signed-in
+    person (not an API key), their own address or one on their company
+    domain. `details.recipients` lists the refused addresses
+    (GetBrew/brew-v2#2578).
+  - `eventCounts` groups carry an optional `recipients`: on a group of
+    opened, clicked or delivered events not grouped by `link`, each recipient
+    counted once per message within `range`. `count` still counts events
+    (GetBrew/brew-v2#2582).
+  - `emails.generate({ title })` names the canvas (1 to 200 characters).
+    Omitted, Brew derives it from `subjectLine`, else from the prompt's first
+    sentence, capped at 60 characters at a word boundary (instead of the
+    prompt's first 120 characters).
+  - An events read filtered by `sendId` is bounded by that send instead of
+    the last 7 days unless `from`/`to` are given, as an `automationRunId`
+    read already was.
+  - `automations.patch` accepts `expectedBaseVersionId` alone (a changed
+    automation is `409 AUTOMATION_VERSION_CONFLICT`);
+    `expectedBaseDefinitionSha256` is an optional stricter guard that
+    requires it, and sending the hash without it is a `400`. Omitting
+    `connections` keeps the stored edges.
+  - `automations.create` and `automations.patch` refuse a topology fault
+    (no or several triggers, a duplicate or ambiguous edge, an unknown
+    branch, a cycle, an unreachable step) with `400 AUTOMATION_GRAPH_INVALID`
+    before the write. `details.issues[]` entries are
+    `{ kind, code?, nodeId?, nodeLabel?, message }`, with `code` on a
+    `kind: 'structure'` issue.
+  - A `400 INVALID_REQUEST` with more than one problem lists each in
+    `details.issues[]` (`{ param?, message }`, at most 20); `param` still
+    names the first.
+  - Event feed `pagination.cursor` values are base64url. They stay opaque,
+    and cursors issued before this change still work.
+- Generated types follow app revision `507dbacf45`. The type sync changes
+  descriptions only, no types or method parameters (GetBrew/brew-v2#2571).
+  - `audiences.create` and `audiences.update` refuse a comma-joined string
+    for a list operator (`in`, `not_in`, `contains_any`,
+    `not_contains_any`), such as `value: 'pro,enterprise'`, with a `400`;
+    pass an array. Such a clause used to save and match nobody. `email in`
+    still splits on commas, and a stored legacy clause does not block
+    `addEmails` / `removeEmails`.
+  - `flows.get({ kind })` is documented as the flow's hyphenated kind
+    (`onboarding`, `trial`, `events`, `product-updates`, `promotions`,
+    optionally `-2`, `-3`…).
+- Generated types follow app revision `373e900a9a`. The type sync changes
+  no method parameters.
+  - `brand.getImages({ q })` semantic search is free; it used to cost 1
+    credit on its first page, and the endpoint no longer lists `402` or
+    `503` responses. Search pages with the same opaque `pagination.cursor`
+    as browse (GetBrew/brew-v2#2492).
+  - `sends.pause` on a send its operator already paused returns the same
+    `200` and changes nothing (GetBrew/brew-v2#2492).
+  - `contacts.patch` returns `warnings` (`DATE_ORDER_ASSUMED`,
+    `FIELD_TYPE_COERCED`; required on `PatchContactResponse`, so code that
+    builds the type, such as a test fake, adds `warnings: []`) beside
+    `updated`, which lists only the fields whose stored value changed and
+    is empty when nothing was written. A
+    JSON number past 2^53 - 1 is refused with `409 FIELD_TYPE_MISMATCH`;
+    send large ids as strings (GetBrew/brew-v2#2488).
+  - Automation save warnings include `NODE_ID_REPLACED`
+    (GetBrew/brew-v2#2486). `stopInFlight: true` on an automation that is
+    already a draft stops its in-flight contacts, and is a
+    `422 AUTOMATION_NOT_PUBLISHED` when none are in flight
+    (GetBrew/brew-v2#2489).
+  - A date written to a `date` field no longer adds a `FIELD_TYPE_COERCED`
+    warning (GetBrew/brew-v2#2490).
+  - Email import asset warnings include `element_dropped` at location
+    `markup`: source elements a design could not keep.
+
+## 13.4.0
+
+### Added
+
+- Generated types follow app revision `3d6a8e188d`. The type sync changes
+  no method signature.
+  - Contact write and import warnings include `FIELD_TYPE_COERCED` (a
+    custom-field value converted to its field's type; `field`, `from`, `to`;
+    GetBrew/brew-v2#2472) and `VALIDATION_SKIPPED`. When two requests create
+    the same new custom field at once, the first definition wins, the other
+    request's values are converted or refused against it, and
+    `fieldsCreated` lists the field only on the request that created it.
+  - `ApiErrorCode` includes `FIELD_NAME_COLLISION` (`422`): two keys in one
+    request that name the same contact field, such as `plan` and `Plan`
+    (GetBrew/brew-v2#2469).
+  - `brand.get` and `brand.patch` responses always carry `identity` (the type
+    is no longer optional); `include: ['identity']` is still accepted and
+    changes nothing (GetBrew/brew-v2#2470).
+  - Integration catalog rows may carry `inviteOnly`, `paused`,
+    `installationCount` and `capabilities`.
+  - Audience run ids are documented as passed exactly as returned; a keyed
+    launch returns a longer id (GetBrew/brew-v2#2468).
+
+- Add the email `lang` field (ISO 639-1, or `zh-Hans` / `zh-Hant`), shipped
+  in GetBrew/brew-v2#2225. `emails.get` returns `lang` on the `EmailDetail`
+  row once Brew has read the copy's language. `emails.generate`
+  (`POST /v1/emails`) accepts `lang` to name it up front, and `emails.edit`
+  (`PATCH /v1/emails/{emailId}`) accepts `lang` as a free envelope patch: no
+  AI run, no new version. A `lang` you set is kept and never re-detected;
+  `emails.edit({ emailId, lang: null })` clears it so Brew reads it again.
+  The new `EmailLanguage` type is derived from the API enum.
+
+### Fixed
+
+- `analytics.events` refuses `groupBy` and `bucket` with a `BrewInputError`
+  that points to `analytics.eventCounts`, before any request. It used to drop
+  both, so a caller asking for counts got event rows and no `count`.
+  `EventsAnalyticsInput` (and `EventsAnalyticsAllInput`) no longer accept the
+  two keys. Code that passed them stops compiling, but those keys never had
+  any effect.
+
+- Image-upload finalization errors expose the original `uploadId` alongside
+  `idempotencyKey`, so callers can recover a lost `uploadImage` result through
+  `content.addImage` without opening another upload. API, transport and parse
+  errors retain their existing classes; parse errors now also expose the key.
+
+## 13.1.0 – 13.3.0
+
+### Added
+
+- Generated types follow app revision `87ac2c6242`: email rows carry `lang`,
+  and flows carry their send-stream `kind` and `<domain>/<kind>` slugs.
+
+- Synchronize email categories and template browse groups with app revision
+  `9bf2e01f14d8260bdde0825e901a05497b66c70c`. Generation inputs accept
+  `onboarding`, `content`, `event-recap`, `product-pitch`, `company-news` and
+  `fundraising`; existing categories remain valid. Template reads accept
+  `group` filters and `groupBy: 'group'` counts. These additions require the
+  matching API deployment.
+
+- `brew.contacts.import({ contacts, consent?, validate?, fileName? })` calls
+  `POST /v1/contacts/import`: the JSON twin of `importCsv`, recorded as one
+  batch in Brew's Import History. `ImportContactsInput`,
+  `ImportContactsResponse`, `ImportContactsSummary`, `ImportContactsError` and
+  `ImportContactsWarning` are exported from the package root.
+
+- `importCsv` takes `fileName`, the name the batch is listed under in Import
+  History (also stamped on each contact as `csvFileName`). Both imports return
+  the batch's `importId`, which each contact they write carries until a later
+  import touches it. Both responses share the `ContactsImportResponse`
+  component (`ImportCsvContactsResponse` keeps its name).
+
+- Both import responses include `summary.total`: submitted JSON contacts or
+  CSV data rows, equal to `inserted + updated + failed + skipped`. Errors
+  and warnings can include a positive, 1-based `row` (JSON `contacts` index
+  plus one, or CSV data row with the header and blank lines not counted). `CSV_ROW_SKIPPED` warnings
+  identify the first 100 skipped CSV rows; a final warning without `row`
+  counts any remainder. These fields require the matching API deployment.
+
+- Both imports take `dryRun` and `onConflict`. `dryRun: true` returns the
+  response the import would return and writes nothing; it carries
+  `dryRun: true` and no `importId` (now optional on `ContactsImportResponse`).
+  `onConflict: 'skip'` creates missing contacts and leaves existing ones
+  unchanged, counted in `summary.skipped` with a `CONTACT_EXISTS_SKIPPED`
+  warning. These options require the matching API deployment.
+
+### Changed
+
+- `contacts.validate` results are discriminated by `checkOutcome` (the
+  generated spec now matches the API). `ContactValidationResult` is a union:
+  `checkOutcome: 'completed'` rows carry `reason?`, `didYouMean?`, `risk?`,
+  `isDisposable?` and `isRole?`; `checkOutcome: 'unavailable'` rows (the
+  provider could not score the address, and its stored verdict was kept)
+  carry only `email`, `valid`, `status` and `reason`. The envelope adds
+  `persistence: { matched, modified, failed }`, and `validation` on
+  `upsert`/`upsertMany`/`importCsv`/`import` may carry the same object.
+  Narrow before reading the provider fields:
+
+### Fixed
+
+- `flows.get` reads a `<domain>/<kind>` slug from `flows.list()` as one send
+  stream's flow (the domain path plus `?kind=`) and takes a `kind` option for
+  a bare-domain slug. It previously encoded the `/` into the path.
+
+## 13.0.0
+
+### Breaking
+
+- `canvas.sessions.revoke` now returns `CanvasSessionRevokeResponse` instead of
+  `void`. Update wrappers that explicitly return `Promise<void>` to await the
+  call without returning its value, or return the typed response instead.
+  With `{ raw: true }`, the result is
+  `BrewRawResponse<CanvasSessionRevokeResponse>`.
+
+### Added
+
+- `brands.waitForExtraction(brandId, { maxWaitMs?, pollIntervalMs?, signal? })`
+  polls until extraction ends, with a five-minute total deadline by default.
+  It returns the terminal lifecycle row, including failed or not-ready rows;
+  check `ready` before generating an email. The exported
+  `BrewBrandExtractionTimeoutError` includes the last observed status. Client
+  cancellation, HTTP errors and retry settings are preserved.
+- `createCanvasSessionProvider` accepts `headers` as `HeadersInit` or a sync or
+  async factory. The factory runs for initial and renewal requests, supporting
+  rotating CSRF headers and cancellation while headers are being resolved.
+- `BrewInputError` identifies invalid idempotency keys before a request is sent.
+  `BrewPaginationError` stops repeated cursor cycles with page and item counts.
+- Loops email exports and an 800-second default export timeout, preserving
+  explicit request timeouts and longer client-wide settings.
+
+### Fixed
+
+- `canvas.sessions.revoke` preserves the API's `{ revoked: boolean }` response
+  instead of discarding it. With `{ raw: true }`, it also returns HTTP status,
+  headers, and request metadata. `CanvasSessionRevokeResponse` is exported from
+  the package root and derives from the generated OpenAPI contract.
+- Regression checks cover typed public SDK responses and one-attempt canvas
+  credential creation/refresh with no automatic replay key.
+- Source preparation writes build logs to stderr so `npm pack --json` remains
+  machine-readable for the embedded canvas demo and other package consumers.
+- Git dependencies prepare complete ESM and CommonJS declarations, including
+  when installed inside `node_modules` on Windows.
+- `emails.import` returns the generated import contract, including required
+  asset diagnostics. Public payload contracts retain their discriminated
+  formats and warnings.
+- API contracts and resource guidance match current contact validation
+  outcomes, audience count freshness, email result recovery and send behavior.
+- White-label documentation uses the flat brand lifecycle response, private
+  canvas sessions, save-before-export and the supported email import formats.
+
+## 12.3.0
+
+### Added
+
+- Embed a group or single email with `EmailCanvas` from `@brew.new/sdk/react`
+  or `createEmailCanvas` from `@brew.new/sdk/embed`. Supply a publishable
+  `clientId` and exactly one `groupId` or `emailId`; no API key or Clerk key
+  is required by the browser integration.
+- Automatic session renewal and cleanup, realtime email updates, multiplayer
+  presence, manual editing, the properties panel, and draft recovery.
+- `brew.canvas.sessions` for server-authorized canvas access when individual
+  users need narrower permissions than the client app's brand.
+- An MIT-licensed Next.js demo and setup guide, including allowed origins,
+  save-before-navigation, group and single-email flows, and customer tests.
+
+## 12.2.0
+
+Needs the API from GetBrew/brew-v2#2071: triggers Brew starts itself.
+
+### Added
+
+- `brew.automations.triggers.ensureBrewEvent({ event, scope, domainId? })`
+  (`POST /v1/automations/triggers/brew-events`) gets or creates the brand's
+  trigger for one Brew-event scope and says which with `created`. The first
+  Brew event is `contact.unsubscribed`, a contact unsubscribing with an
+  email's link or their mail app's one-click button. Use `scope: 'domain'`
+  with a marketing `domainId` from `brew.domains.list()`, or `scope: 'all'`
+  for every email the brand sends. New types: `EnsureBrewEventTriggerInput`,
+  `EnsureBrewEventTriggerResponse` and `BrewEventTriggerConfig`.
+- Trigger rows can carry `provider: 'brew_event'` and a `brewEvent` config,
+  and trigger instances `source: 'brew_event'`. A `switch` over either union
+  that covers every value needs the new case.
+- The error code `TRIGGER_NOT_FIREABLE`. On a Brew-event trigger,
+  `triggers.fire` and `triggers.readiness` answer `409 TRIGGER_NOT_FIREABLE`,
+  and `triggers.patch` and `triggers.putContract` answer
+  `422 TRIGGER_IMMUTABLE`. Try its automation with `automations.test`: the
+  test runs on the trigger's sample, with any `payload` fields you pass laid
+  over it, and writes no contact.
+
+## 12.0.0
+
+The API retired `POST /v1/data` (GetBrew/brew-v2#1825), so the SDK drops the
+method that called it. This is a breaking change.
+
+### Breaking: the data command is removed
+
+- `brew.data.run(...)` (the whole `brew.data` resource) and the
+  `DataResource`, `RunDataCommandInput` and `RunDataCommandResponse` types are
+  removed. `POST /v1/data` is retired, and the bundled spec and generated
+  types no longer carry it (operation `runDataCommand`, schema
+  `DataCommandResponse`).
+- Use the typed resources instead: `brew.emails.list`,
+  `brew.emailGroups.list`, `brew.contacts.search`,
+  `brew.contacts.count`, `brew.contacts.countBy`, `brew.audiences.list`,
+  `brew.audiences.get`, `brew.automations.list`,
+  `brew.automations.runs.list`, `brew.domains.list`, `brew.sends.list`,
+  `brew.analytics.overview`, `brew.analytics.events` and
+  `brew.analytics.eventCounts`. The full question-by-question mapping is in
+  the API changelog (https://docs.brew.new/changelog/api).
+- The reads only the data command used to serve have typed methods since
+  11.6.0:
+  - design comments: `brew.emails.comments.list({ emailId })`, and
+    `brew.emails.comments.listAllMessages({ emailId, commentId })` for one
+    thread's older messages;
+  - brand insights and intelligence: `brew.insights.list(input?)`, whose
+    `include` adds `pulse`, `report`, `suggestions` and `memo`, and
+    `brew.insights.get(insightId)`;
+  - notifications: `brew.notifications.list(input?)` /
+    `brew.notifications.listAll(input?)`;
+  - chats: `brew.chats.list(input?)` / `brew.chats.listAll(input?)`, then
+    `brew.chats.get(chatId)` for one;
+  - domain-score history:
+    `brew.domains.health({ domainId, include: ['scoreHistory', 'scoreRuns'] })`;
+  - contact open profiles:
+    `brew.contacts.get(email, { include: ['openProfile'] })` and
+    `brew.contacts.search({ include: ['openProfile'] })`.
+- No equivalent: table discovery (`db ls`, `db schema`) and `jq` pipelines.
+  Read the typed resource and filter its result; writes go through each
+  resource's own methods.
+
+### Added
+
+- **Intelligent Send** (GetBrew/brew-v2#1827), from the regenerated spec:
+  `brew.emails.send` takes `smartSend: true` on a campaign send, which sends
+  each recipient with past opens or clicks at the upcoming hour (within 24
+  hours) their own history makes them most likely to open, and everyone
+  else right away. It composes with `scheduledAt`, not with `gradualSend`.
+  `Send` rows from `brew.sends.get` / `brew.sends.list` carry `smartSend` on
+  such a send: the deadline `windowEndsAt` and, once planned, the split
+  (`assignedViaModel`, `assignedImmediately`, `modelFallbacks`).
+
+## 11.6.0
+
+Typed reads for what `brew.data.run` (`POST /v1/data`) used to be the only
+way to read: Brew Insights, a design's comment threads, chats,
+notifications, a domain's score history and runs, and a contact's open-time
+profile (GetBrew/brew-v2#1828, GetBrew/brew-v2#1830, GetBrew/brew-v2#1831).
+The API is retiring the data command, so move those reads to these methods
+now. `brew.data.run` itself is unchanged in this release. Additive: nothing
+is removed or renamed.
+
+### Added
+
+- **`brew.insights.list(input?)`** (`GET /v1/insights`): the brand's
+  findings as the Insights page ranks them, most severe first, under
+  `{ data, pagination, freshness }`. Filter with `state` (`open` by default,
+  or `all`) and `severity`. `include` adds the page-level `pulse`, `report`,
+  `suggestions` and `memo`. `pulse`, `report` and `memo` are `null` until
+  they exist; `suggestions` is an empty array. `freshness` is on
+  every page; `latestAttempt.status: 'failed'` means the findings may be
+  stale.
+- **`brew.insights.list` refuses a stale cursor**
+  (GetBrew/brew-v2#1860): when the findings changed since the cursor was
+  issued, or it was issued for another `state` or `severity`, the call
+  throws a `BrewApiError` with `code: 'INVALID_REQUEST'` and
+  `param: 'cursor'`. Read the list again from the first page with the same
+  `state` and `severity`, dropping only `cursor`. A walk that finishes returns each finding of the list, as it
+  stands at the last page, exactly once.
+- **`brew.insights.get(insightId)`** (`GET /v1/insights/{insightId}`): one
+  finding in full, with frozen `metrics`, `evidence`, `subject`, the
+  detector's `method` and `generatedBy`. An unknown, malformed or
+  other-brand id is `404 INSIGHT_NOT_FOUND`, and the cases cannot be told
+  apart.
+- **`brew.emails.comments.list({ emailId, ... })`**
+  (`GET /v1/emails/{emailId}/comments`): a design's open comment threads,
+  newest activity first. `include: 'messages'` adds each thread's newest
+  messages and caps the page at 3 threads. `commentId` reads one thread, and
+  that thread's `messagesCursor` reads its older messages. The input type
+  rejects the combinations the API answers with `400` (`cursor` with
+  `commentId`, `messagesCursor` without it). An unknown or other-brand
+  design is `404 EMAIL_NOT_FOUND`, and a `commentId` that is not an open
+  thread is `404 COMMENT_NOT_FOUND`.
+- **`brew.emails.comments.listAllMessages({ emailId, commentId })`**: walks
+  one thread's `messagesCursor` and yields its messages newest first.
+- **`brew.chats.list(input?)` and `brew.chats.listAll(input?)`**
+  (`GET /v1/chats`): the brand's chats, most recently active first, with
+  title, opening prompt, latest reply, run `status`, `origin` and link.
+  Resume one with `brew.chats.get(chatId)`.
+- **`brew.notifications.list(input?)` and `brew.notifications.listAll(input?)`**
+  (`GET /v1/notifications`): the app's bell as a read, filterable by `type`.
+  Rows are keyed by `notificationId` (`ntf_…`). Any key can call it, and each
+  row is shown only when the key may read its feature, so a `type` the key
+  cannot see is an empty page, not an error. **A page can hold fewer rows
+  than `limit`, even none, while `hasMore` is `true`**; `listAll` follows
+  `hasMore`, not the row count.
+- **`include` on `brew.domains.health({ domainId, include })`**:
+  `'scoreHistory'` attaches up to 50 saved score snapshots, newest first;
+  `'scoreRuns'` attaches the last 5 automated domain score runs.
+- **`include` on `brew.contacts.get(email, { include: 'openProfile' })` and
+  `brew.contacts.search({ include: ['openProfile'] })`**: the contact's
+  smart-send open-time profile (`openProfile`: a 48-slot UTC half-hour
+  histogram, `totalOpens`, `lastOpenedAt`, and once there is enough history
+  `bestOpenMinuteUtc`, `bestSendMinuteUtc` and `confidence`), or `null` when
+  no opens are folded yet. It needs the `emails` scope as well as
+  `contacts` (`403 INSUFFICIENT_PERMISSIONS` without it). A search page with
+  it holds at most 10 contacts. `searchAll` carries it on every page. The
+  API refuses it with `count: true`, and `count` / `countBy` take no
+  `include`.
+- Types: `Insight`, `InsightSummary`, `InsightsListResponse`,
+  `ListInsightsInput`, `ListInsightsResponse`, `GetInsightResponse`,
+  `InsightsIncludeToken`, `InsightAction`, `InsightFreshness`,
+  `InsightMetric`, `InsightPulse`, `InsightReport`, `InsightSuggestion`,
+  `InsightMemo`, `InsightSeverity`, `InsightState`, `InsightsResource`;
+  `EmailCommentThread`, `EmailCommentMessage`, `EmailCommentTarget`,
+  `EmailCommentPerson`, `EmailCommentsListResponse`,
+  `ListEmailCommentsInput`, `ListEmailCommentsResponse`,
+  `ListAllEmailCommentMessagesInput`, `EmailCommentsIncludeToken`,
+  `EmailCommentsResource`; `ChatSummary`, `ChatStatus`,
+  `ChatsListResponse`, `ListChatsInput`, `ListAllChatsInput`;
+  `NotificationRow` (not `Notification`, which would shadow the DOM
+  global), `NotificationType`, `NotificationStatus`,
+  `NotificationsListResponse`, `ListNotificationsInput`,
+  `ListAllNotificationsInput`, `NotificationsResource`;
+  `DomainHealthIncludeToken`, `DomainScoreSnapshot`, `DomainScoreRun`;
+  `ContactOpenProfile`, `ContactsIncludeToken`, `GetContactOptions`,
+  `ContactSearchRow`. `BrewErrorCode` gains `INSIGHT_NOT_FOUND` and
+  `COMMENT_NOT_FOUND`.
+
+### Fixed
+
+- **Auto-pagers ignore `{ raw: true }`.** `contacts.searchAll`,
+  `sends.listAll`, `analytics.eventsAll` and
+  `automations.triggerInstances.listAll` passed the caller's options to
+  each page read, so `raw: true` made the read return a `BrewRawResponse`
+  and the iterator threw (`page.items is not iterable`) instead of yielding
+  rows. The page reads now always unwrap; `signal`, `timeoutMs`,
+  `maxRetries` and `retryOnTimeout` still apply to every page. The new
+  iterators (`chats.listAll`, `notifications.listAll`,
+  `emails.comments.listAllMessages`) behave the same.
+
+### Changed
+
+- `GetContactResponse`, `SearchContactsResponse` and
+  `GetDomainHealthResponse` are now derived from their operations'
+  responses rather than from the shared `Contact` / `ContactsListResponse`
+  / `DomainHealth` components, so they carry the include-only fields
+  (`openProfile`, `scoreHistory`, `scoreRuns`). `searchAll` yields
+  `ContactSearchRow`, the search page's row. These are the same shapes
+  plus optional fields, so existing code compiles unchanged.
 
 ## 11.5.0
 

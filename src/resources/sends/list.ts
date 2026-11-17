@@ -1,4 +1,4 @@
-import { autoPaginate } from '../../core/pagination'
+import { autoPaginate, pageReadOptions } from '../../core/pagination'
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
@@ -100,7 +100,7 @@ export function createListAllSends(client: HttpClient) {
           ...input,
           ...(cursor !== null ? { cursor } : {}),
         }
-        const response = await list(pageInput, options)
+        const response = await list(pageInput, pageReadOptions({ options }))
         return { items: response.data, pagination: response.pagination }
       },
       options?.signal ? { signal: options.signal } : undefined

@@ -14,6 +14,51 @@ describe('http.request — idempotency key propagation', () => {
     capturedRequest = undefined
   })
 
+  it.each(['', '   ', '\t', 'x'.repeat(101), 'invalid\nkey'])(
+    'rejects invalid caller keys before attempting a mutation: %j',
+    async (idempotencyKey) => {
+      let calls = 0
+      server.use(
+        http.post('https://brew.new/api/v1/contacts', () => {
+          calls += 1
+          return HttpResponse.error()
+        })
+      )
+      const { client, sleepCalls } = makeTestHttpClient()
+      await expect(
+        client.request({
+          method: 'POST',
+          path: '/v1/contacts',
+          options: { idempotencyKey },
+        })
+      ).rejects.toMatchObject({
+        name: 'BrewInputError',
+        param: 'idempotencyKey',
+      })
+      expect(calls).toBe(0)
+      expect(sleepCalls).toEqual([])
+    }
+  )
+
+  it('uses the normalized key on every retry', async () => {
+    const keys: Array<string | null> = []
+    server.use(
+      http.post('https://brew.new/api/v1/contacts', ({ request }) => {
+        keys.push(request.headers.get('Idempotency-Key'))
+        return keys.length === 1
+          ? HttpResponse.error()
+          : HttpResponse.json({ ok: true })
+      })
+    )
+    const { client } = makeTestHttpClient()
+    await client.request({
+      method: 'POST',
+      path: '/v1/contacts',
+      options: { idempotencyKey: ' stable-key ' },
+    })
+    expect(keys).toEqual(['stable-key', 'stable-key'])
+  })
+
   it('auto-generates an Idempotency-Key header on POST', async () => {
     server.use(
       http.post('https://brew.new/api/v1/contacts', ({ request }) => {

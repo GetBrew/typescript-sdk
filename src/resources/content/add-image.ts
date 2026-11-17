@@ -63,6 +63,12 @@ export const ADD_IMAGE_DEFAULT_TIMEOUT_MS = 300_000
  * retry shortly) and `413 PAYLOAD_TOO_LARGE` (over 20 MB, or an SVG over
  * 2 MB).
  *
+ * For `{ uploadId }`, terminal API, transport and parse errors expose
+ * that `uploadId` and the request's `idempotencyKey`, including when
+ * called by `uploadImage`. After an unknown outcome, replay this method
+ * with both values on the same brand client. The ID alone does not mean
+ * finalization completed; handle API refusals by their `code`.
+ *
  * Each attempt gets at least {@link ADD_IMAGE_DEFAULT_TIMEOUT_MS}.
  *
  * Pass `{ raw: true }` in `options` to receive the full `BrewRawResponse`
@@ -103,6 +109,7 @@ export function createAddImage(client: HttpClient) {
       path: '/v1/content/add-image',
       body: input,
       defaultTimeoutMs: ADD_IMAGE_DEFAULT_TIMEOUT_MS,
+      ...('uploadId' in input ? { uploadId: input.uploadId } : {}),
       ...(options ? { options } : {}),
     })
     return unwrapResponse(response, options)

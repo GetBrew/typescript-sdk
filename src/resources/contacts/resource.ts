@@ -5,6 +5,7 @@ import { createCountContactsBy } from './count-by'
 import { createDeleteContact } from './delete'
 import { createDeleteManyContacts } from './delete-many'
 import { createGetContact } from './get'
+import { createImportContacts } from './import'
 import { createImportCsvContacts } from './import-csv'
 import { createListContacts } from './list'
 import { createPatchContact } from './patch'
@@ -26,9 +27,9 @@ import { createValidateContacts } from './validate'
 export type ContactsResource = {
   /** `GET /v1/contacts` — the brand's contacts, newest first; free-text `search`, `audienceId` scope, `sort` + `order`, cursor pagination (scope: `contacts`). */
   readonly list: ReturnType<typeof createListContacts>
-  /** `GET /v1/contacts/{email}` — one contact as the bare row; `404 CONTACT_NOT_FOUND` when the address has none (scope: `contacts`). */
+  /** `GET /v1/contacts/{email}` — one contact as the bare row; `include: 'openProfile'` attaches its open-time profile (needs `emails` too); `404 CONTACT_NOT_FOUND` when the address has none (scope: `contacts`). */
   readonly get: ReturnType<typeof createGetContact>
-  /** `POST /v1/contacts/search` — the structured contacts read: typed `filters` combined by `logic`, optional `audienceId` scope, cursor pagination (scope: `contacts`). */
+  /** `POST /v1/contacts/search` — the structured contacts read: typed `filters` combined by `logic`, optional `audienceId` scope, cursor pagination; `include: ['openProfile']` attaches open-time profiles, ≤10 rows a page (needs `emails` too) (scope: `contacts`). */
   readonly search: ReturnType<typeof createSearchContacts>
   /** Async-iterate every contact matching a `search` query (scope: `contacts`). */
   readonly searchAll: ReturnType<typeof createSearchAllContacts>
@@ -48,7 +49,9 @@ export type ContactsResource = {
   readonly deleteMany: ReturnType<typeof createDeleteManyContacts>
   /** `POST /v1/contacts/validate` — batch deliverability check for emails (valid/risky/invalid + `reason` + `didYouMean` + `risk`/`isDisposable`/`isRole`); PERSISTS the verdict onto any matching existing contacts; metered 2 credits per address (scope: `contacts`). */
   readonly validate: ReturnType<typeof createValidateContacts>
-  /** `POST /v1/contacts/import-csv` — bulk-import contacts from a raw CSV string; pass `validate: true` to deliverability-check the imported addresses (inline ≤100, else a background `validationJobId`) at 2 credits per address (scope: `contacts`). */
+  /** `POST /v1/contacts/import` — import up to 1000 JSON contacts as one Import History batch (`importId`; `fileName` names it). `dryRun: true` previews the counts and writes nothing; `onConflict: 'skip'` leaves existing contacts unchanged. Optional validation uses the submitted count: ≤100 selects inline checks metered at 2 credits per submitted contact; larger submissions use a workflow charged per address as it runs. Counts or a job ID appear only when checks run or work is queued (scope: `contacts`). */
+  readonly import: ReturnType<typeof createImportContacts>
+  /** `POST /v1/contacts/import-csv` — import CSV as one Import History batch (`importId`; `fileName` names it). `dryRun: true` previews the counts and writes nothing; `onConflict: 'skip'` leaves existing contacts unchanged. Optional validation uses submitted data rows, including skipped/repeated rows: ≤100 selects inline checks metered at 2 credits per data row; larger files use a workflow charged per address as it runs. Counts or a job ID appear only when checks run or work is queued (scope: `contacts`). */
   readonly importCsv: ReturnType<typeof createImportCsvContacts>
 }
 
@@ -71,6 +74,7 @@ export function createContactsResource(client: HttpClient): ContactsResource {
     delete: createDeleteContact(client),
     deleteMany: createDeleteManyContacts(client),
     validate: createValidateContacts(client),
+    import: createImportContacts(client),
     importCsv: createImportCsvContacts(client),
   }
 }

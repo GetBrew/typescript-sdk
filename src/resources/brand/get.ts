@@ -1,4 +1,5 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
+import { serializeInclude } from '../../core/url'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
 import type { BrandGetResponse, BrandIncludeToken } from './types'
@@ -7,35 +8,27 @@ export type { BrandGetResponse, BrandIncludeToken }
 
 /**
  * Options for `brew.brand.get`. Pass `include` to embed design context in
- * the same call — any subset of `identity` (structured brand facts),
- * `emailDesign` / `imageStyle` (the markdown design system the email
- * agent follows), and `logos` (the CDN logo set). Accepts either an array
- * (`['identity', 'logos']`) or a pre-joined comma string (`'identity,logos'`);
- * the SDK serializes it as the single comma-separated `?include=` value the
- * API expects.
+ * the same call — any subset of `emailDesign` / `imageStyle` (the markdown
+ * design system the email agent follows) and `logos` (the CDN logo set).
+ * `identity` (structured brand facts) is always returned; naming it is
+ * accepted and changes nothing. Accepts either an array
+ * (`['emailDesign', 'logos']`) or a pre-joined comma string
+ * (`'emailDesign,logos'`); the SDK serializes it as the single
+ * comma-separated `?include=` value the API expects.
  */
 export type GetBrandInput = {
   readonly include?: ReadonlyArray<BrandIncludeToken> | string
-}
-
-/** Serialize the `include` option into the API's comma-separated form. */
-function serializeInclude(
-  include: GetBrandInput['include']
-): string | undefined {
-  if (include === undefined) return undefined
-  const joined = typeof include === 'string' ? include : include.join(',')
-  return joined.length > 0 ? joined : undefined
 }
 
 /**
  * `GET /v1/brand` — the brand selected for this request, plus its extraction
  * readiness. Singleton (no list / no id): a brand-scoped key uses its bound
  * brand, while an organization-scoped key uses the client's `brandId` pin.
- * Requires the `emails` scope.
+ * Requires a credential, without a feature scope.
  *
  * Returns the brand row FLAT (there is no `{ brand: … }` wrapper in
- * v1). Pass `include` (e.g. `['identity', 'logos']`) to embed any of
- * `identity` / `emailDesign` / `imageStyle` / `logos` in the same
+ * v1), with its saved `identity`. Pass `include` (e.g. `['logos']`) to
+ * embed any of `emailDesign` / `imageStyle` / `logos` in the same
  * response. Read `ready` (true ⇔ `status: 'completed'`) before
  * generating or sending — `POST /v1/emails` 422s
  * `BRAND_NOT_READY` until extraction completes. A `404 BRAND_NOT_FOUND`
@@ -60,7 +53,7 @@ export function createGetBrand(client: HttpClient) {
     const response = await client.request<BrandGetResponse>({
       method: 'GET',
       path: '/v1/brand',
-      query: { include: serializeInclude(input.include) },
+      query: { include: serializeInclude({ include: input.include }) },
       ...(options ? { options } : {}),
     })
     return unwrapResponse(response, options)

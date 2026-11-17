@@ -21,7 +21,7 @@ export type DomainsResource = {
   readonly add: ReturnType<typeof createAddDomain>
   /** `POST /v1/domains/{domainId}/verify` — re-check DNS + persist status (scope: `domains`). */
   readonly verify: ReturnType<typeof createVerifyDomain>
-  /** `GET /v1/domains/{domainId}/health` — aggregate deliverability health and signals (scope: `domains`). */
+  /** `GET /v1/domains/{domainId}/health` — aggregate deliverability health and signals; `include` `scoreHistory` / `scoreRuns` adds saved score snapshots and the last automated score runs (scope: `domains`). */
   readonly health: ReturnType<typeof createGetDomainHealth>
   /** `PATCH /v1/domains/{domainId} { default*… }` — set sender defaults (scope: `domains`). */
   readonly updateSettings: ReturnType<typeof createUpdateDomainSettings>

@@ -1,6 +1,7 @@
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it } from 'vitest'
 
+import type { EmailLanguage } from '../../../src/index'
 import { createGetEmail } from '../../../src/resources/emails/get'
 import { makeTestHttpClient } from '../../helpers/http-client'
 import { server } from '../../msw/server'
@@ -117,5 +118,21 @@ describe('emails.get', () => {
     expect(sent.searchParams.get('runId')).toBe('run_abc')
     expect(sent.searchParams.get('include')).toBe('html')
     expect(byRun.runId).toBe('run_abc')
+  })
+
+  it('returns the detail-only lang', async () => {
+    server.use(
+      http.get('https://brew.new/api/v1/emails/email_123', () =>
+        HttpResponse.json({ ...EMAIL, lang: 'de' })
+      )
+    )
+
+    const { client } = makeTestHttpClient()
+    const email = await createGetEmail(client)('email_123')
+    const lang: EmailLanguage | undefined = email.lang
+    expect(lang).toBe('de')
+    // @ts-expect-error a code outside the API enum is not an EmailLanguage
+    const unknownCode: EmailLanguage = 'xx'
+    expect(unknownCode).toBe('xx')
   })
 })

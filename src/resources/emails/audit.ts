@@ -2,21 +2,18 @@ import type { components } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
-/**
- * Body of `POST /v1/emails/audit`: exactly one source — rendered
- * `emailHtml`, a React Email `emailJsx` module, or a saved design's
- * `emailId` (plus `emailVersionId` to pin a version) — with the optional
- * `subject`, `previewText` and `sendingPurpose`.
- */
-type AuditSourceKey = 'emailHtml' | 'emailJsx' | 'emailId' | 'emailVersionId'
+type GeneratedAuditRequest = components['schemas']['EmailAuditRequest']
+type UnionKeys<T> = T extends unknown ? keyof T : never
+type ExclusiveAuditRequest<T = GeneratedAuditRequest> =
+  T extends GeneratedAuditRequest
+    ? T &
+        Partial<
+          Record<Exclude<UnionKeys<GeneratedAuditRequest>, keyof T>, never>
+        >
+    : never
 
-type ExclusiveAuditSource<T> = T extends unknown
-  ? T & Partial<Record<Exclude<AuditSourceKey, keyof T>, never>>
-  : never
-
-export type EmailAuditRequest = ExclusiveAuditSource<
-  components['schemas']['EmailAuditRequest']
->
+/** Exactly one HTML, JSX, or saved-email source accepted by `POST /v1/emails/audit`. */
+export type EmailAuditRequest = ExclusiveAuditRequest
 
 /** Input for `brew.emails.auditEmail(...)`. */
 export type AuditEmailInput = EmailAuditRequest
@@ -25,21 +22,20 @@ export type AuditEmailInput = EmailAuditRequest
 export type EmailAuditResponse = components['schemas']['EmailAuditResponse']
 
 /**
- * The server runs every check in parallel within a 25-second budget. This
- * ceiling adds room to render a JSX or saved-design source and receive the
+ * The server gives the independent provider lanes up to 50 seconds to
+ * finish. This ceiling includes enough transport overhead to receive the
  * bounded response while still allowing callers to lower it.
  *
  * It is a floor, never a cap: a longer client-wide `timeoutMs` is kept.
  */
-export const AUDIT_EMAIL_DEFAULT_TIMEOUT_MS = 40_000
+export const AUDIT_EMAIL_DEFAULT_TIMEOUT_MS = 65_000
 
 /**
- * `POST /v1/emails/audit` (scope: `emails`) audits an email for production
- * readiness: links and images (fetched by Brew), unsubscribe and postal
- * compliance, loaded size, email-client support, accessibility, markup, and
- * link text, alt text, subject and preview copy judged by an evaluation
- * model. Each finding's `evidence` names what supports it. Omit
- * `sendingPurpose` and the audit infers it (`policy.source: 'inferred'`).
+ * `POST /v1/emails/audit` (scope: `emails`) audits HTML, JSX, or a saved email for
+ * production readiness. The audit covers compliance, links, images, loaded
+ * size, accessibility, compatibility, markup, subject copy, and preview copy.
+ * Choose exactly one of `emailHtml`, `emailJsx`, or `emailId`. Only saved
+ * emails accept `emailVersionId`; omitting it selects their latest version.
  *
  * Branch on `completion.status`. A complete result has a numeric score and
  * costs 5 credits. A partial result has `score: null`, costs 0 credits, and

@@ -62,6 +62,10 @@ export type FireTriggerResponse = components['schemas']['TriggerFireAccepted']
  * `options.idempotencyKey` on retries so a re-delivered webhook doesn't
  * double-fire — a replay answers `status: 'replayed'`.
  *
+ * A Brew-event trigger (`provider: 'brew_event'`) is started by Brew itself
+ * and answers `409 TRIGGER_NOT_FIREABLE`; try its automation with
+ * `brew.automations.test(...)` instead.
+ *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<FireTriggerResponse>` instead of the unwrapped payload.
  */

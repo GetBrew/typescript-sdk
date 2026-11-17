@@ -75,6 +75,9 @@ describe('createBrewClient — end-to-end', () => {
     expect(typeof brew.emailGroups.delete).toBe('function')
     // `GET /v1/integrations` — the product integration catalog.
     expect(typeof brew.integrations.list).toBe('function')
+    // `GET /v1/integrations/events[/{eventId}]` — live integration events.
+    expect(typeof brew.integrations.events.list).toBe('function')
+    expect(typeof brew.integrations.events.get).toBe('function')
     // Organization-level API key lifecycle.
     expect(typeof brew.apiKeys.list).toBe('function')
     expect(typeof brew.apiKeys.create).toBe('function')
@@ -88,6 +91,9 @@ describe('createBrewClient — end-to-end', () => {
     expect(typeof brew.automations.triggers.get).toBe('function')
     expect(typeof brew.automations.triggers.fire).toBe('function')
     expect(typeof brew.automations.triggers.readiness).toBe('function')
+    expect(typeof brew.automations.triggers.ensureIntegrationEvent).toBe(
+      'function'
+    )
     expect(typeof brew.automations.runs.list).toBe('function')
     expect(typeof brew.automations.runs.get).toBe('function')
     expect(typeof brew.automations.runs.cancel).toBe('function')
@@ -115,6 +121,14 @@ describe('createBrewClient — end-to-end', () => {
     expect(typeof brew.emailGroups.get).toBe('function')
     expect(typeof brew.emails.get).toBe('function')
     expect(typeof brew.emails.inboxPlacementTests.get).toBe('function')
+    // Typed reads that replaced the data command's tables.
+    expect(Object.keys(brew.insights).sort()).toEqual(['get', 'list'])
+    expect(Object.keys(brew.chats).sort()).toEqual(['get', 'list', 'listAll'])
+    expect(Object.keys(brew.notifications).sort()).toEqual(['list', 'listAll'])
+    expect(Object.keys(brew.emails.comments).sort()).toEqual([
+      'list',
+      'listAllMessages',
+    ])
     expect(typeof brew.fields.get).toBe('function')
 
     // Removed: no top-level me/account resources. The send ACTION still

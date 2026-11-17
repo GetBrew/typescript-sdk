@@ -19,6 +19,7 @@ audience scope.
 | [`delete`](#delete)         | `DELETE /v1/contacts/{email}`    |
 | [`deleteMany`](#deletemany) | `POST /v1/contacts/batch-delete` |
 | [`validate`](#validate)     | `POST /v1/contacts/validate`     |
+| [`import`](#import)         | `POST /v1/contacts/import`       |
 | [`importCsv`](#importcsv)   | `POST /v1/contacts/import-csv`   |
 
 > **New in 10.0.0.** `list(query)` and `get(email)` are real routes.
@@ -59,6 +60,43 @@ One contact, as the bare row. An address with no contact is
 const contact = await brew.contacts.get('jane@example.com')
 console.log(contact.subscribed, contact.customFields)
 ```
+
+### `include: 'openProfile'`
+
+Pass `include: 'openProfile'` to attach the contact's smart-send open-time
+profile. New in 11.6.0.
+
+```ts
+const contact = await brew.contacts.get('jane@example.com', {
+  include: 'openProfile',
+})
+const profile = contact.openProfile // ContactOpenProfile | null | undefined
+if (profile?.bestSendMinuteUtc !== undefined) {
+  const hour = Math.floor(profile.bestSendMinuteUtc / 60)
+  console.log(`Best send hour: ${hour}:00 UTC`)
+}
+```
+
+```ts
+type ContactOpenProfile = {
+  readonly totalOpens: number
+  readonly lastOpenedAt: string // ISO-8601
+  readonly histogram: ReadonlyArray<number> // 48 UTC half-hour open counts
+  // Once there is enough history:
+  readonly bestOpenMinuteUtc?: number // minutes after UTC midnight, 0–1439
+  readonly bestSendMinuteUtc?: number
+  readonly confidence?: number // 0–1
+}
+```
+
+`openProfile` is `null` when the contact has no opens folded yet, and
+absent when you did not ask for it. It is not bot detection: machine opens
+cannot be told apart in it (per-event classification is on
+`brew.analytics.events`).
+
+The include needs the `emails` scope as well as `contacts`. Without it the
+whole call fails with **`403 INSUFFICIENT_PERMISSIONS`**; an unknown token
+is `400 INVALID_REQUEST`.
 
 ## Shared types
 
@@ -159,7 +197,7 @@ newest-first.
 
 ```ts
 type SearchContactsInput = Readonly<{
-  audienceId?: string // scope to a saved audience's members
+  audienceId?: string // scope to a saved audience's members; 'all' (or omitted) searches every contact
   search?: string // case-insensitive search across email/first/last
   filters?: ReadonlyArray<ContactsFilterClause>
   logic?: 'and' | 'or' // default 'and'
@@ -167,6 +205,7 @@ type SearchContactsInput = Readonly<{
   order?: 'asc' | 'desc' // default 'desc'
   limit?: number // 1–100, default 50
   cursor?: string // opaque, from previous response
+  include?: ReadonlyArray<'openProfile'> // per-row open-time profile
 }>
 
 type SearchContactsResponse = {
@@ -198,6 +237,34 @@ if (pagination.hasMore && pagination.cursor) {
   })
 }
 ```
+
+### Open-time profiles on a page
+
+`include: ['openProfile']` attaches each row's `openProfile`, as on
+[`get`](#include-openprofile). New in 11.6.0. Each row costs one profile
+read, so a page then holds **at most 10 contacts**, whatever `limit` you
+pass. `pagination.limit` reports the size used. [`searchAll`](#searchall)
+carries the include on every page. An empty `include: []` is left out of
+the request (the API needs at least one token).
+
+```ts
+const { data } = await brew.contacts.search({
+  audienceId: 'aud_123',
+  include: ['openProfile'],
+})
+for (const contact of data) {
+  console.log(contact.email, contact.openProfile?.bestSendMinuteUtc)
+}
+```
+
+Errors:
+
+- **`403 INSUFFICIENT_PERMISSIONS`**: the key lacks the `emails` scope the
+  include needs as well as `contacts`.
+- **`400 INVALID_REQUEST`** (`param: 'include'`): the API refuses `include`
+  with `count: true`. `search` always sends `count: false`, and the
+  [`count`](#count) / [`countBy`](#countby) inputs have no `include`, so
+  the SDK cannot send that combination.
 
 ### Look up a single contact by email
 
@@ -316,10 +383,24 @@ type ContactConsentInput = {
   readonly evidence?: string
 }
 
+// A non-fatal note on a write. upsert, upsertMany and patch share this shape:
+// UpsertContactResponse['warnings'][number] (or PatchContactResponse's).
+type UpsertWarning = {
+  readonly code: string // e.g. FIELD_TYPE_COERCED, DATE_ORDER_ASSUMED
+  readonly message: string
+  readonly email?: string
+  readonly row?: number // 1-based; batch and import rows only
+  readonly field?: string
+  readonly from?: string // FIELD_TYPE_COERCED: the type sent
+  readonly to?: string //   FIELD_TYPE_COERCED: the type stored
+  readonly original?: string
+  readonly normalized?: string
+}
+
 type UpsertContactResponse = {
   readonly contact: Contact
   readonly created: boolean        // true if newly inserted, false if updated
-  readonly fieldsCreated: string[] // any custom fields auto-defined
+  readonly fieldsCreated: string[] // custom fields this request auto-defined
   readonly warnings: ReadonlyArray<UpsertWarning>
 }
 
@@ -340,6 +421,17 @@ console.log(result.contact.email)
 console.log(result.created) // true if this was an insert
 console.log(result.fieldsCreated) // ['plan'] if 'plan' was a new custom field
 ```
+
+A new custom field is typed from the values that create it. Later values are
+converted to that type or refused with `409 FIELD_TYPE_MISMATCH` (a per-row
+error in `upsertMany` and the imports). A converted value adds a
+`FIELD_TYPE_COERCED` warning naming `field`, `from` (the type sent) and `to`
+(the type stored), except a date written to a `date` field, which is
+converted silently.
+When two requests create the same new field at the same moment, the first
+definition wins: the other request's values are converted or refused against
+it, and only the winner lists the field in `fieldsCreated`. Create the field
+first with `brew.fields.create()` to pin its type.
 
 Record `consent` where you collect the address: `emails.send` refuses an
 inline marketing recipient whose contact has no consent record
@@ -432,7 +524,8 @@ type PatchContactInput = {
 
 type PatchContactResponse = {
   readonly contact: Contact
-  readonly updated: ReadonlyArray<string>  // field names that actually changed
+  readonly updated: ReadonlyArray<string>  // fields whose stored value changed; [] = nothing written
+  readonly warnings: ReadonlyArray<UpsertWarning> // see upsert; DATE_ORDER_ASSUMED, FIELD_TYPE_COERCED
 }
 
 patch(
@@ -539,20 +632,84 @@ if (result.notFound.length > 0) {
 ## `validate`
 
 Deliverability-check up to 100 addresses before importing or sending:
-each is `valid`, `risky` or `invalid`, with a `reason`, a `didYouMean`
-typo correction and `risk`, `isDisposable` and `isRole` flags. The verdict
-is also saved onto any matching existing contacts. Metered 2 credits per
-address, charged only on success; a check that cannot complete answers a
-retryable `503` and is not billed.
+Completed checks have `checkOutcome: "completed"` and a `valid`, `risky`
+or `invalid` verdict, with optional reason, typo correction and provider flags.
+Unscored addresses have `checkOutcome: "unavailable"` and
+`status: "risky"`; their previous stored verdict remains unchanged.
+`persistence` reports matching contacts, modified profiles and failed saves.
+Inspect it separately from provider verdicts. A batch with at least one scored
+address costs 2 credits per submitted address, including unavailable rows in a
+partial outage. Completed checks that produce no scored verdict waive the charge.
+A wholly unavailable batch answers retryable `503` and is not billed.
 
 ```ts
-const { data } = await brew.contacts.validate({
+const { data, persistence } = await brew.contacts.validate({
   emails: ['jane@example.com', 'bo@exampel.com'],
 })
 for (const result of data) {
+  if (result.checkOutcome === 'unavailable') {
+    console.log(result.email, 'Check unavailable; stored verdict unchanged')
+    continue
+  }
   console.log(result.email, result.status, result.didYouMean)
 }
+if (persistence.failed > 0) {
+  console.log(`${persistence.failed} verdicts could not be saved`)
+}
 ```
+
+---
+
+## `import`
+
+> **Unreleased.** The JSON method and new import metadata below require the
+> matching API deployment and SDK release. Published SDK 13.0.0 does not
+> expose `contacts.import`.
+
+Import up to 1000 JSON contacts as one named batch in Brew's Import History.
+Use `upsertMany` for recurring syncs that should not create a history entry.
+Each contact uses the batch-create shape: `email`, optional `firstName`,
+`lastName`, `subscribed`, `customFields` and per-contact `consent`. Top-level
+`consent` supplies the default for contacts without their own record; only
+record consent you actually collected. It does not re-subscribe an opt-out.
+
+```ts
+const result = await brew.contacts.import({
+  contacts: [
+    { email: 'ada@example.com', firstName: 'Ada' },
+    { email: 'grace@example.com', firstName: 'Grace' },
+  ],
+  fileName: 'crm-export.json',
+  consent: { source: 'import' },
+})
+
+console.log(result.importId)
+console.log(result.summary.total) // 2 submitted contacts
+for (const error of result.errors) {
+  console.error(error.row, error.email, error.code, error.message)
+}
+```
+
+`fileName` names the batch in Import History and is stamped on contacts it
+writes as `csvFileName`. Both imports return the batch's `importId` (absent on
+a `dryRun` preview); each written contact carries it until a later import touches that contact.
+Deleting the import removes contacts it created that a later import has not
+since updated.
+
+Both imports return `summary`, `fieldsCreated`, `errors` and `warnings`.
+The required `summary.total` equals `inserted + updated + failed + skipped`;
+for JSON, `skipped` counts only existing contacts left alone by
+`onConflict: 'skip'`. Full and partial success (`200` / `207`) have
+the same response shape, and `207` does not throw. Inspect `summary.failed`
+and `errors` after every call. An error or warning can have an optional,
+positive `row`: a 1-based index into the submitted `contacts` array.
+
+With `validate: true`, submissions of at most 100 contacts use the inline
+path; `validation` counts appear when a check runs. Inline checks are metered
+at 2 credits per submitted contact. Larger submissions import first and use
+a background workflow, charged per address as it runs; `validationJobId`
+appears when a job is queued. Neither field is guaranteed when no imported
+addresses can be checked or no work needs to be queued.
 
 ---
 
@@ -560,15 +717,19 @@ for (const result of data) {
 
 Bulk-import contacts from raw CSV text. The server parses the file,
 auto-defines the custom fields it finds (`fieldsCreated`) and upserts each
-row. The input is the spec's request body:
+row, with up to 1000 data rows per call. Like `import`, it creates one Import
+History batch. The input is the spec's request body:
 
 ```ts
 type ImportCsvContactsInput = {
   csv: string
   mapping?: { [csvColumn: string]: string } // overrides header inference
-  validate?: boolean // deliverability check, 2 credits per address
+  validate?: boolean // inline checks: 2 credits per submitted data row
   consent?: ContactConsentInput // stamped on every imported row
   dateOrder?: 'month_first' | 'day_first'
+  fileName?: string // batch name in Import History
+  dryRun?: boolean // preview the response, write nothing
+  onConflict?: 'upsert' | 'skip' // skip leaves existing contacts unchanged
 }
 ```
 
@@ -583,13 +744,53 @@ const result = await brew.contacts.importCsv({
   csv: 'Email,Signup Date\nada@example.com,03/04/2026',
   dateOrder: 'day_first',
   consent: { source: 'import' },
+  fileName: 'signups.csv',
 })
 
-console.log(result.summary) // { inserted, updated, failed, skipped }
+console.log(result.importId)
+console.log(result.summary) // { inserted, updated, failed, skipped, total }
 for (const warning of result.warnings) {
-  console.warn(warning.code, warning.field, warning.message)
+  console.warn(warning.row, warning.code, warning.field, warning.message)
 }
 ```
 
-The response has the same shape on full and partial success: inspect
-`summary.failed` and `errors` for row-level problems.
+The response is the same shared envelope as `import`, including
+`importId` (absent on a dry run) and `summary.total`. Inspect `summary.failed` and `errors` on both
+full and partial success. Optional `row` values on errors or warnings name
+the positive, 1-based CSV data row, excluding the header.
+
+`CSV_ROW_SKIPPED` warnings identify up to the first 100 rows skipped for a
+missing or invalid email, or merged into a later duplicate. If more rows
+are skipped, a final warning counts the remainder without a `row`. Read
+`summary.skipped` for the full count. Column-wide warnings can omit `row`
+too.
+
+With `validate: true`, at most 100 submitted CSV data rows select the inline
+path; `validation` counts appear when a check runs. Inline checks are metered
+at 2 credits per submitted data row, including skipped rows and repeated
+addresses. The cutoff also counts submitted data rows, excluding the header.
+Larger files import first and use a background workflow, charged per address
+as it runs; `validationJobId` appears when a job is queued. Neither field is
+guaranteed when no imported addresses can be checked or no work needs to be
+queued.
+
+`dryRun: true` returns the response the import would return and writes
+nothing: no contacts, field definitions or Import History batch. It carries
+`dryRun: true` and no `importId`, runs no `validate` check and charges
+nothing, and a real run on the same data right after returns the same
+counts. `onConflict: 'skip'` only creates missing contacts: each existing
+contact is left unchanged and counted in `summary.skipped`, with a
+`CONTACT_EXISTS_SKIPPED` warning naming its `row`. `brew.contacts.import()`
+takes both options too.
+
+```ts
+const preview = await brew.contacts.importCsv({
+  csv,
+  onConflict: 'skip',
+  dryRun: true,
+})
+if (preview.summary.failed === 0) {
+  const result = await brew.contacts.importCsv({ csv, onConflict: 'skip' })
+  console.log(result.importId, result.summary)
+}
+```

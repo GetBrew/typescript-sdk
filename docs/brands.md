@@ -1,7 +1,7 @@
 # Brands (organization lifecycle)
 
-`brew.brands.*` manages the brands themselves. It is the only
-**organization-level** resource in the SDK: it acts across the organization and
+`brew.brands.*` manages the brands themselves. This
+**organization-level** resource acts across the organization and
 sends no `X-Brand-Id`.
 
 Not to be confused with [`brew.brand.*`](./brand.md) (singular), which reads
@@ -48,7 +48,7 @@ You can also pin once at construction: `createBrewClient({ apiKey, brandId })`.
 
 ## `brands.list(input?)`
 
-`GET /v1/brands` — scope `emails`.
+`GET /v1/brands` — authenticated discovery; no feature scope is required.
 
 ```ts
 const { data, pagination } = await brew.brands.list({ status: 'completed' })
@@ -100,15 +100,12 @@ Errors worth branching on:
 
 ## `brands.get(input)`
 
-`GET /v1/brands/{brandId}` — scope `emails`. The poll for `create`.
+`GET /v1/brands/{brandId}` — authenticated lifecycle read; no feature scope is
+required. Read one status snapshot without waiting:
 
 ```ts
-let brand = await brew.brands.get({ brandId })
-while (!brand.ready && brand.status !== 'failed') {
-  await new Promise((resolve) => setTimeout(resolve, 5_000))
-  brand = await brew.brands.get({ brandId })
-}
-if (brand.status === 'failed') throw new Error(brand.error)
+const brand = await brew.brands.get({ brandId })
+console.log(brand.status, brand.ready, brand.progress, brand.error)
 ```
 
 While extracting, `progress` (0–100) and `phase` are present; on failure,
@@ -118,6 +115,47 @@ returns `422 BRAND_NOT_READY` until then.
 An unknown brand, one in another organization, and one being deleted are all
 `404 BRAND_NOT_FOUND` — indistinguishable on purpose, so brand ids in other
 organizations cannot be probed.
+
+## `brands.waitForExtraction(brandId, options?)`
+
+**Requires SDK 13.0.0 or later.** On earlier versions, poll
+`brands.get({ brandId })` from a worker or your app's status endpoint.
+
+Wait for an existing brand's extraction to end without writing a polling loop:
+
+```ts
+const controller = new AbortController()
+const created = await brew.brands.create({ url: 'https://example.com' })
+const brand = await brew.brands.waitForExtraction(created.brandId, {
+  maxWaitMs: 300_000,
+  pollIntervalMs: 5_000,
+  signal: controller.signal,
+})
+if (!brand.ready) throw new Error(brand.error ?? `Brand is ${brand.status}`)
+const customer = brew.withBrand(brand.brandId)
+```
+
+The helper reads immediately, then waits five seconds between status reads by
+default. It returns the actual lifecycle row as soon as `status` is no longer
+`extracting`, including `failed`, `deleting`, or a `completed` row whose `ready`
+flag is false. Always check `ready` before generating. If deletion makes the
+brand unavailable, the API's `404 BRAND_NOT_FOUND` still propagates.
+
+The only options are `maxWaitMs`, `pollIntervalMs`, and `signal`. The total
+deadline defaults to five minutes and includes HTTP attempts, retries,
+backoff and polling sleeps. Both durations must be positive whole numbers no
+larger than 2,147,483,647 milliseconds. The client's HTTP timeout and retry
+settings apply to every status read.
+
+An elapsed total deadline throws `BrewBrandExtractionTimeoutError` with
+`brandId`, `maxWaitMs`, and `lastStatus` (the latest observed row, or
+`undefined` if no read completed). Extraction continues on the server: keep
+the saved brand ID and check its status later. Ordinary API/transport errors
+are preserved. A per-wait or client-wide abort interrupts reads and sleeps
+with its original `reason`.
+
+This helper returns lifecycle data, without a `raw` response option. Use
+`brands.get({ brandId }, { raw: true })` when you need HTTP metadata.
 
 ## Deleting a brand
 

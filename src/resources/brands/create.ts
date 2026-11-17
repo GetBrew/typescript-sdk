@@ -10,8 +10,8 @@ export type CreateBrandInput = components['schemas']['BrandsCreateRequest']
  * `POST /v1/brands` (scope: `brands`) — create a brand and start extraction.
  *
  * ASYNCHRONOUS. Returns `201` immediately with `status: 'extracting'`; the
- * crawl takes 1–3 minutes. Poll `brands.get({ brandId })` until `ready` is
- * true BEFORE calling `emails.create(...)`, which returns `422
+ * crawl takes 1–3 minutes. Use `brands.waitForExtraction(brandId)` and check
+ * `ready` BEFORE calling `emails.generate(...)`, which returns `422
  * BRAND_NOT_READY` until then.
  *
  * Requires an ORGANIZATION-scoped key (`403 ORG_SCOPE_REQUIRED` otherwise) and
@@ -21,13 +21,10 @@ export type CreateBrandInput = components['schemas']['BrandsCreateRequest']
  * your credits.
  *
  * ```ts
- * const { brand } = await brew.brands.create({ url: 'acme.com' })
- * let status = brand
- * while (!status.ready && status.status !== 'failed') {
- *   await new Promise((r) => setTimeout(r, 5_000))
- *   ;({ brand: status } = await brew.brands.get({ brandId: brand.brandId }))
- * }
- * const scoped = brew.withBrand(brand.brandId)
+ * const created = await brew.brands.create({ url: 'acme.com' })
+ * const brand = await brew.brands.waitForExtraction(created.brandId)
+ * if (!brand.ready) throw new Error(brand.error ?? 'Brand extraction failed')
+ * const scoped = brew.withBrand(created.brandId)
  * ```
  */
 export function createCreateBrand(client: HttpClient) {

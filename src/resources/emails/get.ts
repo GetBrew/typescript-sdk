@@ -1,5 +1,6 @@
 import type { components } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
+import { serializeInclude } from '../../core/url'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
 /** Expansions `GET /v1/emails/{emailId}` accepts. */
@@ -33,9 +34,9 @@ export type GetEmailOptions = RequestOptions & {
    */
   readonly emailVersionId?: string
   /**
-   * Read the version one generation run produced — the `runId` a
-   * `generate` or `edit` returned while it was still `generating`. A run
-   * that failed answers `status: 'failed'` with `errorMessage`. Mutually
+   * Read the version one generation run produced, using a `runId` from
+   * an asynchronous surface such as MCP. SDK generate/edit wait for the final
+   * result. A failed run answers `status: 'failed'` with `errorMessage`. Mutually
    * exclusive with `emailVersionId`.
    */
   readonly runId?: string
@@ -48,15 +49,6 @@ export type GetEmailOptions = RequestOptions & {
  */
 export type GetEmailResponse = components['schemas']['EmailDetail']
 
-/** Serialize the `include` option into the API's comma-separated form. */
-function serializeInclude(
-  include: GetEmailOptions['include']
-): string | undefined {
-  if (include === undefined) return undefined
-  const joined = typeof include === 'string' ? include : include.join(',')
-  return joined.length > 0 ? joined : undefined
-}
-
 /**
  * `GET /v1/emails/{emailId}` (scope: `emails`) — one email design,
  * returned as the BARE row. Pass `include: 'html'` for the rendered HTML
@@ -64,8 +56,8 @@ function serializeInclude(
  * `{ version, emailVersionId }` history — the ids
  * `brew.emails.restore(...)` takes.
  *
- * Pin a saved version with `emailVersionId`, or poll a generation with the
- * `runId` it returned (a run that failed reads `status: 'failed'`). An
+ * Pin a saved version with `emailVersionId`, or read a generation started on
+ * another surface by `runId` (a failed run reads `status: 'failed'`). An
  * unknown version or run is `404 EMAIL_VERSION_NOT_FOUND`.
  *
  * An unknown or cross-brand id is `404 EMAIL_NOT_FOUND` — it is no
@@ -87,7 +79,7 @@ export function createGetEmail(client: HttpClient) {
     emailId: string,
     options?: GetEmailOptions
   ): Promise<GetEmailResponse | BrewRawResponse<GetEmailResponse>> {
-    const include = serializeInclude(options?.include)
+    const include = serializeInclude({ include: options?.include })
     const query = {
       ...(include !== undefined ? { include } : {}),
       ...(options?.emailVersionId !== undefined

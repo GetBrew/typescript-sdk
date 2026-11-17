@@ -16,13 +16,14 @@ export { type BrewClient, createBrewClient } from './client'
 export {
   BrewApiError,
   BrewConnectionError,
+  BrewInputError,
   BrewParseError,
   BrewTimeoutError,
   BrewTransportError,
 } from './core/errors'
 export type { Pagination, PaginationInput } from './core/pagination'
 // ---------- Pagination ----------
-export { autoPaginate } from './core/pagination'
+export { autoPaginate, BrewPaginationError } from './core/pagination'
 // Recursive JSON payload value for `emails.send` / `automations.triggers.fire`
 // (replaces the removed `TransactionalPayloadValue`).
 export type { SendPayloadValue } from './generated/openapi-types'
@@ -183,10 +184,19 @@ export type {
   PayloadContractField,
   PayloadContractGetResponse,
   PayloadContractPutRequest,
+  PayloadContractPutResponse,
   PayloadContractValidateResponse,
   PutTriggerContractInput,
   ValidateTriggerPayloadInput,
 } from './resources/automations/triggers/contract'
+export type {
+  EnsureBrewEventTriggerInput,
+  EnsureBrewEventTriggerResponse,
+} from './resources/automations/triggers/brew-events'
+export type {
+  EnsureIntegrationEventTriggerInput,
+  EnsureIntegrationEventTriggerResponse,
+} from './resources/automations/triggers/integration-events'
 export type {
   CreateTriggerInput,
   CreateTriggerResponse,
@@ -214,12 +224,14 @@ export type {
 } from './resources/automations/triggers/get'
 export type {
   TriggerReadinessBlocker,
+  TriggerReadinessDelivery,
   TriggerReadinessResponse,
 } from './resources/automations/triggers/readiness'
 // ---------- Nested resource shapes ----------
 export type { TriggersResource } from './resources/automations/triggers/resource'
 // ---------- Automations › triggers: domain types ----------
 export type {
+  BrewEventTriggerConfig,
   Trigger,
   TriggersListResponse,
 } from './resources/automations/triggers/types'
@@ -259,13 +271,23 @@ export type {
   ListBrandsResponse,
 } from './resources/brands/list'
 export type { BrandsResource } from './resources/brands/resource'
+export {
+  BrewBrandExtractionTimeoutError,
+  type WaitForExtractionOptions,
+} from './resources/brands/wait-for-extraction'
+export type { ListAllChatsInput } from './resources/chats/list'
 export type { ChatsResource } from './resources/chats/resource'
 // ---------- Chats: domain types ----------
-// (Exposed as `client.chats.get(chatId)` against /v1/chats/{chatId}.)
+// (Exposed as `client.chats.list()` / `.listAll()` against /v1/chats and
+// `client.chats.get(chatId)` against /v1/chats/{chatId}.)
 export type {
   ChatArtifact,
   ChatContextResponse,
   ChatMessage,
+  ChatsListResponse,
+  ChatStatus,
+  ChatSummary,
+  ListChatsInput,
 } from './resources/chats/types'
 // ---------- Contacts: method inputs + outputs ----------
 export type { CountContactsInput } from './resources/contacts/count'
@@ -273,7 +295,18 @@ export type {
   CountContactsByInput,
   CountContactsByResponse,
 } from './resources/contacts/count-by'
-export type { GetContactResponse } from './resources/contacts/get'
+export type {
+  ContactsIncludeToken,
+  GetContactOptions,
+  GetContactResponse,
+} from './resources/contacts/get'
+export type {
+  ImportContactsError,
+  ImportContactsInput,
+  ImportContactsResponse,
+  ImportContactsSummary,
+  ImportContactsWarning,
+} from './resources/contacts/import'
 export type {
   ImportCsvContactsInput,
   ImportCsvContactsResponse,
@@ -298,12 +331,8 @@ export type {
   PatchContactResponse,
 } from './resources/contacts/patch'
 export type { ContactsResource } from './resources/contacts/resource'
-export type { DataResource } from './resources/data/resource'
 export type {
-  RunDataCommandInput,
-  RunDataCommandResponse,
-} from './resources/data/run'
-export type {
+  ContactSearchRow,
   SearchContactsInput,
   SearchContactsResponse,
 } from './resources/contacts/search'
@@ -313,6 +342,7 @@ export type {
   Contact,
   ContactConsentInput,
   ContactCustomFields,
+  ContactOpenProfile,
   ContactsFilter,
 } from './resources/contacts/types'
 export type {
@@ -345,6 +375,9 @@ export type {
   DeleteDomainResponse,
 } from './resources/domains/delete'
 export type {
+  DomainHealthIncludeToken,
+  DomainScoreRun,
+  DomainScoreSnapshot,
   GetDomainHealthInput,
   GetDomainHealthResponse,
 } from './resources/domains/health'
@@ -403,6 +436,22 @@ export type {
   CloneEmailInput,
   CloneEmailResponse,
 } from './resources/emails/clone'
+// ---------- Emails › comments: a design's comment threads ----------
+// (`client.emails.comments.*` against /v1/emails/{emailId}/comments.)
+export type {
+  EmailCommentsIncludeToken,
+  ListAllEmailCommentMessagesInput,
+  ListEmailCommentsInput,
+  ListEmailCommentsResponse,
+} from './resources/emails/comments/list'
+export type { EmailCommentsResource } from './resources/emails/comments/resource'
+export type {
+  EmailCommentMessage,
+  EmailCommentPerson,
+  EmailCommentsListResponse,
+  EmailCommentTarget,
+  EmailCommentThread,
+} from './resources/emails/comments/types'
 export type {
   DeleteEmailInput,
   DeleteEmailResponse,
@@ -412,6 +461,7 @@ export type {
   ExportEmailResponse,
   ExportProvider,
 } from './resources/emails/export'
+export { EXPORT_EMAIL_DEFAULT_TIMEOUT_MS } from './resources/emails/export'
 export type {
   ImportFigmaDesignInput,
   ImportFigmaDesignResponse,
@@ -474,6 +524,7 @@ export type {
 } from './resources/emails/send'
 export type {
   EmailDetail,
+  EmailLanguage,
   EmailsSortBy,
   EmailStatus,
   EmailSummary,
@@ -506,8 +557,61 @@ export type { GetHealthResponse, HealthResponse } from './resources/health/get'
 export type { HealthResource } from './resources/health/resource'
 export type { GetHelpResponse, HelpResponse } from './resources/help/get'
 export type { HelpResource } from './resources/help/resource'
+// ---------- Insights: Brew Insights findings + intelligence ----------
+// (`client.insights.list` / `.get` against /v1/insights.)
+export type { GetInsightResponse } from './resources/insights/get'
+export type {
+  InsightsIncludeToken,
+  ListInsightsInput,
+  ListInsightsResponse,
+} from './resources/insights/list'
+export type { InsightsResource } from './resources/insights/resource'
+export type {
+  Insight,
+  InsightAction,
+  InsightFreshness,
+  InsightMemo,
+  InsightMetric,
+  InsightPulse,
+  InsightReport,
+  InsightSeverity,
+  InsightState,
+  InsightsListResponse,
+  InsightSuggestion,
+  InsightSummary,
+} from './resources/insights/types'
+// ---------- Integrations: the catalog and live integration events ----------
+// (`client.integrations.list`, `.events.list` / `.events.get`.)
+export type { GetIntegrationEventResponse } from './resources/integrations/events/get'
+export type {
+  ListIntegrationEventsInput,
+  ListIntegrationEventsResponse,
+} from './resources/integrations/events/list'
+export type { IntegrationEventsResource } from './resources/integrations/events/resource'
+export type {
+  IntegrationEvent,
+  IntegrationEventDetail,
+  IntegrationEventKind,
+  IntegrationEventPropertiesStatus,
+  IntegrationEventProperty,
+  IntegrationEventSource,
+  IntegrationEventsListResponse,
+  IntegrationEventStage,
+  ListIntegrationEventsQuery,
+} from './resources/integrations/events/types'
 export type { IntegrationsResource } from './resources/integrations/resource'
 export type * from './resources/integrations/types'
+// ---------- Notifications: the app's bell, as a read ----------
+// (`client.notifications.list` / `.listAll` against /v1/notifications.)
+export type { ListAllNotificationsInput } from './resources/notifications/list'
+export type { NotificationsResource } from './resources/notifications/resource'
+export type {
+  ListNotificationsInput,
+  NotificationRow,
+  NotificationsListResponse,
+  NotificationStatus,
+  NotificationType,
+} from './resources/notifications/types'
 export type {
   InferPayloadContractInput,
   PayloadContractInferResponse,
@@ -544,6 +648,8 @@ export type {
 } from './resources/templates/get'
 export type {
   ListFullTemplatesInput,
+  ListTemplateCountsInput,
+  ListTemplateRowsInput,
   ListTemplateSummariesInput,
   ListTemplatesInput,
   ListTemplatesResponse,
@@ -558,6 +664,7 @@ export type {
   Template,
   TemplateSummary,
   TemplatesListResponse,
+  TemplatesCountResponse,
 } from './resources/templates/types'
 // Public email flows (`client.flows.*` against /v1/flows): organization-wide,
 // the sequence view of the same gallery `templates` lists.
@@ -585,3 +692,20 @@ export type {
 
 // ---------- Metadata ----------
 export { SDK_NAME, SDK_VERSION } from './version'
+export type {
+  CanvasSession,
+  CanvasTarget,
+  CanvasPermission,
+  CreateCanvasSessionInput,
+} from './embed/contracts'
+
+export type { CanvasSessionRevokeResponse } from './resources/canvas/resource'
+
+export type { WebhooksResource } from './resources/webhooks/resource'
+export type * from './resources/webhooks/types'
+export {
+  verifyWebhook,
+  BrewWebhookVerificationError,
+  type BrewWebhookVerificationReason,
+  type VerifyWebhookInput,
+} from './resources/webhooks/verify'

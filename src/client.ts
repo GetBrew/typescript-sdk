@@ -1,3 +1,7 @@
+import {
+  createWebhooksResource,
+  type WebhooksResource,
+} from './resources/webhooks/resource'
 import { resolveConfig } from './core/config'
 import { createHttpClient, type HttpTuning } from './core/http'
 import {
@@ -33,10 +37,6 @@ import {
   createContactsResource,
 } from './resources/contacts/resource'
 import {
-  createDataResource,
-  type DataResource,
-} from './resources/data/resource'
-import {
   type ContentResource,
   createContentResource,
 } from './resources/content/resource'
@@ -65,9 +65,17 @@ import {
   type HelpResource,
 } from './resources/help/resource'
 import {
+  createInsightsResource,
+  type InsightsResource,
+} from './resources/insights/resource'
+import {
   createIntegrationsResource,
   type IntegrationsResource,
 } from './resources/integrations/resource'
+import {
+  createNotificationsResource,
+  type NotificationsResource,
+} from './resources/notifications/resource'
 import {
   createPayloadContractsResource,
   type PayloadContractsResource,
@@ -89,6 +97,10 @@ import {
   type UsageResource,
 } from './resources/usage/resource'
 import type { BrewClientConfig, ResolvedBrewClientConfig } from './types'
+import {
+  createCanvasResource,
+  type CanvasResource,
+} from './resources/canvas/resource'
 
 /**
  * The public shape of a Brew API client. Expand this union as new
@@ -102,6 +114,8 @@ import type { BrewClientConfig, ResolvedBrewClientConfig } from './types'
  * that pin.
  */
 export type BrewClient = {
+  readonly webhooks: WebhooksResource
+  readonly canvas: CanvasResource
   /**
    * Return a client pinned to `brandId` (sent as `X-Brand-Id`). Same auth,
    * transport and tuning; only the brand differs. Use this with an
@@ -141,15 +155,15 @@ export type BrewClient = {
   /** `GET/PATCH /v1/brand` — the key's brand: readiness, design system, identity, assets (`getImages`, `deleteImage`). */
   readonly brand: BrandResource
   /**
-   * `GET /v1/chats/{chatId}` (`chats.get`) — a free, read-only
-   * brand-scoped digest of a Brew chat (identity, the emails/automations
-   * it created/referenced, trigger events, and a trimmed transcript tail)
-   * for resuming the conversation in an external agent.
+   * The brand's Brew chats: `chats.list()` / `chats.listAll()` (`GET
+   * /v1/chats`, most recently active first) to find one, and
+   * `chats.get(chatId)` (`GET /v1/chats/{chatId}`) — a free, read-only
+   * digest of one chat (identity, the emails/automations it
+   * created/referenced, trigger events, and a trimmed transcript tail) for
+   * resuming the conversation in an external agent.
    */
   readonly chats: ChatsResource
   readonly contacts: ContactsResource
-  /** `POST /v1/data` — the unified `db …` command surface over brand data. */
-  readonly data: DataResource
   /**
    * `POST /v1/content/*` — media generation and image/render ops
    * (credit-metered), plus the free image library writes: `addImage`,
@@ -175,8 +189,20 @@ export type BrewClient = {
   readonly health: HealthResource
   /** `GET /v1/help` — the no-auth machine-readable API catalog. */
   readonly help: HelpResource
+  /**
+   * Brew Insights (`GET /v1/insights`, `GET /v1/insights/{insightId}`): the
+   * findings the Insights page ranks, with `freshness`, plus the pulse,
+   * report, suggestions and memo on request. Free and read-only.
+   */
+  readonly insights: InsightsResource
   /** `GET /v1/integrations` — the product integration catalog for the brand in scope, with a `connected` flag per provider. */
   readonly integrations: IntegrationsResource
+  /**
+   * `GET /v1/notifications` — the brand's notifications as the app's bell
+   * shows them (`list`, `listAll`). Each row needs its feature's scope.
+   * Free and read-only; reading marks nothing read.
+   */
+  readonly notifications: NotificationsResource
   /**
    * Sends read and write at their own root in v1. `sends.list(query)`
    * and `sends.get(sendId, { include: 'events' })` are the reads that
@@ -256,13 +282,15 @@ function buildClient(
       ? httpClient
       : createHttpClient({ ...config, brandId: undefined }, tuning)
   return {
+    canvas: createCanvasResource(httpClient),
+    webhooks: createWebhooksResource(httpClient),
     withBrand: (brandId: string): BrewClient => {
       if (typeof brandId !== 'string' || brandId.trim() === '') {
         throw new TypeError('withBrand: `brandId` must be a non-empty string')
       }
       return buildClient({ ...config, brandId }, tuning)
     },
-    brands: createBrandsResource(organizationHttpClient),
+    brands: createBrandsResource(organizationHttpClient, config.signal),
     analytics: createAnalyticsResource(httpClient),
     apiKeys: createApiKeysResource(organizationHttpClient),
     audiences: createAudiencesResource(httpClient),
@@ -270,7 +298,6 @@ function buildClient(
     brand: createBrandResource(httpClient),
     chats: createChatsResource(httpClient),
     contacts: createContactsResource(httpClient),
-    data: createDataResource(httpClient),
     content: createContentResource(httpClient),
     domains: createDomainsResource(httpClient),
     emailGroups: createEmailGroupsResource(httpClient),
@@ -278,7 +305,9 @@ function buildClient(
     fields: createFieldsResource(httpClient),
     health: createHealthResource(organizationHttpClient),
     help: createHelpResource(organizationHttpClient),
+    insights: createInsightsResource(httpClient),
     integrations: createIntegrationsResource(httpClient),
+    notifications: createNotificationsResource(httpClient),
     sends: createSendsResource(httpClient),
     templates: createTemplatesResource(organizationHttpClient),
     flows: createFlowsResource(organizationHttpClient),

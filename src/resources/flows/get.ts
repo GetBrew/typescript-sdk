@@ -1,4 +1,5 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
+import { serializeInclude } from '../../core/url'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
 import type { Flow } from './types'
@@ -19,24 +20,23 @@ export type GetFlowOptions = RequestOptions & {
    * array of tokens, or a comma string.
    */
   readonly include?: ReadonlyArray<FlowsIncludeToken> | string
+  /**
+   * The flow's kind for a bare-domain `slug`, hyphenated (`onboarding`,
+   * `trial`, `events`, `product-updates`, `promotions`, optionally followed
+   * by `-2`, `-3`… for a brand's later flow of that kind). A
+   * `<domain>/<kind>` slug from `brew.flows.list()` already names it.
+   */
+  readonly kind?: string
 }
 
 /** `GET /v1/flows/{slug}` returns the BARE flow, with `anchor` and `steps[]`. */
 export type GetFlowResponse = Flow
 
-/** Serialize the `include` option into the API's comma-separated form. */
-function serializeInclude(
-  include: GetFlowOptions['include']
-): string | undefined {
-  if (include === undefined) return undefined
-  const joined = typeof include === 'string' ? include : include.join(',')
-  return joined.length > 0 ? joined : undefined
-}
-
 /**
  * `GET /v1/flows/{slug}` — one public flow, returned as the BARE row. The
- * slug is the brand domain every `brew.flows.list()` card carries (e.g.
- * `brew.new`, case-insensitive). The row adds `anchor` (what day 0 means)
+ * slug is what every `brew.flows.list()` card carries: a brand domain
+ * (`brew.new`, its primary flow) or `<domain>/<kind>` for one kind's flow
+ * (`brew.new/onboarding`), case-insensitive. The row adds `anchor` (what day 0 means)
  * and `steps[]` (`order`, `dayOffset`, `delayDays`, `subject`,
  * `previewText`, `category`, `previewImage`, `emailId`) to the card fields.
  *
@@ -62,11 +62,20 @@ export function createGetFlow(client: HttpClient) {
     slug: string,
     options?: GetFlowOptions
   ): Promise<GetFlowResponse | BrewRawResponse<GetFlowResponse>> {
-    const include = serializeInclude(options?.include)
+    const include = serializeInclude({ include: options?.include })
+    // `<domain>/<kind>` is the domain path plus `?kind=`: an encoded `/`
+    // would name no flow.
+    const slash = slug.indexOf('/')
+    const domain = slash === -1 ? slug : slug.slice(0, slash)
+    const kind = slash === -1 ? options?.kind : slug.slice(slash + 1)
+    const query = {
+      ...(include !== undefined ? { include } : {}),
+      ...(kind ? { kind } : {}),
+    }
     const response = await client.request<GetFlowResponse>({
       method: 'GET',
-      path: `/v1/flows/${encodeURIComponent(slug)}`,
-      ...(include !== undefined ? { query: { include } } : {}),
+      path: `/v1/flows/${encodeURIComponent(domain)}`,
+      ...(Object.keys(query).length > 0 ? { query } : {}),
       ...(options ? { options } : {}),
     })
     return unwrapResponse(response, options)

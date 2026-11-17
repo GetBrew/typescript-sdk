@@ -26,11 +26,11 @@ on:
     tags:
       - 'v*.*.*'
 
-# A second `v*` push for the same SHA would rerun this and fail at
-# `npm publish` (cannot republish). cancel-in-progress is safe.
+# Serialize duplicate tag runs without interrupting an active publication.
+# npm versions are immutable; let GitHub Release creation finish after publish.
 concurrency:
   group: release-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   release:

@@ -17,9 +17,11 @@ export type SendPauseResponse = components['schemas']['SendPauseResponse']
  * Reach for `sends.cancel(...)` instead when you want to end the send for
  * good.
  *
- * Idempotent: a send that is already `paused` resolves `200` with the same
- * body. A send that is not in a pausable state (already `completed`,
- * `canceled`, or never a gradual send) surfaces as `409 SEND_NOT_PAUSABLE`.
+ * A send its operator already paused resolves `200` with the same body and
+ * changes nothing. Any other send that is not a running gradual send
+ * surfaces as `409 SEND_NOT_PAUSABLE`: one already `completed` or
+ * `canceled`, one that was never a gradual send, or one held at the plan
+ * limit or for its domain.
  * Brand-scoped, so an unknown or cross-brand `sendId` is
  * `404 SEND_NOT_FOUND`.
  *

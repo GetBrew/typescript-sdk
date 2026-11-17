@@ -1,0 +1,11 @@
+node_modules/
+.next/
+.env.local
+next-env.d.ts
+*.tsbuildinfo
+vendor/
+playwright-report/
+test-results/
+.artifacts/
+.clerk/
+.auth/

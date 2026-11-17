@@ -1,4 +1,5 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
+import { serializeInclude } from '../../core/url'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
 import type { Send } from './types'
@@ -22,15 +23,6 @@ export type GetSendOptions = RequestOptions & {
 
 /** `GET /v1/sends/{sendId}` returns the BARE `Send` row. */
 export type GetSendResponse = Send
-
-/** Serialize the `include` option into the API's comma-separated form. */
-function serializeInclude(
-  include: GetSendOptions['include']
-): string | undefined {
-  if (include === undefined) return undefined
-  const joined = typeof include === 'string' ? include : include.join(',')
-  return joined.length > 0 ? joined : undefined
-}
 
 /**
  * `GET /v1/sends/{sendId}` (scope: `sends`) — one send, returned as the
@@ -59,7 +51,7 @@ export function createGetSend(client: HttpClient) {
     sendId: string,
     options?: GetSendOptions
   ): Promise<GetSendResponse | BrewRawResponse<GetSendResponse>> {
-    const include = serializeInclude(options?.include)
+    const include = serializeInclude({ include: options?.include })
     const response = await client.request<GetSendResponse>({
       method: 'GET',
       path: `/v1/sends/${encodeURIComponent(sendId)}`,

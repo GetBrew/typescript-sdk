@@ -121,12 +121,10 @@ describe('organization-scoped SDK transport', () => {
         keys.push(request.headers.get('idempotency-key'))
         return HttpResponse.json(
           {
-            brand: {
-              brandId: 'brand_new',
-              domain: 'new.example',
-              status: 'extracting',
-              ready: false,
-            },
+            brandId: 'brand_new',
+            domain: 'new.example',
+            status: 'extracting',
+            ready: false,
             extraction: {
               chatId: 'chat_1',
               statusUrl: '/api/v1/brands/brand_new',
@@ -139,10 +137,19 @@ describe('organization-scoped SDK transport', () => {
 
     const brew = client()
     const options = { idempotencyKey: 'create-new-example' }
-    await brew.brands.create({ url: 'https://new.example' }, options)
-    await brew.brands.create({ url: 'https://new.example' }, options)
+    const created = await brew.brands.create(
+      { url: 'https://new.example' },
+      options
+    )
+    const replayed = await brew.brands.create(
+      { url: 'https://new.example' },
+      options
+    )
 
     expect(keys).toEqual(['create-new-example', 'create-new-example'])
+    expect(created.brandId).toBe('brand_new')
+    expect(created.ready).toBe(false)
+    expect(replayed).toEqual(created)
   })
 
   it('polls the encoded brand status path until ready', async () => {

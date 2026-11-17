@@ -1,3 +1,5 @@
+import type { RequestOptions } from '../types'
+
 /**
  * Shared cursor-pagination primitives.
  *
@@ -38,6 +40,26 @@ export type Page<TItem> = {
   readonly pagination: Pagination | undefined
 }
 
+/** The server returned a cursor already fetched by this iterator. */
+export class BrewPaginationError extends Error {
+  readonly code = 'PAGINATION_CURSOR_CYCLE'
+  readonly cursor: string
+  readonly pagesFetched: number
+  readonly itemsYielded: number
+
+  constructor(input: {
+    readonly cursor: string
+    readonly pagesFetched: number
+    readonly itemsYielded: number
+  }) {
+    super('Pagination returned a previously fetched cursor.')
+    this.name = 'BrewPaginationError'
+    this.cursor = input.cursor
+    this.pagesFetched = input.pagesFetched
+    this.itemsYielded = input.itemsYielded
+  }
+}
+
 /**
  * Generic async-iterator that walks every page of a cursor-paginated
  * list, yielding one row at a time. Resources build a thin `listAll`
@@ -65,14 +87,29 @@ export async function* autoPaginate<TItem>(
    * before its cursor is known, so the next fetch cannot start early.
    */
   let cursor: string | null = null
+  const fetched = new Set<string>()
+  let pagesFetched = 0
+  let itemsYielded = 0
+  const isAborted = () => options?.signal?.aborted === true
   while (true) {
-    if (options?.signal?.aborted === true) {
+    if (isAborted()) {
       return
     }
 
     const page = await fetchPage(cursor)
+    pagesFetched += 1
+    if (cursor !== null) {
+      fetched.add(cursor)
+    }
     for (const item of page.items) {
+      itemsYielded += 1
       yield item
+    }
+
+    // A caller may abort while consuming the page. Preserve quiet termination
+    // between pages even if the server also returned a cyclic next cursor.
+    if (isAborted()) {
+      return
     }
 
     const next = page.pagination
@@ -80,7 +117,31 @@ export async function* autoPaginate<TItem>(
       return
     }
 
+    if (fetched.has(next.cursor)) {
+      throw new BrewPaginationError({
+        cursor: next.cursor,
+        pagesFetched,
+        itemsYielded,
+      })
+    }
+
     cursor = next.cursor
   }
   /* eslint-enable no-await-in-loop */
+}
+
+/**
+ * The options an auto-pager passes to each page read: the caller's options
+ * with `raw` forced to `false`. A caller's `{ raw: true }` would otherwise
+ * reach the wrapped `list` / `search`, which would then return a
+ * `BrewRawResponse` the iterator cannot read as a page. The iterator yields
+ * rows, so `raw` has nothing to apply to; every other option (`signal`,
+ * `timeoutMs`, `maxRetries`, …) still applies to every page.
+ */
+export function pageReadOptions({
+  options,
+}: {
+  readonly options: RequestOptions | undefined
+}): RequestOptions | undefined {
+  return options === undefined ? undefined : { ...options, raw: false }
 }

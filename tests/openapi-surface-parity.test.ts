@@ -9,9 +9,14 @@ import { AUTOMATIONS_INCLUDE_TOKENS } from '../src/resources/automations/get'
 import { AUTOMATION_RUNS_INCLUDE_TOKENS } from '../src/resources/automations/runs/get'
 import { TRIGGERS_INCLUDE_TOKENS } from '../src/resources/automations/triggers/get'
 import { BRAND_INCLUDE_TOKENS } from '../src/resources/brand/types'
+import { CONTACTS_INCLUDE_TOKENS } from '../src/resources/contacts/get'
+import { DOMAIN_HEALTH_INCLUDE_TOKENS } from '../src/resources/domains/health'
+import { EMAIL_COMMENTS_INCLUDE_TOKENS } from '../src/resources/emails/comments/list'
 import { EMAILS_INCLUDE_TOKENS } from '../src/resources/emails/get'
 import { FLOWS_INCLUDE_TOKENS } from '../src/resources/flows/get'
+import { INSIGHTS_INCLUDE_TOKENS } from '../src/resources/insights/list'
 import { SENDS_INCLUDE_TOKENS } from '../src/resources/sends/get'
+import { TEMPLATE_GROUP_BY_TOKENS } from '../src/resources/templates/list'
 import { TEMPLATES_INCLUDE_TOKENS } from '../src/resources/templates/get'
 
 const ROOT = process.cwd()
@@ -164,11 +169,15 @@ describe('typed include tokens', () => {
     getAutomation: AUTOMATIONS_INCLUDE_TOKENS,
     getAutomationRun: AUTOMATION_RUNS_INCLUDE_TOKENS,
     getBrand: BRAND_INCLUDE_TOKENS,
+    getContact: CONTACTS_INCLUDE_TOKENS,
+    getDomainHealth: DOMAIN_HEALTH_INCLUDE_TOKENS,
     getEmail: EMAILS_INCLUDE_TOKENS,
     getFlow: FLOWS_INCLUDE_TOKENS,
     getSend: SENDS_INCLUDE_TOKENS,
     getTemplate: TEMPLATES_INCLUDE_TOKENS,
     getTrigger: TRIGGERS_INCLUDE_TOKENS,
+    listEmailComments: EMAIL_COMMENTS_INCLUDE_TOKENS,
+    listInsights: INSIGHTS_INCLUDE_TOKENS,
     // `ListFieldsInput` is the generated query type, `include` enum and all.
     listContactFields: 'generated',
   }
@@ -190,34 +199,20 @@ describe('typed include tokens', () => {
 })
 
 describe('typed groupBy fields', () => {
-  /**
-   * Reviewed: an operation whose published `groupBy` the SDK does not type
-   * yet. Each entry names why; a stale entry fails below.
-   */
-  const KNOWN_UNTYPED_GROUP_BY: Readonly<Record<string, string>> = {
-    // `GET /v1/templates?count=true&groupBy=…` (brew-v2#1821) answers
-    // `{ count, groups }` instead of rows. `templates.list` does not type
-    // that mode yet, so its input leaves out `count` and `groupBy`
-    // (tests/resources/templates/list.test.ts).
-    listTemplates: 'templates.list does not type the count mode yet',
-  }
-
-  it('types exactly the fields the spec publishes for events groupBy', () => {
+  it('types every field the spec publishes for grouped reads', () => {
     const published = readPublishedTokens('x-brew-group-by-tokens')
-    expect(
-      [...published.keys()].filter(
-        (operationId) => !(operationId in KNOWN_UNTYPED_GROUP_BY)
-      )
-    ).toEqual(['getEventsAnalytics'])
-    expect([...EVENTS_GROUP_BY_TOKENS].sort(byName)).toEqual(
-      [...(published.get('getEventsAnalytics') ?? [])].sort(byName)
+    const typed = {
+      getEventsAnalytics: EVENTS_GROUP_BY_TOKENS,
+      listTemplates: TEMPLATE_GROUP_BY_TOKENS,
+    }
+    expect([...published.keys()].sort(byName)).toEqual(
+      Object.keys(typed).sort(byName)
     )
-    // Staleness: an entry the spec no longer publishes must be deleted.
-    expect(
-      Object.keys(KNOWN_UNTYPED_GROUP_BY).filter(
-        (operationId) => !published.has(operationId)
+    for (const [operation, tokens] of Object.entries(typed)) {
+      expect([...tokens].sort(byName)).toEqual(
+        [...(published.get(operation) ?? [])].sort(byName)
       )
-    ).toEqual([])
+    }
   })
 })
 

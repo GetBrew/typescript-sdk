@@ -12,7 +12,7 @@
  * stays an implementation detail of this module.
  */
 
-import type { components } from '../../generated/openapi-types'
+import type { components, operations } from '../../generated/openapi-types'
 
 /**
  * A Brew contact as returned by the public API — core columns,
@@ -34,6 +34,19 @@ export type Contact = components['schemas']['Contact']
  * when they read specific fields.
  */
 export type ContactCustomFields = Contact['customFields']
+
+/**
+ * A contact's smart-send open-time profile — what `include: 'openProfile'`
+ * attaches on `get` (and `include: ['openProfile']` on `search`): 48 UTC
+ * half-hour open counts (`histogram`), `totalOpens`, `lastOpenedAt`, and
+ * once there is enough history `bestOpenMinuteUtc`, `bestSendMinuteUtc`
+ * (minutes after UTC midnight) and `confidence` (0–1). The field itself is
+ * `null` when the contact has no opens folded yet. Not bot detection:
+ * machine opens cannot be told apart in it.
+ */
+export type ContactOpenProfile = NonNullable<
+  operations['getContact']['responses'][200]['content']['application/json']['openProfile']
+>
 
 /**
  * One typed filter clause for `search` / `count`. Filtering moved off the

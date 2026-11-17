@@ -36,10 +36,10 @@ export type PatchContactResponse =
  * contact by email.
  *
  * Email moved into the path; only `{ fields?, consent? }` is sent in the body.
- * Returns the full envelope which includes the updated contact AND an
- * `updated` array of field names that actually changed — useful for
- * confirming whether a no-op patch (e.g. setting a field to its existing
- * value) actually wrote anything.
+ * Returns the full envelope which includes the updated contact, an
+ * `updated` array of the fields whose stored value changed (empty when a
+ * no-op patch wrote nothing), and `warnings` (`DATE_ORDER_ASSUMED`,
+ * `FIELD_TYPE_COERCED`) like a single upsert reports.
  *
  * PATCH is deliberately NOT retried by the transport, even with an
  * idempotency key — see `core/retry.ts` for the rationale.

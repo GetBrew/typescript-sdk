@@ -1,6 +1,7 @@
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it } from 'vitest'
 
+import type { Automation } from '../../../src'
 import { createAutomationsResource } from '../../../src/resources/automations/resource'
 import { makeTestHttpClient } from '../../helpers/http-client'
 import { server } from '../../msw/server'
@@ -153,6 +154,34 @@ describe('automations resource — POST/GET/PATCH/DELETE wiring', () => {
     expect(new URL(captured!.url).pathname).toBe('/api/v1/automations/auto_abc')
     expect(body).toEqual({ published: true })
     expect(result.published).toBe(true)
+  })
+
+  it('publish returns the TRIGGER_EVENT_NOT_RECEIVED warning when the integration event never arrived (brew-v2#1897)', async () => {
+    const published = {
+      ...ROW,
+      triggerEventId: 'shopify:customers/update',
+      published: true,
+      warnings: [
+        {
+          code: 'TRIGGER_EVENT_NOT_RECEIVED',
+          message:
+            'Brew has not received Customer update from Shopify. In Shopify, add a webhook for Customer update.',
+          field: 'triggerEventId',
+        },
+      ],
+    } satisfies Automation
+    server.use(
+      http.patch('https://brew.new/api/v1/automations/auto_abc', () =>
+        HttpResponse.json(published)
+      )
+    )
+    const { client } = makeTestHttpClient()
+    const automations = createAutomationsResource(client)
+    const result = await automations.publish({ automationId: 'auto_abc' })
+    // Publishing still succeeds; the warning is advisory.
+    expect(result.published).toBe(true)
+    expect(result.warnings?.[0]?.code).toBe('TRIGGER_EVENT_NOT_RECEIVED')
+    expect(result.warnings?.[0]?.field).toBe('triggerEventId')
   })
 
   it('publish with automationVersionId PATCHes with { published: true, automationVersionId }', async () => {

@@ -3,17 +3,26 @@
 Every failure the SDK gives up on is typed, and which type tells you
 what you know about the request:
 
-| Thrown                                         | Means                                                                                                             |
-| ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `BrewApiError`                                 | The server answered with a non-2xx status. `status`, `code` and the rest of the envelope say what it said.        |
-| `BrewTimeoutError` (a `BrewTransportError`)    | No complete answer within `timeoutMs` — waiting for the headers or reading the body. **Outcome unknown.**         |
-| `BrewConnectionError` (a `BrewTransportError`) | The connection failed, or dropped while the body streamed. **Outcome unknown.** The original error is on `cause`. |
-| `BrewParseError`                               | The server answered 2xx, but the body was not JSON. Report it with `requestId`.                                   |
-| your signal's `reason`                         | You cancelled — the `signal` you passed (request- or client-level) aborted.                                       |
+| Thrown                                         | Means                                                                                                                                                                                                                   |
+| ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `BrewInputError`                               | Invalid local request configuration, identified by `param`. No request was sent.                                                                                                                                        |
+| `BrewApiError`                                 | The server answered with a non-2xx status. `status`, `code` and the rest of the envelope say what it said.                                                                                                              |
+| `BrewTimeoutError` (a `BrewTransportError`)    | No complete answer within `timeoutMs` — waiting for the headers or reading the body. **Outcome unknown.**                                                                                                               |
+| `BrewConnectionError` (a `BrewTransportError`) | The connection failed, or dropped while the body streamed. **Outcome unknown.** The original error is on `cause`.                                                                                                       |
+| `BrewParseError`                               | The server answered 2xx, but the body was not JSON. Report it with `requestId`.                                                                                                                                         |
+| `BrewPaginationError`                          | A list endpoint repeated a cursor. The iterator stops with `code: 'PAGINATION_CURSOR_CYCLE'`, `cursor`, `pagesFetched`, and `itemsYielded`. Already-yielded items are incomplete; do not treat them as a complete list. |
+| `BrewBrandExtractionTimeoutError`              | `brands.waitForExtraction()` reached its total `maxWaitMs` deadline. Inspect `brandId` and `lastStatus`; extraction may still be running.                                                                               |
+| `BrewWebhookVerificationError`                 | `verifyWebhook()` refused an incoming webhook; `reason` is `headers`, `timestamp`, `signature` or `payload`.                                                                                                            |
+| your signal's `reason`                         | You cancelled — the `signal` you passed (request- or client-level) aborted.                                                                                                                                             |
 
-All four classes extend `Error`, so the two-branch pattern below —
+All SDK error classes extend `Error`, so the two-branch pattern below —
 `BrewApiError` for API errors, `Error` for everything else — covers
 every case.
+
+`BrewBrandExtractionTimeoutError` and `brands.waitForExtraction()` require SDK
+13.0.0 or later. This wait deadline is separate from a `BrewTimeoutError` on
+an individual HTTP attempt. See
+[Brands](./brands.md#brandswaitforextractionbrandid-options).
 
 ## The error shape
 
@@ -38,6 +47,7 @@ class BrewApiError extends Error {
   readonly body: unknown // The parsed response body exactly as received
   readonly bodyError: Error | undefined // Set when the body was cut off mid-read (see below)
   readonly idempotencyKey: string | undefined // The Idempotency-Key the request carried
+  readonly uploadId: string | undefined // The upload being finalized by addImage, when applicable
 }
 ```
 
@@ -73,7 +83,11 @@ code the API documents — import it when you want exhaustive branching:
 import type { BrewErrorCode } from '@brew.new/sdk'
 
 function isRetryableLater(code: BrewErrorCode): boolean {
-  return code === 'RATE_LIMITED' || code === 'SERVICE_UNAVAILABLE'
+  return (
+    code === 'RATE_LIMITED' ||
+    code === 'SERVICE_UNAVAILABLE' ||
+    code === 'WRITE_CONFLICT'
+  )
 }
 ```
 
@@ -86,8 +100,16 @@ function isRetryableLater(code: BrewErrorCode): boolean {
 | `EVENT_NOT_FOUND`               | `TRIGGER_INSTANCE_NOT_FOUND`        |
 | assorted 429 codes              | `RATE_LIMITED` only                 |
 
-`Retry-After` rides the `429` alone now, so `error.retryAfter` is only
-populated on a rate-limit error.
+`Retry-After` rides the `429` and the transient `503` answers (for
+example `SERVICE_UNAVAILABLE` and `WRITE_CONFLICT`), so `error.retryAfter`
+is only populated on those. When the client retries one, it waits that
+long first.
+
+`402 NO_ACTIVE_PLAN` means nothing entitles the organization: the trial
+ended, the plan was cancelled, or the last charge failed (`details.reason`
+is `NO_PLAN` or `PAYMENT_BLOCKED`). Unlike `INSUFFICIENT_CREDITS`, a credit
+top-up does not fix it; an organization admin must choose a plan or update
+the payment method.
 
 An API key bound to ONE BRAND that calls an organization operation — for
 example `GET /v1/usage`, which needs organization standing — gets
@@ -102,6 +124,13 @@ if (error.code === 'ORG_SCOPE_REQUIRED') {
   // The human lacks the role. Ask an org admin.
 }
 ```
+
+A key without a scope the operation needs gets
+`403 INSUFFICIENT_PERMISSIONS`. An `include` can need a second scope:
+`contacts.get(email, { include: 'openProfile' })` and
+`contacts.search({ include: ['openProfile'] })` need `emails` as well as
+`contacts`, and without it the whole call fails rather than leaving the
+profile out. Retry without the include, or use a key with both scopes.
 
 ## The catch pattern
 
@@ -171,7 +200,9 @@ class. `requestId` comes from the `x-request-id` response header.
 `retryAfter` is read from the body envelope first, then falls back to
 the `Retry-After` header — the body wins because it is specific to
 the exact error. `details`, when the server attached one, is passed
-through untouched.
+through untouched. A `400 INVALID_REQUEST` names the first offender in
+`param`; when the request had more than one problem, `details.issues[]` lists
+each one (`{ param?, message }`, at most 20).
 
 If the response body is neither envelope (an HTML 502 from an upstream
 proxy, an empty body, etc.) the SDK falls back to a generic envelope:
@@ -180,67 +211,20 @@ suggestion only for `429`/5xx, and the error-catalogue docs URL — better
 to return a readable error than throw from the error path. `body` still
 carries whatever was received.
 
-### The legacy fire envelope
+### Trigger errors and legacy compatibility
 
-`POST`/`GET /v1/automations/triggers/{triggerEventId}/fire` is the one
-endpoint outside the `{ error }` convention. Its pipeline answers its
-successes and its own refusals — missing key, payload mismatch, unknown
-trigger, brand scope, no published automation — with the legacy fire
-envelope (a malformed JSON body is refused earlier with the standard
-envelope, and the contract documents the route's 401/403/429 as
-`ApiErrorEnvelope`; the SDK tries the standard shape first, then this
-one, so either is mapped correctly):
+Current `POST /v1/automations/triggers/{triggerEventId}/fire` failures use the
+standard `{ error }` envelope. Success is a bare `202` body with
+`triggerInstanceId`, `automationRunIds`, `notStarted`, and counts. A successful
+HTTP response can include automations that did not start: inspect `notStarted`
+before reporting that every matched flow is running. See
+[transactional email and trigger firing](automations.md#transactional-email--firing-triggers).
 
-```json
-{
-  "success": false,
-  "status": "payload_mismatch",
-  "code": "INVALID_PAYLOAD",
-  "message": "Payload validation failed.",
-  "triggerEventId": "tri_signup",
-  "receivedAt": "2026-09-20T10:00:00.000Z",
-  "details": {
-    "errors": [
-      {
-        "code": "invalid_type",
-        "field": "code",
-        "message": "Field \"code\" must be a string",
-        "expectedType": "string",
-        "actualType": "number"
-      }
-    ],
-    "warnings": [],
-    "payloadSchema": { "type": "object", "fields": [] }
-  }
-}
-```
-
-The SDK maps it verbatim: `code` and `message` from the body, `type`
-derived from the HTTP status (`401` → `authentication_error`, `403` →
-`authorization_error`, `404` → `not_found`, `409` → `conflict`, `429` →
-`rate_limit`, any other 4xx → `invalid_request`, 5xx → `internal_error`),
-a fix-the-request `suggestion` for any 4xx outside the retry policy (the
-same body fails the same way on retry; `408`/`429`/5xx keep retry advice),
-the fire reference as `docs`, and `details` — for a `payload_mismatch`,
-`errors[]` names every offending field and `payloadSchema` is the schema
-to repair against. The envelope's own `status` discriminator is reachable
-through `body`:
-
-```ts
-try {
-  await brew.automations.triggers.fire({ triggerEventId, payload })
-} catch (error) {
-  if (error instanceof BrewApiError && error.code === 'INVALID_PAYLOAD') {
-    const errors = error.details?.errors as
-      | Array<{ field: string; message: string }>
-      | undefined
-    for (const issue of errors ?? []) {
-      console.error(`${issue.field}: ${issue.message}`)
-    }
-  }
-  throw error
-}
-```
+The SDK also recognizes older fire error bodies with top-level `success`,
+`code`, `message`, and `details` for compatibility with older deployments.
+That decoder is not the current endpoint contract. Both shapes become
+`BrewApiError`; use its typed fields rather than depending on a legacy body's
+`status` discriminator.
 
 ### A cut-off error body
 
@@ -268,6 +252,7 @@ class BrewTransportError extends Error {
   readonly url: string // Full URL. The message leaves the query string out. For an upload URL, the query (its token) is left out of `url`, `message` and `cause`.
   readonly attempts: number // HTTP attempts made, retries included
   readonly idempotencyKey: string | undefined // Replay a write with this key
+  readonly uploadId: string | undefined // Replay image finalization with this upload ID
   readonly inProgress: boolean // A retry found the first attempt still running
   readonly cause: unknown // What the runtime threw, when there was something
 }
@@ -337,8 +322,27 @@ try {
 there, but the body that came back — complete — was not JSON. It is not
 a transport failure (`instanceof BrewTransportError` is false) and it is
 not retried: the same bytes would come back. It carries `status`,
-`requestId`, the first 256 characters as `bodyPreview`, and the
-`SyntaxError` as `cause`.
+`requestId`, the first 256 characters as `bodyPreview`, the
+`SyntaxError` as `cause`, and the request's `idempotencyKey` when present.
+
+## Image upload recovery metadata
+
+The recovery fields below are part of the next SDK release. SDK 13.3.0
+does not expose the original upload ID from `uploadImage()`.
+
+When `content.addImage({ uploadId })` fails, `BrewApiError`,
+`BrewTransportError` (including timeout and connection errors), and
+`BrewParseError` expose that `uploadId`. This includes errors from the
+final step of `content.uploadImage()`. Keep it with `idempotencyKey` to
+replay only `addImage` on the original brand client. See
+[Recovering an image upload](./retries-and-idempotency.md#recovering-an-image-upload).
+
+The ID identifies the upload whose finalization was attempted; it does
+not mean the image was saved. Inspect API errors by `code`, and report
+parse errors with `requestId`. Failures while opening the upload or
+sending its bytes, and requests unrelated to upload finalization, leave
+`uploadId` undefined. Caller aborts still reject with their original
+`reason` without adding recovery fields.
 
 ## Caller-initiated aborts
 
@@ -378,3 +382,29 @@ interrupted write without doing it twice, replay it with the same
 idempotency key. A cancel rejects with your own `reason`, which carries
 no key, so on a write you might cancel, pass your own
 `RequestOptions.idempotencyKey` and keep it.
+
+## Pagination protocol failures
+
+`autoPaginate` rejects an identical or cyclic next cursor before fetching a
+known page again. Empty pages with an advancing cursor continue normally;
+`hasMore: false` or a missing cursor ends iteration. Its documented cancellation
+behavior is unchanged: an abort between pages ends iteration, while an abort
+from an in-flight request propagates that request's signal reason.
+
+```ts
+import { BrewPaginationError } from '@brew.new/sdk'
+
+try {
+  for await (const contact of brew.contacts.searchAll()) {
+    // Consume each contact.
+  }
+} catch (error) {
+  if (error instanceof BrewPaginationError) {
+    console.error(`Incomplete list after ${error.itemsYielded} items`)
+  }
+  throw error
+}
+```
+
+The repeated cursor is diagnostic evidence, not a safe resume cursor. Report
+the failure instead of automatically retrying the same cursor.

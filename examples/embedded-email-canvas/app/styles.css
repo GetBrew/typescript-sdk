@@ -1,0 +1,138 @@
+:root {
+  color-scheme: light;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  color: #202626;
+  background: #f6f7f5;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+button {
+  font: inherit;
+  cursor: pointer;
+  border: 1px solid #cdd4d0;
+  border-radius: 10px;
+  background: white;
+  padding: 10px 16px;
+  color: inherit;
+}
+button:hover {
+  background: #edf3ef;
+}
+button:focus-visible,
+a:focus-visible {
+  outline: 3px solid #247755;
+  outline-offset: 4px;
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.workspace {
+  max-width: 1600px;
+  margin: auto;
+  padding: 28px;
+}
+.welcome {
+  max-width: 650px;
+  margin: 8vh auto;
+  padding: 24px;
+}
+h1 {
+  font-size: clamp(24px, 3vw, 38px);
+  letter-spacing: -0.035em;
+  margin: 4px 0 16px;
+}
+p {
+  line-height: 1.6;
+}
+.eyebrow {
+  text-transform: uppercase;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: #466753;
+  margin: 0;
+}
+.intro {
+  max-width: 650px;
+  color: #56635c;
+}
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
+  max-width: 900px;
+  margin: 36px 0;
+}
+.card {
+  padding: 28px;
+  text-align: left;
+}
+.card span {
+  display: block;
+  font-size: 23px;
+  font-weight: 600;
+}
+.card p {
+  color: #56635c;
+}
+.card strong {
+  color: #247755;
+}
+.toolbar,
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.toolbar h1 {
+  font-size: 27px;
+  margin-bottom: 0;
+}
+.status {
+  font-size: 14px;
+  margin: 18px 0 12px;
+  color: #466753;
+}
+.canvas {
+  background: white;
+  border: 1px solid #d9dfdb;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.hint {
+  font-size: 13px;
+  color: #56635c;
+}
+.error {
+  border: 1px solid #c27339;
+  background: #fff5e9;
+  padding: 16px;
+  border-radius: 10px;
+  margin-bottom: 12px;
+}
+.error p {
+  margin: 4px 0;
+}
+@media (max-width: 600px) {
+  .workspace {
+    padding: 16px;
+  }
+  .actions {
+    gap: 8px;
+  }
+  .actions button {
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+}

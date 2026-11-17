@@ -17,6 +17,19 @@ An audience is the recipient target for `brew.emails.send(...)`.
 > row. The `audienceId` and `include` query filters on `GET /v1/audiences`
 > are gone — they now `400`.
 
+Omitted filter types use the brand's field registry before counting and
+saving. A registered numeric `tier` compares numerically, so `not_equals`
+with `value: 10` excludes tier 10. Unknown fields retain string comparisons;
+explicit types remain supported. Date range operands require `type: 'date'`
+for request validation.
+
+List operators (`in`, `not_in`, `contains_any`, `not_contains_any`) take an
+array. `create` and `update` refuse a comma-joined string such as
+`value: 'pro,enterprise'` with a `400` (`param: "filters.filters.N.value"`);
+it used to save a clause that matched nobody. `email in` still splits on
+commas, and a stored legacy clause does not block `addEmails` /
+`removeEmails`.
+
 ## Shared types
 
 ```ts
@@ -62,6 +75,12 @@ for (const audience of data) {
 
 const { data: matches } = await brew.audiences.list({ search: 'founders' })
 ```
+
+A listed `count` is the saved member total, recounted before the list
+answers when contacts changed since that count or it is a day old. An
+audience that cannot be recounted (still building, unusable filters, a
+failed or timed-out count) keeps its saved total; `get` with
+`include: 'count'` returns the exact total.
 
 ## `get`
 

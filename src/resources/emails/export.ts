@@ -15,7 +15,8 @@ export type ExportEmailInput = {
 } & components['schemas']['EmailExportRequest']
 
 /**
- * 200 result of `POST /v1/emails/{emailId}/export` — what was written to the
+ * Result of `POST /v1/emails/{emailId}/export` — HTTP 201 when exported, or
+ * HTTP 200 for a dry run. Describes what was written to the
  * ESP (`{ emailId, provider, providerName, templateName, templateId?,
  * dryRun }`). On a dry run `dryRun` is `true` and no `templateId` is issued.
  */
@@ -25,13 +26,22 @@ export type ExportEmailResponse = components['schemas']['EmailExportResponse']
 export type ExportProvider = ExportEmailResponse['provider']
 
 /**
+ * Exports may upload multiple assets before creating content in the ESP.
+ * Match Brew's 800s route budget so the default 30s client timeout does not
+ * abandon a draft still being created. Explicit request timeouts still win;
+ * a longer client-wide timeout is preserved by the transport's default floor.
+ */
+export const EXPORT_EMAIL_DEFAULT_TIMEOUT_MS = 800_000
+
+/**
  * `POST /v1/emails/{emailId}/export` (scope: `emails`) — export a design to a
  * connected ESP as a template, so you can send it from a stack you already
  * run.
  *
  * The ESP must be connected for the brand: exporting to one that is not
  * surfaces as `400 INTEGRATION_NOT_CONNECTED`. If the provider rejects the
- * template or is temporarily unavailable you get `502 EXPORT_PROVIDER_ERROR`.
+ * template or is temporarily unavailable, the response includes a typed
+ * provider error; inspect `BrewApiError.code`, `status` and `retryAfter`.
  *
  * Supply `options.idempotencyKey` to make retries safe; one is generated
  * automatically otherwise.
@@ -57,6 +67,7 @@ export function createExportEmail(client: HttpClient) {
       method: 'POST',
       path: `/v1/emails/${encodeURIComponent(emailId)}/export`,
       body,
+      defaultTimeoutMs: EXPORT_EMAIL_DEFAULT_TIMEOUT_MS,
       ...(options ? { options } : {}),
     })
     return unwrapResponse(response, options)

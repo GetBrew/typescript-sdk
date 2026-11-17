@@ -1,7 +1,10 @@
 import { http, HttpResponse } from 'msw'
 import { describe, expect, it } from 'vitest'
 
-import { createSendEmail } from '../../../src/resources/emails/send'
+import {
+  createSendEmail,
+  type SendEmailCampaignResponse,
+} from '../../../src/resources/emails/send'
 import { makeTestHttpClient } from '../../helpers/http-client'
 import { server } from '../../msw/server'
 
@@ -16,8 +19,8 @@ describe('emails.send', () => {
         return HttpResponse.json(
           {
             status: 'queued',
-            runId: 'wf_123',
-          },
+            sendId: 'send_123',
+          } satisfies SendEmailCampaignResponse,
           { status: 202 }
         )
       })
@@ -48,7 +51,7 @@ describe('emails.send', () => {
     expect(capturedRequest?.headers.get('idempotency-key')).toBeTruthy()
     expect(result).toEqual({
       status: 'queued',
-      runId: 'wf_123',
+      sendId: 'send_123',
     })
   })
 
@@ -62,9 +65,9 @@ describe('emails.send', () => {
         return HttpResponse.json(
           {
             status: 'scheduled',
-            runId: 'wf_456',
+            sendId: 'send_456',
             scheduledAt: '2099-01-01T00:00:00.000Z',
-          },
+          } satisfies SendEmailCampaignResponse,
           { status: 202 }
         )
       })
@@ -94,12 +97,12 @@ describe('emails.send', () => {
     expect(capturedRequest?.headers.get('idempotency-key')).toBe('send-001')
     expect(result).toEqual({
       status: 'scheduled',
-      runId: 'wf_456',
+      sendId: 'send_456',
       scheduledAt: '2099-01-01T00:00:00.000Z',
     })
   })
 
-  it('test mode: POSTs /v1/sends with { test: true } and returns the synchronous { status:sent, recipient }', async () => {
+  it('test mode: POSTs /v1/sends with { test: true } and returns the synchronous { status:completed, recipient }', async () => {
     let captured: Request | undefined
     let body: unknown
     server.use(

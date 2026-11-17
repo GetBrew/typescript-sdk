@@ -43,6 +43,34 @@ const FLOW = {
 }
 
 describe('flows.get', () => {
+  it('reads a <domain>/<kind> slug as the domain path plus ?kind=', async () => {
+    let url: string | undefined
+    server.use(
+      http.get('https://brew.new/api/v1/flows/notion.com', ({ request }) => {
+        url = request.url
+        return HttpResponse.json(FLOW)
+      })
+    )
+    const { client } = makeTestHttpClient()
+    await createGetFlow(client)('notion.com/welcome', { include: 'html' })
+    expect(new URL(url!).pathname).toBe('/api/v1/flows/notion.com')
+    expect(new URL(url!).searchParams.get('kind')).toBe('welcome')
+    expect(new URL(url!).searchParams.get('include')).toBe('html')
+  })
+
+  it('forwards an explicit kind for a bare-domain slug', async () => {
+    let url: string | undefined
+    server.use(
+      http.get('https://brew.new/api/v1/flows/notion.com', ({ request }) => {
+        url = request.url
+        return HttpResponse.json(FLOW)
+      })
+    )
+    const { client } = makeTestHttpClient()
+    await createGetFlow(client)('notion.com', { kind: 'welcome' })
+    expect(new URL(url!).search).toBe('?kind=welcome')
+  })
+
   it('GETs /v1/flows/{slug} and returns the BARE flow with anchor and steps', async () => {
     let url: string | undefined
     server.use(

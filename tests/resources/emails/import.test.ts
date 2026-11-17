@@ -1,11 +1,21 @@
 import { http, HttpResponse } from 'msw'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, expectTypeOf, it } from 'vitest'
 
-import { createImportEmail } from '../../../src/resources/emails/import'
+import type { components } from '../../../src/generated/openapi-types'
+import {
+  createImportEmail,
+  type EmailImportResponse,
+} from '../../../src/resources/emails/import'
 import { makeTestHttpClient } from '../../helpers/http-client'
 import { server } from '../../msw/server'
 
 describe('emails.import', () => {
+  it('exposes the complete import contract, including asset diagnostics', () => {
+    expectTypeOf<EmailImportResponse>().toEqualTypeOf<
+      components['schemas']['EmailImportResponse']
+    >()
+  })
+
   it('POSTs /v1/emails/import and returns the generated artifact (201)', async () => {
     let captured: Request | undefined
     let body: unknown
@@ -21,6 +31,20 @@ describe('emails.import', () => {
               emailVersionId: 'emv_imported_v1',
               html: '<!DOCTYPE html><html><body>Welcome to Brew.</body></html>',
               previewImage: 'https://cdn.brew.new/p/eml_imported.png',
+              group: { groupId: 'grp_imported', groupName: 'Imported' },
+              assetReport: {
+                discovered: 2,
+                rehosted: 1,
+                retained: 1,
+                stripped: 0,
+                warnings: [
+                  {
+                    code: 'fetch_failed_retained',
+                    location: 'src',
+                    host: 'assets.example.com',
+                  },
+                ],
+              },
             },
             { status: 201 }
           )
@@ -49,6 +73,9 @@ describe('emails.import', () => {
     expect(result.emailId).toBe('eml_imported')
     expect(result.emailVersionId).toBe('emv_imported_v1')
     expect(result.html).toContain('Welcome to Brew')
+    expect(result.assetReport.retained).toBe(1)
+    expect(result.assetReport.warnings[0]?.code).toBe('fetch_failed_retained')
+    expect(result.group?.groupId).toBe('grp_imported')
   })
 
   it('forwards mjml + jsx formats', async () => {

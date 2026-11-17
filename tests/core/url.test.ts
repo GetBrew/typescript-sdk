@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildUrl } from '../../src/core/url'
+import { buildUrl, serializeInclude } from '../../src/core/url'
 
 describe('buildUrl', () => {
   const baseUrl = 'https://brew.new/api'
@@ -149,5 +149,48 @@ describe('buildUrl', () => {
         'https://brew.new/api/v1/contacts/jane%40example.com/fields?limit=10'
       )
     })
+  })
+})
+
+describe('serializeInclude', () => {
+  it('returns undefined when include is undefined', () => {
+    expect(serializeInclude({ include: undefined })).toBeUndefined()
+  })
+
+  it('joins an array of tokens with commas, in order', () => {
+    expect(serializeInclude({ include: ['graph', 'versions'] })).toBe(
+      'graph,versions'
+    )
+  })
+
+  it('passes a single-token array through', () => {
+    expect(serializeInclude({ include: ['events'] })).toBe('events')
+  })
+
+  it('passes a string through verbatim, commas and all', () => {
+    expect(serializeInclude({ include: 'identity,logos' })).toBe(
+      'identity,logos'
+    )
+    expect(serializeInclude({ include: 'html' })).toBe('html')
+  })
+
+  it('returns undefined for an empty array or an empty string, so no include= is sent', () => {
+    expect(serializeInclude({ include: [] })).toBeUndefined()
+    expect(serializeInclude({ include: '' })).toBeUndefined()
+  })
+
+  it('does not trim, dedupe or validate tokens (the API owns that)', () => {
+    expect(serializeInclude({ include: ['html', 'html'] })).toBe('html,html')
+    expect(serializeInclude({ include: ' html ' })).toBe(' html ')
+  })
+
+  it('omits the key from the URL when it returns undefined', () => {
+    expect(
+      buildUrl({
+        baseUrl: 'https://brew.new/api',
+        path: '/v1/brand',
+        query: { include: serializeInclude({ include: [] }) },
+      })
+    ).toBe('https://brew.new/api/v1/brand')
   })
 })

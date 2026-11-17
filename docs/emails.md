@@ -21,6 +21,7 @@ is not campaign-specific, so the send action lives here on `emails`. Send
 | [`previewClients`](#previewclients)             | `POST /v1/emails/{emailId}/client-previews`             | `emails` |
 | [`getClientPreview`](#getclientpreview)         | `GET /v1/emails/client-previews/{previewId}`            | `emails` |
 | [`inboxPlacementTests.*`](#inboxplacementtests) | `/v1/emails/{emailId}/inbox-placement-tests[/{testId}]` | `emails` |
+| [`comments.*`](#comments)                       | `GET /v1/emails/{emailId}/comments`                     | `emails` |
 | [`send`](#send)                                 | `POST /v1/sends`                                        | `sends`  |
 
 > **Changed in 11.0.0.** `previewClients` starts a rendering job and
@@ -49,6 +50,8 @@ type EmailSummary = {
   readonly updatedAt: string
   readonly subjectLine?: string
   readonly previewText?: string
+  // Detail rows only (`get`): the copy's language, once Brew has read it.
+  readonly lang?: EmailLanguage
   readonly group: { groupId: string; groupName: string } | null
   // With `get(emailId, { include })`: `html` and/or `versions`.
   readonly html?: string
@@ -61,6 +64,11 @@ type EmailSummary = {
 // The one v1 vocabulary. The old `streaming` / `complete` / `error`
 // spellings are gone and now 400 as a status FILTER.
 type EmailStatus = 'generating' | 'ready' | 'failed'
+
+// ISO 639-1, plus zh-Hans / zh-Hant. Rendered as the HTML document's
+// `lang` (and `dir` for right-to-left languages) on every send and export.
+// Exported as `EmailLanguage` from '@brew.new/sdk'; derived from the API enum.
+type EmailLanguage = 'en' | 'de' | 'fr' | 'es' | 'ja' | 'zh-Hans' | 'zh-Hant' // …45 codes, see the OpenAPI enum
 
 type GeneratedEmailArtifact = {
   readonly emailId: string
@@ -169,8 +177,9 @@ for (const link of links ?? []) {
 }
 ```
 
-Read a saved version with `emailVersionId`, or poll a generation with the
-`runId` that `generate` / `edit` returned while it was `generating`:
+Read a saved version with `emailVersionId`, or read a generation started through
+an asynchronous surface such as MCP using its `runId`. The SDK's `generate` and
+`edit` calls wait for the final artifact or text response:
 
 ```ts
 const pinned = await brew.emails.get('email_123', {
@@ -201,6 +210,21 @@ type GenerateEmailInput = {
   readonly prompt: string
   readonly contentUrls?: ReadonlyArray<string>
   readonly referenceEmailId?: string
+  // Steers the design treatment; omit for a general treatment.
+  readonly category?: 'welcome' | 'newsletter' | 'receipt' | 'general' // …30 values, see the OpenAPI enum
+  // Canvas name, 2-4 words (e.g. 'Newsletter Welcome'), 1-200 characters.
+  // Omit and Brew derives one from `subjectLine`, else from the prompt.
+  readonly title?: string
+  // Inbox subject line saved on the design (distinct from `title`, the
+  // canvas name); a send still takes its own `subject`.
+  readonly subjectLine?: string
+  // Omit and Brew detects it from the finished body; a value you set is
+  // kept and never re-detected.
+  readonly lang?: EmailLanguage
+  // File the design under a group: `groupId` (`grp_…` or 'ungrouped') or
+  // `groupName` (resolved or created), not both. Omit to land Ungrouped.
+  readonly groupId?: string
+  readonly groupName?: string
 }
 
 type GenerateEmailResponse =
@@ -306,9 +330,11 @@ URL path. `EditEmailInput` does **not** accept a `brandId` or an
 `emailId` field in the body — sending either returns
 `400 INVALID_REQUEST`.
 
-Send only `title`, `subjectLine` and/or `groupId` (`null` ungroups) with
-no `prompt` to rename, retitle or refile the design without an AI edit or a
-charge; the three apply in one atomic write.
+Send only `title`, `subjectLine`, `lang` and/or `groupId` (`null` ungroups)
+with no `prompt` to rename, retitle, set the language of or refile the design
+without an AI edit or a charge; they apply in one atomic write. A `lang` you
+set is kept: Brew stops re-detecting it after later edits. Send `lang: null`
+to clear it, and Brew reads the language from the email again.
 
 ```ts
 type EditEmailInput = {
@@ -317,6 +343,7 @@ type EditEmailInput = {
   readonly contentUrls?: ReadonlyArray<string>
   readonly title?: string
   readonly subjectLine?: string
+  readonly lang?: EmailLanguage | null // null clears it; Brew reads it again
   readonly groupId?: string | null
 }
 
@@ -361,16 +388,11 @@ for callers that want to compose their own timeouts.
 
 ### Idempotency
 
-PATCH requests do not auto-attach an `Idempotency-Key`, but you can opt
-in via `RequestOptions.idempotencyKey` to make replays safe across the
-24-hour window the server caches them for:
-
-```ts
-await brew.emails.edit(
-  { emailId: 'email_123', prompt: 'Tighten the headline.' },
-  { idempotencyKey: `edit-${dailyJobRunId}` }
-)
-```
+PATCH edits do not support server response replay, and the SDK does not
+automatically retry them. Passing an idempotency key does not make a
+prompt edit safe to repeat. After a timeout or connection failure, read
+the design and its version or generation status before deciding whether
+to submit another edit; the first call may already have created a version.
 
 ### Errors
 
@@ -386,23 +408,15 @@ await brew.emails.edit(
 
 ## `auditEmail`
 
-Audit an email for production readiness before you send it. Name exactly one
-source — the rendered HTML, a React Email JSX module, or a saved design — plus
-the inbox copy you plan to send. The checks run in parallel: Brew fetches every
-link and image itself, checks email-client support, runs an accessibility pass,
-checks unsubscribe and postal-address compliance and loaded size, and asks an
-evaluation model about link text, alt text, subject and preview copy.
+Audit HTML, React Email JSX, or a saved email. Choose exactly one of
+`emailHtml`, `emailJsx`, or `emailId`. For a saved email, omit `emailVersionId`
+to audit its latest version or supply a version ID to audit that version.
+`emailVersionId` is accepted only with `emailId`. The audit checks
+unsubscribe content, links, images, loaded size, accessibility, compatibility,
+markup, subject copy, and preview copy in parallel.
 
 ```ts
-type AuditEmailInput = (
-  | { readonly emailHtml: string }
-  | { readonly emailJsx: string }
-  | { readonly emailId: string; readonly emailVersionId?: string }
-) & {
-  readonly subject?: string
-  readonly previewText?: string
-  readonly sendingPurpose?: 'marketing' | 'transactional'
-}
+import type { AuditEmailInput } from '@brew.new/sdk'
 
 auditEmail(
   input: AuditEmailInput,
@@ -413,13 +427,6 @@ auditEmail(
 Branch on `completion.status`. A complete result has a numeric score and costs
 5 credits. A partial result has `score: null`, costs 0 credits, and does not
 establish readiness.
-
-An omitted `subject` is not judged; an empty one is reported missing. A saved
-design (`emailId`) fills any omitted `subject` or `previewText` from the
-design. Omit `sendingPurpose` and the audit infers it: `policy.source` is
-`'inferred'` (with a `confidence`) when it judged one, otherwise `'defaulted'`
-to marketing. Each finding may carry `evidence`: an HTTP status, the email
-clients that lack support, or the probability behind a judgment.
 
 ```ts
 const audit = await brew.emails.auditEmail({
@@ -435,18 +442,15 @@ if (audit.completion.status === 'complete') {
   console.log('Audit incomplete. Retry before claiming readiness.')
 }
 
-// A saved design, latest version (subject and preview come from the design):
-await brew.emails.auditEmail({ emailId: 'V1StGXR8_Z5jdHi6B-myT' })
-
-// React Email JSX, rendered by Brew with the renderer it sends with:
-await brew.emails.auditEmail({ emailJsx, subject: 'Welcome aboard' })
+const jsxAudit = await brew.emails.auditEmail({ emailJsx })
+const savedAudit = await brew.emails.auditEmail({
+  emailId: 'email_123',
+  emailVersionId: 'version_123',
+})
 ```
 
-A module that does not render returns `422`. Sending none or two sources, or
-`emailVersionId` without `emailId`, returns `400 INVALID_REQUEST`.
-
-The checks share a 25-second budget. The SDK uses
-`AUDIT_EMAIL_DEFAULT_TIMEOUT_MS`, which is 40 seconds, unless the caller sets
+The endpoint can run for up to 50 seconds. The SDK uses
+`AUDIT_EMAIL_DEFAULT_TIMEOUT_MS`, which is 65 seconds, unless the caller sets
 `RequestOptions.timeoutMs` or `RequestOptions.signal`. Pass `{ raw: true }` to
 read `X-Credit-Cost`.
 
@@ -699,6 +703,106 @@ An unverified or cross-brand `domainId` is `422 DOMAIN_NOT_READY`.
 
 ---
 
+## `comments`
+
+A design's open comment threads, as the canvas pins show them. Read them
+before editing a design to see what teammates asked for. Both methods are
+free. New in 11.6.0: the typed replacement for reading comments through
+`brew.data.run`, which 12.0.0 removes (the API retired `POST /v1/data`).
+
+```ts
+type EmailCommentThread = {
+  readonly commentId: string // `cmt_…`
+  readonly emailId: string
+  readonly status: 'open' // resolving a thread deletes it
+  readonly target:
+    | { kind: 'email' }
+    | { kind: 'element'; elementId?: string; nodeType?: string }
+  readonly participants: ReadonlyArray<{ userId: string; name: string }> // the 12 most recent
+  readonly participantCount: number
+  readonly messageCount: number
+  readonly lastMessageAt: string // ISO-8601
+  readonly lastMessagePreview: string // shortened to 140 characters
+  readonly url: string // the thread on the design in Brew
+  // Only with include: 'messages':
+  readonly messages?: ReadonlyArray<EmailCommentMessage> // oldest first
+  readonly messagesCursor?: string | null // older messages; null when none remain
+}
+
+type EmailCommentMessage = {
+  readonly messageId: string // `cmm_…`
+  readonly author: { userId: string; name: string }
+  readonly body: string // each mention reads `@Name`, the name `mentions` gives
+  readonly mentions: ReadonlyArray<{ userId: string; name: string }>
+  readonly createdAt: string
+  readonly updatedAt: string
+}
+```
+
+`comments.list` returns one page of threads, newest activity first, under
+`{ data, pagination }`:
+
+```ts
+// The threads, without messages (up to 100 a page).
+const { data: threads } = await brew.emails.comments.list({ emailId })
+
+// With each thread's newest messages: the page caps at 3 threads, which
+// share a fixed size budget.
+const { data } = await brew.emails.comments.list({
+  emailId,
+  include: 'messages',
+})
+
+// One thread by id; send back its messagesCursor for older messages.
+const commentId = 'cmt_V1StGXR8_Z5jdHi6B-myT'
+const thread = await brew.emails.comments.list({
+  emailId,
+  commentId,
+  include: 'messages',
+})
+const messagesCursor = thread.data[0]?.messagesCursor
+if (messagesCursor) {
+  const older = await brew.emails.comments.list({
+    emailId,
+    commentId,
+    messagesCursor, // implies include: 'messages'
+  })
+}
+```
+
+The input is either a page (`cursor`) or one thread (`commentId`, with an
+optional `messagesCursor`), never both. The type rejects the combinations
+the API refuses: `cursor` with `commentId`, and `messagesCursor` without
+`commentId`.
+
+`comments.listAllMessages` does the `messagesCursor` walk for one thread
+and yields its messages **newest first**. Break out of the loop to stop
+early. The API returns each slice oldest first; the iterator reverses it.
+
+```ts
+for await (const message of brew.emails.comments.listAllMessages({
+  emailId,
+  commentId: 'cmt_V1StGXR8_Z5jdHi6B-myT',
+})) {
+  console.log(`${message.author.name}: ${message.body}`)
+}
+```
+
+An email with no open threads returns an empty page.
+
+### Errors
+
+- **`404 EMAIL_NOT_FOUND`**: the design is unknown or belongs to another
+  brand.
+- **`404 COMMENT_NOT_FOUND`**: the `commentId` is not an open thread on the
+  design. Resolving a thread deletes it, so a thread resolved while
+  `listAllMessages` walks it throws this partway through.
+- **`400 INVALID_REQUEST`**: an unknown `include` token; a malformed
+  cursor; a `messagesCursor` without its `commentId` or from another thread;
+  or `cursor` with `commentId`.
+
+---
+
 ## Send shared types
 
 ```ts
@@ -734,9 +838,17 @@ The single polymorphic send. The input is a union discriminated by
 `test`, and the response shape follows the input:
 
 - **Test send** (`test: true`) — a one-off [TEST] delivery to a single
-  recipient. Forces the Brew default sender (no verified domain or saved
-  audience required) and never creates a send row. Resolves synchronously
-  (HTTP 200) with `{ status: 'completed', recipient }`.
+  recipient. A test reaches only a teammate with access to the brand, an
+  address on a verified sending domain of the brand, or, for a signed-in
+  person (not an API key), their own address or one on their company domain.
+  An API key has no person behind it, so with a key only teammates and
+  verified sending domains qualify; any other address is
+  `422 TEST_RECIPIENT_NOT_ALLOWED` (`details.recipients` lists the refused
+  addresses). Omit `domainId` for the Brew default sender, or supply a verified,
+  org-owned sending domain. Invalid domains are rejected. No saved audience
+  is required, and it never creates a send row. Test deliveries never count
+  toward the plan's email sends, and a plan at its limit still sends tests.
+  Resolves synchronously (HTTP 200) with `{ status: 'completed', recipient }`.
 - **Campaign send** (omit `test`) — delivers a saved design to a target.
   Provide EXACTLY ONE recipient target — `audienceId` (a saved audience,
   or the string `'all'` to target every contact in the brand) or `to` (a
@@ -745,9 +857,9 @@ The single polymorphic send. The input is a union discriminated by
   delivery completes, with `{ status, sendId }`.
 
 Both modes require the `sends` scope. A design can be sent unlimited
-times; every campaign call mints a new send. An exhausted plan quota is
-`402 SEND_QUOTA_EXCEEDED`, the code that absorbed the old
-`INSUFFICIENT_EMAIL_SENDS`.
+times; every campaign call mints a new send. A campaign that would exceed
+the plan's monthly email volume is `402 SEND_QUOTA_EXCEEDED`, the code that
+absorbed the old `INSUFFICIENT_EMAIL_SENDS`.
 
 Campaign send:
 

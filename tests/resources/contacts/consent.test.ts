@@ -30,7 +30,7 @@ function captureBody(method: 'post' | 'patch', url: string) {
       captured.body = await request.json()
       return HttpResponse.json(
         method === 'patch'
-          ? { contact: CONTACT, updated: [] }
+          ? { contact: CONTACT, updated: [], warnings: [] }
           : {
               contact: CONTACT,
               created: false,

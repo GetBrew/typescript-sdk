@@ -10,7 +10,8 @@ Official TypeScript SDK for the [Brew](https://brew.new) public API.
   request, response body included.
 - Safe retries with exponential backoff + jitter.
 - Auto-generated `Idempotency-Key` on POST so retries never double-write.
-- Node 20+, server-first. API keys are secrets — do not use this SDK directly in a browser.
+- Node 20+ for the server API client. API keys stay on your backend; browser
+  canvas integrations use the separate `@brew.new/sdk/react` or `/embed` entry.
 
 ## Install
 
@@ -91,6 +92,17 @@ yourself, call `brew.content.createImageUpload({ fileName, contentType,
 size })`, POST the raw bytes to its `uploadUrl` within 15 minutes, then
 `brew.content.addImage({ uploadId })`.
 
+If the final `addImage` answer is lost, its transport error exposes `uploadId`
+and `idempotencyKey`. Recover with `brew.content.addImage({ uploadId },
+{ idempotencyKey })` on the same brand client. Calling `uploadImage` again
+opens a new upload, so reusing the original key there causes
+`IDEMPOTENCY_CONFLICT`. See
+[Recovering an image upload](./docs/retries-and-idempotency.md#recovering-an-image-upload)
+for a typed recovery example and the replay limits.
+
+These recovery fields are part of the next SDK release. SDK 13.3.0 callers
+must use the explicit steps above and retain the upload ID themselves.
+
 ## Pointing at a different environment
 
 `baseUrl` is configurable. By default it points at production
@@ -117,6 +129,10 @@ config options (`timeoutMs`, `maxRetries`, `retryOnTimeout`, `signal`,
 
 ## Documentation
 
+Embed a group or single email in your app with [`EmailCanvas`](docs/embed.md),
+the React component from `@brew.new/sdk/react`, using a publishable `clientId` and exactly one `groupId` or `emailId`. In SDK 13.2+, pass `brandId` to reuse an organization-wide client ID across current and future brands; client apps can also be restricted to one brand. No Clerk keys or browser API keys are required. A plain JavaScript iframe
+controller is available from `@brew.new/sdk/embed`.
+
 | Topic                              | File                                                                   |
 | ---------------------------------- | ---------------------------------------------------------------------- |
 | Analytics resource                 | [`docs/analytics.md`](./docs/analytics.md)                             |
@@ -124,11 +140,16 @@ config options (`timeoutMs`, `maxRetries`, `retryOnTimeout`, `signal`,
 | Audiences resource                 | [`docs/audiences.md`](./docs/audiences.md)                             |
 | Brand resource                     | [`docs/brand.md`](./docs/brand.md)                                     |
 | Brands (lifecycle)                 | [`docs/brands.md`](./docs/brands.md)                                   |
+| Chats resource                     | [`docs/chats.md`](./docs/chats.md)                                     |
 | Client configuration               | [`docs/configuration.md`](./docs/configuration.md)                     |
 | Contacts resource                  | [`docs/contacts.md`](./docs/contacts.md)                               |
 | Domains resource                   | [`docs/domains.md`](./docs/domains.md)                                 |
+| Webhooks resource                  | [`docs/webhooks.md`](./docs/webhooks.md)                               |
 | Emails resource (+ send)           | [`docs/emails.md`](./docs/emails.md)                                   |
 | Fields resource                    | [`docs/fields.md`](./docs/fields.md)                                   |
+| Insights resource                  | [`docs/insights.md`](./docs/insights.md)                               |
+| Integrations resource              | [`docs/integrations.md`](./docs/integrations.md)                       |
+| Notifications resource             | [`docs/notifications.md`](./docs/notifications.md)                     |
 | Error handling                     | [`docs/errors.md`](./docs/errors.md)                                   |
 | Retries + idempotency              | [`docs/retries-and-idempotency.md`](./docs/retries-and-idempotency.md) |
 | Sends resource (reads + lifecycle) | [`docs/sends.md`](./docs/sends.md)                                     |
