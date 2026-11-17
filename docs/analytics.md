@@ -57,13 +57,6 @@ omitted the API defaults to the last 30 days. Reflects LIVE runs only (test
 runs never contribute). Returns `{ data, totals, range }`.
 
 ```ts
-type AutomationAnalyticsInput = {
-  from?: string // ISO-8601
-  to?: string // ISO-8601
-  automationId?: string
-  limit?: number // 1–100
-}
-
 const { data, totals, range } = await brew.analytics.automations({
   from: '2026-03-01T00:00:00.000Z',
   to: '2026-04-01T00:00:00.000Z',
@@ -71,6 +64,28 @@ const { data, totals, range } = await brew.analytics.automations({
 
 for (const a of data) {
   console.log(a.name, a.runs, a.openRate, a.clickRate)
+}
+```
+
+With `automationId`, the response also includes observed goal `outcomes` and
+captured Stripe `observedPayments`. These describe observed facts, not email
+attribution. Outcomes cover all eligible enrollments, independently of the
+delivery metrics' `from`/`to` window. Select a pinned version and continue
+the evidence page with the returned cursor:
+
+```ts
+const report = await brew.analytics.automations({
+  automationId: 'auto_activation',
+  outcomesVersionId: 'version_1',
+})
+console.log(report.outcomes?.counts, report.outcomes?.evidence)
+if (report.outcomes?.continueCursor) {
+  const next = await brew.analytics.automations({
+    automationId: 'auto_activation',
+    outcomesVersionId: 'version_1',
+    outcomesCursor: report.outcomes.continueCursor,
+  })
+  console.log(next.outcomes?.evidence)
 }
 ```
 

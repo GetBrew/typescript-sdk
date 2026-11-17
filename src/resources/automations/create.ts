@@ -1,7 +1,11 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
-import type { Automation, AutomationDryRunReport } from './types'
+import type {
+  Automation,
+  AutomationDryRunReport,
+  AutomationGoal,
+} from './types'
 
 // --------------------------------------------------------------------
 // Per-kind config shapes
@@ -147,6 +151,7 @@ export type AutomationConnectionInput = {
 export type CreateAutomationInput = {
   name: string
   description?: string
+  goal?: AutomationGoal
   triggerEventId: string
   nodes: ReadonlyArray<AutomationNodeInput>
   connections: ReadonlyArray<AutomationConnectionInput>

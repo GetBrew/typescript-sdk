@@ -1,6 +1,10 @@
 import type { components } from '../../generated/openapi-types'
 
 export type Automation = components['schemas']['AutomationRow']
+/** A concrete source event and observation window pinned to an automation version. */
+export type AutomationGoal = NonNullable<
+  components['schemas']['AutomationsPostRequest']['goal']
+>
 
 /**
  * The answer to `dryRun: true` on `automations.create` / `automations.patch`:

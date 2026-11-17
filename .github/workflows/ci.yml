@@ -73,6 +73,9 @@ jobs:
         # import that doesn't survive bundling.
         run: bun run build
 
+      - name: Read-only smoke of packed ESM and CJS artifact
+        run: bun run smoke:release
+
       - name: Generated types are up to date
         # If someone updated openapi/public-api-v1.yaml without
         # re-running `bun run generate:types`, this step regenerates and
