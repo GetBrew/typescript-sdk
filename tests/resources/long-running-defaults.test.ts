@@ -49,6 +49,10 @@ import {
   IMPORT_EMAIL_DEFAULT_TIMEOUT_MS,
   createImportEmail,
 } from '../../src/resources/emails/import'
+import {
+  CONNECT_INTEGRATION_DEFAULT_TIMEOUT_MS,
+  createConnectIntegration,
+} from '../../src/resources/integrations/connect'
 import * as sdk from '../../src/index'
 
 /**
@@ -125,6 +129,16 @@ const CASES: ReadonlyArray<Case> = [
     call: ({ client, timeoutMs }) =>
       createSetUpAppEmailKit(client)(
         { sets: ['auth'] },
+        withTimeout({ timeoutMs })
+      ),
+  },
+  {
+    name: 'integrations.connect',
+    defaultMs: CONNECT_INTEGRATION_DEFAULT_TIMEOUT_MS,
+    expectedMs: 300_000,
+    call: ({ client, timeoutMs }) =>
+      createConnectIntegration(client)(
+        { provider: 'supabase_auth', signingSecret: 'v1,whsec_dGVzdA==' },
         withTimeout({ timeoutMs })
       ),
   },
@@ -260,6 +274,7 @@ describe('long-running methods — per-call timeout defaults', () => {
     expect(sdk.PREVIEW_EMAIL_CLIENTS_DEFAULT_TIMEOUT_MS).toBe(90_000)
     expect(sdk.UPSERT_APP_EMAIL_DEFAULT_TIMEOUT_MS).toBe(300_000)
     expect(sdk.SET_UP_APP_EMAIL_KIT_DEFAULT_TIMEOUT_MS).toBe(300_000)
+    expect(sdk.CONNECT_INTEGRATION_DEFAULT_TIMEOUT_MS).toBe(300_000)
   })
 
   it('exports the transport error family from the package entry point', () => {

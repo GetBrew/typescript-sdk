@@ -214,6 +214,7 @@ export type {
   PayloadContractGetResponse,
   PayloadContractPutRequest,
   PayloadContractPutResponse,
+  PayloadContractStoredField,
   PayloadContractValidateResponse,
   PutTriggerContractInput,
   ValidateTriggerPayloadInput,
@@ -613,6 +614,12 @@ export type {
   InsightSuggestion,
   InsightSummary,
 } from './resources/insights/types'
+export {
+  CONNECT_INTEGRATION_DEFAULT_TIMEOUT_MS,
+  type ConnectIntegrationInput,
+  type ConnectIntegrationResponse,
+} from './resources/integrations/connect'
+export type { GetIntegrationConnectionResponse } from './resources/integrations/get-connection'
 // ---------- Integrations: the catalog and live integration events ----------
 // (`client.integrations.list`, `.events.list` / `.events.get`.)
 export type { GetIntegrationEventResponse } from './resources/integrations/events/get'

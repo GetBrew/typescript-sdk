@@ -75,6 +75,9 @@ describe('createBrewClient — end-to-end', () => {
     expect(typeof brew.emailGroups.delete).toBe('function')
     // `GET /v1/integrations` — the product integration catalog.
     expect(typeof brew.integrations.list).toBe('function')
+    // `PUT|GET /v1/integrations/{provider}/connection` — hosted auth hooks.
+    expect(typeof brew.integrations.connect).toBe('function')
+    expect(typeof brew.integrations.getConnection).toBe('function')
     // `GET /v1/integrations/events[/{eventId}]` — live integration events.
     expect(typeof brew.integrations.events.list).toBe('function')
     expect(typeof brew.integrations.events.get).toBe('function')
