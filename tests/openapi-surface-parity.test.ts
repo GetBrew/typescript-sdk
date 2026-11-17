@@ -382,9 +382,6 @@ describe('query parameter forwarding', () => {
     // connected provider.
     'GET /v1/integrations ?cursor': 'list(options?) takes no input',
     'GET /v1/integrations ?limit': 'list(options?) takes no input',
-    // Pending in this stack: `brew.appEmails.list` lands in typescript-sdk#64.
-    'GET /v1/app-emails ?cursor': 'appEmails.list lands in #64',
-    'GET /v1/app-emails ?limit': 'appEmails.list lands in #64',
   }
 
   it('forwards every query parameter the spec documents', () => {

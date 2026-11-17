@@ -22,7 +22,7 @@ export type AutomationTriggerNodeConfig = {
   eventName?: string
 }
 
-export type AutomationSendEmailNodeConfig = {
+type AutomationSendEmailNodeConfigBase = {
   actionType?: string
   /**
    * FK into `emails`. Required. Mint via
@@ -38,12 +38,6 @@ export type AutomationSendEmailNodeConfig = {
    * and `brew.emails.edit(...)`.
    */
   emailVersionId: string
-  /**
-   * FK into the brand's `domains` table. Required — a custom domain
-   * is mandatory for API-authored automations. Pick from
-   * `brew.domains.list({ … })`.
-   */
-  domainId: string
   /** Email subject — required. Supports `{{variable | fallback}}` interpolation. */
   subject: string
   /** Preview text — required. Supports interpolation. */
@@ -58,6 +52,29 @@ export type AutomationSendEmailNodeConfig = {
   /** RFC-822 from address — derived from `domainId` server-side; round-trips on GET. */
   fromAddress?: string
 }
+
+/**
+ * A Send Email step's config. `senderMode` picks the sender:
+ *
+ * - `'domain'` (the default when omitted) sends from `domainId`, a
+ *   verified domain of the brand (pick one from `brew.domains.list(…)`).
+ * - `'sandbox'` sends from the Brew sandbox until a domain verifies: an
+ *   event automation then emails your organization's members only. The
+ *   step needs no `domainId`.
+ */
+export type AutomationSendEmailNodeConfig = AutomationSendEmailNodeConfigBase &
+  (
+    | {
+        senderMode?: 'domain'
+        /** FK into the brand's `domains` table; required unless `senderMode: 'sandbox'`. */
+        domainId: string
+      }
+    | {
+        senderMode: 'sandbox'
+        /** Optional on a sandbox step. */
+        domainId?: string
+      }
+  )
 
 export type AutomationWaitNodeConfig = {
   actionType?: string

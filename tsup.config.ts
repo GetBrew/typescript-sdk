@@ -10,10 +10,18 @@ const pkg = JSON.parse(
 ) as { version: string }
 
 export default defineConfig({
+  // One root bundle plus the browser canvas entries and one bundle per
+  // adapter subpath. Adapters import the SDK as `@brew.new/sdk` (external
+  // below), so at runtime they load the root bundle instead of inlining a
+  // second copy: one `BrewApiError` class.
   entry: {
     index: 'src/index.ts',
     embed: 'src/embed/index.ts',
     react: 'src/react/index.tsx',
+    'resend/index': 'src/adapters/resend/index.ts',
+    'better-auth/index': 'src/adapters/better-auth/index.ts',
+    'next-auth/index': 'src/adapters/next-auth/index.ts',
+    'supabase/index': 'src/adapters/supabase/index.ts',
   },
   format: ['esm', 'cjs'],
   dts: true,
@@ -24,7 +32,7 @@ export default defineConfig({
   // React entry's client directive; a Rollup treeshake pass would strip it.
   treeshake: false,
   clean: true,
-  external: ['react', 'react/jsx-runtime'],
+  external: ['react', 'react/jsx-runtime', '@brew.new/sdk'],
   esbuildPlugins: [
     {
       name: 'shared-embed-runtime',

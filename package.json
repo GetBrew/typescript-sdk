@@ -19,12 +19,43 @@
     "typescript",
     "api",
     "contacts",
-    "marketing"
+    "marketing",
+    "resend",
+    "better-auth",
+    "next-auth",
+    "auth.js",
+    "supabase",
+    "transactional-email"
   ],
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "types": "./dist/index.d.cts",
+  "typesVersions": {
+    "*": {
+      "resend": [
+        "./dist/resend/index.d.cts"
+      ],
+      "better-auth": [
+        "./dist/better-auth/index.d.cts"
+      ],
+      "next-auth": [
+        "./dist/next-auth/index.d.cts"
+      ],
+      "auth-js": [
+        "./dist/next-auth/index.d.cts"
+      ],
+      "supabase": [
+        "./dist/supabase/index.d.cts"
+      ],
+      "embed": [
+        "./dist/embed.d.cts"
+      ],
+      "react": [
+        "./dist/react.d.cts"
+      ]
+    }
+  },
   "exports": {
     ".": {
       "import": {
@@ -55,7 +86,58 @@
         "types": "./dist/react.d.cts",
         "default": "./dist/react.cjs"
       }
-    }
+    },
+    "./resend": {
+      "import": {
+        "types": "./dist/resend/index.d.ts",
+        "default": "./dist/resend/index.js"
+      },
+      "require": {
+        "types": "./dist/resend/index.d.cts",
+        "default": "./dist/resend/index.cjs"
+      }
+    },
+    "./better-auth": {
+      "import": {
+        "types": "./dist/better-auth/index.d.ts",
+        "default": "./dist/better-auth/index.js"
+      },
+      "require": {
+        "types": "./dist/better-auth/index.d.cts",
+        "default": "./dist/better-auth/index.cjs"
+      }
+    },
+    "./next-auth": {
+      "import": {
+        "types": "./dist/next-auth/index.d.ts",
+        "default": "./dist/next-auth/index.js"
+      },
+      "require": {
+        "types": "./dist/next-auth/index.d.cts",
+        "default": "./dist/next-auth/index.cjs"
+      }
+    },
+    "./auth-js": {
+      "import": {
+        "types": "./dist/next-auth/index.d.ts",
+        "default": "./dist/next-auth/index.js"
+      },
+      "require": {
+        "types": "./dist/next-auth/index.d.cts",
+        "default": "./dist/next-auth/index.cjs"
+      }
+    },
+    "./supabase": {
+      "import": {
+        "types": "./dist/supabase/index.d.ts",
+        "default": "./dist/supabase/index.js"
+      },
+      "require": {
+        "types": "./dist/supabase/index.d.cts",
+        "default": "./dist/supabase/index.cjs"
+      }
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "dist",
@@ -83,21 +165,27 @@
     "prepare": "bun install --frozen-lockfile --ignore-scripts 1>&2 && node scripts/build-source-package.mjs 1>&2",
     "prepublishOnly": "bun run clean && bun run generate:types && bun tsc && bun lint && bun run test && bun run build",
     "sync:embed": "node scripts/sync-embed-contracts.mjs",
-    "sync:embed:check": "node scripts/sync-embed-contracts.mjs --check"
+    "sync:embed:check": "node scripts/sync-embed-contracts.mjs --check",
+    "check:exports": "publint --strict && attw --pack . && node scripts/smoke-exports.mjs",
+    "check:package": "bun run build && bun run check:exports"
   },
   "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.5",
+    "@auth/core": "0.41.3",
     "@eslint/js": "^10.0.1",
     "@testing-library/react": "^16.3.3",
     "@types/bun": "latest",
     "@types/node": "^25.5.0",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.4",
+    "better-auth": "1.7.7",
     "eslint": "^10.1.0",
     "globals": "^17.4.0",
     "jsdom": "^26.1.0",
     "msw": "^2.13.2",
     "openapi-typescript": "7.13.0",
     "prettier": "^3.8.1",
+    "publint": "^0.3.25",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "tsup": "^8.5.0",
