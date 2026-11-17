@@ -408,6 +408,7 @@ describe('brew.integrations on the client', () => {
     expect(brands).toEqual(['brand_1', 'brand_1'])
     expect(Object.keys(brew.integrations).sort()).toEqual([
       'connect',
+      'events',
       'getConnection',
       'list',
     ])

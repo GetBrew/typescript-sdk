@@ -91,11 +91,18 @@ export type SendEmailStatus = SendEmailResponse['status']
  * the single polymorphic send endpoint, discriminated by `test`:
  *
  * - Pass `{ test: true, ... }` for a one-off TEST delivery to a single
- *   `to` address. Omit `domainId` for the Brew default sender, or supply a
- *   verified, org-owned sending domain. Invalid domains are rejected. No
- *   audience is required, and it never creates a send row. Real test
- *   deliveries count toward send usage. Resolves synchronously (HTTP 200)
- *   with `{ status: 'completed', recipient }`.
+ *   `to` address. A test reaches only a teammate with access to the
+ *   brand, an address on a verified sending domain of the brand, or, for a
+ *   signed-in person (not an API key), their own address or one on their
+ *   company domain. An API key has no person behind it, so with a key only
+ *   teammates and verified sending domains qualify; any other address is
+ *   `422 TEST_RECIPIENT_NOT_ALLOWED` (`details.recipients` lists the
+ *   refused addresses). Omit `domainId` for the Brew default sender, or
+ *   supply a verified, org-owned sending domain. Invalid domains are
+ *   rejected. No audience is required, and it never creates a send row.
+ *   Test deliveries never count toward the plan's email sends, and a plan
+ *   at its limit still sends tests. Resolves synchronously (HTTP 200) with
+ *   `{ status: 'completed', recipient }`.
  * - Otherwise it is a real campaign send: provide a recipient target
  *   (`audienceId` or inline `to`) and the verified `domainId`. A design
  *   can be sent unlimited times; every call mints a new send. This
@@ -103,8 +110,9 @@ export type SendEmailStatus = SendEmailResponse['status']
  *   sendId }` — it does not wait for delivery. Poll
  *   `brew.sends.get(sendId)` for lifecycle + stats.
  *
- * An exhausted plan quota is `402 SEND_QUOTA_EXCEEDED` (which absorbed
- * the old `INSUFFICIENT_EMAIL_SENDS`).
+ * A campaign that would exceed the plan's monthly email volume is
+ * `402 SEND_QUOTA_EXCEEDED` (which absorbed the old
+ * `INSUFFICIENT_EMAIL_SENDS`).
  *
  * Supply `options.idempotencyKey` to make campaign retries safe.
  *

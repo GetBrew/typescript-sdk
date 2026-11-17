@@ -1,3 +1,7 @@
+import {
+  createWebhooksResource,
+  type WebhooksResource,
+} from './resources/webhooks/resource'
 import { resolveConfig } from './core/config'
 import { createHttpClient, type HttpTuning } from './core/http'
 import {
@@ -116,6 +120,7 @@ import {
  * that pin.
  */
 export type BrewClient = {
+  readonly webhooks: WebhooksResource
   readonly canvas: CanvasResource
   /**
    * `brew.send(key, payload, options?)` — send the app email behind a
@@ -312,6 +317,7 @@ function buildClient(
   return {
     canvas: createCanvasResource(httpClient),
     send: createSend(automations.triggers.fireByKey),
+    webhooks: createWebhooksResource(httpClient),
     withBrand: (brandId: string): BrewClient => {
       if (typeof brandId !== 'string' || brandId.trim() === '') {
         throw new TypeError('withBrand: `brandId` must be a non-empty string')

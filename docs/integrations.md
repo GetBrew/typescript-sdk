@@ -1,6 +1,6 @@
 # Integrations
 
-`brew.integrations` reads the brand's integration catalog and connects the
+`brew.integrations` reads the brand's integration catalog and live source events, and connects the
 hosted auth email hooks: auth providers that hand your app's auth emails
 (sign-up confirmation, magic link, password reset, …) to Brew, which sends
 them as [app emails](./app-emails.md).
@@ -26,7 +26,7 @@ connection.authEmails // [{ triggerKey: 'auth.verify-email', ok: true }, …]
 | `brew.integrations.connect({ provider, signingSecret, settings? }, options?)` | `PUT /v1/integrations/{provider}/connection` | `emails` + `automations` |
 | `brew.integrations.getConnection(provider, options?)`                         | `GET /v1/integrations/{provider}/connection` | none                     |
 
-All three are brand-scoped (`X-Brand-Id` on an organization key: pass
+These methods are brand-scoped (`X-Brand-Id` on an organization key: pass
 `brandId` or use `brew.withBrand(id)`). Every method takes `{ raw: true }`
 in `options` for `{ data, status, headers, requestId }`.
 
@@ -131,3 +131,79 @@ Two ways to send Supabase Auth's emails with Brew:
   codes in link emails.
 
 Supabase runs one Send Email hook per project, so pick one of the two.
+
+## Live integration events
+
+A live source sends Brew its own events: a PostHog project's events, or the
+Stripe and Shopify app catalogs. Each event can start an automation. Find
+one with `events.list`, read what it carries with `events.get`, then get its
+trigger with
+[`automations.triggers.ensureIntegrationEvent`](./automations.md#integration-event-triggers).
+
+### List events
+
+```ts
+const page = await brew.integrations.events.list({
+  provider: 'posthog', // optional
+  query: 'project', // optional: searches names, titles and categories
+  kind: 'custom', // optional: standard | custom | action | derived | observed
+  limit: 50, // 1–100, default 100
+})
+
+for (const event of page.data) {
+  console.log(event.eventId, event.eventKey, event.label, event.volume30d)
+}
+// page.sources: the connected sources the page drew from
+// page.pagination: { limit, cursor, hasMore }
+```
+
+Each `IntegrationEvent` has its `eventId`, the provider's `eventKey`, Brew's
+`label` and lifecycle `stage`, its `modelRoles` (`signup`, `activation`,
+`conversion`, `key_event`), `volume30d`, and its `triggerEventId` once it is
+a trigger. Without `query`, each source's busiest events come first.
+
+Events a brand member hid, and internal traffic Brew suppressed, are left
+out, so a page can hold fewer than `limit` rows. Follow `pagination.cursor`
+until `hasMore` is `false` to read every event.
+
+### Read one event
+
+```ts
+const event = await brew.integrations.events.get(
+  'k5714pq3vm8x2n6c9d0b7f1h4j6g2r8t'
+)
+
+for (const property of event.properties) {
+  // e.g. 'properties.project_name' or 'person.first_name'
+  console.log(property.variable, property.isPersonal)
+}
+```
+
+Each property has its template `variable` (use it as
+`{{ <variable> | fallback }}`), its `scope` (`event` or `person`), `type`,
+`isPersonal` (personal data: never put it in a subject) and
+`isPersonalization` (Brew suggests it to personalize an email).
+
+The read may call the provider: an event listed bare, or described more than
+a day ago, is described there first, on the account's read budget.
+`event.propertiesStatus` (`IntegrationEventPropertiesStatus`) says how
+current `properties` are:
+
+| `propertiesStatus` | `properties`                                                                                                     |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| `current`          | Listed with the event, or read in the last day.                                                                  |
+| `stored`           | The provider could not be read now: its last description.                                                        |
+| `rate_limited`     | The read budget is spent: what Brew stored, possibly none. Read again after `retryAfterSeconds`, when it is set. |
+| `unavailable`      | Not read, and none stored.                                                                                       |
+
+A spent budget is not an error: `get` resolves with what Brew stored.
+
+```ts
+if (event.propertiesStatus === 'rate_limited') {
+  // event.retryAfterSeconds: seconds until the provider can be read again
+}
+```
+
+Pass an `eventId` from `events.list`; never compose one. An unknown or
+other-brand id throws a `BrewApiError` with `status: 404` and
+`code: 'INTEGRATION_EVENT_NOT_FOUND'`.

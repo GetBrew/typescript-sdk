@@ -2,6 +2,10 @@ import type { HttpClient } from '../../core/http'
 
 import { createConnectIntegration } from './connect'
 import { createGetIntegrationConnection } from './get-connection'
+import {
+  createIntegrationEventsResource,
+  type IntegrationEventsResource,
+} from './events/resource'
 import { createListIntegrations } from './list'
 
 /**
@@ -21,6 +25,8 @@ export type IntegrationsResource = {
   readonly connect: ReturnType<typeof createConnectIntegration>
   /** `GET /v1/integrations/{provider}/connection` — the brand's hosted auth hook connection (`connectionId`, `webhookUrl`, `status`); `404 NOT_FOUND` when not connected. No permission scope. */
   readonly getConnection: ReturnType<typeof createGetIntegrationConnection>
+  /** `/v1/integrations/events(/{eventId})` — the events the brand's connected live sources offer as automation triggers: `list` and `get` (scope: `automations`). */
+  readonly events: IntegrationEventsResource
 }
 
 export function createIntegrationsResource(
@@ -30,5 +36,6 @@ export function createIntegrationsResource(
     list: createListIntegrations(client),
     connect: createConnectIntegration(client),
     getConnection: createGetIntegrationConnection(client),
+    events: createIntegrationEventsResource(client),
   }
 }

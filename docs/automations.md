@@ -4,29 +4,30 @@ Create and manage deterministic automation graphs, run test or manual-audience
 executions, and inspect their lifecycle. All methods require the `automations`
 scope.
 
-| Method                                                     | HTTP                                                      |
-| ---------------------------------------------------------- | --------------------------------------------------------- |
-| `create`                                                   | `POST /v1/automations`                                    |
-| `list`                                                     | `GET /v1/automations`                                     |
-| `get`                                                      | `GET /v1/automations/{automationId}`                      |
-| `patch` / `publish` / `unpublish`                          | `PATCH /v1/automations/{automationId}`                    |
-| `delete`                                                   | `DELETE /v1/automations/{automationId}`                   |
-| `test`                                                     | `POST /v1/automations/{automationId}/test`                |
-| [`run`](#manual-audience-runs)                             | `POST /v1/automations/{automationId}/run`                 |
-| `runs.list`                                                | `GET /v1/automations/runs`                                |
-| `runs.get`                                                 | `GET /v1/automations/runs/{automationRunId}`              |
-| [`runs.cancel`](#cancel-a-run)                             | `POST /v1/automations/runs/{automationRunId}/cancel`      |
-| `audienceRuns.list`                                        | `GET /v1/automations/audience-runs`                       |
-| `audienceRuns.get`                                         | `GET /v1/automations/audience-runs/{audienceRunId}`       |
-| `audienceRuns.pause` / `resume` / `cancel`                 | `POST …/audience-runs/{audienceRunId}/{action}`           |
-| [`triggerInstances.list` / `get`](#fired-trigger-history)  | `/v1/automations/trigger-instances[/{triggerInstanceId}]` |
-| `triggers.list` / `create` / `patch` / `delete`            | `/v1/automations/triggers[/{triggerEventId}]`             |
-| `triggers.get`                                             | `GET /v1/automations/triggers/{triggerEventId}`           |
-| [`triggers.ensureBrewEvent`](#unsubscribe-triggers)        | `POST /v1/automations/triggers/brew-events`               |
-| [`triggers.fire`](#transactional-email--firing-triggers)   | `POST /v1/automations/triggers/{triggerEventId}/fire`     |
-| [`triggers.fireByKey`](#trigger-keys)                      | `POST /v1/automations/triggers/by-key/{triggerKey}/fire`  |
-| `triggers.readiness`                                       | `GET /v1/automations/triggers/{triggerEventId}/readiness` |
-| `triggers.getContract` / `putContract` / `validatePayload` | `/v1/automations/triggers/{triggerEventId}/contract[…]`   |
+| Method                                                           | HTTP                                                      |
+| ---------------------------------------------------------------- | --------------------------------------------------------- |
+| `create`                                                         | `POST /v1/automations`                                    |
+| `list`                                                           | `GET /v1/automations`                                     |
+| `get`                                                            | `GET /v1/automations/{automationId}`                      |
+| `patch` / `publish` / `unpublish`                                | `PATCH /v1/automations/{automationId}`                    |
+| `delete`                                                         | `DELETE /v1/automations/{automationId}`                   |
+| `test`                                                           | `POST /v1/automations/{automationId}/test`                |
+| [`run`](#manual-audience-runs)                                   | `POST /v1/automations/{automationId}/run`                 |
+| `runs.list`                                                      | `GET /v1/automations/runs`                                |
+| `runs.get`                                                       | `GET /v1/automations/runs/{automationRunId}`              |
+| [`runs.cancel`](#cancel-a-run)                                   | `POST /v1/automations/runs/{automationRunId}/cancel`      |
+| `audienceRuns.list`                                              | `GET /v1/automations/audience-runs`                       |
+| `audienceRuns.get`                                               | `GET /v1/automations/audience-runs/{audienceRunId}`       |
+| `audienceRuns.pause` / `resume` / `cancel`                       | `POST …/audience-runs/{audienceRunId}/{action}`           |
+| [`triggerInstances.list` / `get`](#fired-trigger-history)        | `/v1/automations/trigger-instances[/{triggerInstanceId}]` |
+| `triggers.list` / `create` / `patch` / `delete`                  | `/v1/automations/triggers[/{triggerEventId}]`             |
+| `triggers.get`                                                   | `GET /v1/automations/triggers/{triggerEventId}`           |
+| [`triggers.ensureBrewEvent`](#unsubscribe-triggers)              | `POST /v1/automations/triggers/brew-events`               |
+| [`triggers.ensureIntegrationEvent`](#integration-event-triggers) | `POST /v1/automations/triggers/integration-events`        |
+| [`triggers.fire`](#transactional-email--firing-triggers)         | `POST /v1/automations/triggers/{triggerEventId}/fire`     |
+| `triggers.readiness`                                             | `GET /v1/automations/triggers/{triggerEventId}/readiness` |
+| `triggers.getContract` / `putContract` / `validatePayload`       | `/v1/automations/triggers/{triggerEventId}/contract[…]`   |
+| [`triggers.fireByKey`](#trigger-keys)                            | `POST /v1/automations/triggers/by-key/{triggerKey}/fire`  |
 
 > **Changed in 10.0.0.** Detail reads are real routes now — `get` on every
 > collection returns the bare row and `404`s on an unknown id, instead of a
@@ -82,6 +83,26 @@ const sendNode = {
   },
 } satisfies AutomationNodeInput
 ```
+
+## Graph refusals and concurrent edits
+
+`create` and `patch` refuse a graph they cannot save with
+`400 AUTOMATION_GRAPH_INVALID`. `details.issues[]` lists every problem as
+`{ kind, code?, nodeId?, nodeLabel?, message }`. `kind` is one of
+`duplicate_node_id`, `connection_unknown_from`, `connection_unknown_to`,
+`connection_targets_trigger`, `connection_self_loop`, `email_not_found`,
+`email_version_mismatch`, `domain_not_found`, `domain_not_ready`,
+`domain_purpose_not_allowed` or `structure`. A `structure` issue's `code`
+names the topology fault: `missing_trigger`, `multiple_triggers`,
+`duplicate_connection`, `edge_to_trigger`, `ambiguous_branch`,
+`invalid_branch`, `cycle` or `unreachable_node`.
+
+On `patch`, `connections` is the full edge list and replaces the stored one;
+omit it to keep the stored edges, also when you send `nodes`. To guard against
+a concurrent edit, pass the `automationVersionId` you read as
+`expectedBaseVersionId`: the save is `409 AUTOMATION_VERSION_CONFLICT` when the
+automation has changed since. `expectedBaseDefinitionSha256` is an optional
+stricter guard and requires `expectedBaseVersionId`.
 
 ## Reading one automation
 
@@ -283,6 +304,45 @@ Refusals: `400 INVALID_REQUEST` when `domainId` is missing for
 list; `409 TRIGGER_LIMIT_REACHED` when the brand holds the most triggers it
 can.
 
+## Integration event triggers
+
+A live integration event is one a connected source sends: a PostHog
+project's own events, or the Stripe and Shopify app catalogs. Find one with
+[`brew.integrations.events.list()`](./integrations.md#live-integration-events),
+then get its trigger. `triggers.ensureIntegrationEvent` creates it the first
+time:
+
+```ts
+const trigger = await brew.automations.triggers.ensureIntegrationEvent({
+  eventId: 'k5714pq3vm8x2n6c9d0b7f1h4j6g2r8t', // from integrations.events.list()
+})
+
+trigger.created // true the first time, false on every later call
+trigger.provider // e.g. 'posthog'
+trigger.providerEventKey // the provider's event name, e.g. 'created_project'
+```
+
+The same event always returns the same trigger, across reconnects of the
+same account. Brew owns its title and payload contract. Wire the
+`triggerEventId` into `automations.create`. The provider starts sending the
+event once an automation using it is published; saving a draft changes
+nothing upstream.
+
+An event listed bare, or described more than a day ago, is described at the
+provider first, on the account's read budget, so `payloadSchema` carries its
+properties. When the provider could not be read, `trigger.propertiesStatus`
+says so: `stored`, `unavailable`, or `rate_limited` with
+`retryAfterSeconds`. The trigger is saved either way;
+[`integrations.events.get`](./integrations.md#read-one-event) lists the
+values.
+
+Refusals: `404 INTEGRATION_EVENT_NOT_FOUND` for an unknown or other-brand
+`eventId`; `404 NOT_FOUND` when the event left its source between the read
+and the write; `409 INTEGRATION_RECONNECT_REQUIRED` when a catalog event's
+trigger was removed with its connection (reconnect the integration in Brew);
+`409 TRIGGER_LIMIT_REACHED` when the brand already holds 100 triggers
+(delete an unused one with `triggers.delete`).
+
 ## Fired-trigger history
 
 `triggerInstances` is the audit log of every inbound fire — one row per fire,
@@ -351,9 +411,15 @@ The three lifecycle actions are their own sub-paths — `pause`, `resume`, and
 `cancel` each POST to `…/audience-runs/{audienceRunId}/{action}` with no body.
 `control({ action })` is gone.
 
-`cancel` is permanent; already-sent messages cannot be recalled. Invalid state
-transitions return `409` (`RUN_NOT_PAUSABLE` / `RUN_NOT_RESUMABLE` /
-`RUN_NOT_CANCELLABLE`), an exhausted quota on resume returns
+`cancel` is permanent; already-sent messages cannot be recalled. Pausing a run
+its operator already paused returns the same `200` and changes nothing. Invalid
+state transitions return `409`: `RUN_NOT_PAUSABLE` for a scheduled, completed,
+failed or canceled run, or one held at the plan limit (it resumes on its own
+once the monthly send allowance has room, so cancel it to stop it);
+`RUN_NOT_PAUSED` when resuming a run that is neither paused nor failed;
+`RUN_NOT_RESUMABLE`; and `RUN_NOT_CANCELLABLE`, also for a repeat cancel with a
+new idempotency key. A resume whose remaining send step can no longer send
+returns `422 AUTOMATION_NOT_READY`, an exhausted quota on resume returns
 `402 SEND_QUOTA_EXCEEDED`, and unknown or cross-brand ids return
 `404 AUDIENCE_RUN_NOT_FOUND`. A `run` call names the missing entity precisely:
 `404 AUTOMATION_NOT_FOUND` or `404 AUDIENCE_NOT_FOUND`, never a generic

@@ -223,6 +223,10 @@ export type {
   EnsureBrewEventTriggerResponse,
 } from './resources/automations/triggers/brew-events'
 export type {
+  EnsureIntegrationEventTriggerInput,
+  EnsureIntegrationEventTriggerResponse,
+} from './resources/automations/triggers/integration-events'
+export type {
   CreateTriggerInput,
   CreateTriggerResponse,
 } from './resources/automations/triggers/create'
@@ -615,6 +619,25 @@ export {
   type ConnectIntegrationResponse,
 } from './resources/integrations/connect'
 export type { GetIntegrationConnectionResponse } from './resources/integrations/get-connection'
+// ---------- Integrations: the catalog and live integration events ----------
+// (`client.integrations.list`, `.events.list` / `.events.get`.)
+export type { GetIntegrationEventResponse } from './resources/integrations/events/get'
+export type {
+  ListIntegrationEventsInput,
+  ListIntegrationEventsResponse,
+} from './resources/integrations/events/list'
+export type { IntegrationEventsResource } from './resources/integrations/events/resource'
+export type {
+  IntegrationEvent,
+  IntegrationEventDetail,
+  IntegrationEventKind,
+  IntegrationEventPropertiesStatus,
+  IntegrationEventProperty,
+  IntegrationEventSource,
+  IntegrationEventsListResponse,
+  IntegrationEventStage,
+  ListIntegrationEventsQuery,
+} from './resources/integrations/events/types'
 export type { IntegrationsResource } from './resources/integrations/resource'
 export type * from './resources/integrations/types'
 // ---------- Notifications: the app's bell, as a read ----------
@@ -716,3 +739,12 @@ export type {
 } from './embed/contracts'
 
 export type { CanvasSessionRevokeResponse } from './resources/canvas/resource'
+
+export type { WebhooksResource } from './resources/webhooks/resource'
+export type * from './resources/webhooks/types'
+export {
+  verifyWebhook,
+  BrewWebhookVerificationError,
+  type BrewWebhookVerificationReason,
+  type VerifyWebhookInput,
+} from './resources/webhooks/verify'
