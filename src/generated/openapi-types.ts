@@ -4640,6 +4640,10 @@ export interface components {
                 countsOnly: boolean;
                 /** @description False when opens or clicks are not measured; an unmeasured rate is null, not zero. */
                 measured: boolean;
+                /** @description Open-count and rate availability; older pulses use measured. */
+                opensMeasured?: boolean;
+                /** @description Click-count and rate availability; older pulses use measured. */
+                clicksMeasured?: boolean;
             } | null;
             /** @description With `include` report: the latest intelligence report, or null when none was published. */
             report?: {

@@ -4702,6 +4702,12 @@ components:
             measured:
               type: boolean
               description: False when opens or clicks are not measured; an unmeasured rate is null, not zero.
+            opensMeasured:
+              type: boolean
+              description: Open-count and rate availability; older pulses use measured.
+            clicksMeasured:
+              type: boolean
+              description: Click-count and rate availability; older pulses use measured.
           required:
             - windowEnd
             - delivered
