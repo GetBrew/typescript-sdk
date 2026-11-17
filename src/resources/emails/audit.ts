@@ -8,7 +8,15 @@ import type { BrewRawResponse, RequestOptions } from '../../types'
  * `emailId` (plus `emailVersionId` to pin a version) — with the optional
  * `subject`, `previewText` and `sendingPurpose`.
  */
-export type EmailAuditRequest = components['schemas']['EmailAuditRequest']
+type AuditSourceKey = 'emailHtml' | 'emailJsx' | 'emailId' | 'emailVersionId'
+
+type ExclusiveAuditSource<T> = T extends unknown
+  ? T & Partial<Record<Exclude<AuditSourceKey, keyof T>, never>>
+  : never
+
+export type EmailAuditRequest = ExclusiveAuditSource<
+  components['schemas']['EmailAuditRequest']
+>
 
 /** Input for `brew.emails.auditEmail(...)`. */
 export type AuditEmailInput = EmailAuditRequest
