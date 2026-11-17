@@ -12,12 +12,15 @@ export type SendResumeResponse = components['schemas']['SendResumeResponse']
 /**
  * `POST /v1/sends/{sendId}/resume` (scope: `sends`) — resume a gradual send
  * that was paused with `sends.pause(...)`, picking the ramp back up where it
- * left off.
+ * left off, or any campaign Brew paused for its bounce or complaint rate
+ * (`pauseReason: 'bounce_rate'`; once resumed, it is never paused for that
+ * rate again).
  *
  * Idempotent: a send that is already running resolves `200` with the same
- * body. A send that is not in a resumable state (canceled, finished, or never
- * paused) surfaces as `409 SEND_NOT_RESUMABLE`. Brand-scoped, so an unknown
- * or cross-brand `sendId` is `404 SEND_NOT_FOUND`.
+ * body. A send held at the plan limit or for its domain resumes on its own,
+ * so resuming it, like a canceled, finished or never-paused send, surfaces
+ * as `409 SEND_NOT_RESUMABLE`. Brand-scoped, so an unknown or cross-brand
+ * `sendId` is `404 SEND_NOT_FOUND`.
  *
  * Pass `{ raw: true }` in `options` to receive the full
  * `BrewRawResponse<SendResumeResponse>` instead of the unwrapped payload.

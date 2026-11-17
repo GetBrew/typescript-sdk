@@ -175,9 +175,11 @@ controller is available from `@brew.new/sdk/embed`.
 | Client configuration               | [`docs/configuration.md`](./docs/configuration.md)                     |
 | Contacts resource                  | [`docs/contacts.md`](./docs/contacts.md)                               |
 | Domains resource                   | [`docs/domains.md`](./docs/domains.md)                                 |
+| Webhooks resource                  | [`docs/webhooks.md`](./docs/webhooks.md)                               |
 | Emails resource (+ send)           | [`docs/emails.md`](./docs/emails.md)                                   |
 | Fields resource                    | [`docs/fields.md`](./docs/fields.md)                                   |
 | Insights resource                  | [`docs/insights.md`](./docs/insights.md)                               |
+| Integrations resource              | [`docs/integrations.md`](./docs/integrations.md)                       |
 | Notifications resource             | [`docs/notifications.md`](./docs/notifications.md)                     |
 | Error handling                     | [`docs/errors.md`](./docs/errors.md)                                   |
 | Retries + idempotency              | [`docs/retries-and-idempotency.md`](./docs/retries-and-idempotency.md) |
