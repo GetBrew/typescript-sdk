@@ -25,9 +25,9 @@ scope.
 | [`triggers.ensureBrewEvent`](#unsubscribe-triggers)              | `POST /v1/automations/triggers/brew-events`               |
 | [`triggers.ensureIntegrationEvent`](#integration-event-triggers) | `POST /v1/automations/triggers/integration-events`        |
 | [`triggers.fire`](#transactional-email--firing-triggers)         | `POST /v1/automations/triggers/{triggerEventId}/fire`     |
+| [`triggers.fireByKey`](#trigger-keys)                            | `POST /v1/automations/triggers/by-key/{triggerKey}/fire`  |
 | `triggers.readiness`                                             | `GET /v1/automations/triggers/{triggerEventId}/readiness` |
 | `triggers.getContract` / `putContract` / `validatePayload`       | `/v1/automations/triggers/{triggerEventId}/contract[…]`   |
-| [`triggers.fireByKey`](#trigger-keys)                            | `POST /v1/automations/triggers/by-key/{triggerKey}/fire`  |
 
 > **Changed in 10.0.0.** Detail reads are real routes now — `get` on every
 > collection returns the bare row and `404`s on an unknown id, instead of a
