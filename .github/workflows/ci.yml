@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+  workflow_dispatch:
 
 # Cancel in-progress runs for the same PR/branch when a new push lands.
 # Saves CI minutes and surfaces the latest result faster.
