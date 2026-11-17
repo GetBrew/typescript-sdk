@@ -9,6 +9,7 @@ import {
 import { createCreateTrigger } from './create'
 import { createDeleteTrigger } from './delete'
 import { createFireTrigger } from './fire'
+import { createFireTriggerByKey } from './fire-by-key'
 import { createGetTrigger } from './get'
 import { createEnsureIntegrationEventTrigger } from './integration-events'
 import { createListTriggers } from './list'
@@ -43,6 +44,13 @@ export type TriggersResource = {
   >
   /** `POST /v1/automations/triggers/{triggerEventId}/fire` — fire a trigger; starts one run per published automation attached to it (scope: `automations`). */
   readonly fire: ReturnType<typeof createFireTrigger>
+  /**
+   * `POST /v1/automations/triggers/by-key/{triggerKey}/fire` — fire the
+   * trigger whose developer `key` matches (`order.paid`); same body, same
+   * response plus `triggerKey`. `brew.send(key, payload)` is the one-line
+   * form for app email (scope: `automations`).
+   */
+  readonly fireByKey: ReturnType<typeof createFireTriggerByKey>
   /** `GET /v1/automations/triggers/{triggerEventId}/readiness` — preflight WITHOUT firing: credential verdict + payload contract + what a fire would start, as a bare body (scope: `automations`). */
   readonly readiness: ReturnType<typeof createTriggerReadiness>
   /**
@@ -71,6 +79,7 @@ export function createTriggersResource(client: HttpClient): TriggersResource {
     ensureBrewEvent: createEnsureBrewEventTrigger(client),
     ensureIntegrationEvent: createEnsureIntegrationEventTrigger(client),
     fire: createFireTrigger(client),
+    fireByKey: createFireTriggerByKey(client),
     readiness: createTriggerReadiness(client),
     patch: createPatchTrigger(client),
     delete: createDeleteTrigger(client),

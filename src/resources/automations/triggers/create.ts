@@ -6,7 +6,12 @@ import type { Trigger } from './types'
 
 /**
  * Deterministic create input. Caller supplies the full trigger
- * definition (`title`, `description?`, `payloadSchema`). The server
+ * definition (`title`, `description?`, `key?`, `payloadSchema`). `key` is
+ * an optional stable developer name (`order.paid`) to fire it by with
+ * `triggers.fireByKey` / `brew.send`; unique in the brand
+ * (`409 TRIGGER_KEY_TAKEN`), and `kit`, `by-key`, `brew.*` and
+ * non-starter-kit `auth.*` keys are reserved (`400 TRIGGER_KEY_RESERVED`).
+ * The server
  * hardcodes `provider: 'brew_api'` — every trigger created through the
  * public API is a custom Brew-API trigger. Integration triggers (clerk,
  * stripe, shopify, …) are provisioned by the corresponding integration

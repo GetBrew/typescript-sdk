@@ -11,7 +11,7 @@ import type { BrewRawResponse, RequestOptions } from '../../../types'
  * what the wire rejects (functions, undefined values silently dropped by
  * JSON.stringify).
  */
-type DefaultFirePayload = {
+export type DefaultFirePayload = {
   [key: string]: SendPayloadValue
 }
 
