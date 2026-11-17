@@ -1,6 +1,6 @@
 import type { components } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 /**
  * 200 result of `POST /v1/sends/{sendId}/cancel` — the canceled send
@@ -38,12 +38,16 @@ export function createCancel(client: HttpClient) {
   ): Promise<BrewRawResponse<SendCancelResponse>>
   function cancel(
     sendId: string,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<SendCancelResponse>
+  function cancel(
+    sendId: string,
+    options?: RequestOptions
+  ): Promise<BrewResponse<SendCancelResponse>>
   async function cancel(
     sendId: string,
     options?: RequestOptions
-  ): Promise<SendCancelResponse | BrewRawResponse<SendCancelResponse>> {
+  ): Promise<BrewResponse<SendCancelResponse>> {
     const response = await client.request<SendCancelResponse>({
       method: 'POST',
       path: `/v1/sends/${encodeURIComponent(sendId)}/cancel`,

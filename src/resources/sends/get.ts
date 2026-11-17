@@ -1,6 +1,6 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import { serializeInclude } from '../../core/url'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 import type { Send } from './types'
 
@@ -12,14 +12,15 @@ export type SendsIncludeToken = (typeof SENDS_INCLUDE_TOKENS)[number]
  * Per-request options for `brew.sends.get(...)` — the standard
  * `RequestOptions` plus the detail-only `include` expansion.
  */
-export type GetSendOptions = RequestOptions & {
-  /**
-   * `'events'` attaches a bounded first page of the send's
-   * per-recipient analytics events to the row. Accepts an array of
-   * tokens or a comma string.
-   */
-  readonly include?: ReadonlyArray<SendsIncludeToken> | string
-}
+export type GetSendOptions<Raw extends boolean = boolean> =
+  RequestOptions<Raw> & {
+    /**
+     * `'events'` attaches a bounded first page of the send's
+     * per-recipient analytics events to the row. Accepts an array of
+     * tokens or a comma string.
+     */
+    readonly include?: ReadonlyArray<SendsIncludeToken> | string
+  }
 
 /** `GET /v1/sends/{sendId}` returns the BARE `Send` row. */
 export type GetSendResponse = Send
@@ -45,12 +46,16 @@ export function createGetSend(client: HttpClient) {
   ): Promise<BrewRawResponse<GetSendResponse>>
   function getSend(
     sendId: string,
-    options?: GetSendOptions
+    options?: GetSendOptions<false>
   ): Promise<GetSendResponse>
+  function getSend(
+    sendId: string,
+    options?: GetSendOptions
+  ): Promise<BrewResponse<GetSendResponse>>
   async function getSend(
     sendId: string,
     options?: GetSendOptions
-  ): Promise<GetSendResponse | BrewRawResponse<GetSendResponse>> {
+  ): Promise<BrewResponse<GetSendResponse>> {
     const include = serializeInclude({ include: options?.include })
     const response = await client.request<GetSendResponse>({
       method: 'GET',

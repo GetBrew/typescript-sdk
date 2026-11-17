@@ -1,5 +1,9 @@
 import { unwrapResponse, type HttpClient } from '../../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../../types'
+import type {
+  BrewResponse,
+  BrewRawResponse,
+  RequestOptions,
+} from '../../../types'
 
 import type {
   AutomationRunsListResponse,
@@ -32,14 +36,16 @@ export function createListAutomationRuns(client: HttpClient) {
   ): Promise<BrewRawResponse<ListAutomationRunsResponse>>
   function listAutomationRuns(
     input?: ListAutomationRunsInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<ListAutomationRunsResponse>
+  function listAutomationRuns(
+    input?: ListAutomationRunsInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<ListAutomationRunsResponse>>
   async function listAutomationRuns(
     input: ListAutomationRunsInput = {},
     options?: RequestOptions
-  ): Promise<
-    ListAutomationRunsResponse | BrewRawResponse<ListAutomationRunsResponse>
-  > {
+  ): Promise<BrewResponse<ListAutomationRunsResponse>> {
     const response = await client.request<ListAutomationRunsResponse>({
       method: 'GET',
       path: '/v1/automations/runs',

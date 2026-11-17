@@ -1,6 +1,6 @@
 import type { components } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 import type { ContactConsentInput } from './types'
 
@@ -74,12 +74,16 @@ export function createUpsertContact(client: HttpClient) {
   ): Promise<BrewRawResponse<UpsertContactResponse>>
   function upsert(
     input: UpsertContactInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<UpsertContactResponse>
+  function upsert(
+    input: UpsertContactInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<UpsertContactResponse>>
   async function upsert(
     input: UpsertContactInput,
     options?: RequestOptions
-  ): Promise<UpsertContactResponse | BrewRawResponse<UpsertContactResponse>> {
+  ): Promise<BrewResponse<UpsertContactResponse>> {
     const response = await client.request<UpsertContactResponse>({
       method: 'POST',
       path: '/v1/contacts',

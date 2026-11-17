@@ -80,7 +80,7 @@ export type ResolvedBrewClientConfig = {
  * Per-request overrides. All fields optional — unset fields inherit from
  * the client config.
  */
-export type RequestOptions = {
+export type RequestOptions<Raw extends boolean = boolean> = {
   /**
    * Cancels this request — while it connects, waits for headers, reads the
    * body, or backs off between retries. The request rejects with the
@@ -95,8 +95,14 @@ export type RequestOptions = {
   /** Retry an attempt that hit `timeoutMs`. Overrides the client's. */
   readonly retryOnTimeout?: boolean
   readonly idempotencyKey?: string
-  readonly raw?: boolean
+  readonly raw?: Raw
 }
+
+/**
+ * Reusable options may request either the payload or response metadata.
+ * WireData differs from T when a method transforms the payload (contacts.count).
+ */
+export type BrewResponse<T, WireData = T> = T | BrewRawResponse<WireData>
 
 /**
  * Shape of the error body returned by the Brew public API inside a non-2xx

@@ -1,6 +1,6 @@
 import type { components, operations } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 import type { ContactsFilter } from './types'
 
@@ -104,12 +104,16 @@ export function createSearchContacts(client: HttpClient) {
   ): Promise<BrewRawResponse<SearchContactsResponse>>
   function search(
     input?: SearchContactsInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<SearchContactsResponse>
+  function search(
+    input?: SearchContactsInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<SearchContactsResponse>>
   async function search(
     input: SearchContactsInput = {},
     options?: RequestOptions
-  ): Promise<SearchContactsResponse | BrewRawResponse<SearchContactsResponse>> {
+  ): Promise<BrewResponse<SearchContactsResponse>> {
     // The API takes at least one `include` token, so an empty array (say,
     // `wantProfiles ? ['openProfile'] : []`) is left out, as `get` does.
     const { include, ...rest } = input

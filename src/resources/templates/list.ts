@@ -1,6 +1,6 @@
 import type { operations } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 import type {
   TemplatesListResponse,
@@ -97,24 +97,36 @@ export function createListTemplates(client: HttpClient) {
   ): Promise<BrewRawResponse<TemplatesCountResponse>>
   function listTemplates(
     input: ListTemplateCountsInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<TemplatesCountResponse>
+  function listTemplates(
+    input: ListTemplateCountsInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<TemplatesCountResponse>>
   function listTemplates(
     input: ListTemplateSummariesInput,
     options: RequestOptions & { readonly raw: true }
   ): Promise<BrewRawResponse<TemplateSummaryListResponse>>
   function listTemplates(
     input: ListTemplateSummariesInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<TemplateSummaryListResponse>
+  function listTemplates(
+    input: ListTemplateSummariesInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<TemplateSummaryListResponse>>
   function listTemplates(
     input: ListFullTemplatesInput | undefined,
     options: RequestOptions & { readonly raw: true }
   ): Promise<BrewRawResponse<TemplatesListResponse>>
   function listTemplates(
     input?: ListFullTemplatesInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<TemplatesListResponse>
+  function listTemplates(
+    input?: ListFullTemplatesInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<TemplatesListResponse>>
   // A representation only known at runtime still returns rows.
   function listTemplates(
     input: ListTemplateRowsInput | undefined,
@@ -124,21 +136,29 @@ export function createListTemplates(client: HttpClient) {
   >
   function listTemplates(
     input?: ListTemplateRowsInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<TemplatesListResponse | TemplateSummaryListResponse>
+  function listTemplates(
+    input?: ListTemplateRowsInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<TemplatesListResponse | TemplateSummaryListResponse>>
   // A query only known at runtime may return rows or counts.
   function listTemplates(
-    input: ListTemplatesInput,
+    input: ListTemplatesInput | undefined,
     options: RequestOptions & { readonly raw: true }
   ): Promise<BrewRawResponse<ListTemplatesBody>>
   function listTemplates(
     input?: ListTemplatesInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<ListTemplatesBody>
+  function listTemplates(
+    input?: ListTemplatesInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<ListTemplatesBody>>
   async function listTemplates(
     input: ListTemplatesInput = {},
     options?: RequestOptions
-  ): Promise<ListTemplatesBody | BrewRawResponse<ListTemplatesBody>> {
+  ): Promise<BrewResponse<ListTemplatesBody>> {
     const response = await client.request<ListTemplatesBody>({
       method: 'GET',
       path: '/v1/templates',

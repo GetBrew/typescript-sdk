@@ -1,7 +1,7 @@
 import type { components } from '../../generated/openapi-types'
 import type { PaginationInput } from '../../core/pagination'
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 export type ListBrandsResponse = components['schemas']['BrandsListResponse']
 
@@ -30,12 +30,16 @@ export function createListBrands(client: HttpClient) {
   ): Promise<BrewRawResponse<ListBrandsResponse>>
   function listBrands(
     input?: ListBrandsInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<ListBrandsResponse>
+  function listBrands(
+    input?: ListBrandsInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<ListBrandsResponse>>
   async function listBrands(
     input: ListBrandsInput = {},
     options?: RequestOptions
-  ): Promise<ListBrandsResponse | BrewRawResponse<ListBrandsResponse>> {
+  ): Promise<BrewResponse<ListBrandsResponse>> {
     const response = await client.request<ListBrandsResponse>({
       method: 'GET',
       path: '/v1/brands',

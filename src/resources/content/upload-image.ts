@@ -1,5 +1,5 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 import { createAddImage } from './add-image'
 import { createCreateImageUpload } from './create-image-upload'
@@ -204,14 +204,16 @@ export function createUploadImage(client: HttpClient) {
   ): Promise<BrewRawResponse<ContentAddImageResponse>>
   function uploadImage(
     input: UploadImageInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<ContentAddImageResponse>
+  function uploadImage(
+    input: UploadImageInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<ContentAddImageResponse>>
   async function uploadImage(
     input: UploadImageInput,
     options?: RequestOptions
-  ): Promise<
-    ContentAddImageResponse | BrewRawResponse<ContentAddImageResponse>
-  > {
+  ): Promise<BrewResponse<ContentAddImageResponse>> {
     const contentType = resolveContentType(input)
     const bytes = toBlob(input)
     assertUploadableSize({
@@ -221,7 +223,7 @@ export function createUploadImage(client: HttpClient) {
     })
     // Every step runs under the caller's signal, deadline and retry
     // settings; only the last answer is returned, raw or not.
-    const steps: RequestOptions = { ...options, raw: false }
+    const steps: RequestOptions<false> = { ...options, raw: false }
 
     const upload = await createImageUpload(
       { fileName: input.fileName, contentType, size: bytes.size },

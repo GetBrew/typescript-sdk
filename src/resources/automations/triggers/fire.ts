@@ -3,7 +3,11 @@ import type {
   components,
   SendPayloadValue,
 } from '../../../generated/openapi-types'
-import type { BrewRawResponse, RequestOptions } from '../../../types'
+import type {
+  BrewResponse,
+  BrewRawResponse,
+  RequestOptions,
+} from '../../../types'
 
 /**
  * Un-pinned fires keep the exact wire value type (JSON-serializable only)
@@ -80,12 +84,18 @@ export function createFireTrigger(client: HttpClient) {
     TPayload extends Record<string, unknown> = DefaultFirePayload,
   >(
     input: FireTriggerInput<TPayload>,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<FireTriggerResponse>
+  function fireTrigger<
+    TPayload extends Record<string, unknown> = DefaultFirePayload,
+  >(
+    input: FireTriggerInput<TPayload>,
+    options?: RequestOptions
+  ): Promise<BrewResponse<FireTriggerResponse>>
   async function fireTrigger(
     input: FireTriggerInput,
     options?: RequestOptions
-  ): Promise<FireTriggerResponse | BrewRawResponse<FireTriggerResponse>> {
+  ): Promise<BrewResponse<FireTriggerResponse>> {
     const { triggerEventId, ...body } = input
     const response = await client.request<FireTriggerResponse>({
       method: 'POST',

@@ -1,5 +1,9 @@
 import { type HttpClient, unwrapResponse } from '../../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../../types'
+import type {
+  BrewResponse,
+  BrewRawResponse,
+  RequestOptions,
+} from '../../../types'
 
 import type { IntegrationEventDetail } from './types'
 
@@ -35,14 +39,16 @@ export function createGetIntegrationEvent(client: HttpClient) {
   ): Promise<BrewRawResponse<GetIntegrationEventResponse>>
   function getIntegrationEvent(
     eventId: string,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<GetIntegrationEventResponse>
+  function getIntegrationEvent(
+    eventId: string,
+    options?: RequestOptions
+  ): Promise<BrewResponse<GetIntegrationEventResponse>>
   async function getIntegrationEvent(
     eventId: string,
     options?: RequestOptions
-  ): Promise<
-    GetIntegrationEventResponse | BrewRawResponse<GetIntegrationEventResponse>
-  > {
+  ): Promise<BrewResponse<GetIntegrationEventResponse>> {
     const response = await client.request<GetIntegrationEventResponse>({
       method: 'GET',
       path: `/v1/integrations/events/${encodeURIComponent(eventId)}`,

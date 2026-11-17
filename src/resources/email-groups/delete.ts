@@ -1,5 +1,5 @@
 import { type HttpClient, unwrapResponse } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 import type { DeleteEmailGroupInput, EmailGroupDeleteResponse } from './types'
 
@@ -22,14 +22,16 @@ export function createDeleteEmailGroup(client: HttpClient) {
   ): Promise<BrewRawResponse<EmailGroupDeleteResponse>>
   function deleteEmailGroup(
     input: DeleteEmailGroupInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<EmailGroupDeleteResponse>
+  function deleteEmailGroup(
+    input: DeleteEmailGroupInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<EmailGroupDeleteResponse>>
   async function deleteEmailGroup(
     input: DeleteEmailGroupInput,
     options?: RequestOptions
-  ): Promise<
-    EmailGroupDeleteResponse | BrewRawResponse<EmailGroupDeleteResponse>
-  > {
+  ): Promise<BrewResponse<EmailGroupDeleteResponse>> {
     const response = await client.request<EmailGroupDeleteResponse>({
       method: 'DELETE',
       path: `/v1/email-groups/${encodeURIComponent(input.groupId)}`,

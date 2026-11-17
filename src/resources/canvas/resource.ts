@@ -1,6 +1,6 @@
 import type { operations } from '../../generated/openapi-types'
 import { type HttpClient, unwrapResponse } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 import type {
   CanvasSession,
   CreateCanvasSessionInput,
@@ -14,7 +14,8 @@ type SessionMethod<Input> = {
     input: Input,
     options: RequestOptions & { readonly raw: true }
   ): Promise<BrewRawResponse<CanvasSession>>
-  (input: Input, options?: RequestOptions): Promise<CanvasSession>
+  (input: Input, options?: RequestOptions<false>): Promise<CanvasSession>
+  (input: Input, options?: RequestOptions): Promise<BrewResponse<CanvasSession>>
 }
 export type CanvasResource = {
   readonly sessions: {
@@ -27,8 +28,12 @@ export type CanvasResource = {
       ): Promise<BrewRawResponse<CanvasSessionRevokeResponse>>
       (
         sessionId: string,
-        options?: RequestOptions
+        options?: RequestOptions<false>
       ): Promise<CanvasSessionRevokeResponse>
+      (
+        sessionId: string,
+        options?: RequestOptions
+      ): Promise<BrewResponse<CanvasSessionRevokeResponse>>
     }
   }
 }
@@ -39,12 +44,16 @@ export function createCanvasResource(client: HttpClient): CanvasResource {
   ): Promise<BrewRawResponse<CanvasSession>>
   function create(
     input: CreateCanvasSessionInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<CanvasSession>
+  function create(
+    input: CreateCanvasSessionInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<CanvasSession>>
   async function create(
     input: CreateCanvasSessionInput,
     options?: RequestOptions
-  ): Promise<CanvasSession | BrewRawResponse<CanvasSession>> {
+  ): Promise<BrewResponse<CanvasSession>> {
     const response = await client.request<CanvasSession>({
       method: 'POST',
       path: '/v1/canvas/sessions',
@@ -61,12 +70,16 @@ export function createCanvasResource(client: HttpClient): CanvasResource {
   ): Promise<BrewRawResponse<CanvasSession>>
   function refresh(
     sessionId: string,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<CanvasSession>
+  function refresh(
+    sessionId: string,
+    options?: RequestOptions
+  ): Promise<BrewResponse<CanvasSession>>
   async function refresh(
     sessionId: string,
     options?: RequestOptions
-  ): Promise<CanvasSession | BrewRawResponse<CanvasSession>> {
+  ): Promise<BrewResponse<CanvasSession>> {
     const response = await client.request<CanvasSession>({
       method: 'POST',
       path: `/v1/canvas/sessions/${encodeURIComponent(sessionId)}/refresh`,
@@ -82,14 +95,16 @@ export function createCanvasResource(client: HttpClient): CanvasResource {
   ): Promise<BrewRawResponse<CanvasSessionRevokeResponse>>
   function revoke(
     sessionId: string,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<CanvasSessionRevokeResponse>
+  function revoke(
+    sessionId: string,
+    options?: RequestOptions
+  ): Promise<BrewResponse<CanvasSessionRevokeResponse>>
   async function revoke(
     sessionId: string,
     options?: RequestOptions
-  ): Promise<
-    CanvasSessionRevokeResponse | BrewRawResponse<CanvasSessionRevokeResponse>
-  > {
+  ): Promise<BrewResponse<CanvasSessionRevokeResponse>> {
     const response = await client.request<CanvasSessionRevokeResponse>({
       method: 'DELETE',
       path: `/v1/canvas/sessions/${encodeURIComponent(sessionId)}`,

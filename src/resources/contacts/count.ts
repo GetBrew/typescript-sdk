@@ -1,6 +1,6 @@
 import type { components } from '../../generated/openapi-types'
-import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { HttpClient } from '../../core/http'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 import type { ContactsFilter } from './types'
 
@@ -42,12 +42,16 @@ export function createCountContacts(client: HttpClient) {
   ): Promise<BrewRawResponse<ContactsCountResponse>>
   function count(
     input?: CountContactsInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<number>
+  function count(
+    input?: CountContactsInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<number, ContactsCountResponse>>
   async function count(
     input: CountContactsInput = {},
     options?: RequestOptions
-  ): Promise<number | BrewRawResponse<ContactsCountResponse>> {
+  ): Promise<BrewResponse<number, ContactsCountResponse>> {
     const response = await client.request<ContactsCountResponse>({
       method: 'POST',
       path: '/v1/contacts/search',
@@ -55,10 +59,7 @@ export function createCountContacts(client: HttpClient) {
       ...(options ? { options } : {}),
     })
     if (options?.raw === true) {
-      return unwrapResponse(
-        response,
-        options
-      ) as BrewRawResponse<ContactsCountResponse>
+      return response
     }
     return response.data.count
   }

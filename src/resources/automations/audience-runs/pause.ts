@@ -1,5 +1,9 @@
 import { unwrapResponse, type HttpClient } from '../../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../../types'
+import type {
+  BrewResponse,
+  BrewRawResponse,
+  RequestOptions,
+} from '../../../types'
 
 import type { AudienceRunActionResponse } from './types'
 
@@ -33,14 +37,16 @@ export function createPauseAudienceRun(client: HttpClient) {
   ): Promise<BrewRawResponse<PauseAudienceRunResponse>>
   function pauseAudienceRun(
     audienceRunId: string,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<PauseAudienceRunResponse>
+  function pauseAudienceRun(
+    audienceRunId: string,
+    options?: RequestOptions
+  ): Promise<BrewResponse<PauseAudienceRunResponse>>
   async function pauseAudienceRun(
     audienceRunId: string,
     options?: RequestOptions
-  ): Promise<
-    PauseAudienceRunResponse | BrewRawResponse<PauseAudienceRunResponse>
-  > {
+  ): Promise<BrewResponse<PauseAudienceRunResponse>> {
     const response = await client.request<PauseAudienceRunResponse>({
       method: 'POST',
       path: `/v1/automations/audience-runs/${encodeURIComponent(audienceRunId)}/pause`,

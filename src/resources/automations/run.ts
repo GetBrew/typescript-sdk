@@ -1,6 +1,6 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { components } from '../../generated/openapi-types'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 /**
  * Path identity plus the optional manual-audience run configuration.
@@ -50,12 +50,16 @@ export function createRunAutomation(client: HttpClient) {
   ): Promise<BrewRawResponse<RunAutomationResponse>>
   function runAutomation(
     input: RunAutomationInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<RunAutomationResponse>
+  function runAutomation(
+    input: RunAutomationInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<RunAutomationResponse>>
   async function runAutomation(
     input: RunAutomationInput,
     options?: RequestOptions
-  ): Promise<RunAutomationResponse | BrewRawResponse<RunAutomationResponse>> {
+  ): Promise<BrewResponse<RunAutomationResponse>> {
     const { automationId, ...body } = input
     const response = await client.request<RunAutomationResponse>({
       method: 'POST',

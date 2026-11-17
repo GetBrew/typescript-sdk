@@ -1,5 +1,5 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 import type { ContentGenerateImageRequest, ContentImageResponse } from './types'
 
@@ -43,12 +43,16 @@ export function createGenerateImage(client: HttpClient) {
   ): Promise<BrewRawResponse<ContentImageResponse>>
   function generateImage(
     input: ContentGenerateImageRequest,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<ContentImageResponse>
+  function generateImage(
+    input: ContentGenerateImageRequest,
+    options?: RequestOptions
+  ): Promise<BrewResponse<ContentImageResponse>>
   async function generateImage(
     input: ContentGenerateImageRequest,
     options?: RequestOptions
-  ): Promise<ContentImageResponse | BrewRawResponse<ContentImageResponse>> {
+  ): Promise<BrewResponse<ContentImageResponse>> {
     const response = await client.request<ContentImageResponse>({
       method: 'POST',
       path: '/v1/content/generate-image',

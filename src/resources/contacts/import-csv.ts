@@ -1,6 +1,6 @@
 import type { components } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 /**
  * Caller-facing input for a CSV bulk import: the request body of
@@ -102,14 +102,16 @@ export function createImportCsvContacts(client: HttpClient) {
   ): Promise<BrewRawResponse<ImportCsvContactsResponse>>
   function importCsv(
     input: ImportCsvContactsInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<ImportCsvContactsResponse>
+  function importCsv(
+    input: ImportCsvContactsInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<ImportCsvContactsResponse>>
   async function importCsv(
     input: ImportCsvContactsInput,
     options?: RequestOptions
-  ): Promise<
-    ImportCsvContactsResponse | BrewRawResponse<ImportCsvContactsResponse>
-  > {
+  ): Promise<BrewResponse<ImportCsvContactsResponse>> {
     const response = await client.request<ImportCsvContactsResponse>({
       method: 'POST',
       path: '/v1/contacts/import-csv',

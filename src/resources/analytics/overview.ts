@@ -1,6 +1,6 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { operations } from '../../generated/openapi-types'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 /** Composable filters accepted by `GET /v1/analytics/overview`. */
 export type AnalyticsOverviewInput = NonNullable<
@@ -18,19 +18,21 @@ export type AnalyticsOverviewResponse =
  */
 export function createAnalyticsOverview(client: HttpClient) {
   function analyticsOverview(
-    input: AnalyticsOverviewInput,
+    input: AnalyticsOverviewInput | undefined,
     options: RequestOptions & { readonly raw: true }
   ): Promise<BrewRawResponse<AnalyticsOverviewResponse>>
   function analyticsOverview(
     input?: AnalyticsOverviewInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<AnalyticsOverviewResponse>
+  function analyticsOverview(
+    input?: AnalyticsOverviewInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<AnalyticsOverviewResponse>>
   async function analyticsOverview(
     input: AnalyticsOverviewInput = {},
     options?: RequestOptions
-  ): Promise<
-    AnalyticsOverviewResponse | BrewRawResponse<AnalyticsOverviewResponse>
-  > {
+  ): Promise<BrewResponse<AnalyticsOverviewResponse>> {
     const response = await client.request<AnalyticsOverviewResponse>({
       method: 'GET',
       path: '/v1/analytics/overview',

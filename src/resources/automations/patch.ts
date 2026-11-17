@@ -1,5 +1,5 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 import type { AutomationConnectionInput, AutomationNodeInput } from './create'
 import type { Automation, AutomationDryRunReport } from './types'
@@ -106,24 +106,28 @@ export function createPatchAutomation(client: HttpClient) {
   ): Promise<BrewRawResponse<AutomationDryRunReport>>
   function patchAutomation(
     input: PatchAutomationDryRunInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<AutomationDryRunReport>
+  function patchAutomation(
+    input: PatchAutomationDryRunInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<AutomationDryRunReport>>
   function patchAutomation(
     input: PatchAutomationInput,
     options: RequestOptions & { readonly raw: true }
   ): Promise<BrewRawResponse<PatchAutomationResponse>>
   function patchAutomation(
     input: PatchAutomationInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<PatchAutomationResponse>
+  function patchAutomation(
+    input: PatchAutomationInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<PatchAutomationResponse>>
   async function patchAutomation(
     input: PatchAutomationInput | PatchAutomationDryRunInput,
     options?: RequestOptions
-  ): Promise<
-    | PatchAutomationResponse
-    | AutomationDryRunReport
-    | BrewRawResponse<PatchAutomationResponse | AutomationDryRunReport>
-  > {
+  ): Promise<BrewResponse<PatchAutomationResponse | AutomationDryRunReport>> {
     const { automationId, ...body } = input
     const response = await client.request<
       PatchAutomationResponse | AutomationDryRunReport
@@ -156,14 +160,16 @@ export function createPublishAutomation(client: HttpClient) {
   ): Promise<BrewRawResponse<PatchAutomationResponse>>
   function publishAutomation(
     input: { automationId: string; automationVersionId?: string },
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<PatchAutomationResponse>
+  function publishAutomation(
+    input: { automationId: string; automationVersionId?: string },
+    options?: RequestOptions
+  ): Promise<BrewResponse<PatchAutomationResponse>>
   async function publishAutomation(
     input: { automationId: string; automationVersionId?: string },
     options?: RequestOptions
-  ): Promise<
-    PatchAutomationResponse | BrewRawResponse<PatchAutomationResponse>
-  > {
+  ): Promise<BrewResponse<PatchAutomationResponse>> {
     const body: { published: true; automationVersionId?: string } = {
       published: true,
       ...(input.automationVersionId
@@ -210,14 +216,16 @@ export function createUnpublishAutomation(client: HttpClient) {
   ): Promise<BrewRawResponse<PatchAutomationResponse>>
   function unpublishAutomation(
     input: UnpublishAutomationInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<PatchAutomationResponse>
+  function unpublishAutomation(
+    input: UnpublishAutomationInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<PatchAutomationResponse>>
   async function unpublishAutomation(
     input: UnpublishAutomationInput,
     options?: RequestOptions
-  ): Promise<
-    PatchAutomationResponse | BrewRawResponse<PatchAutomationResponse>
-  > {
+  ): Promise<BrewResponse<PatchAutomationResponse>> {
     const body: { published: false; stopInFlight?: boolean } = {
       published: false,
       ...(input.stopInFlight !== undefined

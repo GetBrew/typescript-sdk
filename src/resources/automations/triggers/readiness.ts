@@ -1,6 +1,10 @@
 import { type HttpClient, unwrapResponse } from '../../../core/http'
 import type { components } from '../../../generated/openapi-types'
-import type { BrewRawResponse, RequestOptions } from '../../../types'
+import type {
+  BrewResponse,
+  BrewRawResponse,
+  RequestOptions,
+} from '../../../types'
 
 /**
  * The BARE readiness body — `{ triggerEventId, ready, blockers[],
@@ -52,14 +56,16 @@ export function createTriggerReadiness(client: HttpClient) {
   ): Promise<BrewRawResponse<TriggerReadinessResponse>>
   function triggerReadiness(
     triggerEventId: string,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<TriggerReadinessResponse>
+  function triggerReadiness(
+    triggerEventId: string,
+    options?: RequestOptions
+  ): Promise<BrewResponse<TriggerReadinessResponse>>
   async function triggerReadiness(
     triggerEventId: string,
     options?: RequestOptions
-  ): Promise<
-    TriggerReadinessResponse | BrewRawResponse<TriggerReadinessResponse>
-  > {
+  ): Promise<BrewResponse<TriggerReadinessResponse>> {
     const response = await client.request<TriggerReadinessResponse>({
       method: 'GET',
       path: `/v1/automations/triggers/${encodeURIComponent(triggerEventId)}/readiness`,

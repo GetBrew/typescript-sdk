@@ -1,5 +1,5 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 import type { BrandImagesResponse, ListBrandImagesInput } from './types'
 
@@ -35,12 +35,16 @@ export function createGetBrandImages(client: HttpClient) {
   ): Promise<BrewRawResponse<BrandImagesResponse>>
   function getImages(
     input?: ListBrandImagesInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<BrandImagesResponse>
+  function getImages(
+    input?: ListBrandImagesInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<BrandImagesResponse>>
   async function getImages(
     input: ListBrandImagesInput = {},
     options?: RequestOptions
-  ): Promise<BrandImagesResponse | BrewRawResponse<BrandImagesResponse>> {
+  ): Promise<BrewResponse<BrandImagesResponse>> {
     const response = await client.request<BrandImagesResponse>({
       method: 'GET',
       path: '/v1/brand/images',

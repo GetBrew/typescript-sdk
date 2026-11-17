@@ -1,6 +1,10 @@
 import { unwrapResponse, type HttpClient } from '../../../core/http'
 import { serializeInclude } from '../../../core/url'
-import type { BrewRawResponse, RequestOptions } from '../../../types'
+import type {
+  BrewResponse,
+  BrewRawResponse,
+  RequestOptions,
+} from '../../../types'
 
 import type { AutomationRun } from './types'
 
@@ -13,13 +17,14 @@ export type AutomationRunsIncludeToken =
  * Per-request options for `brew.automations.runs.get(...)` — the
  * standard `RequestOptions` plus the detail-only `include` expansion.
  */
-export type GetAutomationRunOptions = RequestOptions & {
-  /**
-   * `'logs'` attaches the per-node execution `logs[]`. Accepts an array of
-   * tokens or a comma string.
-   */
-  readonly include?: ReadonlyArray<AutomationRunsIncludeToken> | string
-}
+export type GetAutomationRunOptions<Raw extends boolean = boolean> =
+  RequestOptions<Raw> & {
+    /**
+     * `'logs'` attaches the per-node execution `logs[]`. Accepts an array of
+     * tokens or a comma string.
+     */
+    readonly include?: ReadonlyArray<AutomationRunsIncludeToken> | string
+  }
 
 /** `GET /v1/automations/runs/{automationRunId}` returns the BARE row. */
 export type GetAutomationRunResponse = AutomationRun
@@ -44,14 +49,16 @@ export function createGetAutomationRun(client: HttpClient) {
   ): Promise<BrewRawResponse<GetAutomationRunResponse>>
   function getAutomationRun(
     automationRunId: string,
-    options?: GetAutomationRunOptions
+    options?: GetAutomationRunOptions<false>
   ): Promise<GetAutomationRunResponse>
+  function getAutomationRun(
+    automationRunId: string,
+    options?: GetAutomationRunOptions
+  ): Promise<BrewResponse<GetAutomationRunResponse>>
   async function getAutomationRun(
     automationRunId: string,
     options?: GetAutomationRunOptions
-  ): Promise<
-    GetAutomationRunResponse | BrewRawResponse<GetAutomationRunResponse>
-  > {
+  ): Promise<BrewResponse<GetAutomationRunResponse>> {
     const include = serializeInclude({ include: options?.include })
     const response = await client.request<GetAutomationRunResponse>({
       method: 'GET',
