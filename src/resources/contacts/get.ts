@@ -1,7 +1,7 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import { serializeInclude } from '../../core/url'
 import type { operations } from '../../generated/openapi-types'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 /** The one expansion `GET /v1/contacts/{email}` accepts. */
 export const CONTACTS_INCLUDE_TOKENS = ['openProfile'] as const
@@ -11,15 +11,16 @@ export type ContactsIncludeToken = (typeof CONTACTS_INCLUDE_TOKENS)[number]
  * Per-request options for `brew.contacts.get(...)` — the standard
  * `RequestOptions` plus the `include` expansion.
  */
-export type GetContactOptions = RequestOptions & {
-  /**
-   * `'openProfile'` attaches `openProfile`, the contact's smart-send
-   * open-time profile (`null` when no opens are folded yet). It needs the
-   * `emails` scope as well as `contacts` (`403 INSUFFICIENT_PERMISSIONS`
-   * without it). Accepts a token, an array of tokens, or a comma string.
-   */
-  readonly include?: ReadonlyArray<ContactsIncludeToken> | string
-}
+export type GetContactOptions<Raw extends boolean = boolean> =
+  RequestOptions<Raw> & {
+    /**
+     * `'openProfile'` attaches `openProfile`, the contact's smart-send
+     * open-time profile (`null` when no opens are folded yet). It needs the
+     * `emails` scope as well as `contacts` (`403 INSUFFICIENT_PERMISSIONS`
+     * without it). Accepts a token, an array of tokens, or a comma string.
+     */
+    readonly include?: ReadonlyArray<ContactsIncludeToken> | string
+  }
 
 /**
  * `GET /v1/contacts/{email}` returns the BARE contact row, plus
@@ -60,12 +61,16 @@ export function createGetContact(client: HttpClient) {
   ): Promise<BrewRawResponse<GetContactResponse>>
   function getContact(
     email: string,
-    options?: GetContactOptions
+    options?: GetContactOptions<false>
   ): Promise<GetContactResponse>
+  function getContact(
+    email: string,
+    options?: GetContactOptions
+  ): Promise<BrewResponse<GetContactResponse>>
   async function getContact(
     email: string,
     options?: GetContactOptions
-  ): Promise<GetContactResponse | BrewRawResponse<GetContactResponse>> {
+  ): Promise<BrewResponse<GetContactResponse>> {
     const include = serializeInclude({ include: options?.include })
     const response = await client.request<GetContactResponse>({
       method: 'GET',

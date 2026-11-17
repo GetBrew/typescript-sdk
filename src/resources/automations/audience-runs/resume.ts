@@ -1,5 +1,9 @@
 import { unwrapResponse, type HttpClient } from '../../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../../types'
+import type {
+  BrewResponse,
+  BrewRawResponse,
+  RequestOptions,
+} from '../../../types'
 
 import type { AudienceRunActionResponse } from './types'
 
@@ -37,14 +41,16 @@ export function createResumeAudienceRun(client: HttpClient) {
   ): Promise<BrewRawResponse<ResumeAudienceRunResponse>>
   function resumeAudienceRun(
     audienceRunId: string,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<ResumeAudienceRunResponse>
+  function resumeAudienceRun(
+    audienceRunId: string,
+    options?: RequestOptions
+  ): Promise<BrewResponse<ResumeAudienceRunResponse>>
   async function resumeAudienceRun(
     audienceRunId: string,
     options?: RequestOptions
-  ): Promise<
-    ResumeAudienceRunResponse | BrewRawResponse<ResumeAudienceRunResponse>
-  > {
+  ): Promise<BrewResponse<ResumeAudienceRunResponse>> {
     const response = await client.request<ResumeAudienceRunResponse>({
       method: 'POST',
       path: `/v1/automations/audience-runs/${encodeURIComponent(audienceRunId)}/resume`,

@@ -1,7 +1,11 @@
 import { autoPaginate, pageReadOptions } from '../../../core/pagination'
 import { unwrapResponse, type HttpClient } from '../../../core/http'
 import { serializeInclude } from '../../../core/url'
-import type { BrewRawResponse, RequestOptions } from '../../../types'
+import type {
+  BrewResponse,
+  BrewRawResponse,
+  RequestOptions,
+} from '../../../types'
 
 import type {
   EmailCommentMessage,
@@ -90,14 +94,16 @@ export function createListEmailComments(client: HttpClient) {
   ): Promise<BrewRawResponse<ListEmailCommentsResponse>>
   function listEmailComments(
     input: ListEmailCommentsInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<ListEmailCommentsResponse>
+  function listEmailComments(
+    input: ListEmailCommentsInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<ListEmailCommentsResponse>>
   async function listEmailComments(
     input: ListEmailCommentsInput,
     options?: RequestOptions
-  ): Promise<
-    ListEmailCommentsResponse | BrewRawResponse<ListEmailCommentsResponse>
-  > {
+  ): Promise<BrewResponse<ListEmailCommentsResponse>> {
     const response = await client.request<ListEmailCommentsResponse>({
       method: 'GET',
       path: `/v1/emails/${encodeURIComponent(input.emailId)}/comments`,

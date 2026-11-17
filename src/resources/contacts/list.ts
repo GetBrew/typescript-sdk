@@ -1,6 +1,6 @@
 import type { components, operations } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 /** Query params accepted by `brew.contacts.list(...)`. */
 export type ListContactsInput = NonNullable<
@@ -30,12 +30,16 @@ export function createListContacts(client: HttpClient) {
   ): Promise<BrewRawResponse<ListContactsResponse>>
   function listContacts(
     input?: ListContactsInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<ListContactsResponse>
+  function listContacts(
+    input?: ListContactsInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<ListContactsResponse>>
   async function listContacts(
     input: ListContactsInput = {},
     options?: RequestOptions
-  ): Promise<ListContactsResponse | BrewRawResponse<ListContactsResponse>> {
+  ): Promise<BrewResponse<ListContactsResponse>> {
     const response = await client.request<ListContactsResponse>({
       method: 'GET',
       path: '/v1/contacts',

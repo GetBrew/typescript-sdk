@@ -1,6 +1,6 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { operations } from '../../generated/openapi-types'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 import type { FlowsListResponse } from './types'
 
@@ -42,17 +42,21 @@ export type { FlowsListResponse }
  */
 export function createListFlows(client: HttpClient) {
   function listFlows(
-    input: ListFlowsInput,
+    input: ListFlowsInput | undefined,
     options: RequestOptions & { readonly raw: true }
   ): Promise<BrewRawResponse<ListFlowsResponse>>
   function listFlows(
     input?: ListFlowsInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<ListFlowsResponse>
+  function listFlows(
+    input?: ListFlowsInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<ListFlowsResponse>>
   async function listFlows(
     input: ListFlowsInput = {},
     options?: RequestOptions
-  ): Promise<ListFlowsResponse | BrewRawResponse<ListFlowsResponse>> {
+  ): Promise<BrewResponse<ListFlowsResponse>> {
     const query: Record<string, string> = {}
     for (const [key, value] of Object.entries(input)) {
       if (value === undefined) continue

@@ -1,6 +1,6 @@
 import type { components } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 /**
  * Body of `POST /v1/emails/figma`.
@@ -79,14 +79,16 @@ export function createImportFigmaDesign(client: HttpClient) {
   ): Promise<BrewRawResponse<ImportFigmaDesignResponse>>
   function importFigmaDesign(
     input: ImportFigmaDesignInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<ImportFigmaDesignResponse>
+  function importFigmaDesign(
+    input: ImportFigmaDesignInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<ImportFigmaDesignResponse>>
   async function importFigmaDesign(
     input: ImportFigmaDesignInput,
     options?: RequestOptions
-  ): Promise<
-    ImportFigmaDesignResponse | BrewRawResponse<ImportFigmaDesignResponse>
-  > {
+  ): Promise<BrewResponse<ImportFigmaDesignResponse>> {
     const response = await client.request<ImportFigmaDesignResponse>({
       method: 'POST',
       path: '/v1/emails/figma',

@@ -1,6 +1,6 @@
 import type { components } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 import type { Domain } from './types'
 
@@ -23,12 +23,16 @@ export function createAddDomain(client: HttpClient) {
   ): Promise<BrewRawResponse<AddDomainResponse>>
   function addDomain(
     input: AddDomainInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<AddDomainResponse>
+  function addDomain(
+    input: AddDomainInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<AddDomainResponse>>
   async function addDomain(
     input: AddDomainInput,
     options?: RequestOptions
-  ): Promise<AddDomainResponse | BrewRawResponse<AddDomainResponse>> {
+  ): Promise<BrewResponse<AddDomainResponse>> {
     const response = await client.request<AddDomainResponse>({
       method: 'POST',
       path: '/v1/domains',

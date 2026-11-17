@@ -1,5 +1,5 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 import type { ContentGifRequest, ContentGifResponse } from './types'
 
@@ -53,12 +53,16 @@ export function createGif(client: HttpClient) {
   ): Promise<BrewRawResponse<ContentGifResponse>>
   function gif(
     input: ContentGifRequest,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<ContentGifResponse>
+  function gif(
+    input: ContentGifRequest,
+    options?: RequestOptions
+  ): Promise<BrewResponse<ContentGifResponse>>
   async function gif(
     input: ContentGifRequest,
     options?: RequestOptions
-  ): Promise<ContentGifResponse | BrewRawResponse<ContentGifResponse>> {
+  ): Promise<BrewResponse<ContentGifResponse>> {
     const response = await client.request<ContentGifResponse>({
       method: 'POST',
       path: '/v1/content/gif',

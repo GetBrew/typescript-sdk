@@ -1,6 +1,6 @@
 import type { components } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 /**
  * Body of `POST /v1/emails/{emailId}/export`, plus the `emailId` that goes on
@@ -56,12 +56,16 @@ export function createExportEmail(client: HttpClient) {
   ): Promise<BrewRawResponse<ExportEmailResponse>>
   function exportEmail(
     input: ExportEmailInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<ExportEmailResponse>
+  function exportEmail(
+    input: ExportEmailInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<ExportEmailResponse>>
   async function exportEmail(
     input: ExportEmailInput,
     options?: RequestOptions
-  ): Promise<ExportEmailResponse | BrewRawResponse<ExportEmailResponse>> {
+  ): Promise<BrewResponse<ExportEmailResponse>> {
     const { emailId, ...body } = input
     const response = await client.request<ExportEmailResponse>({
       method: 'POST',

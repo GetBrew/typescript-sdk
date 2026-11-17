@@ -1,6 +1,6 @@
 import type { components } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 export type GenerateEmailInput = components['schemas']['EmailGenerateRequest']
 export type GenerateEmailResponse =
@@ -51,12 +51,16 @@ export function createGenerateEmail(client: HttpClient) {
   ): Promise<BrewRawResponse<GenerateEmailResponse>>
   function generateEmail(
     input: GenerateEmailInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<GenerateEmailResponse>
+  function generateEmail(
+    input: GenerateEmailInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<GenerateEmailResponse>>
   async function generateEmail(
     input: GenerateEmailInput,
     options?: RequestOptions
-  ): Promise<GenerateEmailResponse | BrewRawResponse<GenerateEmailResponse>> {
+  ): Promise<BrewResponse<GenerateEmailResponse>> {
     const response = await client.request<GenerateEmailResponse>({
       method: 'POST',
       path: '/v1/emails',

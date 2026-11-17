@@ -1,6 +1,10 @@
 import type { components } from '../../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../../types'
+import type {
+  BrewResponse,
+  BrewRawResponse,
+  RequestOptions,
+} from '../../../types'
 
 /** Input to `brew.domains.unsubscribes.remove(...)`. */
 export type RemoveDomainUnsubscribeInput = {
@@ -23,15 +27,16 @@ export function createRemoveDomainUnsubscribe(client: HttpClient) {
   ): Promise<BrewRawResponse<RemoveDomainUnsubscribeResponse>>
   function removeDomainUnsubscribe(
     input: RemoveDomainUnsubscribeInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<RemoveDomainUnsubscribeResponse>
+  function removeDomainUnsubscribe(
+    input: RemoveDomainUnsubscribeInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<RemoveDomainUnsubscribeResponse>>
   async function removeDomainUnsubscribe(
     input: RemoveDomainUnsubscribeInput,
     options?: RequestOptions
-  ): Promise<
-    | RemoveDomainUnsubscribeResponse
-    | BrewRawResponse<RemoveDomainUnsubscribeResponse>
-  > {
+  ): Promise<BrewResponse<RemoveDomainUnsubscribeResponse>> {
     const response = await client.request<RemoveDomainUnsubscribeResponse>({
       method: 'DELETE',
       path: `/v1/domains/${encodeURIComponent(input.domainId)}/unsubscribes/${encodeURIComponent(input.email)}`,

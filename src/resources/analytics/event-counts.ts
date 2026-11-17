@@ -1,6 +1,6 @@
 import type { components, operations } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 /**
  * The fields `brew.analytics.eventCounts` can group by. Pinned to the spec's
@@ -71,12 +71,16 @@ export function createEventCounts(client: HttpClient) {
   ): Promise<BrewRawResponse<EventCountsResponse>>
   function eventCounts(
     input: EventCountsInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<EventCountsResponse>
+  function eventCounts(
+    input: EventCountsInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<EventCountsResponse>>
   async function eventCounts(
     input: EventCountsInput,
     options?: RequestOptions
-  ): Promise<EventCountsResponse | BrewRawResponse<EventCountsResponse>> {
+  ): Promise<BrewResponse<EventCountsResponse>> {
     const response = await client.request<EventCountsResponse>({
       method: 'GET',
       path: '/v1/analytics/events',

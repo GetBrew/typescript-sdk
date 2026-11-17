@@ -1,5 +1,5 @@
 import { type HttpClient, unwrapResponse } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 import type { ApiKeysListResponse } from './types'
 
@@ -24,10 +24,15 @@ export function createListApiKeys(client: HttpClient) {
   function listApiKeys(
     options: RequestOptions & { readonly raw: true }
   ): Promise<BrewRawResponse<ApiKeysListResponse>>
-  function listApiKeys(options?: RequestOptions): Promise<ApiKeysListResponse>
+  function listApiKeys(
+    options?: RequestOptions<false>
+  ): Promise<ApiKeysListResponse>
+  function listApiKeys(
+    options?: RequestOptions
+  ): Promise<BrewResponse<ApiKeysListResponse>>
   async function listApiKeys(
     options?: RequestOptions
-  ): Promise<ApiKeysListResponse | BrewRawResponse<ApiKeysListResponse>> {
+  ): Promise<BrewResponse<ApiKeysListResponse>> {
     const response = await client.request<ApiKeysListResponse>({
       method: 'GET',
       path: '/v1/api-keys',

@@ -1,6 +1,6 @@
 import type { components } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 /**
  * Caller-facing input for a JSON bulk import: the request body of
@@ -67,12 +67,16 @@ export function createImportContacts(client: HttpClient) {
   ): Promise<BrewRawResponse<ImportContactsResponse>>
   function importContacts(
     input: ImportContactsInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<ImportContactsResponse>
+  function importContacts(
+    input: ImportContactsInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<ImportContactsResponse>>
   async function importContacts(
     input: ImportContactsInput,
     options?: RequestOptions
-  ): Promise<ImportContactsResponse | BrewRawResponse<ImportContactsResponse>> {
+  ): Promise<BrewResponse<ImportContactsResponse>> {
     const response = await client.request<ImportContactsResponse>({
       method: 'POST',
       path: '/v1/contacts/import',

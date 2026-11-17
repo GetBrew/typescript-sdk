@@ -1,6 +1,6 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import { serializeInclude } from '../../core/url'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 import type { Flow } from './types'
 
@@ -12,22 +12,23 @@ export type FlowsIncludeToken = (typeof FLOWS_INCLUDE_TOKENS)[number]
  * Per-request options for `brew.flows.get(...)` — the standard
  * `RequestOptions` plus the detail-only `include` expansion.
  */
-export type GetFlowOptions = RequestOptions & {
-  /**
-   * `'html'` attaches each step's rendered HTML — up to 12 emails,
-   * best-effort per step: a step whose body is no longer servable comes
-   * back without `html` rather than failing the flow. Accepts a token, an
-   * array of tokens, or a comma string.
-   */
-  readonly include?: ReadonlyArray<FlowsIncludeToken> | string
-  /**
-   * The flow's kind for a bare-domain `slug`, hyphenated (`onboarding`,
-   * `trial`, `events`, `product-updates`, `promotions`, optionally followed
-   * by `-2`, `-3`… for a brand's later flow of that kind). A
-   * `<domain>/<kind>` slug from `brew.flows.list()` already names it.
-   */
-  readonly kind?: string
-}
+export type GetFlowOptions<Raw extends boolean = boolean> =
+  RequestOptions<Raw> & {
+    /**
+     * `'html'` attaches each step's rendered HTML — up to 12 emails,
+     * best-effort per step: a step whose body is no longer servable comes
+     * back without `html` rather than failing the flow. Accepts a token, an
+     * array of tokens, or a comma string.
+     */
+    readonly include?: ReadonlyArray<FlowsIncludeToken> | string
+    /**
+     * The flow's kind for a bare-domain `slug`, hyphenated (`onboarding`,
+     * `trial`, `events`, `product-updates`, `promotions`, optionally followed
+     * by `-2`, `-3`… for a brand's later flow of that kind). A
+     * `<domain>/<kind>` slug from `brew.flows.list()` already names it.
+     */
+    readonly kind?: string
+  }
 
 /** `GET /v1/flows/{slug}` returns the BARE flow, with `anchor` and `steps[]`. */
 export type GetFlowResponse = Flow
@@ -56,12 +57,16 @@ export function createGetFlow(client: HttpClient) {
   ): Promise<BrewRawResponse<GetFlowResponse>>
   function getFlow(
     slug: string,
-    options?: GetFlowOptions
+    options?: GetFlowOptions<false>
   ): Promise<GetFlowResponse>
+  function getFlow(
+    slug: string,
+    options?: GetFlowOptions
+  ): Promise<BrewResponse<GetFlowResponse>>
   async function getFlow(
     slug: string,
     options?: GetFlowOptions
-  ): Promise<GetFlowResponse | BrewRawResponse<GetFlowResponse>> {
+  ): Promise<BrewResponse<GetFlowResponse>> {
     const include = serializeInclude({ include: options?.include })
     // `<domain>/<kind>` is the domain path plus `?kind=`: an encoded `/`
     // would name no flow.

@@ -1,6 +1,6 @@
 import { type HttpClient, unwrapResponse } from '../../core/http'
 import type { components } from '../../generated/openapi-types'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 /**
  * Body for `POST /v1/sends` — the single, polymorphic send endpoint.
@@ -131,12 +131,18 @@ export function createSendEmail(client: HttpClient) {
     TPayload extends Record<string, unknown> = DefaultSendPayload,
   >(
     input: SendEmailInput<TPayload>,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<SendEmailResponse>
+  function sendEmail<
+    TPayload extends Record<string, unknown> = DefaultSendPayload,
+  >(
+    input: SendEmailInput<TPayload>,
+    options?: RequestOptions
+  ): Promise<BrewResponse<SendEmailResponse>>
   async function sendEmail(
     input: SendEmailInput,
     options?: RequestOptions
-  ): Promise<SendEmailResponse | BrewRawResponse<SendEmailResponse>> {
+  ): Promise<BrewResponse<SendEmailResponse>> {
     const response = await client.request<SendEmailResponse>({
       method: 'POST',
       path: '/v1/sends',

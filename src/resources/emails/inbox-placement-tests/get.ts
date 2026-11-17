@@ -1,5 +1,9 @@
 import { unwrapResponse, type HttpClient } from '../../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../../types'
+import type {
+  BrewResponse,
+  BrewRawResponse,
+  RequestOptions,
+} from '../../../types'
 
 import type { InboxPlacementTest } from './types'
 
@@ -40,16 +44,18 @@ export function createGetInboxPlacementTest(client: HttpClient) {
   function getInboxPlacementTest(
     emailId: string,
     testId: string,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<GetInboxPlacementTestResponse>
+  function getInboxPlacementTest(
+    emailId: string,
+    testId: string,
+    options?: RequestOptions
+  ): Promise<BrewResponse<GetInboxPlacementTestResponse>>
   async function getInboxPlacementTest(
     emailId: string,
     testId: string,
     options?: RequestOptions
-  ): Promise<
-    | GetInboxPlacementTestResponse
-    | BrewRawResponse<GetInboxPlacementTestResponse>
-  > {
+  ): Promise<BrewResponse<GetInboxPlacementTestResponse>> {
     const response = await client.request<GetInboxPlacementTestResponse>({
       method: 'GET',
       path: `/v1/emails/${encodeURIComponent(emailId)}/inbox-placement-tests/${encodeURIComponent(testId)}`,

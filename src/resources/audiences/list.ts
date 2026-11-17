@@ -1,6 +1,6 @@
 import type { components, operations } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 export type ListAudiencesResponse =
   components['schemas']['AudiencesListResponse']
@@ -35,12 +35,16 @@ export function createListAudiences(client: HttpClient) {
   ): Promise<BrewRawResponse<ListAudiencesResponse>>
   function listAudiences(
     input?: ListAudiencesInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<ListAudiencesResponse>
+  function listAudiences(
+    input?: ListAudiencesInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<ListAudiencesResponse>>
   async function listAudiences(
     input: ListAudiencesInput = {},
     options?: RequestOptions
-  ): Promise<ListAudiencesResponse | BrewRawResponse<ListAudiencesResponse>> {
+  ): Promise<BrewResponse<ListAudiencesResponse>> {
     const response = await client.request<ListAudiencesResponse>({
       method: 'GET',
       path: '/v1/audiences',

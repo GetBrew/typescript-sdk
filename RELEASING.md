@@ -9,55 +9,63 @@ version to npm. Read [`AGENTS.md`](./AGENTS.md) for code conventions and
 
 ```mermaid
 flowchart LR
-  Zod["sub-agent-orchestrator/lib/&lt;resource&gt;/contracts.ts<br/>(Zod schemas)"]
-  Zod -->|pnpm openapi:generate| YAMLs["3 YAMLs (mirrored byte-identical):<br/>sub-agent-orchestrator/openapi/<br/>docs/api-reference/<br/>typescript-sdk/openapi/"]
-  YAMLs -->|pnpm openapi:sync:sdk-types| Generated["typescript-sdk/src/generated/openapi-types.ts"]
-  Generated --> Resources["src/resources/&lt;resource&gt;/&lt;method&gt;.ts<br/>(thin wrappers)"]
-  Resources -->|tsup build + npm publish<br/>or git tag vX.Y.Z| Registry["registry.npmjs.org<br/>@brew.new/sdk"]
+  Zod["brew-v2 Zod schemas"] -->|pnpm contract:build| Artifact["Immutable contract artifact + digest"]
+  Artifact -->|bun run contract:import| Pin["Pinned OpenAPI + manifest"]
+  Pin --> Generated["src/generated/openapi-types.ts"]
+  Generated --> Resources["src/resources thin wrappers"]
+  Resources -->|validated release| Registry["registry.npmjs.org / @brew.new/sdk"]
 ```
 
-The Zod contracts in `sub-agent-orchestrator/lib/<resource>/contracts.ts`
-are the **only** source of truth. Everything downstream is generated.
-Never hand-edit `openapi/public-api-v1.yaml` or
-`src/generated/openapi-types.ts` — they get overwritten.
+The Zod contracts in `brew-v2` are the source of truth. Never hand-edit
+`openapi/public-api-v1.yaml` or `src/generated/openapi-types.ts`.
 
 ## Iterate loop
 
-1. **Make the API change in the app package** (`sub-agent-orchestrator/`):
-   - Update or add a Zod schema in `lib/<resource>/contracts.ts`.
-   - Update or add the route handler under `app/api/v1/<resource>/route.ts`.
-   - Register the operation in `openapi/public-api-v1-<resource>.ts`.
-   - Add the app-side test in `tests/api/`.
-
-2. **Mirror the spec to every consumer**, from inside `sub-agent-orchestrator/`:
+1. Make the API change and its integration tests in `brew-v2`.
+2. Build a contract artifact in that checkout:
 
    ```bash
-   pnpm openapi:generate          # writes the YAML to all 3 locations
-   pnpm openapi:sync:sdk-types    # regenerates src/generated/openapi-types.ts
-   pnpm openapi:check             # CI-style verification that everything is in sync
+   pnpm contract:build --output /tmp/brew-contracts
    ```
 
-3. **Update the SDK** (this package):
-   - One file per method under `src/resources/<resource>/<method>.ts`.
-   - Wire it into `src/resources/<resource>/resource.ts`.
-   - Re-export public types from `src/index.ts`.
-   - Add an MSW test under `tests/resources/<resource>/<method>.test.ts`.
+   The command prints the artifact directory and digest. Transfer that directory
+   or download the source artifact offered by an automated update PR.
 
-4. **Document it** in `docs/<resource>.md` (the resource-level reference)
-   and update `RELEASING.md` (this file) only if the workflow itself changes.
+3. In the SDK checkout, import the reviewed artifact and verify its pin:
 
-## Local validation (run before every commit)
+   ```bash
+   bun run contract:import -- --artifact /tmp/brew-contracts/<digest> --digest <digest>
+   bun run contract:check
+   ```
+
+   The importer validates the source artifact, updates the vendored spec and pin,
+   and regenerates SDK types. Review and commit these changes together. The local
+   integrity check verifies the pin; it does not compare against a live server.
+
+4. Write the SDK regression test first, confirm it fails, then implement the
+   method under `src/resources/`. Wire it into the resource factory and export
+   public types from `src/index.ts`.
+5. Document behavior in `docs/<resource>.md`. Update this file when the release
+   workflow changes.
+
+## Local validation
 
 ```bash
-bun install --frozen-lockfile  # only if package.json or bun.lock changed
+bun install --frozen-lockfile  # only if dependencies changed
+bun run contract:check         # verifies the pinned source artifact
 bun tsc                        # typecheck (strict, exactOptionalPropertyTypes)
 bun lint                       # eslint flat config + typescript-eslint
-bun run format                 # prettier write (or `format:check` to verify)
-bun run test                   # vitest + MSW. NEVER `bun test` (bypasses MSW)
+bun run format:check           # read-only formatting check
+bun run test                   # both source/MSW and packaging projects
 bun run build                  # tsup -> dist/ esm + cjs + .d.ts + .d.cts
 ```
 
-CI (`.github/workflows/ci.yml`) runs the same checks plus a
+Use `bun run test:unit` or an exact `bun run test -- tests/<file>.test.ts`
+while iterating; source tests skip distribution setup. `bun run test:packaging`
+runs fresh-build package checks. Run checks appropriate to the change locally;
+CI owns the full gate set.
+
+CI (`.github/workflows/ci.yml`) checks contract integrity plus a
 `git diff --exit-code src/generated/openapi-types.ts` guard, so any drift
 between `openapi/public-api-v1.yaml` and the generated types fails the
 build.
@@ -81,7 +89,7 @@ The workflow then:
 
 1. Asserts `package.json#version` matches the tag (no silent drift).
 2. Runs the full validation pipeline (tsc + lint + format:check + test +
-   build + generated-types freshness).
+   build + contract integrity + generated-types freshness).
 3. `npm publish --provenance --access public` so the npmjs.com listing
    shows the verified provenance badge linking back to the workflow run.
 4. Creates a GitHub Release page with auto-generated notes from the
@@ -168,8 +176,8 @@ accident), rotate immediately:
   `bun run test`.
 - **`bun publish` skips `prepublishOnly`.** Use `npm publish` so the
   validation pipeline runs.
-- **OpenAPI YAML lives in three places.** Never hand-edit any of them.
-  `pnpm openapi:generate` rewrites all three from the Zod source.
+- **OpenAPI is pinned to an artifact.** Import the reviewed digest through
+  `contract:import`; never hand-edit the spec or its generated types.
 - **`SDK_VERSION` is auto-injected.** Bumping `package.json#version` is
   the only edit. The `0.0.0-dev` you see in source is the dev fallback
   — it's replaced at build time.
@@ -185,4 +193,4 @@ accident), rotate immediately:
 - npm package page: <https://www.npmjs.com/package/@brew.new/sdk>
 - GitHub repo: <https://github.com/GetBrew/typescript-sdk>
 - Public API docs (Mintlify): <https://docs.getbrew.io>
-- App package (where the OpenAPI source lives): `sub-agent-orchestrator/`
+- App package (where the OpenAPI source lives): `brew-v2/`

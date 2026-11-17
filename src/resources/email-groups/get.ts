@@ -1,5 +1,5 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 import type { EmailGroup } from './types'
 
@@ -25,12 +25,16 @@ export function createGetEmailGroup(client: HttpClient) {
   ): Promise<BrewRawResponse<GetEmailGroupResponse>>
   function getEmailGroup(
     groupId: string,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<GetEmailGroupResponse>
+  function getEmailGroup(
+    groupId: string,
+    options?: RequestOptions
+  ): Promise<BrewResponse<GetEmailGroupResponse>>
   async function getEmailGroup(
     groupId: string,
     options?: RequestOptions
-  ): Promise<GetEmailGroupResponse | BrewRawResponse<GetEmailGroupResponse>> {
+  ): Promise<BrewResponse<GetEmailGroupResponse>> {
     const response = await client.request<GetEmailGroupResponse>({
       method: 'GET',
       path: `/v1/email-groups/${encodeURIComponent(groupId)}`,

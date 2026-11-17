@@ -1,6 +1,10 @@
 import { unwrapResponse, type HttpClient } from '../../../core/http'
 import { serializeInclude } from '../../../core/url'
-import type { BrewRawResponse, RequestOptions } from '../../../types'
+import type {
+  BrewResponse,
+  BrewRawResponse,
+  RequestOptions,
+} from '../../../types'
 
 import type { Trigger } from './types'
 
@@ -12,13 +16,14 @@ export type TriggersIncludeToken = (typeof TRIGGERS_INCLUDE_TOKENS)[number]
  * Per-request options for `brew.automations.triggers.get(...)` — the
  * standard `RequestOptions` plus the detail-only `include` expansion.
  */
-export type GetTriggerOptions = RequestOptions & {
-  /**
-   * `'skill'` adds `skill`: a SKILL.md-shaped brief for wiring the fire
-   * endpoint. Accepts an array of tokens or a comma string.
-   */
-  readonly include?: ReadonlyArray<TriggersIncludeToken> | string
-}
+export type GetTriggerOptions<Raw extends boolean = boolean> =
+  RequestOptions<Raw> & {
+    /**
+     * `'skill'` adds `skill`: a SKILL.md-shaped brief for wiring the fire
+     * endpoint. Accepts an array of tokens or a comma string.
+     */
+    readonly include?: ReadonlyArray<TriggersIncludeToken> | string
+  }
 
 /** `GET /v1/automations/triggers/{triggerEventId}` returns the BARE row. */
 export type GetTriggerResponse = Trigger
@@ -42,12 +47,16 @@ export function createGetTrigger(client: HttpClient) {
   ): Promise<BrewRawResponse<GetTriggerResponse>>
   function getTrigger(
     triggerEventId: string,
-    options?: GetTriggerOptions
+    options?: GetTriggerOptions<false>
   ): Promise<GetTriggerResponse>
+  function getTrigger(
+    triggerEventId: string,
+    options?: GetTriggerOptions
+  ): Promise<BrewResponse<GetTriggerResponse>>
   async function getTrigger(
     triggerEventId: string,
     options?: GetTriggerOptions
-  ): Promise<GetTriggerResponse | BrewRawResponse<GetTriggerResponse>> {
+  ): Promise<BrewResponse<GetTriggerResponse>> {
     const include = serializeInclude({ include: options?.include })
     const response = await client.request<GetTriggerResponse>({
       method: 'GET',

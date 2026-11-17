@@ -1,6 +1,6 @@
 import type { components } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 export type DeleteAutomationInput = { automationId: string }
 
@@ -30,14 +30,16 @@ export function createDeleteAutomation(client: HttpClient) {
   ): Promise<BrewRawResponse<DeleteAutomationResponse>>
   function deleteAutomation(
     input: DeleteAutomationInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<DeleteAutomationResponse>
+  function deleteAutomation(
+    input: DeleteAutomationInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<DeleteAutomationResponse>>
   async function deleteAutomation(
     input: DeleteAutomationInput,
     options?: RequestOptions
-  ): Promise<
-    DeleteAutomationResponse | BrewRawResponse<DeleteAutomationResponse>
-  > {
+  ): Promise<BrewResponse<DeleteAutomationResponse>> {
     const response = await client.request<DeleteAutomationResponse>({
       method: 'DELETE',
       path: `/v1/automations/${encodeURIComponent(input.automationId)}`,

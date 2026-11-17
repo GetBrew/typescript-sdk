@@ -1,5 +1,5 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 import type { ContentTransformRequest, ContentTransformResponse } from './types'
 
@@ -31,14 +31,16 @@ export function createTransform(client: HttpClient) {
   ): Promise<BrewRawResponse<ContentTransformResponse>>
   function transform(
     input: ContentTransformRequest,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<ContentTransformResponse>
+  function transform(
+    input: ContentTransformRequest,
+    options?: RequestOptions
+  ): Promise<BrewResponse<ContentTransformResponse>>
   async function transform(
     input: ContentTransformRequest,
     options?: RequestOptions
-  ): Promise<
-    ContentTransformResponse | BrewRawResponse<ContentTransformResponse>
-  > {
+  ): Promise<BrewResponse<ContentTransformResponse>> {
     const response = await client.request<ContentTransformResponse>({
       method: 'POST',
       path: '/v1/content/transform',

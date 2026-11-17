@@ -1,6 +1,10 @@
 import type { PaginationInput } from '../../../core/pagination'
 import { unwrapResponse, type HttpClient } from '../../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../../types'
+import type {
+  BrewResponse,
+  BrewRawResponse,
+  RequestOptions,
+} from '../../../types'
 
 import type { TriggersListResponse } from './types'
 
@@ -27,12 +31,16 @@ export function createListTriggers(client: HttpClient) {
   ): Promise<BrewRawResponse<ListTriggersResponse>>
   function listTriggers(
     input?: ListTriggersInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<ListTriggersResponse>
+  function listTriggers(
+    input?: ListTriggersInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<ListTriggersResponse>>
   async function listTriggers(
     input: ListTriggersInput = {},
     options?: RequestOptions
-  ): Promise<ListTriggersResponse | BrewRawResponse<ListTriggersResponse>> {
+  ): Promise<BrewResponse<ListTriggersResponse>> {
     const response = await client.request<ListTriggersResponse>({
       method: 'GET',
       path: '/v1/automations/triggers',

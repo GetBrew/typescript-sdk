@@ -1,6 +1,6 @@
 import type { components } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 /**
  * Body of `POST /v1/emails/{emailId}/clone`, plus the `emailId` that goes on
@@ -44,12 +44,16 @@ export function createCloneEmail(client: HttpClient) {
   ): Promise<BrewRawResponse<CloneEmailResponse>>
   function cloneEmail(
     input: CloneEmailInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<CloneEmailResponse>
+  function cloneEmail(
+    input: CloneEmailInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<CloneEmailResponse>>
   async function cloneEmail(
     input: CloneEmailInput,
     options?: RequestOptions
-  ): Promise<CloneEmailResponse | BrewRawResponse<CloneEmailResponse>> {
+  ): Promise<BrewResponse<CloneEmailResponse>> {
     const { emailId, ...body } = input
     const response = await client.request<CloneEmailResponse>({
       method: 'POST',

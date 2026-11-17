@@ -1,6 +1,6 @@
 import type { components } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 /**
  * Body for `POST /v1/emails/import` — import an existing email as a new
@@ -58,12 +58,16 @@ export function createImportEmail(client: HttpClient) {
   ): Promise<BrewRawResponse<EmailImportResponse>>
   function importEmail(
     input: EmailImportInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<EmailImportResponse>
+  function importEmail(
+    input: EmailImportInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<EmailImportResponse>>
   async function importEmail(
     input: EmailImportInput,
     options?: RequestOptions
-  ): Promise<EmailImportResponse | BrewRawResponse<EmailImportResponse>> {
+  ): Promise<BrewResponse<EmailImportResponse>> {
     const response = await client.request<EmailImportResponse>({
       method: 'POST',
       path: '/v1/emails/import',

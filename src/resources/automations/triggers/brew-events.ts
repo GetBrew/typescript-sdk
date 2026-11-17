@@ -1,6 +1,10 @@
 import { unwrapResponse, type HttpClient } from '../../../core/http'
 import type { components } from '../../../generated/openapi-types'
-import type { BrewRawResponse, RequestOptions } from '../../../types'
+import type {
+  BrewResponse,
+  BrewRawResponse,
+  RequestOptions,
+} from '../../../types'
 
 /**
  * Which Brew event starts the trigger, and for which occurrences.
@@ -37,15 +41,16 @@ export function createEnsureBrewEventTrigger(client: HttpClient) {
   ): Promise<BrewRawResponse<EnsureBrewEventTriggerResponse>>
   function ensureBrewEvent(
     input: EnsureBrewEventTriggerInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<EnsureBrewEventTriggerResponse>
+  function ensureBrewEvent(
+    input: EnsureBrewEventTriggerInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<EnsureBrewEventTriggerResponse>>
   async function ensureBrewEvent(
     input: EnsureBrewEventTriggerInput,
     options?: RequestOptions
-  ): Promise<
-    | EnsureBrewEventTriggerResponse
-    | BrewRawResponse<EnsureBrewEventTriggerResponse>
-  > {
+  ): Promise<BrewResponse<EnsureBrewEventTriggerResponse>> {
     const response = await client.request<EnsureBrewEventTriggerResponse>({
       method: 'POST',
       path: '/v1/automations/triggers/brew-events',

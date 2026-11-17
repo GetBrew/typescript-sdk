@@ -1,6 +1,6 @@
 import type { components } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 /**
  * Caller-facing input for a batch email validation. Matches the spec's
@@ -62,14 +62,16 @@ export function createValidateContacts(client: HttpClient) {
   ): Promise<BrewRawResponse<ValidateContactsResponse>>
   function validate(
     input: ValidateContactsInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<ValidateContactsResponse>
+  function validate(
+    input: ValidateContactsInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<ValidateContactsResponse>>
   async function validate(
     input: ValidateContactsInput,
     options?: RequestOptions
-  ): Promise<
-    ValidateContactsResponse | BrewRawResponse<ValidateContactsResponse>
-  > {
+  ): Promise<BrewResponse<ValidateContactsResponse>> {
     const response = await client.request<ValidateContactsResponse>({
       method: 'POST',
       path: '/v1/contacts/validate',

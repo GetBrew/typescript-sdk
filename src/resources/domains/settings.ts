@@ -1,6 +1,6 @@
 import type { components } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 import type { Domain } from './types'
 
@@ -34,14 +34,16 @@ export function createUpdateDomainSettings(client: HttpClient) {
   ): Promise<BrewRawResponse<UpdateDomainSettingsResponse>>
   function updateDomainSettings(
     input: UpdateDomainSettingsInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<UpdateDomainSettingsResponse>
+  function updateDomainSettings(
+    input: UpdateDomainSettingsInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<UpdateDomainSettingsResponse>>
   async function updateDomainSettings(
     input: UpdateDomainSettingsInput,
     options?: RequestOptions
-  ): Promise<
-    UpdateDomainSettingsResponse | BrewRawResponse<UpdateDomainSettingsResponse>
-  > {
+  ): Promise<BrewResponse<UpdateDomainSettingsResponse>> {
     const { domainId, ...body } = input
     const response = await client.request<UpdateDomainSettingsResponse>({
       method: 'PATCH',

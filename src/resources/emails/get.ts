@@ -1,7 +1,7 @@
 import type { components } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import { serializeInclude } from '../../core/url'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 /** Expansions `GET /v1/emails/{emailId}` accepts. */
 export const EMAILS_INCLUDE_TOKENS = [
@@ -16,31 +16,32 @@ export type EmailsIncludeToken = (typeof EMAILS_INCLUDE_TOKENS)[number]
  * Per-request options for `brew.emails.get(...)` — the standard
  * `RequestOptions` plus the detail-only `include` expansions.
  */
-export type GetEmailOptions = RequestOptions & {
-  /**
-   * `'html'` inlines the rendered HTML of the current version;
-   * `'versions'` inlines the `{ version, emailVersionId }` history;
-   * `'text'` inlines the visible body text a reader sees (merge tags
-   * kept, `textTruncated` past 20,000 characters); `'links'` inlines each
-   * link destination once with its visible text and `count`
-   * (`linksTruncated` past 200).
-   * Accepts a token, an array of tokens, or a comma string.
-   */
-  readonly include?: ReadonlyArray<EmailsIncludeToken> | string
-  /**
-   * Read this saved version instead of the current head (an
-   * `emailVersionId` from `include: 'versions'`). Mutually exclusive with
-   * `runId`.
-   */
-  readonly emailVersionId?: string
-  /**
-   * Read the version one generation run produced, using a `runId` from
-   * an asynchronous surface such as MCP. SDK generate/edit wait for the final
-   * result. A failed run answers `status: 'failed'` with `errorMessage`. Mutually
-   * exclusive with `emailVersionId`.
-   */
-  readonly runId?: string
-}
+export type GetEmailOptions<Raw extends boolean = boolean> =
+  RequestOptions<Raw> & {
+    /**
+     * `'html'` inlines the rendered HTML of the current version;
+     * `'versions'` inlines the `{ version, emailVersionId }` history;
+     * `'text'` inlines the visible body text a reader sees (merge tags
+     * kept, `textTruncated` past 20,000 characters); `'links'` inlines each
+     * link destination once with its visible text and `count`
+     * (`linksTruncated` past 200).
+     * Accepts a token, an array of tokens, or a comma string.
+     */
+    readonly include?: ReadonlyArray<EmailsIncludeToken> | string
+    /**
+     * Read this saved version instead of the current head (an
+     * `emailVersionId` from `include: 'versions'`). Mutually exclusive with
+     * `runId`.
+     */
+    readonly emailVersionId?: string
+    /**
+     * Read the version one generation run produced, using a `runId` from
+     * an asynchronous surface such as MCP. SDK generate/edit wait for the final
+     * result. A failed run answers `status: 'failed'` with `errorMessage`. Mutually
+     * exclusive with `emailVersionId`.
+     */
+    readonly runId?: string
+  }
 
 /**
  * `GET /v1/emails/{emailId}` returns the BARE design row plus what the read
@@ -73,12 +74,16 @@ export function createGetEmail(client: HttpClient) {
   ): Promise<BrewRawResponse<GetEmailResponse>>
   function getEmail(
     emailId: string,
-    options?: GetEmailOptions
+    options?: GetEmailOptions<false>
   ): Promise<GetEmailResponse>
+  function getEmail(
+    emailId: string,
+    options?: GetEmailOptions
+  ): Promise<BrewResponse<GetEmailResponse>>
   async function getEmail(
     emailId: string,
     options?: GetEmailOptions
-  ): Promise<GetEmailResponse | BrewRawResponse<GetEmailResponse>> {
+  ): Promise<BrewResponse<GetEmailResponse>> {
     const include = serializeInclude({ include: options?.include })
     const query = {
       ...(include !== undefined ? { include } : {}),

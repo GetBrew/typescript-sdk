@@ -1,6 +1,6 @@
 import { type HttpClient, unwrapResponse } from '../../core/http'
 import type { components } from '../../generated/openapi-types'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 export type InferPayloadContractInput = {
   /** A real example payload — the JSON your system sends. */
@@ -32,14 +32,16 @@ export function createInferPayloadContract(client: HttpClient) {
   ): Promise<BrewRawResponse<PayloadContractInferResponse>>
   function infer(
     input: InferPayloadContractInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<PayloadContractInferResponse>
+  function infer(
+    input: InferPayloadContractInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<PayloadContractInferResponse>>
   async function infer(
     input: InferPayloadContractInput,
     options?: RequestOptions
-  ): Promise<
-    PayloadContractInferResponse | BrewRawResponse<PayloadContractInferResponse>
-  > {
+  ): Promise<BrewResponse<PayloadContractInferResponse>> {
     const response = await client.request<PayloadContractInferResponse>({
       method: 'POST',
       path: '/v1/payload-contracts/infer',

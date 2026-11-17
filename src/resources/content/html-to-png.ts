@@ -1,5 +1,5 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 import type { ContentHtmlToPngRequest, ContentPngResponse } from './types'
 
@@ -25,12 +25,16 @@ export function createHtmlToPng(client: HttpClient) {
   ): Promise<BrewRawResponse<ContentPngResponse>>
   function htmlToPng(
     input: ContentHtmlToPngRequest,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<ContentPngResponse>
+  function htmlToPng(
+    input: ContentHtmlToPngRequest,
+    options?: RequestOptions
+  ): Promise<BrewResponse<ContentPngResponse>>
   async function htmlToPng(
     input: ContentHtmlToPngRequest,
     options?: RequestOptions
-  ): Promise<ContentPngResponse | BrewRawResponse<ContentPngResponse>> {
+  ): Promise<BrewResponse<ContentPngResponse>> {
     const response = await client.request<ContentPngResponse>({
       method: 'POST',
       path: '/v1/content/html-to-png',

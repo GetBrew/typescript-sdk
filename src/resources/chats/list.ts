@@ -1,6 +1,6 @@
 import { autoPaginate, pageReadOptions } from '../../core/pagination'
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 import type { ChatsListResponse, ChatSummary, ListChatsInput } from './types'
 
@@ -31,12 +31,16 @@ export function createListChats(client: HttpClient) {
   ): Promise<BrewRawResponse<ChatsListResponse>>
   function listChats(
     input?: ListChatsInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<ChatsListResponse>
+  function listChats(
+    input?: ListChatsInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<ChatsListResponse>>
   async function listChats(
     input: ListChatsInput = {},
     options?: RequestOptions
-  ): Promise<ChatsListResponse | BrewRawResponse<ChatsListResponse>> {
+  ): Promise<BrewResponse<ChatsListResponse>> {
     const response = await client.request<ChatsListResponse>({
       method: 'GET',
       path: '/v1/chats',

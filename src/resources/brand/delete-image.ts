@@ -1,5 +1,5 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 import type { BrandImageDeleteResponse } from './types'
 
@@ -31,14 +31,16 @@ export function createDeleteBrandImage(client: HttpClient) {
   ): Promise<BrewRawResponse<BrandImageDeleteResponse>>
   function deleteImage(
     assetId: string,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<BrandImageDeleteResponse>
+  function deleteImage(
+    assetId: string,
+    options?: RequestOptions
+  ): Promise<BrewResponse<BrandImageDeleteResponse>>
   async function deleteImage(
     assetId: string,
     options?: RequestOptions
-  ): Promise<
-    BrandImageDeleteResponse | BrewRawResponse<BrandImageDeleteResponse>
-  > {
+  ): Promise<BrewResponse<BrandImageDeleteResponse>> {
     const response = await client.request<BrandImageDeleteResponse>({
       method: 'DELETE',
       path: `/v1/brand/images/${encodeURIComponent(assetId)}`,

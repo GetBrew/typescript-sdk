@@ -1,6 +1,6 @@
 import { autoPaginate, pageReadOptions } from '../../core/pagination'
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 import type {
   ListNotificationsInput,
@@ -48,14 +48,16 @@ export function createListNotifications(client: HttpClient) {
   ): Promise<BrewRawResponse<NotificationsListResponse>>
   function listNotifications(
     input?: ListNotificationsInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<NotificationsListResponse>
+  function listNotifications(
+    input?: ListNotificationsInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<NotificationsListResponse>>
   async function listNotifications(
     input: ListNotificationsInput = {},
     options?: RequestOptions
-  ): Promise<
-    NotificationsListResponse | BrewRawResponse<NotificationsListResponse>
-  > {
+  ): Promise<BrewResponse<NotificationsListResponse>> {
     const response = await client.request<NotificationsListResponse>({
       method: 'GET',
       path: '/v1/notifications',

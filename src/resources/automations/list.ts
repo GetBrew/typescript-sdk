@@ -1,6 +1,6 @@
 import type { operations } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 import type { AutomationsListResponse } from './types'
 
@@ -33,14 +33,16 @@ export function createListAutomations(client: HttpClient) {
   ): Promise<BrewRawResponse<ListAutomationsResponse>>
   function listAutomations(
     input?: ListAutomationsInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<ListAutomationsResponse>
+  function listAutomations(
+    input?: ListAutomationsInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<ListAutomationsResponse>>
   async function listAutomations(
     input: ListAutomationsInput = {},
     options?: RequestOptions
-  ): Promise<
-    ListAutomationsResponse | BrewRawResponse<ListAutomationsResponse>
-  > {
+  ): Promise<BrewResponse<ListAutomationsResponse>> {
     const response = await client.request<ListAutomationsResponse>({
       method: 'GET',
       path: '/v1/automations',

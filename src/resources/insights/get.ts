@@ -1,5 +1,5 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 import type { Insight } from './types'
 
@@ -33,12 +33,16 @@ export function createGetInsight(client: HttpClient) {
   ): Promise<BrewRawResponse<GetInsightResponse>>
   function getInsight(
     insightId: string,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<GetInsightResponse>
+  function getInsight(
+    insightId: string,
+    options?: RequestOptions
+  ): Promise<BrewResponse<GetInsightResponse>>
   async function getInsight(
     insightId: string,
     options?: RequestOptions
-  ): Promise<GetInsightResponse | BrewRawResponse<GetInsightResponse>> {
+  ): Promise<BrewResponse<GetInsightResponse>> {
     const response = await client.request<GetInsightResponse>({
       method: 'GET',
       path: `/v1/insights/${encodeURIComponent(insightId)}`,

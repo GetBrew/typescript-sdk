@@ -1,5 +1,9 @@
 import { unwrapResponse, type HttpClient } from '../../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../../types'
+import type {
+  BrewResponse,
+  BrewRawResponse,
+  RequestOptions,
+} from '../../../types'
 
 import type { TriggerInstance } from './types'
 
@@ -27,14 +31,16 @@ export function createGetTriggerInstance(client: HttpClient) {
   ): Promise<BrewRawResponse<GetTriggerInstanceResponse>>
   function getTriggerInstance(
     triggerInstanceId: string,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<GetTriggerInstanceResponse>
+  function getTriggerInstance(
+    triggerInstanceId: string,
+    options?: RequestOptions
+  ): Promise<BrewResponse<GetTriggerInstanceResponse>>
   async function getTriggerInstance(
     triggerInstanceId: string,
     options?: RequestOptions
-  ): Promise<
-    GetTriggerInstanceResponse | BrewRawResponse<GetTriggerInstanceResponse>
-  > {
+  ): Promise<BrewResponse<GetTriggerInstanceResponse>> {
     const response = await client.request<GetTriggerInstanceResponse>({
       method: 'GET',
       path: `/v1/automations/trigger-instances/${encodeURIComponent(triggerInstanceId)}`,

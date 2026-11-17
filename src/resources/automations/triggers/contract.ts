@@ -1,6 +1,10 @@
 import { type HttpClient, unwrapResponse } from '../../../core/http'
 import type { components } from '../../../generated/openapi-types'
-import type { BrewRawResponse, RequestOptions } from '../../../types'
+import type {
+  BrewResponse,
+  BrewRawResponse,
+  RequestOptions,
+} from '../../../types'
 
 /**
  * Stored payload contracts for the trigger plane (Wave 2). `getContract`
@@ -59,14 +63,16 @@ export function createGetTriggerContract(client: HttpClient) {
   ): Promise<BrewRawResponse<PayloadContractGetResponse>>
   function getContract(
     input: GetTriggerContractInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<PayloadContractGetResponse>
+  function getContract(
+    input: GetTriggerContractInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<PayloadContractGetResponse>>
   async function getContract(
     input: GetTriggerContractInput,
     options?: RequestOptions
-  ): Promise<
-    PayloadContractGetResponse | BrewRawResponse<PayloadContractGetResponse>
-  > {
+  ): Promise<BrewResponse<PayloadContractGetResponse>> {
     const response = await client.request<PayloadContractGetResponse>({
       method: 'GET',
       path: `/v1/automations/triggers/${encodeURIComponent(input.triggerEventId)}/contract`,
@@ -92,14 +98,16 @@ export function createPutTriggerContract(client: HttpClient) {
   ): Promise<BrewRawResponse<PayloadContractPutResponse>>
   function putContract(
     input: PutTriggerContractInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<PayloadContractPutResponse>
+  function putContract(
+    input: PutTriggerContractInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<PayloadContractPutResponse>>
   async function putContract(
     input: PutTriggerContractInput,
     options?: RequestOptions
-  ): Promise<
-    PayloadContractPutResponse | BrewRawResponse<PayloadContractPutResponse>
-  > {
+  ): Promise<BrewResponse<PayloadContractPutResponse>> {
     const { triggerEventId, ...body } = input
     const response = await client.request<PayloadContractPutResponse>({
       method: 'PUT',
@@ -126,15 +134,16 @@ export function createValidateTriggerPayload(client: HttpClient) {
   ): Promise<BrewRawResponse<PayloadContractValidateResponse>>
   function validatePayload(
     input: ValidateTriggerPayloadInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<PayloadContractValidateResponse>
+  function validatePayload(
+    input: ValidateTriggerPayloadInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<PayloadContractValidateResponse>>
   async function validatePayload(
     input: ValidateTriggerPayloadInput,
     options?: RequestOptions
-  ): Promise<
-    | PayloadContractValidateResponse
-    | BrewRawResponse<PayloadContractValidateResponse>
-  > {
+  ): Promise<BrewResponse<PayloadContractValidateResponse>> {
     const { triggerEventId, ...body } = input
     const response = await client.request<PayloadContractValidateResponse>({
       method: 'POST',

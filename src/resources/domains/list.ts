@@ -1,6 +1,6 @@
 import type { components, operations } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 export type ListDomainsResponse = components['schemas']['DomainsListResponse']
 
@@ -43,12 +43,16 @@ export function createListDomains(client: HttpClient) {
   ): Promise<BrewRawResponse<ListDomainsResponse>>
   function listDomains(
     input?: ListDomainsInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<ListDomainsResponse>
+  function listDomains(
+    input?: ListDomainsInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<ListDomainsResponse>>
   async function listDomains(
     input: ListDomainsInput = {},
     options?: RequestOptions
-  ): Promise<ListDomainsResponse | BrewRawResponse<ListDomainsResponse>> {
+  ): Promise<BrewResponse<ListDomainsResponse>> {
     const response = await client.request<ListDomainsResponse>({
       method: 'GET',
       path: '/v1/domains',

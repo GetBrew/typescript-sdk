@@ -1,6 +1,6 @@
 import type { components, operations } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 /**
  * Query params accepted by `brew.emails.list(...)`. Sourced from the
@@ -44,12 +44,16 @@ export function createListEmails(client: HttpClient) {
   ): Promise<BrewRawResponse<ListEmailsResponse>>
   function listEmails(
     input?: ListEmailsInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<ListEmailsResponse>
+  function listEmails(
+    input?: ListEmailsInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<ListEmailsResponse>>
   async function listEmails(
     input: ListEmailsInput = {},
     options?: RequestOptions
-  ): Promise<ListEmailsResponse | BrewRawResponse<ListEmailsResponse>> {
+  ): Promise<BrewResponse<ListEmailsResponse>> {
     const response = await client.request<ListEmailsResponse>({
       method: 'GET',
       path: '/v1/emails',

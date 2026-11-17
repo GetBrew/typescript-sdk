@@ -1,5 +1,5 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 import type { HealthResponse } from './types'
 
@@ -19,10 +19,15 @@ export function createGetHealth(client: HttpClient) {
   function getHealth(
     options: RequestOptions & { readonly raw: true }
   ): Promise<BrewRawResponse<GetHealthResponse>>
-  function getHealth(options?: RequestOptions): Promise<GetHealthResponse>
+  function getHealth(
+    options?: RequestOptions<false>
+  ): Promise<GetHealthResponse>
+  function getHealth(
+    options?: RequestOptions
+  ): Promise<BrewResponse<GetHealthResponse>>
   async function getHealth(
     options?: RequestOptions
-  ): Promise<GetHealthResponse | BrewRawResponse<GetHealthResponse>> {
+  ): Promise<BrewResponse<GetHealthResponse>> {
     const response = await client.request<GetHealthResponse>({
       method: 'GET',
       path: '/v1/health',

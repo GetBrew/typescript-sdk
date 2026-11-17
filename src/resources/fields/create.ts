@@ -1,6 +1,6 @@
 import type { components } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 import type { CreateFieldResponse } from './types'
 
@@ -42,12 +42,16 @@ export function createCreateField(client: HttpClient) {
   ): Promise<BrewRawResponse<CreateFieldResponse>>
   function create(
     input: CreateFieldInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<CreateFieldResponse>
+  function create(
+    input: CreateFieldInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<CreateFieldResponse>>
   async function create(
     input: CreateFieldInput,
     options?: RequestOptions
-  ): Promise<CreateFieldResponse | BrewRawResponse<CreateFieldResponse>> {
+  ): Promise<BrewResponse<CreateFieldResponse>> {
     const response = await client.request<CreateFieldResponse>({
       method: 'POST',
       path: '/v1/fields',

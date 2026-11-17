@@ -1,5 +1,5 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 import type {
   ContentAddImageBatchResponse,
@@ -81,16 +81,24 @@ export function createAddImage(client: HttpClient) {
   ): Promise<BrewRawResponse<ContentAddImageBatchResponse>>
   function addImage(
     input: AddImageBatchInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<ContentAddImageBatchResponse>
+  function addImage(
+    input: AddImageBatchInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<ContentAddImageBatchResponse>>
   function addImage(
     input: AddOneImageInput,
     options: RequestOptions & { readonly raw: true }
   ): Promise<BrewRawResponse<ContentAddImageResponse>>
   function addImage(
     input: AddOneImageInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<ContentAddImageResponse>
+  function addImage(
+    input: AddOneImageInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<ContentAddImageResponse>>
   // An input only known at runtime gets the union.
   function addImage(
     input: ContentAddImageRequest,
@@ -98,12 +106,16 @@ export function createAddImage(client: HttpClient) {
   ): Promise<BrewRawResponse<AddImageAnswer>>
   function addImage(
     input: ContentAddImageRequest,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<AddImageAnswer>
+  function addImage(
+    input: ContentAddImageRequest,
+    options?: RequestOptions
+  ): Promise<BrewResponse<AddImageAnswer>>
   async function addImage(
     input: ContentAddImageRequest,
     options?: RequestOptions
-  ): Promise<AddImageAnswer | BrewRawResponse<AddImageAnswer>> {
+  ): Promise<BrewResponse<AddImageAnswer>> {
     const response = await client.request<AddImageAnswer>({
       method: 'POST',
       path: '/v1/content/add-image',

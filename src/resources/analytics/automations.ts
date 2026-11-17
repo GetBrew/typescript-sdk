@@ -1,5 +1,5 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 import type { AutomationAnalyticsResponse } from './types'
 
@@ -37,19 +37,21 @@ function buildQuery(
  */
 export function createAutomationAnalytics(client: HttpClient) {
   function automationAnalytics(
-    input: AutomationAnalyticsInput,
+    input: AutomationAnalyticsInput | undefined,
     options: RequestOptions & { readonly raw: true }
   ): Promise<BrewRawResponse<AutomationAnalyticsResponse>>
   function automationAnalytics(
     input?: AutomationAnalyticsInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<AutomationAnalyticsResponse>
+  function automationAnalytics(
+    input?: AutomationAnalyticsInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<AutomationAnalyticsResponse>>
   async function automationAnalytics(
     input?: AutomationAnalyticsInput,
     options?: RequestOptions
-  ): Promise<
-    AutomationAnalyticsResponse | BrewRawResponse<AutomationAnalyticsResponse>
-  > {
+  ): Promise<BrewResponse<AutomationAnalyticsResponse>> {
     const query = buildQuery(input)
     const response = await client.request<AutomationAnalyticsResponse>({
       method: 'GET',

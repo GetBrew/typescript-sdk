@@ -1,5 +1,9 @@
 import { unwrapResponse, type HttpClient } from '../../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../../types'
+import type {
+  BrewResponse,
+  BrewRawResponse,
+  RequestOptions,
+} from '../../../types'
 
 import type { AutomationRunCancelResponse } from './types'
 
@@ -8,10 +12,11 @@ import type { AutomationRunCancelResponse } from './types'
  * standard `RequestOptions` plus the optional operator note recorded on
  * the run.
  */
-export type CancelAutomationRunOptions = RequestOptions & {
-  /** Free-text note recorded with the cancellation. */
-  readonly reason?: string
-}
+export type CancelAutomationRunOptions<Raw extends boolean = boolean> =
+  RequestOptions<Raw> & {
+    /** Free-text note recorded with the cancellation. */
+    readonly reason?: string
+  }
 
 export type CancelAutomationRunResponse = AutomationRunCancelResponse
 
@@ -43,14 +48,16 @@ export function createCancelAutomationRun(client: HttpClient) {
   ): Promise<BrewRawResponse<CancelAutomationRunResponse>>
   function cancelAutomationRun(
     automationRunId: string,
-    options?: CancelAutomationRunOptions
+    options?: CancelAutomationRunOptions<false>
   ): Promise<CancelAutomationRunResponse>
+  function cancelAutomationRun(
+    automationRunId: string,
+    options?: CancelAutomationRunOptions
+  ): Promise<BrewResponse<CancelAutomationRunResponse>>
   async function cancelAutomationRun(
     automationRunId: string,
     options?: CancelAutomationRunOptions
-  ): Promise<
-    CancelAutomationRunResponse | BrewRawResponse<CancelAutomationRunResponse>
-  > {
+  ): Promise<BrewResponse<CancelAutomationRunResponse>> {
     const response = await client.request<CancelAutomationRunResponse>({
       method: 'POST',
       path: `/v1/automations/runs/${encodeURIComponent(automationRunId)}/cancel`,

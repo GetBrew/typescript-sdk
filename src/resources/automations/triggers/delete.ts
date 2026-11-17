@@ -1,6 +1,10 @@
 import type { components } from '../../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../../types'
+import type {
+  BrewResponse,
+  BrewRawResponse,
+  RequestOptions,
+} from '../../../types'
 
 export type DeleteTriggerInput = { triggerEventId: string }
 
@@ -21,12 +25,16 @@ export function createDeleteTrigger(client: HttpClient) {
   ): Promise<BrewRawResponse<DeleteTriggerResponse>>
   function deleteTrigger(
     input: DeleteTriggerInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<DeleteTriggerResponse>
+  function deleteTrigger(
+    input: DeleteTriggerInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<DeleteTriggerResponse>>
   async function deleteTrigger(
     input: DeleteTriggerInput,
     options?: RequestOptions
-  ): Promise<DeleteTriggerResponse | BrewRawResponse<DeleteTriggerResponse>> {
+  ): Promise<BrewResponse<DeleteTriggerResponse>> {
     const response = await client.request<DeleteTriggerResponse>({
       method: 'DELETE',
       path: `/v1/automations/triggers/${encodeURIComponent(input.triggerEventId)}`,

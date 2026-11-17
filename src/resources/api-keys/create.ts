@@ -1,5 +1,5 @@
 import { type HttpClient, unwrapResponse } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 import type { CreateApiKeyInput, CreateApiKeyResponse } from './types'
 
@@ -33,12 +33,16 @@ export function createCreateApiKey(client: HttpClient) {
   ): Promise<BrewRawResponse<CreateApiKeyResponse>>
   function createApiKey(
     input: CreateApiKeyInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<CreateApiKeyResponse>
+  function createApiKey(
+    input: CreateApiKeyInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<CreateApiKeyResponse>>
   async function createApiKey(
     input: CreateApiKeyInput,
     options?: RequestOptions
-  ): Promise<CreateApiKeyResponse | BrewRawResponse<CreateApiKeyResponse>> {
+  ): Promise<BrewResponse<CreateApiKeyResponse>> {
     const response = await client.request<CreateApiKeyResponse>({
       method: 'POST',
       path: '/v1/api-keys',

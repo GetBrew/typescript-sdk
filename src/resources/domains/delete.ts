@@ -1,6 +1,6 @@
 import type { components } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 export type DeleteDomainInput = {
   domainId: string
@@ -20,12 +20,16 @@ export function createDeleteDomain(client: HttpClient) {
   ): Promise<BrewRawResponse<DeleteDomainResponse>>
   function deleteDomain(
     input: DeleteDomainInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<DeleteDomainResponse>
+  function deleteDomain(
+    input: DeleteDomainInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<DeleteDomainResponse>>
   async function deleteDomain(
     input: DeleteDomainInput,
     options?: RequestOptions
-  ): Promise<DeleteDomainResponse | BrewRawResponse<DeleteDomainResponse>> {
+  ): Promise<BrewResponse<DeleteDomainResponse>> {
     const response = await client.request<DeleteDomainResponse>({
       method: 'DELETE',
       path: `/v1/domains/${encodeURIComponent(input.domainId)}`,

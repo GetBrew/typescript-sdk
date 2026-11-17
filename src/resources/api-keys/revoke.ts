@@ -1,5 +1,5 @@
 import { type HttpClient, unwrapResponse } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 import type { RevokeApiKeyInput, RevokeApiKeyResponse } from './types'
 
@@ -28,12 +28,16 @@ export function createRevokeApiKey(client: HttpClient) {
   ): Promise<BrewRawResponse<RevokeApiKeyResponse>>
   function revokeApiKey(
     input: RevokeApiKeyInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<RevokeApiKeyResponse>
+  function revokeApiKey(
+    input: RevokeApiKeyInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<RevokeApiKeyResponse>>
   async function revokeApiKey(
     input: RevokeApiKeyInput,
     options?: RequestOptions
-  ): Promise<RevokeApiKeyResponse | BrewRawResponse<RevokeApiKeyResponse>> {
+  ): Promise<BrewResponse<RevokeApiKeyResponse>> {
     const response = await client.request<RevokeApiKeyResponse>({
       method: 'DELETE',
       path: `/v1/api-keys/${encodeURIComponent(input.keyId)}`,

@@ -752,9 +752,8 @@ function normalizeToError(value: unknown): Error {
  * payload (the default) or the full `BrewRawResponse<T>` envelope
  * (when the caller passes `{ raw: true }` in `RequestOptions`).
  *
- * The actual return-type narrowing is done at call sites with an
- * overload pair — this helper just centralizes the runtime branch so
- * resource methods do not all reinvent it.
+ * Public overloads distinguish required raw: true, raw?: false, and reusable
+ * options returning BrewResponse<T>. This helper owns the runtime branch.
  */
 export function unwrapResponse<T>(
   response: BrewRawResponse<T>,

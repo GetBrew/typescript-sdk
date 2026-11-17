@@ -1,6 +1,10 @@
 import { autoPaginate, pageReadOptions } from '../../../core/pagination'
 import { unwrapResponse, type HttpClient } from '../../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../../types'
+import type {
+  BrewResponse,
+  BrewRawResponse,
+  RequestOptions,
+} from '../../../types'
 
 import type {
   ListTriggerInstancesInput,
@@ -37,14 +41,16 @@ export function createListTriggerInstances(client: HttpClient) {
   ): Promise<BrewRawResponse<TriggerInstancesListResponse>>
   function listTriggerInstances(
     input?: ListTriggerInstancesInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<TriggerInstancesListResponse>
+  function listTriggerInstances(
+    input?: ListTriggerInstancesInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<TriggerInstancesListResponse>>
   async function listTriggerInstances(
     input: ListTriggerInstancesInput = {},
     options?: RequestOptions
-  ): Promise<
-    TriggerInstancesListResponse | BrewRawResponse<TriggerInstancesListResponse>
-  > {
+  ): Promise<BrewResponse<TriggerInstancesListResponse>> {
     const response = await client.request<TriggerInstancesListResponse>({
       method: 'GET',
       path: '/v1/automations/trigger-instances',

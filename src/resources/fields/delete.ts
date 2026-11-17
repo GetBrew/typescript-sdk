@@ -1,5 +1,5 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 import type { FieldsDeleteResponse } from './types'
 
@@ -30,12 +30,16 @@ export function createDeleteField(client: HttpClient) {
   ): Promise<BrewRawResponse<FieldsDeleteResponse>>
   function deleteField(
     input: DeleteFieldInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<FieldsDeleteResponse>
+  function deleteField(
+    input: DeleteFieldInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<FieldsDeleteResponse>>
   async function deleteField(
     input: DeleteFieldInput,
     options?: RequestOptions
-  ): Promise<FieldsDeleteResponse | BrewRawResponse<FieldsDeleteResponse>> {
+  ): Promise<BrewResponse<FieldsDeleteResponse>> {
     const response = await client.request<FieldsDeleteResponse>({
       method: 'DELETE',
       path: `/v1/fields/${encodeURIComponent(input.fieldName)}`,
