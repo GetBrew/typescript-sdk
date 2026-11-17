@@ -1,4 +1,5 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
+import type { components } from '../../generated/openapi-types'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
 import type { AutomationConnectionInput, AutomationNodeInput } from './create'
@@ -11,7 +12,7 @@ import type { Automation, AutomationDryRunReport } from './types'
  *
  * There are two kinds of update, and they are **mutually exclusive**:
  *
- * 1. **Content** — at least one of `name | description | nodes |
+ * 1. **Content** — at least one of `name | description | goal | nodes |
  *    connections | triggerEventId`. Graph updates persist a new
  *    `automationVersionId` on the same `automationId`. A graph the save
  *    refuses is `400 AUTOMATION_GRAPH_INVALID`; `details.issues[]` lists
@@ -34,6 +35,11 @@ export type PatchAutomationInput = {
   // content update fields (mutually exclusive with `published`)
   name?: string
   description?: string
+  /** Omit to retain the goal; null explicitly clears it from the new draft. */
+  goal?: Exclude<
+    components['schemas']['AutomationsUpdateRequest']['goal'],
+    undefined
+  >
   nodes?: ReadonlyArray<AutomationNodeInput>
   /**
    * The full edge list; it replaces the stored one. Omit to keep the stored

@@ -23,6 +23,11 @@ with `value: 10` excludes tier 10. Unknown fields retain string comparisons;
 explicit types remain supported. Date range operands require `type: 'date'`
 for request validation.
 
+`inactive_for_days` uses `type: 'date'` and numeric `value: 30`: known
+activity at least thirty elapsed days before evaluation. A missing activity
+date does not match. This is a relative filter, so it does not need a saved
+calendar cutoff rewritten every day.
+
 List operators (`in`, `not_in`, `contains_any`, `not_contains_any`) take an
 array. `create` and `update` refuse a comma-joined string such as
 `value: 'pro,enterprise'` with a `400` (`param: "filters.filters.N.value"`);

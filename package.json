@@ -81,7 +81,8 @@
     "clean": "rm -rf dist",
     "generate:types": "node scripts/generate-types.mjs",
     "prepare": "bun install --frozen-lockfile --ignore-scripts 1>&2 && node scripts/build-source-package.mjs 1>&2",
-    "prepublishOnly": "bun run clean && bun run generate:types && bun tsc && bun lint && bun run test && bun run build",
+    "smoke:release": "node scripts/smoke-release-package.mjs",
+    "prepublishOnly": "bun run clean && bun run generate:types && bun tsc && bun lint && bun run test && bun run build && bun run smoke:release",
     "sync:embed": "node scripts/sync-embed-contracts.mjs",
     "sync:embed:check": "node scripts/sync-embed-contracts.mjs --check"
   },
