@@ -467,6 +467,11 @@ export type {
   ImportFigmaDesignResponse,
 } from './resources/emails/figma'
 export { IMPORT_FIGMA_DEFAULT_TIMEOUT_MS } from './resources/emails/figma'
+export type {
+  ImportEmailImageInput,
+  ImportEmailImageResponse,
+} from './resources/emails/image'
+export { IMPORT_IMAGE_DEFAULT_TIMEOUT_MS } from './resources/emails/image'
 export type { EditEmailInput, EditEmailResponse } from './resources/emails/edit'
 export { EDIT_EMAIL_DEFAULT_TIMEOUT_MS } from './resources/emails/edit'
 export type {

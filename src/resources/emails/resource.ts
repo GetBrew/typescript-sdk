@@ -15,6 +15,7 @@ import { createGenerateEmail } from './generate'
 import { createGetEmail } from './get'
 import { createGetEmailAudit } from './get-audit'
 import { createGetEmailClientPreview } from './get-client-preview'
+import { createImportEmailImage } from './image'
 import { createImportEmail } from './import'
 import {
   createInboxPlacementTestsResource,
@@ -35,6 +36,8 @@ export type EmailsResource = {
   readonly import: ReturnType<typeof createImportEmail>
   /** `POST /v1/emails/figma` — deterministically convert a Figma frame into a new editable design; no model in the loop, and FREE (scope: `emails`). */
   readonly importFigma: ReturnType<typeof createImportFigmaDesign>
+  /** `POST /v1/emails/image` — convert a picture of an email (a screenshot or an export) into a new editable design, laid out deterministically from the picture's own layers; blocks for 1 to 6 minutes; flat credit price, or model usage when `conversion` is `model` (scope: `emails`). */
+  readonly importImage: ReturnType<typeof createImportEmailImage>
   /** `POST /v1/emails/{emailId}/clone` — duplicate a design (optionally an exact historical version) into a new one (scope: `emails`). */
   readonly clone: ReturnType<typeof createCloneEmail>
   /** `PATCH /v1/emails/{emailId}` — AI edit an existing email (new latest version), or change only `title` / `subjectLine` / `lang` / `groupId` with no prompt (scope: `emails`). */
@@ -68,6 +71,7 @@ export function createEmailsResource(client: HttpClient): EmailsResource {
     generate: createGenerateEmail(client),
     import: createImportEmail(client),
     importFigma: createImportFigmaDesign(client),
+    importImage: createImportEmailImage(client),
     clone: createCloneEmail(client),
     edit: createEditEmail(client),
     restore: createRestoreEmail(client),

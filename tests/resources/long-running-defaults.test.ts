@@ -34,6 +34,10 @@ import {
   createImportFigmaDesign,
 } from '../../src/resources/emails/figma'
 import {
+  IMPORT_IMAGE_DEFAULT_TIMEOUT_MS,
+  createImportEmailImage,
+} from '../../src/resources/emails/image'
+import {
   GENERATE_EMAIL_DEFAULT_TIMEOUT_MS,
   createGenerateEmail,
 } from '../../src/resources/emails/generate'
@@ -177,6 +181,16 @@ const CASES: ReadonlyArray<Case> = [
     call: ({ client, timeoutMs }) =>
       createPreviewEmailClients(client)(
         { emailId: 'email_1' },
+        withTimeout({ timeoutMs })
+      ),
+  },
+  {
+    name: 'emails.importImage',
+    defaultMs: IMPORT_IMAGE_DEFAULT_TIMEOUT_MS,
+    expectedMs: 800_000,
+    call: ({ client, timeoutMs }) =>
+      createImportEmailImage(client)(
+        { imageUrl: 'https://example.com/launch-email.png', format: 'html' },
         withTimeout({ timeoutMs })
       ),
   },
