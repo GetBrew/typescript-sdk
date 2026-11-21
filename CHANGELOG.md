@@ -4,6 +4,18 @@
 
 ### Added
 
+- `brew.emails.importImage({ imageUrl, title?, subjectLine?, format?, groupId? | groupName? })`
+  calls `POST /v1/emails/image` and turns a picture of an email (a
+  screenshot or an export) into a new editable design. The picture is split
+  into its own text, shape and image layers and laid out deterministically:
+  every text is live and every button a button. The call blocks for 1 to 6
+  minutes (`IMPORT_IMAGE_DEFAULT_TIMEOUT_MS`, 800 s); the same image
+  converted again within three weeks returns in seconds with the same
+  design. `conversion` is `layers` (flat credit price) or `model` (the
+  fallback recreation, metered by model usage). Refusals are
+  `400 IMAGE_URL_INVALID` and `422 IMAGE_CONVERSION_FAILED`
+  (`error.details.emailId` names the partial design). Exports
+  `ImportEmailImageInput` and `ImportEmailImageResponse`.
 - Live integration events, from GetBrew/brew-v2#2411: the events a
   brand's connected live sources send (a PostHog project's own events; the
   Stripe and Shopify app catalogs), each of which can start an automation.
