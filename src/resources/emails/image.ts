@@ -13,7 +13,8 @@ export type ImportEmailImageInput = components['schemas']['ImageToEmailRequest']
 /**
  * 201 result of `POST /v1/emails/image`: the persisted design, the requested
  * source representation (`format` + `content`) and `conversion`, which says
- * how the design was made.
+ * how the design was made. Model fallbacks also carry `fallbackReason` and
+ * `warnings`; their picture blocks are empty and need the original assets.
  */
 export type ImportEmailImageResponse =
   components['schemas']['ImageToEmailResponse']
@@ -50,7 +51,7 @@ export const IMPORT_IMAGE_DEFAULT_TIMEOUT_MS = 800_000
  *
  * `conversion` in the result is `layers` for that conversion, which costs a
  * flat credit price. When a picture cannot be split into layers a model
- * recreates it instead: `conversion` is `model`, the flat price is not
+ * recreates its layout instead: `conversion` is `model`, the flat price is not
  * charged and the run is metered by model usage like `emails.generate`.
  *
  * A picture carries no links, so every button and link in the result points
@@ -58,6 +59,10 @@ export const IMPORT_IMAGE_DEFAULT_TIMEOUT_MS = 800_000
  * picture neither lane could convert is `422 IMAGE_CONVERSION_FAILED`; its
  * `error.details.emailId` points at the design row created before the
  * conversion ran, so you can inspect or delete it.
+ *
+ * Model fallback also applies when the layer service is unavailable or times
+ * out. It returns `fallbackReason` and `warnings`, leaves image blocks empty
+ * and sets links to `#`. Add the original pictures before sending.
  *
  * Set `format` to `jsx` (default) or `html`; the selected representation is
  * returned in `content`. Supply `options.idempotencyKey` to make retries

@@ -13,9 +13,11 @@ export type { BrandPatchResponse, UpdateBrandInput }
  *   **shallow-merged** onto the stored identity (everything else is
  *   preserved).
  * - `emailDesign` — the `email-design.md` markdown document (replaces the
- *   whole document).
+ *   whole document, at most 18,000 characters).
  * - `imageStyle` — the `image-style.md` markdown document (replaces the
- *   whole document).
+ *   whole document, at most 4,000 characters).
+ *
+ * Oversized replacements are rejected without changing the saved files.
  *
  * Requires the `emails` scope. Returns the bare brand row,
  * echoing only the touched fields.

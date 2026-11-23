@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   IMPORT_IMAGE_DEFAULT_TIMEOUT_MS,
+  type ImportEmailImageResponse,
   createImportEmailImage,
 } from '../../../src/resources/emails/image'
 import { makeTestHttpClient } from '../../helpers/http-client'
@@ -54,6 +55,46 @@ describe('emails.importImage', () => {
       conversion: 'layers',
       content: '<!doctype html><html><body>Launch</body></html>',
     })
+  })
+
+  it('preserves typed fallback warnings in normal and raw responses', async () => {
+    const fallback: ImportEmailImageResponse = {
+      emailId: 'email_fallback',
+      emailVersionId: 'version_fallback',
+      title: 'Layout only',
+      format: 'jsx',
+      content: '<Html><Body><Img width={300} /></Body></Html>',
+      conversion: 'model',
+      fallbackReason: 'layer_service_unavailable',
+      warnings: [
+        {
+          code: 'IMAGE_LAYER_FALLBACK',
+          message: 'Layer service unavailable.',
+          field: 'imageUrl',
+        },
+        {
+          code: 'IMAGE_ASSETS_NOT_RECOVERED',
+          message: 'Add the original pictures.',
+          field: 'content',
+        },
+      ],
+      group: null,
+    }
+    server.use(
+      http.post('https://brew.new/api/v1/emails/image', () =>
+        HttpResponse.json(fallback, { status: 201 })
+      )
+    )
+    const { client } = makeTestHttpClient()
+    const importImage = createImportEmailImage(client)
+    const input = { imageUrl: 'https://example.com/screenshot.png' }
+    const [normal, raw] = await Promise.all([
+      importImage(input),
+      importImage(input, { raw: true }),
+    ])
+    expect(normal).toEqual(fallback)
+    expect(raw.data).toEqual(fallback)
+    expect(raw.status).toBe(201)
   })
 
   it('matches the server timeout ceiling for a conversion that takes minutes', () => {
