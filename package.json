@@ -77,13 +77,17 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
-    "test:watch": "vitest",
+    "test:watch": "vitest --project unit",
     "clean": "rm -rf dist",
     "generate:types": "node scripts/generate-types.mjs",
     "prepare": "bun install --frozen-lockfile --ignore-scripts 1>&2 && node scripts/build-source-package.mjs 1>&2",
-    "prepublishOnly": "bun run clean && bun run generate:types && bun tsc && bun lint && bun run test && bun run build",
+    "prepublishOnly": "bun run clean && bun run contract:check && bun run generate:types && bun tsc && bun lint && bun run test && bun run build",
     "sync:embed": "node scripts/sync-embed-contracts.mjs",
-    "sync:embed:check": "node scripts/sync-embed-contracts.mjs --check"
+    "sync:embed:check": "node scripts/sync-embed-contracts.mjs --check",
+    "test:unit": "vitest run --project unit",
+    "test:packaging": "vitest run --project packaging",
+    "contract:import": "node scripts/contract-artifact.mjs import",
+    "contract:check": "node scripts/contract-artifact.mjs check"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

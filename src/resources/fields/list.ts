@@ -1,5 +1,5 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 import type { FieldsGetResponse, ListFieldsInput } from './types'
 
@@ -32,12 +32,16 @@ export function createListFields(client: HttpClient) {
   ): Promise<BrewRawResponse<FieldsGetResponse>>
   function listFields(
     input?: ListFieldsInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<FieldsGetResponse>
+  function listFields(
+    input?: ListFieldsInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<FieldsGetResponse>>
   async function listFields(
     input: ListFieldsInput = {},
     options?: RequestOptions
-  ): Promise<FieldsGetResponse | BrewRawResponse<FieldsGetResponse>> {
+  ): Promise<BrewResponse<FieldsGetResponse>> {
     const response = await client.request<FieldsGetResponse>({
       method: 'GET',
       path: '/v1/fields',

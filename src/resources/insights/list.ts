@@ -1,6 +1,6 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import { serializeInclude } from '../../core/url'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 import type { InsightsListResponse, ListInsightsQuery } from './types'
 
@@ -77,12 +77,16 @@ export function createListInsights(client: HttpClient) {
   ): Promise<BrewRawResponse<ListInsightsResponse>>
   function listInsights(
     input?: ListInsightsInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<ListInsightsResponse>
+  function listInsights(
+    input?: ListInsightsInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<ListInsightsResponse>>
   async function listInsights(
     input: ListInsightsInput = {},
     options?: RequestOptions
-  ): Promise<ListInsightsResponse | BrewRawResponse<ListInsightsResponse>> {
+  ): Promise<BrewResponse<ListInsightsResponse>> {
     const response = await client.request<ListInsightsResponse>({
       method: 'GET',
       path: '/v1/insights',

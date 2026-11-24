@@ -1,16 +1,9 @@
-# Agents
+# SDK guidelines
 
-Guidelines for contributors to `@brew.new/sdk`, the official TypeScript client
-for the Brew public API.
-
-## What this package is
-
-A thin, ergonomic, open source TypeScript client on top of the Brew public
-API. The API is the source of truth — this SDK is a consumer of it.
-
-See `README.md` for the product-level overview and the external design doc
-(`public-api-sdk-oss-plan.md`) for historical rationale. Current contracts
-live in `src/`, the OpenAPI mirror, and `docs/`.
+Thin official TypeScript client for the Brew public API; the API owns the
+contract. Current contracts live in `src/`, the vendored OpenAPI spec and
+`docs/`. See [contract imports](docs/development.md#importing-an-api-contract)
+for reviewed artifact imports and local pin verification.
 
 For shipping a new version (iterate loop, validation, npm publish, the
 tag-driven release workflow, and token rotation), read [`RELEASING.md`](./RELEASING.md)
@@ -177,9 +170,9 @@ are regenerated from the vendored spec, never edited by hand.
 
 ## What lives where
 
-`src/index.ts` owns public exports; `src/client.ts` composes the resources.
-`src/core/` owns transport, retries, deadlines, errors, and pagination.
-`src/resources/` owns thin resource methods. `tests/` owns hermetic Vitest/MSW
-and deliberate loopback tests. The [development guide](docs/development.md)
-explains generation and the contribution workflow. Never hand-edit
-`src/generated/`; regenerate it from the vendored OpenAPI spec.
+`src/index.ts` owns public exports; `src/client.ts` composes resources.
+`src/core/` owns shared transport, retries, deadlines, errors and pagination.
+`src/resources/` owns thin methods. `tests/` owns hermetic MSW and loopback tests.
+`test:unit` skips distribution builds; `test:packaging` checks built artifacts;
+`test` runs both. See [development](docs/development.md) for the workflow.
+Regenerate `src/generated/` from the vendored OpenAPI spec; never hand-edit it.

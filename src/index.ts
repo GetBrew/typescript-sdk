@@ -692,6 +692,7 @@ export type {
   BrewFetch,
   BrewHttpMethod,
   BrewRawResponse,
+  BrewResponse,
   RequestOptions,
 } from './types'
 

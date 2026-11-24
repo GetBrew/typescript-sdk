@@ -1,14 +1,15 @@
 import type { operations } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 /** Paging for `brew.emails.getAudit(...)` plus the standard options. */
-export type GetEmailAuditOptions = RequestOptions & {
-  /** `pagination.cursor` from the previous page. */
-  readonly cursor?: string
-  /** Findings per page, 1-50 (server default 10). */
-  readonly limit?: number
-}
+export type GetEmailAuditOptions<Raw extends boolean = boolean> =
+  RequestOptions<Raw> & {
+    /** `pagination.cursor` from the previous page. */
+    readonly cursor?: string
+    /** Findings per page, 1-50 (server default 10). */
+    readonly limit?: number
+  }
 
 /** One page of a saved audit: its findings, summary, checks and policy. */
 export type GetEmailAuditResponse =
@@ -31,12 +32,16 @@ export function createGetEmailAudit(client: HttpClient) {
   ): Promise<BrewRawResponse<GetEmailAuditResponse>>
   function getEmailAudit(
     auditId: string,
-    options?: GetEmailAuditOptions
+    options?: GetEmailAuditOptions<false>
   ): Promise<GetEmailAuditResponse>
+  function getEmailAudit(
+    auditId: string,
+    options?: GetEmailAuditOptions
+  ): Promise<BrewResponse<GetEmailAuditResponse>>
   async function getEmailAudit(
     auditId: string,
     options?: GetEmailAuditOptions
-  ): Promise<GetEmailAuditResponse | BrewRawResponse<GetEmailAuditResponse>> {
+  ): Promise<BrewResponse<GetEmailAuditResponse>> {
     const query = {
       ...(options?.cursor !== undefined ? { cursor: options.cursor } : {}),
       ...(options?.limit !== undefined ? { limit: options.limit } : {}),

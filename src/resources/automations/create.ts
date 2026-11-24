@@ -1,5 +1,5 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 import type { Automation, AutomationDryRunReport } from './types'
 
@@ -186,24 +186,28 @@ export function createCreateAutomation(client: HttpClient) {
   ): Promise<BrewRawResponse<AutomationDryRunReport>>
   function createAutomation(
     input: CreateAutomationDryRunInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<AutomationDryRunReport>
+  function createAutomation(
+    input: CreateAutomationDryRunInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<AutomationDryRunReport>>
   function createAutomation(
     input: CreateAutomationInput,
     options: RequestOptions & { readonly raw: true }
   ): Promise<BrewRawResponse<CreateAutomationResponse>>
   function createAutomation(
     input: CreateAutomationInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<CreateAutomationResponse>
+  function createAutomation(
+    input: CreateAutomationInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<CreateAutomationResponse>>
   async function createAutomation(
     input: CreateAutomationInput | CreateAutomationDryRunInput,
     options?: RequestOptions
-  ): Promise<
-    | CreateAutomationResponse
-    | AutomationDryRunReport
-    | BrewRawResponse<CreateAutomationResponse | AutomationDryRunReport>
-  > {
+  ): Promise<BrewResponse<CreateAutomationResponse | AutomationDryRunReport>> {
     const response = await client.request<
       CreateAutomationResponse | AutomationDryRunReport
     >({

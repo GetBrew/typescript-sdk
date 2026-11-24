@@ -1,6 +1,6 @@
 import type { components } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 import type { ContactConsentInput } from './types'
 
@@ -55,12 +55,16 @@ export function createPatchContact(client: HttpClient) {
   ): Promise<BrewRawResponse<PatchContactResponse>>
   function patch(
     input: PatchContactInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<PatchContactResponse>
+  function patch(
+    input: PatchContactInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<PatchContactResponse>>
   async function patch(
     input: PatchContactInput,
     options?: RequestOptions
-  ): Promise<PatchContactResponse | BrewRawResponse<PatchContactResponse>> {
+  ): Promise<BrewResponse<PatchContactResponse>> {
     const response = await client.request<PatchContactResponse>({
       method: 'PATCH',
       path: `/v1/contacts/${encodeURIComponent(input.email)}`,

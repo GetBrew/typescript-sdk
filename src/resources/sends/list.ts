@@ -1,6 +1,6 @@
 import { autoPaginate, pageReadOptions } from '../../core/pagination'
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 import type { ListSendsInput, Send, SendsListResponse } from './types'
 
@@ -38,12 +38,16 @@ export function createListSends(client: HttpClient) {
   ): Promise<BrewRawResponse<SendsListResponse>>
   function listSends(
     input?: ListSendsInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<SendsListResponse>
+  function listSends(
+    input?: ListSendsInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<SendsListResponse>>
   async function listSends(
     input: ListSendsInput = {},
     options?: RequestOptions
-  ): Promise<SendsListResponse | BrewRawResponse<SendsListResponse>> {
+  ): Promise<BrewResponse<SendsListResponse>> {
     const response = await client.request<SendsListResponse>({
       method: 'GET',
       path: '/v1/sends',

@@ -1,6 +1,6 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import { serializeInclude } from '../../core/url'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 import type { Audience } from './types'
 
@@ -12,16 +12,17 @@ export type AudiencesIncludeToken = (typeof AUDIENCES_INCLUDE_TOKENS)[number]
  * Per-request options for `brew.audiences.get(...)` — the standard
  * `RequestOptions` plus the detail-only `include` expansion.
  */
-export type GetAudienceOptions = RequestOptions & {
-  /**
-   * `'count'` makes the row's `count` the authoritative, freshly
-   * computed live member total — the size a campaign send would target —
-   * instead of the cached value. `'build'` attaches `build`, the latest
-   * cohort build of an audience made by `brew.audiences.fromEvents(...)`.
-   * Accepts an array of tokens or a comma string.
-   */
-  readonly include?: ReadonlyArray<AudiencesIncludeToken> | string
-}
+export type GetAudienceOptions<Raw extends boolean = boolean> =
+  RequestOptions<Raw> & {
+    /**
+     * `'count'` makes the row's `count` the authoritative, freshly
+     * computed live member total — the size a campaign send would target —
+     * instead of the cached value. `'build'` attaches `build`, the latest
+     * cohort build of an audience made by `brew.audiences.fromEvents(...)`.
+     * Accepts an array of tokens or a comma string.
+     */
+    readonly include?: ReadonlyArray<AudiencesIncludeToken> | string
+  }
 
 /** `GET /v1/audiences/{audienceId}` returns the BARE `Audience` row. */
 export type GetAudienceResponse = Audience
@@ -45,12 +46,16 @@ export function createGetAudience(client: HttpClient) {
   ): Promise<BrewRawResponse<GetAudienceResponse>>
   function getAudience(
     audienceId: string,
-    options?: GetAudienceOptions
+    options?: GetAudienceOptions<false>
   ): Promise<GetAudienceResponse>
+  function getAudience(
+    audienceId: string,
+    options?: GetAudienceOptions
+  ): Promise<BrewResponse<GetAudienceResponse>>
   async function getAudience(
     audienceId: string,
     options?: GetAudienceOptions
-  ): Promise<GetAudienceResponse | BrewRawResponse<GetAudienceResponse>> {
+  ): Promise<BrewResponse<GetAudienceResponse>> {
     const include = serializeInclude({ include: options?.include })
     const response = await client.request<GetAudienceResponse>({
       method: 'GET',

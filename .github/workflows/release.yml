@@ -65,6 +65,9 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Pinned API contract integrity
+        run: bun run contract:check
+
       - name: Assert package.json version matches tag
         # Strip the leading `v` from the tag and compare. If a developer
         # forgets to bump package.json before tagging, fail loudly here

@@ -1,5 +1,5 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 import type { Domain } from './types'
 
@@ -24,12 +24,16 @@ export function createGetDomain(client: HttpClient) {
   ): Promise<BrewRawResponse<GetDomainResponse>>
   function getDomain(
     domainId: string,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<GetDomainResponse>
+  function getDomain(
+    domainId: string,
+    options?: RequestOptions
+  ): Promise<BrewResponse<GetDomainResponse>>
   async function getDomain(
     domainId: string,
     options?: RequestOptions
-  ): Promise<GetDomainResponse | BrewRawResponse<GetDomainResponse>> {
+  ): Promise<BrewResponse<GetDomainResponse>> {
     const response = await client.request<GetDomainResponse>({
       method: 'GET',
       path: `/v1/domains/${encodeURIComponent(domainId)}`,

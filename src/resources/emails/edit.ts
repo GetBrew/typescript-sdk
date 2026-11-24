@@ -1,6 +1,6 @@
 import type { components } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 export type EditEmailInput = {
   /**
@@ -46,12 +46,16 @@ export function createEditEmail(client: HttpClient) {
   ): Promise<BrewRawResponse<EditEmailResponse>>
   function editEmail(
     input: EditEmailInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<EditEmailResponse>
+  function editEmail(
+    input: EditEmailInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<EditEmailResponse>>
   async function editEmail(
     input: EditEmailInput,
     options?: RequestOptions
-  ): Promise<EditEmailResponse | BrewRawResponse<EditEmailResponse>> {
+  ): Promise<BrewResponse<EditEmailResponse>> {
     const { emailId, ...body } = input
     const response = await client.request<EditEmailResponse>({
       method: 'PATCH',

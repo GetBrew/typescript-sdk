@@ -1,6 +1,6 @@
 import type { components } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 export type DeleteManyContactsInput = {
   readonly emails: ReadonlyArray<string>
@@ -30,14 +30,16 @@ export function createDeleteManyContacts(client: HttpClient) {
   ): Promise<BrewRawResponse<DeleteManyContactsResponse>>
   function deleteMany(
     input: DeleteManyContactsInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<DeleteManyContactsResponse>
+  function deleteMany(
+    input: DeleteManyContactsInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<DeleteManyContactsResponse>>
   async function deleteMany(
     input: DeleteManyContactsInput,
     options?: RequestOptions
-  ): Promise<
-    DeleteManyContactsResponse | BrewRawResponse<DeleteManyContactsResponse>
-  > {
+  ): Promise<BrewResponse<DeleteManyContactsResponse>> {
     const response = await client.request<DeleteManyContactsResponse>({
       method: 'POST',
       path: '/v1/contacts/batch-delete',

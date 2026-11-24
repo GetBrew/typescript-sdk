@@ -142,6 +142,6 @@ export function pageReadOptions({
   options,
 }: {
   readonly options: RequestOptions | undefined
-}): RequestOptions | undefined {
+}): RequestOptions<false> | undefined {
   return options === undefined ? undefined : { ...options, raw: false }
 }

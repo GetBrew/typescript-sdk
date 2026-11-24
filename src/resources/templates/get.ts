@@ -1,15 +1,16 @@
 import type { operations } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 /** The expansion `GET /v1/templates/{templateId}` accepts. */
 export const TEMPLATES_INCLUDE_TOKENS = ['html'] as const
 export type TemplatesIncludeToken = (typeof TEMPLATES_INCLUDE_TOKENS)[number]
 
 /** `include: 'html'` adds the template's rendered HTML. */
-export type GetTemplateOptions = RequestOptions & {
-  readonly include?: TemplatesIncludeToken
-}
+export type GetTemplateOptions<Raw extends boolean = boolean> =
+  RequestOptions<Raw> & {
+    readonly include?: TemplatesIncludeToken
+  }
 
 /** One public template: metadata, preview and links, optional content. */
 export type GetTemplateResponse =
@@ -33,12 +34,16 @@ export function createGetTemplate(client: HttpClient) {
   ): Promise<BrewRawResponse<GetTemplateResponse>>
   function getTemplate(
     templateId: string,
-    options?: GetTemplateOptions
+    options?: GetTemplateOptions<false>
   ): Promise<GetTemplateResponse>
+  function getTemplate(
+    templateId: string,
+    options?: GetTemplateOptions
+  ): Promise<BrewResponse<GetTemplateResponse>>
   async function getTemplate(
     templateId: string,
     options?: GetTemplateOptions
-  ): Promise<GetTemplateResponse | BrewRawResponse<GetTemplateResponse>> {
+  ): Promise<BrewResponse<GetTemplateResponse>> {
     const response = await client.request<GetTemplateResponse>({
       method: 'GET',
       path: `/v1/templates/${encodeURIComponent(templateId)}`,

@@ -1,6 +1,6 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { components } from '../../generated/openapi-types'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 /** Body for `automations.test()` plus the `automationId` path identity. */
 export type TestAutomationInput = {
@@ -48,12 +48,16 @@ export function createTestAutomation(client: HttpClient) {
   ): Promise<BrewRawResponse<TestAutomationResponse>>
   function testAutomation(
     input: TestAutomationInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<TestAutomationResponse>
+  function testAutomation(
+    input: TestAutomationInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<TestAutomationResponse>>
   async function testAutomation(
     input: TestAutomationInput,
     options?: RequestOptions
-  ): Promise<TestAutomationResponse | BrewRawResponse<TestAutomationResponse>> {
+  ): Promise<BrewResponse<TestAutomationResponse>> {
     const { automationId, ...body } = input
     const response = await client.request<TestAutomationResponse>({
       method: 'POST',

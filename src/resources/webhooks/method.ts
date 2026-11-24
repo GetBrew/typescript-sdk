@@ -3,7 +3,7 @@ import {
   type HttpClient,
   type HttpRequestInput,
 } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 /** Keep URL/body projection in resource methods and transport/raw-response behavior here. */
 export function webhookMethod<Input, Output>(
@@ -14,11 +14,15 @@ export function webhookMethod<Input, Output>(
     input: Input,
     options: RequestOptions & { readonly raw: true }
   ): Promise<BrewRawResponse<Output>>
-  function call(input: Input, options?: RequestOptions): Promise<Output>
+  function call(input: Input, options?: RequestOptions<false>): Promise<Output>
+  function call(
+    input: Input,
+    options?: RequestOptions
+  ): Promise<BrewResponse<Output>>
   async function call(
     input: Input,
     options?: RequestOptions
-  ): Promise<Output | BrewRawResponse<Output>> {
+  ): Promise<BrewResponse<Output>> {
     return unwrapResponse(
       await client.request<Output>({
         ...request(input),

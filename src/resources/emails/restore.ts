@@ -1,6 +1,6 @@
 import type { components } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 export type RestoreEmailInput = {
   /**
@@ -37,12 +37,16 @@ export function createRestoreEmail(client: HttpClient) {
   ): Promise<BrewRawResponse<RestoreEmailResponse>>
   function restoreEmail(
     input: RestoreEmailInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<RestoreEmailResponse>
+  function restoreEmail(
+    input: RestoreEmailInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<RestoreEmailResponse>>
   async function restoreEmail(
     input: RestoreEmailInput,
     options?: RequestOptions
-  ): Promise<RestoreEmailResponse | BrewRawResponse<RestoreEmailResponse>> {
+  ): Promise<BrewResponse<RestoreEmailResponse>> {
     const { emailId, ...body } = input
     const response = await client.request<RestoreEmailResponse>({
       method: 'POST',

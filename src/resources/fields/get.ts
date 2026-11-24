@@ -1,5 +1,5 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 import type { ContactField } from './types'
 
@@ -24,12 +24,16 @@ export function createGetField(client: HttpClient) {
   ): Promise<BrewRawResponse<GetFieldResponse>>
   function getField(
     fieldName: string,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<GetFieldResponse>
+  function getField(
+    fieldName: string,
+    options?: RequestOptions
+  ): Promise<BrewResponse<GetFieldResponse>>
   async function getField(
     fieldName: string,
     options?: RequestOptions
-  ): Promise<GetFieldResponse | BrewRawResponse<GetFieldResponse>> {
+  ): Promise<BrewResponse<GetFieldResponse>> {
     const response = await client.request<GetFieldResponse>({
       method: 'GET',
       path: `/v1/fields/${encodeURIComponent(fieldName)}`,

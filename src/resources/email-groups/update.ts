@@ -1,5 +1,5 @@
 import { type HttpClient, unwrapResponse } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 import type { UpdateEmailGroupInput, UpdateEmailGroupResponse } from './types'
 
@@ -23,14 +23,16 @@ export function createUpdateEmailGroup(client: HttpClient) {
   ): Promise<BrewRawResponse<UpdateEmailGroupResponse>>
   function updateEmailGroup(
     input: UpdateEmailGroupInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<UpdateEmailGroupResponse>
+  function updateEmailGroup(
+    input: UpdateEmailGroupInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<UpdateEmailGroupResponse>>
   async function updateEmailGroup(
     input: UpdateEmailGroupInput,
     options?: RequestOptions
-  ): Promise<
-    UpdateEmailGroupResponse | BrewRawResponse<UpdateEmailGroupResponse>
-  > {
+  ): Promise<BrewResponse<UpdateEmailGroupResponse>> {
     const { groupId, ...body } = input
     const response = await client.request<UpdateEmailGroupResponse>({
       method: 'PATCH',

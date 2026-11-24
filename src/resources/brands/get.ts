@@ -1,6 +1,6 @@
 import type { components } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 export type GetBrandStatusResponse =
   components['schemas']['BrandGetByIdResponse']
@@ -29,12 +29,16 @@ export function createGetBrand(client: HttpClient) {
   ): Promise<BrewRawResponse<GetBrandStatusResponse>>
   function getBrand(
     input: GetBrandStatusInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<GetBrandStatusResponse>
+  function getBrand(
+    input: GetBrandStatusInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<GetBrandStatusResponse>>
   async function getBrand(
     input: GetBrandStatusInput,
     options?: RequestOptions
-  ): Promise<GetBrandStatusResponse | BrewRawResponse<GetBrandStatusResponse>> {
+  ): Promise<BrewResponse<GetBrandStatusResponse>> {
     const response = await client.request<GetBrandStatusResponse>({
       method: 'GET',
       path: `/v1/brands/${encodeURIComponent(input.brandId)}`,

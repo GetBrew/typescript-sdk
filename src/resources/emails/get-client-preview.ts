@@ -1,6 +1,6 @@
 import type { operations } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 /** The rendering job: its status, per-client results, expiry and credits. */
 export type GetEmailClientPreviewResponse =
@@ -25,15 +25,16 @@ export function createGetEmailClientPreview(client: HttpClient) {
   ): Promise<BrewRawResponse<GetEmailClientPreviewResponse>>
   function getClientPreview(
     previewId: string,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<GetEmailClientPreviewResponse>
+  function getClientPreview(
+    previewId: string,
+    options?: RequestOptions
+  ): Promise<BrewResponse<GetEmailClientPreviewResponse>>
   async function getClientPreview(
     previewId: string,
     options?: RequestOptions
-  ): Promise<
-    | GetEmailClientPreviewResponse
-    | BrewRawResponse<GetEmailClientPreviewResponse>
-  > {
+  ): Promise<BrewResponse<GetEmailClientPreviewResponse>> {
     const response = await client.request<GetEmailClientPreviewResponse>({
       method: 'GET',
       path: `/v1/emails/client-previews/${encodeURIComponent(previewId)}`,

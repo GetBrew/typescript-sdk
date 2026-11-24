@@ -1,5 +1,5 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 import type { BrandPatchResponse, UpdateBrandInput } from './types'
 
@@ -32,12 +32,16 @@ export function createUpdateBrand(client: HttpClient) {
   ): Promise<BrewRawResponse<BrandPatchResponse>>
   function updateBrand(
     input: UpdateBrandInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<BrandPatchResponse>
+  function updateBrand(
+    input: UpdateBrandInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<BrandPatchResponse>>
   async function updateBrand(
     input: UpdateBrandInput,
     options?: RequestOptions
-  ): Promise<BrandPatchResponse | BrewRawResponse<BrandPatchResponse>> {
+  ): Promise<BrewResponse<BrandPatchResponse>> {
     const response = await client.request<BrandPatchResponse>({
       method: 'PATCH',
       path: '/v1/brand',

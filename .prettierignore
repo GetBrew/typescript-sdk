@@ -2,6 +2,7 @@ dist
 node_modules
 coverage
 src/generated
+scripts/contract-artifact.mjs
 src/embed/contracts.ts
 src/embed/is-record.ts
 # Owned by sub-agent-orchestrator/openapi/public-api-v1.ts and emitted via

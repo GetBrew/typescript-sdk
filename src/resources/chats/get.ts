@@ -1,5 +1,5 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 import type { ChatContextResponse } from './types'
 
@@ -29,12 +29,16 @@ export function createGetChat(client: HttpClient) {
   ): Promise<BrewRawResponse<ChatContextResponse>>
   function getChat(
     chatId: string,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<ChatContextResponse>
+  function getChat(
+    chatId: string,
+    options?: RequestOptions
+  ): Promise<BrewResponse<ChatContextResponse>>
   async function getChat(
     chatId: string,
     options?: RequestOptions
-  ): Promise<ChatContextResponse | BrewRawResponse<ChatContextResponse>> {
+  ): Promise<BrewResponse<ChatContextResponse>> {
     const response = await client.request<ChatContextResponse>({
       method: 'GET',
       path: `/v1/chats/${encodeURIComponent(chatId)}`,

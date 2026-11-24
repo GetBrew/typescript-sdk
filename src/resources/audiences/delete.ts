@@ -1,6 +1,6 @@
 import type { components } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 export type DeleteAudienceInput = {
   /** The id of the saved audience to remove (path parameter). */
@@ -25,12 +25,16 @@ export function createDeleteAudience(client: HttpClient) {
   ): Promise<BrewRawResponse<DeleteAudienceResponse>>
   function deleteAudience(
     input: DeleteAudienceInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<DeleteAudienceResponse>
+  function deleteAudience(
+    input: DeleteAudienceInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<DeleteAudienceResponse>>
   async function deleteAudience(
     input: DeleteAudienceInput,
     options?: RequestOptions
-  ): Promise<DeleteAudienceResponse | BrewRawResponse<DeleteAudienceResponse>> {
+  ): Promise<BrewResponse<DeleteAudienceResponse>> {
     const response = await client.request<DeleteAudienceResponse>({
       method: 'DELETE',
       path: `/v1/audiences/${encodeURIComponent(input.audienceId)}`,

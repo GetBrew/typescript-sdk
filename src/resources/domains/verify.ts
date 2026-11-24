@@ -1,5 +1,5 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 import type { Domain } from './types'
 
@@ -24,12 +24,16 @@ export function createVerifyDomain(client: HttpClient) {
   ): Promise<BrewRawResponse<VerifyDomainResponse>>
   function verifyDomain(
     input: VerifyDomainInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<VerifyDomainResponse>
+  function verifyDomain(
+    input: VerifyDomainInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<VerifyDomainResponse>>
   async function verifyDomain(
     input: VerifyDomainInput,
     options?: RequestOptions
-  ): Promise<VerifyDomainResponse | BrewRawResponse<VerifyDomainResponse>> {
+  ): Promise<BrewResponse<VerifyDomainResponse>> {
     const response = await client.request<VerifyDomainResponse>({
       method: 'POST',
       path: `/v1/domains/${encodeURIComponent(input.domainId)}/verify`,

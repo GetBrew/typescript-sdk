@@ -1,6 +1,6 @@
 import type { components } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 /**
  * 200 result of `POST /v1/sends/{sendId}/resume` — the resumed send
@@ -32,12 +32,16 @@ export function createResume(client: HttpClient) {
   ): Promise<BrewRawResponse<SendResumeResponse>>
   function resume(
     sendId: string,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<SendResumeResponse>
+  function resume(
+    sendId: string,
+    options?: RequestOptions
+  ): Promise<BrewResponse<SendResumeResponse>>
   async function resume(
     sendId: string,
     options?: RequestOptions
-  ): Promise<SendResumeResponse | BrewRawResponse<SendResumeResponse>> {
+  ): Promise<BrewResponse<SendResumeResponse>> {
     const response = await client.request<SendResumeResponse>({
       method: 'POST',
       path: `/v1/sends/${encodeURIComponent(sendId)}/resume`,

@@ -1,6 +1,10 @@
 import type { components } from '../../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../../types'
+import type {
+  BrewResponse,
+  BrewRawResponse,
+  RequestOptions,
+} from '../../../types'
 
 /** Input to `brew.domains.unsubscribes.import(...)`. */
 export type ImportDomainUnsubscribesInput = {
@@ -23,15 +27,16 @@ export function createImportDomainUnsubscribes(client: HttpClient) {
   ): Promise<BrewRawResponse<ImportDomainUnsubscribesResponse>>
   function importDomainUnsubscribes(
     input: ImportDomainUnsubscribesInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<ImportDomainUnsubscribesResponse>
+  function importDomainUnsubscribes(
+    input: ImportDomainUnsubscribesInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<ImportDomainUnsubscribesResponse>>
   async function importDomainUnsubscribes(
     input: ImportDomainUnsubscribesInput,
     options?: RequestOptions
-  ): Promise<
-    | ImportDomainUnsubscribesResponse
-    | BrewRawResponse<ImportDomainUnsubscribesResponse>
-  > {
+  ): Promise<BrewResponse<ImportDomainUnsubscribesResponse>> {
     const response = await client.request<ImportDomainUnsubscribesResponse>({
       method: 'POST',
       path: `/v1/domains/${encodeURIComponent(input.domainId)}/unsubscribes/import`,

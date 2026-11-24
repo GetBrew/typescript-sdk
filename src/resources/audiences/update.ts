@@ -1,6 +1,6 @@
 import type { components } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 import type { AudienceWriteResult } from './types'
 
@@ -50,12 +50,16 @@ export function createUpdateAudience(client: HttpClient) {
   ): Promise<BrewRawResponse<UpdateAudienceResponse>>
   function updateAudience(
     input: UpdateAudienceInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<UpdateAudienceResponse>
+  function updateAudience(
+    input: UpdateAudienceInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<UpdateAudienceResponse>>
   async function updateAudience(
     input: UpdateAudienceInput,
     options?: RequestOptions
-  ): Promise<UpdateAudienceResponse | BrewRawResponse<UpdateAudienceResponse>> {
+  ): Promise<BrewResponse<UpdateAudienceResponse>> {
     const { audienceId, ...body } = input
     const response = await client.request<UpdateAudienceResponse>({
       method: 'PATCH',

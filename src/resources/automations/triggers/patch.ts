@@ -1,6 +1,10 @@
 import type { components } from '../../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../../types'
+import type {
+  BrewResponse,
+  BrewRawResponse,
+  RequestOptions,
+} from '../../../types'
 
 import type { Trigger } from './types'
 
@@ -35,12 +39,16 @@ export function createPatchTrigger(client: HttpClient) {
   ): Promise<BrewRawResponse<PatchTriggerResponse>>
   function patchTrigger(
     input: PatchTriggerInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<PatchTriggerResponse>
+  function patchTrigger(
+    input: PatchTriggerInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<PatchTriggerResponse>>
   async function patchTrigger(
     input: PatchTriggerInput,
     options?: RequestOptions
-  ): Promise<PatchTriggerResponse | BrewRawResponse<PatchTriggerResponse>> {
+  ): Promise<BrewResponse<PatchTriggerResponse>> {
     const { triggerEventId, ...body } = input
     const response = await client.request<PatchTriggerResponse>({
       method: 'PATCH',

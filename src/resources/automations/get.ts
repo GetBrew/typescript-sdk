@@ -1,6 +1,6 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import { serializeInclude } from '../../core/url'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 import type { Automation } from './types'
 
@@ -13,14 +13,15 @@ export type AutomationsIncludeToken =
  * Per-request options for `brew.automations.get(...)` — the standard
  * `RequestOptions` plus the detail-only `include` expansions.
  */
-export type GetAutomationOptions = RequestOptions & {
-  /**
-   * `'graph'` attaches `nodes` + `connections`; `'versions'` attaches
-   * the inline version history. Accepts an array of tokens or a comma
-   * string.
-   */
-  readonly include?: ReadonlyArray<AutomationsIncludeToken> | string
-}
+export type GetAutomationOptions<Raw extends boolean = boolean> =
+  RequestOptions<Raw> & {
+    /**
+     * `'graph'` attaches `nodes` + `connections`; `'versions'` attaches
+     * the inline version history. Accepts an array of tokens or a comma
+     * string.
+     */
+    readonly include?: ReadonlyArray<AutomationsIncludeToken> | string
+  }
 
 /** `GET /v1/automations/{automationId}` returns the BARE `AutomationRow`. */
 export type GetAutomationResponse = Automation
@@ -44,12 +45,16 @@ export function createGetAutomation(client: HttpClient) {
   ): Promise<BrewRawResponse<GetAutomationResponse>>
   function getAutomation(
     automationId: string,
-    options?: GetAutomationOptions
+    options?: GetAutomationOptions<false>
   ): Promise<GetAutomationResponse>
+  function getAutomation(
+    automationId: string,
+    options?: GetAutomationOptions
+  ): Promise<BrewResponse<GetAutomationResponse>>
   async function getAutomation(
     automationId: string,
     options?: GetAutomationOptions
-  ): Promise<GetAutomationResponse | BrewRawResponse<GetAutomationResponse>> {
+  ): Promise<BrewResponse<GetAutomationResponse>> {
     const include = serializeInclude({ include: options?.include })
     const response = await client.request<GetAutomationResponse>({
       method: 'GET',

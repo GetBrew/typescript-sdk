@@ -1,6 +1,6 @@
 import type { components } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 export type DeleteEmailInput = {
   /**
@@ -25,12 +25,16 @@ export function createDeleteEmail(client: HttpClient) {
   ): Promise<BrewRawResponse<DeleteEmailResponse>>
   function deleteEmail(
     input: DeleteEmailInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<DeleteEmailResponse>
+  function deleteEmail(
+    input: DeleteEmailInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<DeleteEmailResponse>>
   async function deleteEmail(
     input: DeleteEmailInput,
     options?: RequestOptions
-  ): Promise<DeleteEmailResponse | BrewRawResponse<DeleteEmailResponse>> {
+  ): Promise<BrewResponse<DeleteEmailResponse>> {
     const response = await client.request<DeleteEmailResponse>({
       method: 'DELETE',
       path: `/v1/emails/${encodeURIComponent(input.emailId)}`,

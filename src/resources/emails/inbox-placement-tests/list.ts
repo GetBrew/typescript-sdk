@@ -1,5 +1,9 @@
 import { unwrapResponse, type HttpClient } from '../../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../../types'
+import type {
+  BrewResponse,
+  BrewRawResponse,
+  RequestOptions,
+} from '../../../types'
 
 import type {
   InboxPlacementTestList,
@@ -34,15 +38,16 @@ export function createListInboxPlacementTests(client: HttpClient) {
   ): Promise<BrewRawResponse<ListInboxPlacementTestsResponse>>
   function listInboxPlacementTests(
     input: ListInboxPlacementTestsInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<ListInboxPlacementTestsResponse>
+  function listInboxPlacementTests(
+    input: ListInboxPlacementTestsInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<ListInboxPlacementTestsResponse>>
   async function listInboxPlacementTests(
     input: ListInboxPlacementTestsInput,
     options?: RequestOptions
-  ): Promise<
-    | ListInboxPlacementTestsResponse
-    | BrewRawResponse<ListInboxPlacementTestsResponse>
-  > {
+  ): Promise<BrewResponse<ListInboxPlacementTestsResponse>> {
     const { emailId, limit, cursor } = input
     const response = await client.request<ListInboxPlacementTestsResponse>({
       method: 'GET',

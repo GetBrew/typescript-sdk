@@ -177,18 +177,22 @@ controller is available from `@brew.new/sdk/embed`.
 
 ## Development
 
-Use a modern Node 20 or newer runtime for SDK development. On this
-machine, Vitest worked with Node `20.19.2` and newer, but failed on the
-older system Node `20.10.0`.
+Use Bun and Node 20.19 or newer for SDK development tools. The server API
+client supports Node 20 and newer.
 
 ```bash
 bun install
 bun tsc         # typecheck
 bun lint        # eslint
-bun run format  # prettier
-bun run test    # vitest — NOT `bun test`, that hits Bun's built-in runner and bypasses MSW setup
+bun run format:check # read-only prettier check
+bun run test:unit # source/MSW tests without a distribution build
+bun run test     # all projects, including fresh-build package checks
 bun run build   # tsup: dist/ with esm + cjs + .d.ts
 ```
+
+Use `bun run test -- tests/<file>.test.ts` for a focused test and
+`bun run test:watch` for the source-test watch loop. Always use `bun run test`,
+not Bun's built-in `bun test`, which skips Vitest setup.
 
 Full contribution + testing conventions live in [`AGENTS.md`](./AGENTS.md).
 The big one: every change is driven red → green via vitest + MSW, no

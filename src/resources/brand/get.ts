@@ -1,6 +1,6 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import { serializeInclude } from '../../core/url'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 import type { BrandGetResponse, BrandIncludeToken } from './types'
 
@@ -44,12 +44,16 @@ export function createGetBrand(client: HttpClient) {
   ): Promise<BrewRawResponse<BrandGetResponse>>
   function getBrand(
     input?: GetBrandInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<BrandGetResponse>
+  function getBrand(
+    input?: GetBrandInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<BrandGetResponse>>
   async function getBrand(
     input: GetBrandInput = {},
     options?: RequestOptions
-  ): Promise<BrandGetResponse | BrewRawResponse<BrandGetResponse>> {
+  ): Promise<BrewResponse<BrandGetResponse>> {
     const response = await client.request<BrandGetResponse>({
       method: 'GET',
       path: '/v1/brand',

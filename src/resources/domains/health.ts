@@ -1,7 +1,7 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import { serializeInclude } from '../../core/url'
 import type { operations } from '../../generated/openapi-types'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 /** The expansions `GET /v1/domains/{domainId}/health` accepts. */
 export const DOMAIN_HEALTH_INCLUDE_TOKENS = [
@@ -79,14 +79,16 @@ export function createGetDomainHealth(client: HttpClient) {
   ): Promise<BrewRawResponse<GetDomainHealthResponse>>
   function getDomainHealth(
     input: GetDomainHealthInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<GetDomainHealthResponse>
+  function getDomainHealth(
+    input: GetDomainHealthInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<GetDomainHealthResponse>>
   async function getDomainHealth(
     input: GetDomainHealthInput,
     options?: RequestOptions
-  ): Promise<
-    GetDomainHealthResponse | BrewRawResponse<GetDomainHealthResponse>
-  > {
+  ): Promise<BrewResponse<GetDomainHealthResponse>> {
     const response = await client.request<GetDomainHealthResponse>({
       method: 'GET',
       path: `/v1/domains/${encodeURIComponent(input.domainId)}/health`,

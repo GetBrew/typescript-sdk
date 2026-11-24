@@ -1,5 +1,9 @@
 import { unwrapResponse, type HttpClient } from '../../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../../types'
+import type {
+  BrewResponse,
+  BrewRawResponse,
+  RequestOptions,
+} from '../../../types'
 
 import type { AudienceRun } from './types'
 
@@ -26,12 +30,16 @@ export function createGetAudienceRun(client: HttpClient) {
   ): Promise<BrewRawResponse<GetAudienceRunResponse>>
   function getAudienceRun(
     audienceRunId: string,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<GetAudienceRunResponse>
+  function getAudienceRun(
+    audienceRunId: string,
+    options?: RequestOptions
+  ): Promise<BrewResponse<GetAudienceRunResponse>>
   async function getAudienceRun(
     audienceRunId: string,
     options?: RequestOptions
-  ): Promise<GetAudienceRunResponse | BrewRawResponse<GetAudienceRunResponse>> {
+  ): Promise<BrewResponse<GetAudienceRunResponse>> {
     const response = await client.request<GetAudienceRunResponse>({
       method: 'GET',
       path: `/v1/automations/audience-runs/${encodeURIComponent(audienceRunId)}`,

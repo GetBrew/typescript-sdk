@@ -1,6 +1,6 @@
 import type { components } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 type GeneratedAuditRequest = components['schemas']['EmailAuditRequest']
 type UnionKeys<T> = T extends unknown ? keyof T : never
@@ -49,12 +49,16 @@ export function createAuditEmail(client: HttpClient) {
   ): Promise<BrewRawResponse<EmailAuditResponse>>
   function auditEmail(
     input: AuditEmailInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<EmailAuditResponse>
+  function auditEmail(
+    input: AuditEmailInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<EmailAuditResponse>>
   async function auditEmail(
     input: AuditEmailInput,
     options?: RequestOptions
-  ): Promise<EmailAuditResponse | BrewRawResponse<EmailAuditResponse>> {
+  ): Promise<BrewResponse<EmailAuditResponse>> {
     const response = await client.request<EmailAuditResponse>({
       method: 'POST',
       path: '/v1/emails/audit',

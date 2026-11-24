@@ -2,7 +2,7 @@ import type { operations } from '../../generated/openapi-types'
 import { autoPaginate, pageReadOptions } from '../../core/pagination'
 import { BrewInputError } from '../../core/errors'
 import { unwrapResponse, type HttpClient } from '../../core/http'
-import type { BrewRawResponse, RequestOptions } from '../../types'
+import type { BrewResponse, BrewRawResponse, RequestOptions } from '../../types'
 
 import type { EventRow, EventsAnalyticsResponse } from './types'
 
@@ -54,14 +54,16 @@ export function createEventsAnalytics(client: HttpClient) {
   ): Promise<BrewRawResponse<EventsAnalyticsResponse>>
   function eventsAnalytics(
     input?: EventsAnalyticsInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<EventsAnalyticsResponse>
+  function eventsAnalytics(
+    input?: EventsAnalyticsInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<EventsAnalyticsResponse>>
   async function eventsAnalytics(
     input: EventsAnalyticsInput = {},
     options?: RequestOptions
-  ): Promise<
-    EventsAnalyticsResponse | BrewRawResponse<EventsAnalyticsResponse>
-  > {
+  ): Promise<BrewResponse<EventsAnalyticsResponse>> {
     for (const key of COUNT_ONLY_KEYS) {
       if ((input as Record<string, unknown>)[key] !== undefined) {
         throw new BrewInputError({

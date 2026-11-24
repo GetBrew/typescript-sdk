@@ -46,6 +46,9 @@ jobs:
         # mistake before it lands on main.
         run: bun install --frozen-lockfile
 
+      - name: Pinned API contract integrity
+        run: bun run contract:check
+
       - name: Typecheck
         # Most important check for this SDK. Resource methods derive their
         # types from src/generated/openapi-types.ts; tsc surfaces drift

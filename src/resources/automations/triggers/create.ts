@@ -1,6 +1,10 @@
 import { unwrapResponse, type HttpClient } from '../../../core/http'
 import type { components } from '../../../generated/openapi-types'
-import type { BrewRawResponse, RequestOptions } from '../../../types'
+import type {
+  BrewResponse,
+  BrewRawResponse,
+  RequestOptions,
+} from '../../../types'
 
 import type { Trigger } from './types'
 
@@ -33,12 +37,16 @@ export function createCreateTrigger(client: HttpClient) {
   ): Promise<BrewRawResponse<CreateTriggerResponse>>
   function createTrigger(
     input: CreateTriggerInput,
-    options?: RequestOptions
+    options?: RequestOptions<false>
   ): Promise<CreateTriggerResponse>
+  function createTrigger(
+    input: CreateTriggerInput,
+    options?: RequestOptions
+  ): Promise<BrewResponse<CreateTriggerResponse>>
   async function createTrigger(
     input: CreateTriggerInput,
     options?: RequestOptions
-  ): Promise<CreateTriggerResponse | BrewRawResponse<CreateTriggerResponse>> {
+  ): Promise<BrewResponse<CreateTriggerResponse>> {
     const response = await client.request<CreateTriggerResponse>({
       method: 'POST',
       path: '/v1/automations/triggers',
