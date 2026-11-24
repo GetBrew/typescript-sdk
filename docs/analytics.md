@@ -1,17 +1,20 @@
 # `brew.analytics`
 
-Read-only analytics **reports**: brand-wide totals and timeseries,
-per-automation performance, and a unified cross-domain event explorer.
+Analytics reports, trusted server event collection, and browser identity tokens.
+The API key belongs on your server. Browser collection uses the separate browser
+SDK and a publishable project key.
 
-| Method                        | HTTP                            | Scope         |
-| ----------------------------- | ------------------------------- | ------------- |
-| [`overview`](#overview)       | `GET /v1/analytics/overview`    | `emails`      |
-| [`automations`](#automations) | `GET /v1/analytics/automations` | `automations` |
-| [`events`](#events)           | `GET /v1/analytics/events`      | `emails`      |
-| [`eventsAll`](#eventsall)     | `GET /v1/analytics/events`      | `emails`      |
-| [`eventCounts`](#eventcounts) | `GET /v1/analytics/events`      | `emails`      |
+| Method                                        | HTTP                                | Scope         |
+| --------------------------------------------- | ----------------------------------- | ------------- |
+| [`overview`](#overview)                       | `GET /v1/analytics/overview`        | `emails`      |
+| [`automations`](#automations)                 | `GET /v1/analytics/automations`     | `automations` |
+| [`events`](#events)                           | `GET /v1/analytics/events`          | `emails`      |
+| [`eventsAll`](#eventsall)                     | `GET /v1/analytics/events`          | `emails`      |
+| [`eventCounts`](#eventcounts)                 | `GET /v1/analytics/events`          | `emails`      |
+| [`track`](#track)                             | `POST /v1/analytics/track`          | `automations` |
+| [`createIdentityToken`](#createidentitytoken) | `POST /v1/analytics/identity-token` | `contacts`    |
 
-> **Moved in 10.0.0.** `analytics` keeps only reports. The row reads that
+> **Moved in 10.0.0.** The row reads that
 > used to live here went to the resources that own them:
 >
 > | Was                            | Now                                     |
@@ -200,3 +203,80 @@ const reasons = await brew.analytics.eventCounts({
 `groupBy` takes `eventType`, `emailId`, `automationId`, `sendId`,
 `source`, `link`, `recipientDomain` or `unsubscribeReason`
 (`EVENTS_GROUP_BY_TOKENS`). A count takes no `cursor` or `limit`.
+
+---
+
+## `track`
+
+`track(input: TrackProductAnalyticsInput, options?: RequestOptions)` submits
+up to 50 canonical product events. It returns `TrackProductAnalyticsResponse`:
+`{ accepted: string[], rejected: Array<{ id, reason }> }`.
+
+```ts
+const result = await brew.analytics.track(
+  {
+    projectId: 'pap_project',
+    events: [
+      {
+        schemaVersion: 1,
+        id: 'order-123-completed',
+        type: 'track',
+        name: 'order_completed',
+        occurredAt: new Date().toISOString(),
+        anonymousId: 'browser-anonymous-id',
+        userId: 'user-123',
+        sessionId: 'browser-session-id',
+        tabId: 'server',
+        pageViewId: 'server',
+        properties: { orderId: 'order-123', total: 4900 },
+        context: {},
+        sdk: { name: 'orders-service', version: '1.0.0' },
+      },
+    ],
+  },
+  { idempotencyKey: 'order-123-completed' }
+)
+
+if (result.rejected.length > 0) {
+  console.error('Rejected analytics events', result.rejected)
+}
+```
+
+Requires the `automations` API scope. The project must belong to the selected
+brand; an organization-scoped key selects it using `brandId` in the client
+configuration or `brew.withBrand(brandId)`. The server derives tenant ownership
+and trust from that verified scope. Never put your API key in a browser bundle.
+
+The batch limit is 48 KiB including the server transport envelope; each event is
+limited to 8 KiB. Keep IDs stable when
+retrying the same upstream job. HTTP 202 acknowledges durable ingestion; it does
+not mean a trigger or flow has finished. Explicitly inspect `rejected` even after
+a successful request. Existing transport retries and typed errors apply; passing
+`{ raw: true }` returns `BrewRawResponse<TrackProductAnalyticsResponse>`.
+
+## `createIdentityToken`
+
+`createIdentityToken(input: CreateProductAnalyticsIdentityTokenInput,
+options?: RequestOptions)` returns
+`CreateProductAnalyticsIdentityTokenResponse`: `{ token, expiresAt }`.
+
+```ts
+const identity = await brew.analytics.createIdentityToken({
+  projectId: 'pap_project',
+  userId: 'user-123',
+  anonymousId: 'browser-anonymous-id',
+  contactId: '507f1f77bcf86cd799439011',
+})
+```
+
+Requires the `contacts` scope. Call from your application backend only after
+authenticating the current user and resolving that user's existing contact.
+The browser must not choose arbitrary contact IDs. Brew checks the contact and
+project belong to the credential's selected brand, then signs a token binding
+the anonymous ID, application user, contact, project, environment, and region.
+
+Return this token to that user's browser SDK. It expires after five minutes;
+refresh it through your authenticated backend before expiry. This endpoint does
+not replay cached Idempotency-Key responses, which could contain expired tokens.
+It never creates a contact, changes subscription status, or grants marketing
+consent. A missing or other-brand project/contact returns `404 NOT_FOUND`.
