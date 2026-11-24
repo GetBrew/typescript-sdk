@@ -108,6 +108,24 @@ git push origin main && git tag vX.Y.Z && git push origin vX.Y.Z
 `npm publish`, not `bun publish`** — Bun's publish skips lifecycle
 scripts, including `prepublishOnly`.
 
+## Local artifact proof and publication prerequisites
+
+The release workflow requires `NPM_TOKEN` before installing dependencies and
+uses Node 22 for its publishing tools. Missing credentials fail the job rather
+than leaving an apparently successful release.
+
+After building, run `bun run smoke:release`. This packs and extracts a local
+tarball, imports both ESM and CJS entrypoints, and exercises the event catalog
+and outbound-webhook read methods using an injected fetch. It checks source
+identity headers and URL escaping, with no network requests or mutations. The
+integration-event trigger method is checked for availability without calling
+it. The workflow and `prepublishOnly` both run this smoke.
+
+This proves the local packed artifact only. It does not establish that the
+version in `package.json` has been published, that the API is deployed, or that
+the CLI consumes a registry SDK. Keep the API deployment, registry release and
+CLI dependency update as separate explicit release gates.
+
 ## Version policy
 
 Pre-1.0 history shipped breaking changes as minor bumps. From 1.0
@@ -161,6 +179,13 @@ accident), rotate immediately:
 3. Update the consumer (GitHub secret or local `~/.npmrc`).
 
 ## Common gotchas
+
+Lifecycle contract changes also require the handwritten resource inputs to
+follow the generated types: goal create/patch fields and analytics outcome
+query parameters. Run the lifecycle MSW tests, including opaque cursor query
+forwarding, typed goal updates/clears and the inactivity filter, after spec
+synchronization. A generated response type alone does not prove that a
+resource forwards a new request field.
 
 - **`bun test` ≠ `bun run test`.** The first invokes Bun's built-in
   runner which ignores `vitest.config.ts` and `tests/setup.ts`. MSW

@@ -4,6 +4,27 @@ Create and manage deterministic automation graphs, run test or manual-audience
 executions, and inspect their lifecycle. All methods require the `automations`
 scope.
 
+`create` and `patch` accept an optional `goal`: a concrete event source,
+provider event key, window in days and `stopRemainingSends` policy. Omit it
+on patch to retain the draft's goal; pass `goal: null` to clear it. Each
+published version pins its goal independently of later product-role edits.
+
+```ts
+await brew.automations.patch({
+  automationId: 'auto_activation',
+  goal: {
+    schemaVersion: 1,
+    kind: 'event',
+    event: { sourceId: 'source_posthog_project', providerEventKey: 'paid' },
+    windowDays: 14,
+    stopRemainingSends: true,
+  },
+})
+```
+
+With `stopRemainingSends: false`, the goal measures observed outcomes while
+the flow continues. It does not attribute the outcome to email delivery.
+
 | Method                                                           | HTTP                                                      |
 | ---------------------------------------------------------------- | --------------------------------------------------------- |
 | `create`                                                         | `POST /v1/automations`                                    |
@@ -133,6 +154,10 @@ console.log(result.automationRunIds) // the runs this fire started
 console.log(result.notStarted) // [{ automationId, reason }] that could not start
 console.log(result.triggerInstanceId)
 ```
+
+On replay, `notStartedTruncated: true` means the bounded trigger summary
+omits additional goal entry refusals. Each refusal retains its per-automation
+audit receipt; do not treat that summary as a complete refusal list.
 
 The fire body is **bare** in 10.0.0 — `{ triggerInstanceId, triggerEventId,
 status, automationRunIds, notStarted, publishedAutomations, counts,

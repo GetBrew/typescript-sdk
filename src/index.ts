@@ -239,6 +239,7 @@ export type {
 export type {
   Automation,
   AutomationDryRunReport,
+  AutomationGoal,
   AutomationsListResponse,
 } from './resources/automations/types'
 export type { GetBrandInput } from './resources/brand/get'

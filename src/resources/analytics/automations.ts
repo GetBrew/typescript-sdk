@@ -1,4 +1,5 @@
 import { unwrapResponse, type HttpClient } from '../../core/http'
+import type { operations } from '../../generated/openapi-types'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
 import type { AutomationAnalyticsResponse } from './types'
@@ -11,22 +12,18 @@ export type { AutomationAnalyticsResponse }
  * to a single automation; `limit` caps the per-automation fan-out
  * (1–100). All fields optional.
  */
-export type AutomationAnalyticsInput = {
-  from?: string
-  to?: string
-  automationId?: string
-  limit?: number
-}
+export type AutomationAnalyticsInput = NonNullable<
+  operations['getAutomationAnalytics']['parameters']['query']
+>
 
 function buildQuery(
   input: AutomationAnalyticsInput | undefined
 ): Record<string, string> | undefined {
   if (!input) return undefined
   const query: Record<string, string> = {}
-  if (input.from !== undefined) query.from = input.from
-  if (input.to !== undefined) query.to = input.to
-  if (input.automationId !== undefined) query.automationId = input.automationId
-  if (input.limit !== undefined) query.limit = String(input.limit)
+  for (const [key, value] of Object.entries(input)) {
+    if (value !== undefined) query[key] = String(value)
+  }
   return Object.keys(query).length > 0 ? query : undefined
 }
 
