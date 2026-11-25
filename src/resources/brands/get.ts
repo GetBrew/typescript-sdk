@@ -9,19 +9,6 @@ export type GetBrandStatusInput = {
   readonly brandId: string
 }
 
-/**
- * `GET /v1/brands/{brandId}` — one brand's permission-agnostic lifecycle state.
- *
- * The poll for `brands.create(...)`: reports `status`, `progress` and `phase`
- * while extraction runs, `error` if it failed, and `ready: true` once the brand
- * can be used to design email. Terminal states are `completed` and `failed`.
- *
- * For the brand's DESIGN CONTEXT (identity, design system, logos) use
- * `brew.brand.get(...)` instead — that one reads the brand the request acts on.
- *
- * An unknown brand, one in another organization, and one being deleted are all
- * `404 BRAND_NOT_FOUND` — deliberately indistinguishable.
- */
 export function createGetBrand(client: HttpClient) {
   function getBrand(
     input: GetBrandStatusInput,

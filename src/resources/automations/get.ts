@@ -4,39 +4,16 @@ import type { BrewRawResponse, RequestOptions } from '../../types'
 
 import type { Automation } from './types'
 
-/** Expansions `GET /v1/automations/{automationId}` accepts. */
 export const AUTOMATIONS_INCLUDE_TOKENS = ['graph', 'versions'] as const
 export type AutomationsIncludeToken =
   (typeof AUTOMATIONS_INCLUDE_TOKENS)[number]
 
-/**
- * Per-request options for `brew.automations.get(...)` — the standard
- * `RequestOptions` plus the detail-only `include` expansions.
- */
 export type GetAutomationOptions = RequestOptions & {
-  /**
-   * `'graph'` attaches `nodes` + `connections`; `'versions'` attaches
-   * the inline version history. Accepts an array of tokens or a comma
-   * string.
-   */
   readonly include?: ReadonlyArray<AutomationsIncludeToken> | string
 }
 
-/** `GET /v1/automations/{automationId}` returns the BARE `AutomationRow`. */
 export type GetAutomationResponse = Automation
 
-/**
- * `GET /v1/automations/{automationId}` (scope: `automations`) — one
- * automation, returned as the BARE row. Lean by default: pass
- * `include: 'graph'` for `nodes` + `connections` and/or
- * `include: 'versions'` for the inline version history.
- *
- * An unknown or cross-brand id is `404 AUTOMATION_NOT_FOUND` — it is no
- * longer an empty page you have to test for.
- *
- * Pass `{ raw: true }` in `options` to receive the full
- * `BrewRawResponse<GetAutomationResponse>` instead of the unwrapped row.
- */
 export function createGetAutomation(client: HttpClient) {
   function getAutomation(
     automationId: string,

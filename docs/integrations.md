@@ -26,17 +26,15 @@ trigger with
 
 ```ts
 const page = await brew.integrations.events.list({
-  provider: 'posthog', // optional
-  query: 'project', // optional: searches names, titles and categories
-  kind: 'custom', // optional: standard | custom | action | derived | observed
-  limit: 50, // 1–100, default 100
+  provider: 'posthog',
+  query: 'project',
+  kind: 'custom',
+  limit: 50,
 })
 
 for (const event of page.data) {
   console.log(event.eventId, event.eventKey, event.label, event.volume30d)
 }
-// page.sources: the connected sources the page drew from
-// page.pagination: { limit, cursor, hasMore }
 ```
 
 Each `IntegrationEvent` has its `eventId`, the provider's `eventKey`, Brew's
@@ -56,7 +54,6 @@ const event = await brew.integrations.events.get(
 )
 
 for (const property of event.properties) {
-  // e.g. 'properties.project_name' or 'person.first_name'
   console.log(property.variable, property.isPersonal)
 }
 ```
@@ -82,7 +79,6 @@ A spent budget is not an error: `get` resolves with what Brew stored.
 
 ```ts
 if (event.propertiesStatus === 'rate_limited') {
-  // event.retryAfterSeconds: seconds until the provider can be read again
 }
 ```
 

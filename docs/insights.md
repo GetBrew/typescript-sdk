@@ -19,7 +19,7 @@ free and read-only.
 type InsightSummary = {
   readonly insightId: string
   readonly title: string
-  readonly description: string // the detector's headline
+  readonly description: string
   readonly severity: 'critical' | 'warning' | 'opportunity' | 'info'
   readonly confidence: 'high' | 'medium' | 'low'
   readonly kind: 'answer' | 'insight' | 'strategy'
@@ -32,20 +32,18 @@ type InsightSummary = {
     | 'dismissed'
     | 'resolved'
     | 'stale'
-  readonly firstSeenAt: string // ISO-8601
+  readonly firstSeenAt: string
   readonly lastSeenAt: string
   readonly recurrenceCount: number
-  // Open a page in Brew, or start the assistant with a prompt.
   readonly action?:
     | { kind: 'navigate'; label: string; url: string }
     | { kind: 'assistant'; label: string; intent: string; prompt: string }
-  readonly url: string // the finding in Brew
+  readonly url: string
 }
 
 type InsightFreshness = {
-  readonly dataAsOf: string | null // how current the data behind the findings is
+  readonly dataAsOf: string | null
   readonly lastSuccessfulRunAt: string | null
-  // 'failed' means the findings may be stale.
   readonly latestAttempt: {
     status: 'succeeded' | 'failed' | 'running' | 'unknown'
     at: string
@@ -67,12 +65,12 @@ at most 200 findings in view.
 
 ```ts
 type ListInsightsInput = {
-  readonly state?: 'open' | 'all' // default 'open'
+  readonly state?: 'open' | 'all'
   readonly severity?: 'critical' | 'warning' | 'opportunity' | 'info'
   readonly include?:
     | ReadonlyArray<'pulse' | 'report' | 'suggestions' | 'memo'>
     | string
-  readonly limit?: number // 1–100, default 100
+  readonly limit?: number
   readonly cursor?: string
 }
 ```
@@ -139,7 +137,6 @@ the first page with the same `state` and `severity`, dropping only
 ```ts
 import { BrewApiError, type ListInsightsInput } from '@brew.new/sdk'
 
-// The walk's filters, kept for the restart: only `cursor` is dropped.
 const filters: ListInsightsInput = { state: 'all', severity: 'warning' }
 
 async function nextPage({ cursor }: { cursor: string }) {
@@ -147,7 +144,6 @@ async function nextPage({ cursor }: { cursor: string }) {
     return await brew.insights.list({ ...filters, cursor })
   } catch (error) {
     if (error instanceof BrewApiError && error.param === 'cursor') {
-      // The findings changed: start over from the first page, same filters.
       return brew.insights.list(filters)
     }
     throw error

@@ -34,7 +34,6 @@ describe('brand.getImages', () => {
 
     const url = new URL(captured!.url)
     expect(url.pathname).toBe('/api/v1/brand/images')
-    // Browse mode: no semantic query, just pagination.
     expect(url.searchParams.get('q')).toBeNull()
     expect(url.searchParams.get('limit')).toBe('20')
     expect(result.data[0]?.url).toBe(IMAGE.url)
@@ -65,7 +64,6 @@ describe('brand.getImages', () => {
     expect(params.get('q')).toBe('user profile component')
     expect(params.get('kind')).toBe('brand')
     expect(params.get('sort')).toBe('oldest')
-    // Retired by the API (brew-v2#1713); the SDK never sends them.
     expect(params.has('type')).toBe(false)
     expect(params.has('aspectRatio')).toBe(false)
   })

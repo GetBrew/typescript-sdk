@@ -20,8 +20,6 @@ export default defineConfig({
   sourcemap: true,
   minify: false,
   target: 'es2022',
-  // A single declaration build owns all entries. Esbuild preserves the
-  // React entry's client directive; a Rollup treeshake pass would strip it.
   treeshake: false,
   clean: true,
   external: ['react', 'react/jsx-runtime'],
@@ -42,10 +40,6 @@ export default defineConfig({
   splitting: false,
   outDir: 'dist',
   define: {
-    // Replace the bare `__SDK_VERSION__` identifier in `src/version.ts`
-    // with the real version at build time so consumers always see the
-    // published SDK version in the default User-Agent without needing
-    // a manual sync between `package.json` and a hand-edited constant.
     __SDK_VERSION__: JSON.stringify(pkg.version),
   },
 })

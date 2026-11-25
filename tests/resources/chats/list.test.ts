@@ -43,14 +43,12 @@ describe('chats.list', () => {
     expect(url?.search).toBe('')
     expect(page.data[0]?.chatId).toBe('Hk2mZ8t9QbY3sW1vR0pLd')
     expect(page.data[0]?.status).toBe('completed')
-    // Nullable fields round-trip as null.
     expect(page.data[1]?.title).toBeNull()
     expect(page.data[1]?.status).toBeNull()
     expect(page.data[1]?.origin).toBe('slack')
   })
 
   it('forwards limit and an opaque native cursor verbatim', async () => {
-    // Native cursors run up to 8,192 characters and are not base64url.
     const cursor = `${'x'.repeat(4000)}+/=`
     let params: URLSearchParams | undefined
     server.use(

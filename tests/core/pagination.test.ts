@@ -19,7 +19,6 @@ describe('autoPaginate', () => {
       const drain = async () => {
         for await (const item of autoPaginate<number>((cursor) => {
           requested.push(cursor)
-          // Bound the old implementation so the regression fails without hanging.
           if (requested.length > cursors.length) {
             return Promise.reject(new Error('refetched a known page'))
           }

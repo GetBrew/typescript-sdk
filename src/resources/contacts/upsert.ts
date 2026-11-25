@@ -4,69 +4,19 @@ import type { BrewRawResponse, RequestOptions } from '../../types'
 
 import type { ContactConsentInput } from './types'
 
-/**
- * Caller-facing input for a single-contact upsert.
- *
- * The OpenAPI spec types this as the first variant of `ContactsPostRequest`:
- * `{ email?, firstName?, lastName?, subscribed?, customFields? }`. Email
- * is technically optional in the schema (the API tolerates batch shape
- * detection by inspecting `contacts[]`), but the SDK requires it on the
- * single-upsert path because calling `upsert` without an email is always
- * a programming error.
- */
 export type UpsertContactInput = {
   readonly email: string
   readonly firstName?: string
   readonly lastName?: string
   readonly subscribed?: boolean
   readonly customFields?: { readonly [key: string]: unknown }
-  /** Marketing consent provenance to record on this contact. */
   readonly consent?: ContactConsentInput
-  /**
-   * When `true`, the contact's email is deliverability-checked via the
-   * validation provider after the upsert and the verdict is saved onto the
-   * contact (`validationStatus` / `validationDetails` / `lastValidatedAt`).
-   * Metered 2 credits per address, charged only on success; insufficient
-   * credits fail the request with `402 INSUFFICIENT_CREDITS`. A single
-   * upsert always validates inline, so the response `contact` reflects the
-   * saved verdict and `validation` carries the (single-address) counts.
-   */
   readonly validate?: boolean
 }
 
 export type UpsertContactResponse =
   components['schemas']['ContactsPostSingleResponse']
 
-/**
- * Create or update a single contact by email.
- *
- * The transport auto-attaches an `Idempotency-Key` header on POST, so
- * retries on transient failures are safe by default. A caller-supplied
- * key can be passed via `options.idempotencyKey` when integrating with
- * an upstream queue that already provides one.
- *
- * Returns the full `ContactsPostSingleResponse` envelope (contact +
- * `created` flag + `fieldsCreated` array + `warnings`) rather than just
- * the contact, because all four fields carry signal — `created`
- * distinguishes insert from update, `fieldsCreated` lists the custom
- * fields this upsert auto-defined (not one another request created first),
- * and `warnings` surfaces non-fatal normalizations, such as a value
- * converted to its field's type (`FIELD_TYPE_COERCED`; a date written to a
- * `date` field is converted without one).
- *
- * Pass `validate: true` to deliverability-check the address after the
- * upsert and persist the verdict onto the contact. On the single-upsert
- * path this always runs inline (the batch `upsertMany` path defers to a
- * background job past 100 addresses); the response gains an optional
- * `validation` counts object and the returned `contact` reflects the saved
- * `validationStatus` / `validationDetails` / `lastValidatedAt`. Metered 2
- * credits per address, charged only on success; insufficient credits fail
- * with `402 INSUFFICIENT_CREDITS`.
- *
- * Pass `{ raw: true }` in `options` to receive the full
- * `BrewRawResponse<UpsertContactResponse>` instead of the unwrapped
- * payload.
- */
 export function createUpsertContact(client: HttpClient) {
   function upsert(
     input: UpsertContactInput,

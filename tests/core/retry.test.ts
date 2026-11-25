@@ -8,7 +8,6 @@ import {
 import type { BrewHttpMethod } from '../../src/types'
 
 describe('shouldRetry', () => {
-  /** A retryable-by-default decision; each test overrides what it probes. */
   function decide({ ...overrides }: Partial<RetryDecisionInput>): boolean {
     return shouldRetry({
       method: 'GET',
@@ -69,8 +68,6 @@ describe('shouldRetry', () => {
     })
 
     it('does NOT retry when the server asks for a longer wait', () => {
-      // Sleeping minutes inside one call looks exactly like a hang; the
-      // BrewApiError carries `retryAfter` so the caller can schedule it.
       expect(
         decide({
           cause: { kind: 'status', status: 429, retryAfterMs: 60_001 },
@@ -205,7 +202,6 @@ describe('computeBackoff', () => {
   })
 
   it('ignores retryAfterMs when it is undefined and computes exponential backoff', () => {
-    // attempt 0, base 100, random 1 -> baseMs * 2^0 * 1.0 = 100
     const delayMs = computeBackoff({
       attempt: 0,
       baseMs: 100,
@@ -216,7 +212,6 @@ describe('computeBackoff', () => {
   })
 
   it('doubles the base for each attempt (exponential)', () => {
-    // random 1 -> no jitter reduction, so we see the raw exponential curve.
     expect(
       computeBackoff({
         attempt: 0,
@@ -266,7 +261,6 @@ describe('computeBackoff', () => {
   })
 
   it('applies full jitter (random in [0, computed])', () => {
-    // attempt 2, base 100 -> computed 400, random 0.25 -> 100
     expect(
       computeBackoff({
         attempt: 2,
@@ -276,7 +270,6 @@ describe('computeBackoff', () => {
       })
     ).toBe(100)
 
-    // attempt 2, base 100 -> computed 400, random 0 -> 0
     expect(
       computeBackoff({
         attempt: 2,
@@ -288,8 +281,6 @@ describe('computeBackoff', () => {
   })
 
   it('jitter is bounded by the cap, not by the uncapped exponential', () => {
-    // attempt 10, base 100 -> raw exponential 102_400, capped to 1000,
-    // random 0.5 -> 500 (jitter applied to the cap, not the raw value).
     expect(
       computeBackoff({
         attempt: 10,

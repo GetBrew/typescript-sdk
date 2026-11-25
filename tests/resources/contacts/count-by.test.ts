@@ -69,7 +69,6 @@ describe('contacts.countBy types', () => {
   it('types groupBy as one or two fields, as the API requires', () => {
     const { client } = makeTestHttpClient()
     const countBy = createCountContactsBy(client)
-    // Compile-time only: the calls are never made.
     const calls = [
       // @ts-expect-error -- the API refuses an empty groupBy
       () => countBy({ groupBy: [] }),

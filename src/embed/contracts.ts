@@ -1,10 +1,6 @@
-// Generated from brew-v2/lib/embed/contracts.ts. Do not edit.
 import { isRecord } from './is-record'
-/** Canonical browser-safe embed protocol. Vendored into the public SDK by sync-embed-contracts.mjs. */
 export const CANVAS_PROTOCOL = 'brew.canvas.v1' as const
-/** Publishable embed app identifiers; API keys are never browser canvas credentials. */
 export const CANVAS_CLIENT_ID_PATTERN = /^brew_client_[0-9a-f]{32}$/
-/** Browser recovery identity is public metadata, never an access credential. */
 export const CANVAS_RECOVERY_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
 export type CanvasTarget =
@@ -32,7 +28,6 @@ export type CanvasSavedEvent = Readonly<{
   emailVersionId: string | null
   updatedAt: string
 }>
-/** The resolved displayed row, including historical version pins. */
 export type CanvasSelectedEmail = Readonly<{
   emailId: string
   emailVersion: number | 'latest'
@@ -53,7 +48,6 @@ export class BrewEmbedError extends Error {
     this.code = code
   }
 }
-/** Validate before React or JavaScript hosts narrow the authentication mode. */
 export function validateCanvasAuthentication(
   options: Readonly<{
     clientId?: unknown

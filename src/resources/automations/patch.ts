@@ -4,82 +4,22 @@ import type { BrewRawResponse, RequestOptions } from '../../types'
 import type { AutomationConnectionInput, AutomationNodeInput } from './create'
 import type { Automation, AutomationDryRunReport } from './types'
 
-/**
- * `PATCH /v1/automations/{automationId}` body — the update fields per
- * `AUTOMATIONS_UPDATE_REQUEST_SCHEMA`. `automationId` travels in the PATH,
- * not the body.
- *
- * There are two kinds of update, and they are **mutually exclusive**:
- *
- * 1. **Content** — at least one of `name | description | nodes |
- *    connections | triggerEventId`. Graph updates persist a new
- *    `automationVersionId` on the same `automationId`. A graph the save
- *    refuses is `400 AUTOMATION_GRAPH_INVALID`; `details.issues[]` lists
- *    each problem as `{ kind, code?, nodeId?, nodeLabel?, message }`
- *    (`code` names the topology fault on a `kind: 'structure'` issue).
- * 2. **Lifecycle** — `published: true` promotes the stored latest version
- *    live (the graph is validated first → `422 PUBLISH_VALIDATION_FAILED`
- *    on blockers); optionally pin `automationVersionId` to publish a
- *    specific historical version. `published: false` unpublishes (→
- *    `422 AUTOMATION_NOT_PUBLISHED` if it was never live).
- *
- * Combining `published` with content fields is rejected by the server's
- * strict schema (`400 INVALID_REQUEST`). For lifecycle changes prefer the
- * dedicated `brew.automations.publish(...)` / `.unpublish(...)`
- * convenience methods, which build the right body for you.
- */
 export type PatchAutomationInput = {
-  /** Path param — which automation to update. */
   automationId: string
-  // content update fields (mutually exclusive with `published`)
   name?: string
   description?: string
   nodes?: ReadonlyArray<AutomationNodeInput>
-  /**
-   * The full edge list; it replaces the stored one. Omit to keep the stored
-   * edges (also when sending `nodes`); an edge whose end no longer exists is
-   * then refused with `AUTOMATION_GRAPH_INVALID`.
-   */
   connections?: ReadonlyArray<AutomationConnectionInput>
   triggerEventId?: string
-  /**
-   * Validate only — run the full publish-gate check without writing. A
-   * literal `dryRun: true` (`PatchAutomationDryRunInput`) is typed as the
-   * `AutomationDryRunReport` it answers.
-   */
   dryRun?: boolean
-  // lifecycle update fields (mutually exclusive with the content fields)
   published?: boolean
   automationVersionId?: string
-  /**
-   * With `published: false` only — ALSO permanently stop contacts already
-   * mid-flow (default: they drain to completion). Spelled `stop_in_flight`
-   * before v1; that was one of the last two snake_case fields on the wire.
-   */
   stopInFlight?: boolean
-  /**
-   * Freeze (`true`) / resume (`false`) a LIVE automation without
-   * unpublishing; held contacts resume from the same point.
-   */
   paused?: boolean
-  /**
-   * Optimistic concurrency guard — the `automationVersionId` read before
-   * deriving this update. The save is refused with
-   * `409 AUTOMATION_VERSION_CONFLICT` when the automation has changed since.
-   */
   expectedBaseVersionId?: string
-  /**
-   * Optional stricter guard — SHA-256 of the exact definition read before
-   * deriving this update. Requires `expectedBaseVersionId` (alone it is a
-   * `400 INVALID_REQUEST`).
-   */
   expectedBaseDefinitionSha256?: string
 }
 
-/**
- * A content update with `dryRun: true`: the full publish-gate check on the
- * updated graph, nothing written. Answers an `AutomationDryRunReport`.
- */
 export type PatchAutomationDryRunInput = Omit<
   PatchAutomationInput,
   'dryRun'
@@ -87,18 +27,8 @@ export type PatchAutomationDryRunInput = Omit<
   dryRun: true
 }
 
-/**
- * `PATCH /v1/automations/{automationId}` response — the BARE updated
- * `AutomationRow`, NOT a `{ automations: [...] }` envelope.
- */
 export type PatchAutomationResponse = Automation
 
-/**
- * `PATCH /v1/automations/{automationId}` — update metadata and/or the
- * graph, OR change the published lifecycle. Graph updates persist a new
- * `automationVersionId` on the same `automationId`. Returns the bare
- * updated row; with `dryRun: true`, the `AutomationDryRunReport` instead.
- */
 export function createPatchAutomation(client: HttpClient) {
   function patchAutomation(
     input: PatchAutomationDryRunInput,
@@ -138,17 +68,6 @@ export function createPatchAutomation(client: HttpClient) {
   return patchAutomation
 }
 
-/**
- * `PATCH /v1/automations/{automationId}` with `{ published: true }` —
- * promote the automation to live so its trigger starts matching fires.
- * Pass `automationVersionId` to publish a specific historical version;
- * omit it to publish the stored latest. The server validates the graph
- * first and returns `422 PUBLISH_VALIDATION_FAILED` on blockers (surfaced
- * as a `BrewApiError`). Returns the bare published `AutomationRow`.
- *
- * (Convenience wrapper over `PATCH /v1/automations/{automationId}` — the
- * old `POST …/publish` sub-route no longer exists.)
- */
 export function createPublishAutomation(client: HttpClient) {
   function publishAutomation(
     input: { automationId: string; automationVersionId?: string },
@@ -181,25 +100,8 @@ export function createPublishAutomation(client: HttpClient) {
   return publishAutomation
 }
 
-/**
- * `PATCH /v1/automations/{automationId}` with `{ published: false }` —
- * take the automation off live (its trigger stops matching fires;
- * in-flight runs finish unless you pass `stopInFlight: true`). Returns
- * the bare row with `published: false`,
- * or `422 AUTOMATION_NOT_PUBLISHED` when the automation is not live
- * (surfaced as a `BrewApiError`). On an automation that is already a
- * draft, `stopInFlight: true` still stops its in-flight contacts and is the
- * same 422 only when none are in flight.
- *
- * (Convenience wrapper over `PATCH /v1/automations/{automationId}` — the
- * old `POST …/unpublish` sub-route no longer exists.)
- */
 export type UnpublishAutomationInput = {
   readonly automationId: string
-  /**
-   * ALSO permanently stop contacts already mid-flow. Omit and they drain
-   * to completion. Spelled `stop_in_flight` before v1.
-   */
   readonly stopInFlight?: boolean
 }
 

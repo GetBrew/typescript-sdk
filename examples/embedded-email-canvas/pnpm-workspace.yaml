@@ -1,4 +1,3 @@
-# Keep the example independently installable when copied out of brew-v2.
 packages:
   - .
 allowBuilds:

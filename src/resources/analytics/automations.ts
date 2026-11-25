@@ -5,12 +5,6 @@ import type { AutomationAnalyticsResponse } from './types'
 
 export type { AutomationAnalyticsResponse }
 
-/**
- * Windowed per-automation analytics input. When `from`/`to` are
- * omitted the API defaults to the last 30 days. `automationId` narrows
- * to a single automation; `limit` caps the per-automation fan-out
- * (1–100). All fields optional.
- */
 export type AutomationAnalyticsInput = {
   from?: string
   to?: string
@@ -30,11 +24,6 @@ function buildQuery(
   return Object.keys(query).length > 0 ? query : undefined
 }
 
-/**
- * `GET /v1/analytics/automations` — windowed per-automation
- * performance + brand totals (reflects LIVE runs only). Read-only;
- * requires the `automations` scope.
- */
 export function createAutomationAnalytics(client: HttpClient) {
   function automationAnalytics(
     input: AutomationAnalyticsInput,

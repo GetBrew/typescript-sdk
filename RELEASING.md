@@ -9,32 +9,32 @@ version to npm. Read [`AGENTS.md`](./AGENTS.md) for code conventions and
 
 ```mermaid
 flowchart LR
-  Zod["sub-agent-orchestrator/lib/&lt;resource&gt;/contracts.ts<br/>(Zod schemas)"]
-  Zod -->|pnpm openapi:generate| YAMLs["3 YAMLs (mirrored byte-identical):<br/>sub-agent-orchestrator/openapi/<br/>docs/api-reference/<br/>typescript-sdk/openapi/"]
+  Zod["brew-v2/lib/&lt;resource&gt;/contracts.ts<br/>(Zod schemas)"]
+  Zod -->|pnpm openapi:generate| YAMLs["4 YAML targets (available siblings mirrored):<br/>brew-v2/openapi/<br/>docs/api-reference/<br/>typescript-sdk/openapi/<br/>brew-cli/openapi/"]
   YAMLs -->|pnpm openapi:sync:sdk-types| Generated["typescript-sdk/src/generated/openapi-types.ts"]
   Generated --> Resources["src/resources/&lt;resource&gt;/&lt;method&gt;.ts<br/>(thin wrappers)"]
   Resources -->|tsup build + npm publish<br/>or git tag vX.Y.Z| Registry["registry.npmjs.org<br/>@brew.new/sdk"]
 ```
 
-The Zod contracts in `sub-agent-orchestrator/lib/<resource>/contracts.ts`
+The Zod contracts in `brew-v2/lib/<resource>/contracts.ts`
 are the **only** source of truth. Everything downstream is generated.
 Never hand-edit `openapi/public-api-v1.yaml` or
 `src/generated/openapi-types.ts` — they get overwritten.
 
 ## Iterate loop
 
-1. **Make the API change in the app package** (`sub-agent-orchestrator/`):
+1. **Make the API change in the app package** (`brew-v2/`):
    - Update or add a Zod schema in `lib/<resource>/contracts.ts`.
    - Update or add the route handler under `app/api/v1/<resource>/route.ts`.
    - Register the operation in `openapi/public-api-v1-<resource>.ts`.
    - Add the app-side test in `tests/api/`.
 
-2. **Mirror the spec to every consumer**, from inside `sub-agent-orchestrator/`:
+2. **Mirror the spec to every consumer**, from inside `brew-v2/`:
 
    ```bash
-   pnpm openapi:generate          # writes the YAML to all 3 locations
-   pnpm openapi:sync:sdk-types    # regenerates src/generated/openapi-types.ts
-   pnpm openapi:check             # CI-style verification that everything is in sync
+   pnpm openapi:generate
+   pnpm openapi:sync:sdk-types
+   pnpm openapi:check
    ```
 
 3. **Update the SDK** (this package):
@@ -49,12 +49,12 @@ Never hand-edit `openapi/public-api-v1.yaml` or
 ## Local validation (run before every commit)
 
 ```bash
-bun install --frozen-lockfile  # only if package.json or bun.lock changed
-bun tsc                        # typecheck (strict, exactOptionalPropertyTypes)
-bun lint                       # eslint flat config + typescript-eslint
-bun run format                 # prettier write (or `format:check` to verify)
-bun run test                   # vitest + MSW. NEVER `bun test` (bypasses MSW)
-bun run build                  # tsup -> dist/ esm + cjs + .d.ts + .d.cts
+bun install --frozen-lockfile
+bun tsc
+bun lint
+bun run format
+bun run test
+bun run build
 ```
 
 CI (`.github/workflows/ci.yml`) runs the same checks plus a
@@ -69,12 +69,11 @@ is wired up with the `NPM_TOKEN` secret (one-time setup, see below),
 shipping a new version is just:
 
 ```bash
-# from typescript-sdk/, on a clean main, after iterate loop is done
 npm version <patch|minor|major|x.y.z> --no-git-tag-version
 git add package.json && git commit -m "Release vX.Y.Z"
 git push origin main
 git tag vX.Y.Z
-git push origin vX.Y.Z          # <-- this triggers the workflow
+git push origin vX.Y.Z
 ```
 
 The workflow then:
@@ -97,8 +96,8 @@ Only use this if the GitHub Action is unavailable. From `typescript-sdk/`:
 
 ```bash
 npm version <bump> --no-git-tag-version
-npm publish --dry-run                     # smoke check (runs prepublishOnly)
-npm publish                               # prompts for OTP if 2FA on
+npm publish --dry-run
+npm publish
 git add package.json && git commit -m "Release vX.Y.Z"
 git push origin main && git tag vX.Y.Z && git push origin vX.Y.Z
 ```
@@ -185,4 +184,4 @@ accident), rotate immediately:
 - npm package page: <https://www.npmjs.com/package/@brew.new/sdk>
 - GitHub repo: <https://github.com/GetBrew/typescript-sdk>
 - Public API docs (Mintlify): <https://docs.getbrew.io>
-- App package (where the OpenAPI source lives): `sub-agent-orchestrator/`
+- App package (where the OpenAPI source lives): `brew-v2/`

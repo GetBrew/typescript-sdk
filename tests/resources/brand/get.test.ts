@@ -29,7 +29,6 @@ describe('brand.get', () => {
 
     expect(capturedRequest?.method).toBe('GET')
     expect(new URL(capturedRequest!.url).pathname).toBe('/api/v1/brand')
-    // No include → no query string.
     expect(new URL(capturedRequest!.url).search).toBe('')
     expect(result.brandId).toBe('brand_123')
     expect(result.ready).toBe(true)
@@ -57,7 +56,6 @@ describe('brand.get', () => {
 
     const result = await get({ include: ['identity', 'logos'] })
 
-    // Comma-joined into ONE query value (not repeated keys).
     expect(capturedUrl?.searchParams.getAll('include')).toEqual([
       'identity,logos',
     ])

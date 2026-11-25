@@ -116,7 +116,6 @@ describe('webhooks', () => {
     ).rejects.toMatchObject({ reason: 'signature' })
   })
   it('accepts a signed event type or schema version this SDK does not know yet', async () => {
-    // Brew adds events over time; an older SDK must not reject real deliveries.
     const future = JSON.stringify({
       type: 'email.future_event',
       created_at: new Date().toISOString(),

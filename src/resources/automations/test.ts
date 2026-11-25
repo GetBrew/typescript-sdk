@@ -2,45 +2,13 @@ import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { components } from '../../generated/openapi-types'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
-/** Body for `automations.test()` plus the `automationId` path identity. */
 export type TestAutomationInput = {
   automationId: string
 } & components['schemas']['AutomationTestRequest']
 
-/** `{ automationRunIds, status: 'test_started', receivedAt }`. */
 export type TestAutomationResponse =
   components['schemas']['AutomationRunStartedResponse']
 
-/**
- * `POST /v1/automations/{automationId}/test` (scope: `automations`) — start a
- * TEST run of the saved automation. Omit `testRecipient` for a dry run that
- * delivers nothing. Set it to deliver every send node's email for real to that
- * inbox. The address must be a teammate's with access to the brand, on a
- * verified sending domain of the brand, or, for a signed-in person (not an API
- * key), their own address or one on their company domain. An API key has no
- * person behind it, so with a key only teammates and verified sending domains
- * qualify; any other address is `422 TEST_RECIPIENT_NOT_ALLOWED`
- * (`details.recipients` lists it). Test redirects skip the live contact
- * suppression gate. Verified
- * configured sender domains are preserved; otherwise delivery uses the Brew
- * test domain. Test deliveries never count toward the plan's email sends.
- * Test runs never count against analytics rollups. The optional `payload` must
- * match the trigger's schema (`400 INVALID_PAYLOAD` otherwise). A flow that
- * failed generation or has an incomplete or invalid step is
- * `422 AUTOMATION_NOT_READY` (the message names it); an automation the agent
- * is still generating is `409 AUTOMATION_IN_PROGRESS`.
- *
- * Pass `scenario` to simulate engagement (opens and clicks after a delay) and
- * force split branches; the response's `testMode` is then `'scenario'`.
- *
- * Returns `202` with `{ automationRunIds, status: 'test_started', testMode }` —
- * follow a run via `brew.automations.runs.get(automationRunId, { include:
- * 'logs' })`; a test run's detail carries `testCoverage` (the nodes,
- * connections and decisions it exercised).
- *
- * Pass `{ raw: true }` in `options` to receive the full
- * `BrewRawResponse<TestAutomationResponse>` instead of the unwrapped payload.
- */
 export function createTestAutomation(client: HttpClient) {
   function testAutomation(
     input: TestAutomationInput,

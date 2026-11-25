@@ -3,29 +3,8 @@ import type { BrewRawResponse, RequestOptions } from '../../../types'
 
 import type { AudienceRunActionResponse } from './types'
 
-/** 200 result of a pause — `{ audienceRunId, status: 'paused' }`. */
 export type PauseAudienceRunResponse = AudienceRunActionResponse
 
-/**
- * `POST /v1/automations/audience-runs/{audienceRunId}/pause` (scope:
- * `automations`) — halt an in-flight manual-audience run without
- * discarding it. Contacts already mailed stay mailed; the remaining
- * recipients simply stop entering the graph until you `resume`.
- *
- * This is one of the three action sub-paths that replaced the old
- * `control({ action })` body verb.
- *
- * Pausing a run its operator already paused returns the same `200` and
- * changes nothing. A run that is scheduled, completed, failed or canceled
- * surfaces as `409 RUN_NOT_PAUSABLE`, and so does a run held at the plan
- * limit (`pauseReason: 'plan_limit'`): it resumes on its own once the
- * monthly send allowance has room, so `cancel` it to stop it. An unknown
- * or cross-brand id is `404 AUDIENCE_RUN_NOT_FOUND`.
- *
- * Pass `{ raw: true }` in `options` to receive the full
- * `BrewRawResponse<PauseAudienceRunResponse>` instead of the unwrapped
- * payload.
- */
 export function createPauseAudienceRun(client: HttpClient) {
   function pauseAudienceRun(
     audienceRunId: string,

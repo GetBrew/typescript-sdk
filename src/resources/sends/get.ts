@@ -4,40 +4,15 @@ import type { BrewRawResponse, RequestOptions } from '../../types'
 
 import type { Send } from './types'
 
-/** The one expansion `GET /v1/sends/{sendId}` accepts. */
 export const SENDS_INCLUDE_TOKENS = ['events'] as const
 export type SendsIncludeToken = (typeof SENDS_INCLUDE_TOKENS)[number]
 
-/**
- * Per-request options for `brew.sends.get(...)` — the standard
- * `RequestOptions` plus the detail-only `include` expansion.
- */
 export type GetSendOptions = RequestOptions & {
-  /**
-   * `'events'` attaches a bounded first page of the send's
-   * per-recipient analytics events to the row. Accepts an array of
-   * tokens or a comma string.
-   */
   readonly include?: ReadonlyArray<SendsIncludeToken> | string
 }
 
-/** `GET /v1/sends/{sendId}` returns the BARE `Send` row. */
 export type GetSendResponse = Send
 
-/**
- * `GET /v1/sends/{sendId}` (scope: `sends`) — one send, returned as the
- * BARE row (no `{ data }` envelope). This is the real detail read that
- * replaced the old `analytics.sends.list({ sendId })` single-row-page
- * trick; a `sendId` query filter on `GET /v1/sends` now `400`s.
- *
- * Pass `include: 'events'` for a bounded first page of the send's
- * per-recipient analytics events inlined on the row. An unknown or
- * cross-brand `sendId` is `404 SEND_NOT_FOUND` — it is no longer an
- * empty page you have to test for.
- *
- * Pass `{ raw: true }` in `options` to receive the full
- * `BrewRawResponse<GetSendResponse>` instead of the unwrapped row.
- */
 export function createGetSend(client: HttpClient) {
   function getSend(
     sendId: string,

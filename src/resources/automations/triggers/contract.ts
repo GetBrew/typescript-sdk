@@ -2,17 +2,6 @@ import { type HttpClient, unwrapResponse } from '../../../core/http'
 import type { components } from '../../../generated/openapi-types'
 import type { BrewRawResponse, RequestOptions } from '../../../types'
 
-/**
- * Stored payload contracts for the trigger plane (Wave 2). `getContract`
- * returns the stored contract when one is declared and the derived one
- * otherwise (`source` discriminates); `putContract` declares it or
- * changes how it is enforced — all three body fields (`fields`, `name`,
- * `enforcement`) are optional, so arming a contract is a one-field patch;
- * `validatePayload` dry-runs a payload through the SAME validator the
- * fire path uses — an invalid payload resolves (not throws) with
- * `valid: false`.
- */
-
 export type ContractFormat = 'json' | 'ts' | 'zod' | 'jsonschema' | 'skill'
 
 export type PayloadContractGetResponse =
@@ -28,7 +17,6 @@ export type PayloadContractValidateResponse =
 
 export type GetTriggerContractInput = {
   triggerEventId: string
-  /** `json` (default) returns the contract; text formats return `{format, content}`. */
   format?: ContractFormat
 }
 
@@ -39,19 +27,9 @@ export type PutTriggerContractInput = PayloadContractPutRequest & {
 export type ValidateTriggerPayloadInput = {
   triggerEventId: string
   payload: Record<string, unknown>
-  /** Preview a different mode than the stored one. */
   enforcement?: 'prune' | 'strict'
 }
 
-/**
- * `GET /v1/automations/triggers/{triggerEventId}/contract` (scope:
- * `automations`) — the payload contract for a trigger. Pass
- * `format: 'ts' | 'zod' | 'jsonschema' | 'skill'` for generated
- * code/docs as `{format, content}`.
- *
- * Pass `{ raw: true }` in `options` for the full
- * `BrewRawResponse<PayloadContractGetResponse>`.
- */
 export function createGetTriggerContract(client: HttpClient) {
   function getContract(
     input: GetTriggerContractInput,
@@ -78,13 +56,6 @@ export function createGetTriggerContract(client: HttpClient) {
   return getContract
 }
 
-/**
- * `PUT /v1/automations/triggers/{triggerEventId}/contract` (scope:
- * `automations`) — declare (or replace) the stored contract. The tree is
- * validated before any write. Trigger contracts keep a top-level required
- * `email` string. The version bumps only on behavioral change. Returns the
- * JSON contract with write warnings.
- */
 export function createPutTriggerContract(client: HttpClient) {
   function putContract(
     input: PutTriggerContractInput,
@@ -112,13 +83,6 @@ export function createPutTriggerContract(client: HttpClient) {
   return putContract
 }
 
-/**
- * `POST /v1/automations/triggers/{triggerEventId}/contract/validate`
- * (scope: `automations`) — dry-run a payload against the trigger's
- * contract. Nothing fires; an invalid payload resolves with
- * `valid: false` plus per-field `errors`/`warnings`, the
- * fallback-resolved `resolvedPayload`, and `prunedKeys`.
- */
 export function createValidateTriggerPayload(client: HttpClient) {
   function validatePayload(
     input: ValidateTriggerPayloadInput,

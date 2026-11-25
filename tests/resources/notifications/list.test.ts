@@ -193,7 +193,6 @@ describe('notifications.listAll', () => {
           })
         }
         if (cursor === 'n2') {
-          // A page can hold no rows at all while more remain.
           return HttpResponse.json({
             data: [],
             pagination: { limit: 100, cursor: 'n3', hasMore: true },

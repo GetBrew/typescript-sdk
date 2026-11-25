@@ -58,10 +58,10 @@ runs never contribute). Returns `{ data, totals, range }`.
 
 ```ts
 type AutomationAnalyticsInput = {
-  from?: string // ISO-8601
-  to?: string // ISO-8601
+  from?: string
+  to?: string
   automationId?: string
-  limit?: number // 1–100
+  limit?: number
 }
 
 const { data, totals, range } = await brew.analytics.automations({
@@ -88,11 +88,9 @@ Per-contact engagement is just `{ recipient }` — the filter was
 
 ```ts
 type EventsAnalyticsInput = {
-  from?: string // ISO-8601
-  to?: string // ISO-8601
-  recipient?: string // was `recipientEmail`
-  // One event type, spelled exactly ('opened', not 'open'). Any other
-  // value is `400 INVALID_REQUEST`.
+  from?: string
+  to?: string
+  recipient?: string
   eventType?:
     | 'sent'
     | 'delivered'
@@ -120,7 +118,7 @@ type EventsAnalyticsInput = {
     | 'trigger_signature_failed'
     | 'trigger_rejected'
     | 'trigger_dead_letter'
-  domain?: string // a sending domain (`fromEmail` match); narrows to email events
+  domain?: string
   source?: string
   messageClass?: 'marketing' | 'transactional'
   automationId?: string
@@ -128,10 +126,10 @@ type EventsAnalyticsInput = {
   triggerEventId?: string
   audienceId?: string
   emailId?: string
-  sendId?: string // not windowed unless `from`/`to` are given
+  sendId?: string
   includeMachineClicks?: boolean
   includeMachineOpens?: boolean
-  limit?: number // 1–100
+  limit?: number
   cursor?: string
 }
 
@@ -178,20 +176,17 @@ carries `recipients`: each recipient counted once per message, within
 when `sendId` is given.
 
 ```ts
-// Clicks per link on one send.
 const perLink = await brew.analytics.eventCounts({
   sendId: 'snd_123',
   eventType: 'clicked',
   groupBy: ['link'],
 })
 
-// Events per type per day, last week.
 const perDay = await brew.analytics.eventCounts({
   groupBy: ['eventType'],
   bucket: 'day',
 })
 
-// Unsubscribes per stated reason.
 const reasons = await brew.analytics.eventCounts({
   groupBy: ['unsubscribeReason'],
 })

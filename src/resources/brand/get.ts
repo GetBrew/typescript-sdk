@@ -6,37 +6,10 @@ import type { BrandGetResponse, BrandIncludeToken } from './types'
 
 export type { BrandGetResponse, BrandIncludeToken }
 
-/**
- * Options for `brew.brand.get`. Pass `include` to embed design context in
- * the same call — any subset of `emailDesign` / `imageStyle` (the markdown
- * design system the email agent follows) and `logos` (the CDN logo set).
- * `identity` (structured brand facts) is always returned; naming it is
- * accepted and changes nothing. Accepts either an array
- * (`['emailDesign', 'logos']`) or a pre-joined comma string
- * (`'emailDesign,logos'`); the SDK serializes it as the single
- * comma-separated `?include=` value the API expects.
- */
 export type GetBrandInput = {
   readonly include?: ReadonlyArray<BrandIncludeToken> | string
 }
 
-/**
- * `GET /v1/brand` — the brand selected for this request, plus its extraction
- * readiness. Singleton (no list / no id): a brand-scoped key uses its bound
- * brand, while an organization-scoped key uses the client's `brandId` pin.
- * Requires a credential, without a feature scope.
- *
- * Returns the brand row FLAT (there is no `{ brand: … }` wrapper in
- * v1), with its saved `identity`. Pass `include` (e.g. `['logos']`) to
- * embed any of `emailDesign` / `imageStyle` / `logos` in the same
- * response. Read `ready` (true ⇔ `status: 'completed'`) before
- * generating or sending — `POST /v1/emails` 422s
- * `BRAND_NOT_READY` until extraction completes. A `404 BRAND_NOT_FOUND`
- * means the bound brand was deleted.
- *
- * Pass `{ raw: true }` in `options` to receive the full
- * `BrewRawResponse<BrandGetResponse>` instead of the unwrapped payload.
- */
 export function createGetBrand(client: HttpClient) {
   function getBrand(
     input: GetBrandInput | undefined,

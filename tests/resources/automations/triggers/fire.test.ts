@@ -42,14 +42,10 @@ describe('automations.triggers.fire', () => {
     expect(new URL(captured!.url).pathname).toBe(
       '/api/v1/automations/triggers/tri_x/fire'
     )
-    // triggerEventId travels on the URL — only the payload hits the body.
     expect(body).toEqual({
       payload: { email: 'jane@example.com' },
     })
-    // Fire is retry-safe: the transport auto-attaches an Idempotency-Key.
     expect(captured?.headers.get('idempotency-key')).toBeTruthy()
-    // v1 answers the BARE accepted body — no { success, code, message,
-    // details } envelope wrapped around it.
     expect(result.automationRunIds).toEqual(['run_a'])
     expect(result.triggerInstanceId).toBe('tin_01HZ')
     expect(result.counts.automations).toBe(1)

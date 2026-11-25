@@ -12,16 +12,13 @@ import { createBrewClient } from '@brew.new/sdk'
 const brew = createBrewClient({
   apiKey: process.env.BREW_API_KEY!,
 
-  // optional — organization-scoped keys only; see below
   brandId: 'kx7b3s7fapqz8mjm12ekz1kxdx87yceg',
 
-  // optional — defaults shown
   baseUrl: 'https://brew.new/api',
   timeoutMs: 30_000,
   maxRetries: 2,
   retryOnTimeout: true,
   signal: undefined,
-  userAgent: 'brew.new-sdk/0.1.0-alpha.0',
   fetch: globalThis.fetch,
 })
 ```
@@ -105,7 +102,7 @@ for callers composing their own deadlines:
 | `emails.importImage`    | 800 s\* | `IMPORT_IMAGE_DEFAULT_TIMEOUT_MS`          |
 | `emails.export`         | 800 s\* | `EXPORT_EMAIL_DEFAULT_TIMEOUT_MS`          |
 | `emails.previewClients` | 90 s    | `PREVIEW_EMAIL_CLIENTS_DEFAULT_TIMEOUT_MS` |
-| `emails.audit`          | 65 s    | `AUDIT_EMAIL_DEFAULT_TIMEOUT_MS`           |
+| `emails.auditEmail`     | 65 s    | `AUDIT_EMAIL_DEFAULT_TIMEOUT_MS`           |
 | `content.gif`           | 300 s   | `GIF_DEFAULT_TIMEOUT_MS`                   |
 | `content.generateImage` | 180 s   | `GENERATE_IMAGE_DEFAULT_TIMEOUT_MS`        |
 | `content.addImage`      | 300 s   | `ADD_IMAGE_DEFAULT_TIMEOUT_MS`             |
@@ -234,8 +231,9 @@ connections open until it closes them on its own.
 
 ## Per-request overrides
 
-Every resource method accepts a `RequestOptions` object as its last
-argument:
+HTTP resource methods accept request options as their last argument.
+Helpers such as `brands.waitForExtraction` have their own options; use the
+method signature for the supported fields. The shared HTTP options are:
 
 ```ts
 type RequestOptions = {

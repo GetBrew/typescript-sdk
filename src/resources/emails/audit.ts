@@ -12,36 +12,14 @@ type ExclusiveAuditRequest<T = GeneratedAuditRequest> =
         >
     : never
 
-/** Exactly one HTML, JSX, or saved-email source accepted by `POST /v1/emails/audit`. */
 export type EmailAuditRequest = ExclusiveAuditRequest
 
-/** Input for `brew.emails.auditEmail(...)`. */
 export type AuditEmailInput = EmailAuditRequest
 
-/** Versioned complete or partial audit result. */
 export type EmailAuditResponse = components['schemas']['EmailAuditResponse']
 
-/**
- * The server gives the independent provider lanes up to 50 seconds to
- * finish. This ceiling includes enough transport overhead to receive the
- * bounded response while still allowing callers to lower it.
- *
- * It is a floor, never a cap: a longer client-wide `timeoutMs` is kept.
- */
 export const AUDIT_EMAIL_DEFAULT_TIMEOUT_MS = 65_000
 
-/**
- * `POST /v1/emails/audit` (scope: `emails`) audits HTML, JSX, or a saved email for
- * production readiness. The audit covers compliance, links, images, loaded
- * size, accessibility, compatibility, markup, subject copy, and preview copy.
- * Choose exactly one of `emailHtml`, `emailJsx`, or `emailId`. Only saved
- * emails accept `emailVersionId`; omitting it selects their latest version.
- *
- * Branch on `completion.status`. A complete result has a numeric score and
- * costs 5 credits. A partial result has `score: null`, costs 0 credits, and
- * can be retried with the same idempotency key. Pass `{ raw: true }` to read
- * `X-Credit-Cost` and the other response headers.
- */
 export function createAuditEmail(client: HttpClient) {
   function auditEmail(
     input: AuditEmailInput,

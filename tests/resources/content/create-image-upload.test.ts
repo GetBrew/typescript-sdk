@@ -78,7 +78,6 @@ describe('content.createImageUpload', () => {
               docs: 'https://docs.brew.new/api-reference/api/errors',
             },
           },
-          // Over the SDK's 60 s ceiling: thrown at once, not slept out.
           { status: 429, headers: { 'retry-after': '600' } }
         )
       )
@@ -98,9 +97,6 @@ describe('content.createImageUpload', () => {
   })
 
   describe('no replay, so no retry by default', () => {
-    // The route never replays its answer (it carries a bearer URL), so a
-    // retry after a lost answer opens a second upload that holds one of the
-    // brand's 20 slots for 15 minutes.
     const INPUT = {
       fileName: 'logo.png',
       contentType: 'image/png',
@@ -152,8 +148,6 @@ describe('content.createImageUpload', () => {
             return answer()
           })
         )
-        // The client-wide setting is for routes that replay; it does not
-        // apply here.
         const { client } = makeTestHttpClient({
           configOverrides: { maxRetries: 2 },
         })

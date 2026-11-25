@@ -16,7 +16,7 @@ type Template = {
   readonly category?: string
   readonly brand?: string
   readonly html: string
-  readonly previewImage: string // rendered screenshot URL
+  readonly previewImage: string
   readonly updatedAt: string
 }
 ```
@@ -36,10 +36,10 @@ List public templates with optional filters.
 type ListTemplateRowsInput = {
   readonly brand?: string
   readonly category?: string
-  readonly group?: ListTemplateCountsInput['group'] // browse group, e.g. 'events'
-  readonly semantic?: string // vector-ranked matches
-  readonly query?: string // title text or an exact template id
-  readonly representation?: 'full' | 'summary' // summary omits html
+  readonly group?: ListTemplateCountsInput['group']
+  readonly semantic?: string
+  readonly query?: string
+  readonly representation?: 'full' | 'summary'
   readonly limit?: number
   readonly cursor?: string
 }
@@ -53,18 +53,14 @@ type TemplatesListResponse = {
   }
 }
 
-// representation: 'summary' rows omit html and carry referenceEmailId + viewUrl
 type TemplateSummaryListResponse = {
   readonly data: ReadonlyArray<TemplateSummary>
   readonly pagination: TemplatesListResponse['pagination']
 }
 
-// Counts use a separate input and response, without a data array.
-// Import the count types from @brew.new/sdk; grouped counts alone accept cursor.
 import type { ListTemplateCountsInput, TemplatesCountResponse } from '@brew.new/sdk'
 type ListTemplatesInput = ListTemplateRowsInput | ListTemplateCountsInput
 
-// Overloads, most specific first (TypeScript picks the first that matches):
 list(input: ListTemplateCountsInput): Promise<TemplatesCountResponse>
 list(input: ListTemplateRowsInput & { representation: 'summary' }): Promise<TemplateSummaryListResponse>
 list(input?: ListTemplateRowsInput & { representation?: 'full' }): Promise<TemplatesListResponse>
@@ -87,14 +83,12 @@ for (const template of data) {
   console.log(template.emailId, template.title)
 }
 
-// Lean rows for picking a layout: no html, a viewUrl and referenceEmailId.
 const { data: picks } = await brew.templates.list({
   query: 'product launch',
   representation: 'summary',
 })
 console.log(picks[0]?.viewUrl, picks[0]?.referenceEmailId)
 
-// Browse event invitations, reminders and recaps together.
 const { data: events } = await brew.templates.list({
   group: 'events',
   representation: 'summary',

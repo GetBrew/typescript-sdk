@@ -119,7 +119,6 @@ describe('content.uploadImage finalization recovery', () => {
             const response = await globalThis.fetch(input, init)
             if (urlOf(input) === ADD_URL && lossesRemaining > 0) {
               lossesRemaining--
-              // The server completed the operation. Only its answer is lost.
               expect(await response.json()).toEqual(ADDED)
               throw new TypeError('The successful final answer was lost.')
             }

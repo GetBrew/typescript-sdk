@@ -1,32 +1,13 @@
-/**
- * Keeping a credential-bearing URL out of the errors the SDK builds.
- *
- * An image upload's `uploadUrl` carries its bearer token in the query
- * (`?uploadId=…&token=<64 hex>`), and error objects end up in logs. A
- * transport error built for such a URL reports the URL without its query,
- * and its `cause` chain is a redacted copy: a `fetch` (or a wrapper around
- * it) may name the URL it was given in its own message.
- */
-
-/** Replaces every credential-bearing string a redactor knows. */
 export type Redactor = (text: string) => string
 
 const REDACTED = '[redacted]'
 
-/**
- * A query value at least this long is treated as a secret wherever it
- * appears on its own. Shorter values (`1`, `png`) would redact ordinary
- * words; the upload token is 64 characters and the upload id 27.
- */
 const MIN_SECRET_LENGTH = 8
 
-/** How deep a `cause` chain is copied; anything deeper is dropped. */
 const MAX_CAUSE_DEPTH = 5
 
-/** `token=…` in any query, whatever URL it belongs to. */
 const TOKEN_PARAMETER = /([?&]token=)[^&#\s"'<>]+/gi
 
-/** `url` without its query string or fragment. */
 export function withoutQuery({ url }: { readonly url: string }): string {
   try {
     const parsed = new URL(url)
@@ -36,12 +17,6 @@ export function withoutQuery({ url }: { readonly url: string }): string {
   }
 }
 
-/**
- * A redactor for `url`: the whole URL becomes its path plus `?[redacted]`,
- * and its raw query, and each long query value (raw and percent-encoded),
- * become `[redacted]` wherever else they appear. Any `token=` parameter is
- * redacted too.
- */
 export function credentialRedactor({
   url,
 }: {
@@ -57,7 +32,6 @@ export function credentialRedactor({
   }
 }
 
-/** `[secret, replacement]` pairs for `url`, longest secret first. */
 function credentialStrings({
   url,
 }: {
@@ -82,12 +56,6 @@ function credentialStrings({
   return pairs.sort(([a], [b]) => b.length - a.length)
 }
 
-/**
- * A copy of a thrown value with every string `redact` knows replaced: an
- * `Error`'s `message`, `stack` and `cause` chain (its `name` and string
- * `code` are kept, so a runtime timeout is still recognised), a plain
- * object's string fields, or a string. Anything else is returned as is.
- */
 export function redactThrown({
   value,
   redact,

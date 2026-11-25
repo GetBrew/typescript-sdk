@@ -1,6 +1,5 @@
 import type { BrewErrorType, BrewHttpMethod } from '../types'
 
-/** Invalid local request configuration; no request has been sent. */
 export class BrewInputError extends Error {
   readonly param: string
 
@@ -11,12 +10,6 @@ export class BrewInputError extends Error {
   }
 }
 
-/**
- * Input shape for the `BrewApiError` constructor. Mirrors the public
- * surface of the class. Original fields stay required and explicit;
- * callers supply `undefined` for values they don't have. Fields added
- * later stay optional so older constructor call sites keep compiling.
- */
 type BrewApiErrorInit = {
   readonly message: string
   readonly status: number
@@ -34,40 +27,20 @@ type BrewApiErrorInit = {
   readonly uploadId?: string | undefined
 }
 
-/**
- * Input to `BrewApiError.fromResponse` — the already-parsed response body
- * plus the raw status and headers. The transport layer (`core/http.ts`) is
- * responsible for reading the Response and calling this factory, so the
- * error class itself stays pure and trivially testable.
- */
 type FromResponseInput = {
   readonly status: number
   readonly headers: Headers
   readonly body: unknown
-  /** Why the body could not be read to the end, when it could not. */
   readonly bodyError?: Error | undefined
-  /** The `Idempotency-Key` the request carried, if any. */
   readonly idempotencyKey?: string | undefined
-  /** The upload being finalized, when this was `addImage({ uploadId })`. */
   readonly uploadId?: string | undefined
 }
 
-/** Where the generic fallback points: the public error catalogue. */
 const ERRORS_DOCS_URL = 'https://docs.brew.new/api-reference/api/errors'
 
-/** The one endpoint whose failures do not use the `{ error }` envelope. */
 const LEGACY_FIRE_DOCS_URL =
   'https://docs.brew.new/api-reference/public-v1/automations/fire-a-trigger'
 
-/**
- * The error for every non-2xx response the SDK gives up on: the server
- * answered, and this is what it said.
- *
- * A request that got NO usable answer — a deadline, a dropped connection, a
- * body cut off mid-stream — is not a `BrewApiError`. Those have no status and
- * no envelope, so they are their own family rooted at `BrewTransportError`
- * (see below). A caller abort rethrows the signal's own `reason`.
- */
 export class BrewApiError extends Error {
   readonly status: number
   readonly code: string
@@ -77,39 +50,10 @@ export class BrewApiError extends Error {
   readonly docs: string
   readonly requestId: string | undefined
   readonly retryAfter: number | undefined
-  /**
-   * The envelope's `details` object when the server sent one. For a
-   * trigger-fire `payload_mismatch` (`400 INVALID_PAYLOAD`) that is
-   * `{ errors[], warnings[], payloadSchema, contractHash?, enforcement? }`
-   * — every field the payload got wrong, and the schema to repair it
-   * against. `undefined` when the response carried none.
-   */
   readonly details: Record<string, unknown> | undefined
-  /**
-   * The parsed response body exactly as received (`undefined` when it was
-   * not JSON). The escape hatch: whatever the mapping does not model — the
-   * fire envelope's own `status` discriminator, say — is still here.
-   */
   readonly body: unknown
-  /**
-   * Set when the error body could not be read to the end — the connection
-   * dropped, or the deadline fired, partway through the envelope. The
-   * `status` is still authoritative, but `code`, `type` and `suggestion`
-   * are then the generic fallback rather than what the server meant to send.
-   */
   readonly bodyError: Error | undefined
-  /**
-   * The `Idempotency-Key` this request was sent with. On a POST the SDK
-   * generates one unless you pass your own; this is where you find it to
-   * replay the request (see `docs/retries-and-idempotency.md`).
-   */
   readonly idempotencyKey: string | undefined
-  /**
-   * The original upload ID for an `addImage({ uploadId })` failure,
-   * including the final step of `uploadImage`. Use it with
-   * `idempotencyKey` to replay finalization on the same brand client.
-   * Its presence does not mean finalization succeeded.
-   */
   readonly uploadId: string | undefined
 
   constructor(init: BrewApiErrorInit) {
@@ -130,33 +74,6 @@ export class BrewApiError extends Error {
     this.uploadId = init.uploadId
   }
 
-  /**
-   * Build a `BrewApiError` from a parsed HTTP response.
-   *
-   * The Brew API wraps every error in `{ error: { code, type, ... } }`, so
-   * this method unwraps the envelope before mapping. The ONE documented
-   * exception is trigger fire (`POST`/`GET /v1/automations/triggers/{id}/fire`),
-   * whose pipeline answers with the legacy fire envelope
-   * `{ success, status, code, message, receivedAt, details? }` — top-level
-   * `code` and `message`, no `error` wrapper, no `type` — for its successes
-   * and its own refusals (missing key, payload mismatch, unknown trigger,
-   * brand scope, no published automation). A malformed JSON body is
-   * refused before that pipeline with the standard envelope, and the
-   * contract documents the route's 401/403/429 as `ApiErrorEnvelope`, so
-   * the standard parser runs first and the legacy arm
-   * (`parseLegacyEnvelope`) second — the mapping is right whichever shape
-   * arrives: `code`/`message`/`details` verbatim, `type` derived from the
-   * HTTP status. Before that arm existed a documented `400 INVALID_PAYLOAD`
-   * degraded to `code: 'unknown_error'` with retry advice, and
-   * `details.errors[]` (which fields were wrong) was lost.
-   *
-   * Falls back to a generic envelope when the body is neither shape — we
-   * would rather return a readable error than throw from the error path.
-   *
-   * `retryAfter` can come from two places: the body envelope or the
-   * `Retry-After` header. The body wins when present (it's specific to
-   * the exact error), the header is the fallback.
-   */
   static fromResponse({
     status,
     headers,
@@ -225,42 +142,12 @@ export class BrewApiError extends Error {
   }
 }
 
-/**
- * A request that got no usable HTTP answer: the deadline fired, the
- * connection failed or dropped, or the body broke partway through. There is
- * no status and no envelope — which is why this family is separate from
- * `BrewApiError`, and why the documented
- * `if (error instanceof BrewApiError) … else if (error instanceof Error) …`
- * pattern still routes it to the transport branch.
- *
- * The outcome is UNKNOWN: the server may have finished the work, may still
- * be doing it, or may never have seen the request. For a write, replay it
- * with the same `idempotencyKey` rather than sending it again with a new one.
- */
 export class BrewTransportError extends Error {
   readonly method: BrewHttpMethod
-  /**
-   * The full request URL, query string included — except for a URL that
-   * keeps its credential in the query (an image upload's `uploadUrl`),
-   * which is reported without it, and whose token is also redacted from
-   * `message` and from the `cause` chain. The `message` omits the query.
-   */
   readonly url: string
-  /** How many HTTP attempts were made, retries included. */
   readonly attempts: number
-  /** The `Idempotency-Key` every attempt carried, when the request had one. */
   readonly idempotencyKey: string | undefined
-  /**
-   * The original upload ID when `addImage({ uploadId })` (including
-   * `uploadImage`'s final step) had an unknown outcome. Replay `addImage`
-   * with this ID and `idempotencyKey` on the same brand client.
-   */
   readonly uploadId: string | undefined
-  /**
-   * `true` when a retry of this request was refused with
-   * `409 IDEMPOTENCY_IN_PROGRESS`: the first attempt is still running on the
-   * server. Wait, then replay with the same `idempotencyKey` to get its result.
-   */
   readonly inProgress: boolean
 
   constructor(init: BrewTransportErrorInit) {
@@ -278,18 +165,6 @@ export class BrewTransportError extends Error {
   }
 }
 
-/**
- * The request's deadline passed before the response finished arriving —
- * headers or body. `timeoutMs` is the per-attempt deadline that applied.
- *
- * Also thrown when the HTTP runtime gives up first: Node's built-in `fetch`
- * stops waiting after 300 s for the headers or 300 s of body silence,
- * whatever `timeoutMs` says (the runtime error is on `cause`).
- *
- * `name` is `'TimeoutError'` — the platform's name for this event, the same
- * as `AbortSignal.timeout` uses — so name-based checks written for plain
- * `fetch` keep working. `instanceof BrewTimeoutError` is the precise check.
- */
 export class BrewTimeoutError extends BrewTransportError {
   readonly timeoutMs: number
 
@@ -303,11 +178,6 @@ export class BrewTimeoutError extends BrewTransportError {
   }
 }
 
-/**
- * The connection failed — DNS, TCP, TLS, a rejected custom `fetch` — or it
- * dropped while the response body was streaming. The original failure is on
- * `cause`.
- */
 export class BrewConnectionError extends BrewTransportError {
   constructor(init: BrewConnectionErrorInit) {
     super({
@@ -318,20 +188,11 @@ export class BrewConnectionError extends BrewTransportError {
   }
 }
 
-/**
- * The server answered 2xx and the whole body arrived, but it was not JSON.
- * Not a transport failure — the request reached the server and succeeded
- * there — and not retried, because the same bytes would come back. Report
- * it with `requestId`.
- */
 export class BrewParseError extends Error {
   readonly status: number
   readonly requestId: string | undefined
-  /** The `Idempotency-Key` the request carried, when it had one. */
   readonly idempotencyKey: string | undefined
-  /** The original upload ID, when `addImage({ uploadId })` failed to parse. */
   readonly uploadId: string | undefined
-  /** The first 256 characters of the body, for diagnosis. */
   readonly bodyPreview: string
 
   constructor(init: BrewParseErrorInit) {
@@ -374,11 +235,6 @@ type BrewParseErrorInit = {
   readonly cause?: unknown
 }
 
-/**
- * The undici error code when the RUNTIME, not the SDK, gave up waiting:
- * Node's `fetch` enforces its own 300 s `headersTimeout` and `bodyTimeout`
- * and reports them as `TypeError: fetch failed` with the code on `cause`.
- */
 export function runtimeTimeoutCode({
   error,
 }: {
@@ -393,7 +249,6 @@ export function runtimeTimeoutCode({
   return undefined
 }
 
-/** `GET https://brew.new/api/v1/contacts` — never the query string, which can hold an email. */
 function describeRequest({
   method,
   url,
@@ -443,7 +298,6 @@ function connectionMessage({
   return init.inProgress === true ? what + IN_PROGRESS_NOTE : what
 }
 
-/** Say so when the error envelope was cut off, instead of degrading silently. */
 function withTruncationNote({
   message,
   bodyError,
@@ -455,11 +309,6 @@ function withTruncationNote({
   return `${message} (response body was truncated: ${bodyError.message})`
 }
 
-/**
- * Closed enum of error types the Brew API may emit. Pinned to the
- * generated OpenAPI types via `BrewErrorType`. Used to safely narrow the
- * unknown body shape into the typed envelope.
- */
 const VALID_ERROR_TYPES: ReadonlySet<BrewErrorType> = new Set<BrewErrorType>([
   'authentication_error',
   'authorization_error',
@@ -468,20 +317,13 @@ const VALID_ERROR_TYPES: ReadonlySet<BrewErrorType> = new Set<BrewErrorType>([
   'not_implemented',
   'conflict',
   'rate_limit',
-  // Missing from this set previously — real `402 INSUFFICIENT_CREDITS` and
-  // `503 SERVICE_UNAVAILABLE` envelopes degraded to `code: 'unknown_error'`,
-  // breaking the documented branch-on-`code` contract. tsc guards each entry
-  // against the generated union; keep this list in sync when the spec adds a
-  // type (a missing entry silently downgrades that error family).
   'payment_required',
   'service_unavailable',
   'internal_error',
 ])
 
-/** The standard envelope, narrowed — plus its optional `details` object. */
 type ParsedErrorEnvelope = {
   code: string
-  /** `undefined` when the wire omitted it or named a type this SDK does not know. */
   type: BrewErrorType | undefined
   message: string
   suggestion: string
@@ -491,7 +333,6 @@ type ParsedErrorEnvelope = {
   details?: Record<string, unknown>
 }
 
-/** The legacy fire envelope's failure form, narrowed. */
 type ParsedLegacyEnvelope = {
   code: string
   message: string
@@ -502,15 +343,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-/**
- * Narrow an unknown response body into the standard envelope, returning
- * `undefined` if the shape does not match. The Brew wire format is
- * `{ error: { code, type, message, suggestion, docs, ... } }` — the inner
- * fields `code`, `type`, `message`, `suggestion`, and `docs` are all
- * required per the OpenAPI contract; `param`, `retryAfter` and `details`
- * are optional. `details` passes through untouched: the server serialises
- * whatever the refusal attached (field errors, conflicting ids, …).
- */
 function parseErrorEnvelope(body: unknown): ParsedErrorEnvelope | undefined {
   if (body === null || typeof body !== 'object') return undefined
 
@@ -521,10 +353,6 @@ function parseErrorEnvelope(body: unknown): ParsedErrorEnvelope | undefined {
 
   const inner = wrapper.error as Record<string, unknown>
 
-  // `code` is the one field the documented branch-on-`code` contract needs.
-  // A server that trims the advisory fields, or ships a code before the SDK
-  // regenerates, must still surface a typed error rather than degrade to
-  // `unknown_error` — so only a missing code vetoes the envelope.
   if (typeof inner.code !== 'string' || inner.code.length === 0) {
     return undefined
   }
@@ -536,9 +364,6 @@ function parseErrorEnvelope(body: unknown): ParsedErrorEnvelope | undefined {
 
   const envelope: ParsedErrorEnvelope = {
     code: inner.code,
-    // Absent or unrecognised: the caller derives it from the HTTP status,
-    // which is what the status means anyway (a 404 is `not_found`, never
-    // `internal_error`).
     type: innerType,
     message:
       typeof inner.message === 'string'
@@ -564,13 +389,6 @@ function parseErrorEnvelope(body: unknown): ParsedErrorEnvelope | undefined {
   return envelope
 }
 
-/**
- * The legacy fire envelope's failure form, exactly as the contract states
- * it: `success: false`, no `error` wrapper, string `code` + `message` at
- * the top level. Anything else — a `{ code, message }` from a proxy, a
- * `success: true` body on a non-2xx — is not a fire refusal and takes the
- * generic fallback. `details` rides along when it is an object.
- */
 function parseLegacyEnvelope({
   body,
 }: {
@@ -588,13 +406,6 @@ function parseLegacyEnvelope({
   }
 }
 
-/**
- * The closest `BrewErrorType` for a response that did not carry one.
- * Keeps the branch-on-`type` contract honest for the legacy envelope and
- * for non-JSON bodies alike: every 4xx is a client-side problem (an
- * unlisted one, `413` say, is still `invalid_request`), only a 5xx is a
- * server fault.
- */
 function errorTypeForStatus({ status }: { status: number }): BrewErrorType {
   switch (status) {
     case 401:
@@ -620,12 +431,6 @@ function errorTypeForStatus({ status }: { status: number }): BrewErrorType {
   }
 }
 
-/**
- * Retry advice is only honest for the statuses the centralized retry
- * policy itself retries — `408`, `429` and 5xx (AGENTS.md § Retries,
- * `core/retry.ts`). Any other 4xx fails the same way on every retry: say
- * so, and point at the request.
- */
 function suggestionForStatus({ status }: { status: number }): string {
   if (isRetryableStatus({ status })) {
     return 'Retry the request. If it keeps failing, contact support.'
@@ -633,17 +438,10 @@ function suggestionForStatus({ status }: { status: number }): string {
   return 'Fix the request before sending it again — the same request fails the same way. See `details` for the specifics when present.'
 }
 
-/** Mirrors the retry policy's status set: `408`, `429`, 5xx. */
 function isRetryableStatus({ status }: { status: number }): boolean {
   return status === 408 || status === 429 || status >= 500
 }
 
-/**
- * Parse the `Retry-After` header into a number of seconds. Returns
- * `undefined` for a missing or non-numeric value. We deliberately do not
- * support the HTTP-date form here — the Brew API only emits delta-seconds
- * per the public contract.
- */
 function parseRetryAfter(raw: string | null): number | undefined {
   if (raw === null) return undefined
   const parsed = Number(raw)

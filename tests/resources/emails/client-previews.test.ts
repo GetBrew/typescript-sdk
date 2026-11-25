@@ -8,7 +8,6 @@ import {
 import { makeTestHttpClient } from '../../helpers/http-client'
 import { server } from '../../msw/server'
 
-/** The job admission answers with: queued, nothing rendered yet. */
 const READY_BODY = {
   previewId: 'prv_123',
   emailId: 'email_existing',
@@ -60,7 +59,6 @@ describe('emails.previewClients', () => {
     expect(capturedRequest?.url).toBe(
       'https://brew.new/api/v1/emails/email_existing/client-previews'
     )
-    // emailId must NOT be in the body — it lives on the URL.
     expect(capturedBody).toEqual({
       clients: ['gmailcom-lm_chrcurrent_win10'],
     })
@@ -148,8 +146,6 @@ describe('emails.previewClients', () => {
         )
       )
     )
-    // maxRetries: 0 so the test asserts the surfaced error rather than
-    // exercising the retry loop (covered by core/http tests).
     const { client } = makeTestHttpClient({
       configOverrides: { maxRetries: 0 },
     })

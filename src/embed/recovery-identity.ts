@@ -1,6 +1,5 @@
 import { CANVAS_RECOVERY_ID_PATTERN } from './contracts'
 
-/** First-party, per-client draft identity. It confers no session ownership or access. */
 export function getCanvasRecoveryId(
   options: Readonly<{
     clientId: string
@@ -16,7 +15,6 @@ export function getCanvasRecoveryId(
     storage?.setItem(key, recoveryId)
     return recoveryId
   } catch {
-    // Storage-denied browsers can still use the canvas, without cross-reload recovery.
     return globalThis.crypto.randomUUID()
   }
 }

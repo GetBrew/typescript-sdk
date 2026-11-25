@@ -29,7 +29,6 @@ describe('brand.deleteImage', () => {
     expect(new URL(captured!.url).pathname).toBe(
       '/api/v1/brand/images/5bc912f9'
     )
-    // Identified entirely by the URL: no body, and DELETE carries no key.
     expect(await captured!.text()).toBe('')
     expect(captured?.headers.get('idempotency-key')).toBeNull()
     expect(result).toEqual({ assetId: '5bc912f9', deleted: true })
@@ -109,7 +108,6 @@ describe('brand.deleteImage', () => {
     expect(error).toBeInstanceOf(BrewApiError)
     expect((error as BrewApiError).status).toBe(400)
     expect((error as BrewApiError).code).toBe('INVALID_REQUEST')
-    // A 400 fails the same way every time: never retried.
     expect(calls).toBe(1)
   })
 

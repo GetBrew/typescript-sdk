@@ -33,7 +33,7 @@ const brew = createBrewClient({ apiKey: process.env.BREW_API_KEY! })
 const { data: brands } = await brew.brands.list()
 const acme = brew.withBrand(brands[0]!.brandId)
 
-await acme.emails.list() // sends X-Brand-Id
+await acme.emails.list()
 ```
 
 `withBrand` returns a **new** client with the same auth, transport and tuning —

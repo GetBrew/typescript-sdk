@@ -8,7 +8,6 @@ const endpoint = await brew.webhooks.create({
   endpoint: 'https://example.com/webhooks/brew',
   events: ['email.delivered', 'email.bounced', 'email.complained'],
 })
-// Store endpoint.signing_secret in your server's secret manager.
 
 const event = await brew.webhooks.verify({
   payload: await request.text(),

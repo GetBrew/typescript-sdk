@@ -8,9 +8,6 @@ const root = dirname(dirname(fileURLToPath(import.meta.url)))
 const workspace = mkdtempSync(join(tmpdir(), 'brew-sdk-build-'))
 
 try {
-  // TypeScript will not emit declarations for sources under node_modules.
-  // Git dependency managers may prepare the SDK there, so build outside it
-  // with the SDK's own locked dependencies and copy back only the artifacts.
   for (const file of [
     'src',
     'package.json',
@@ -22,7 +19,6 @@ try {
   symlinkSync(
     join(root, 'node_modules'),
     join(workspace, 'node_modules'),
-    // Junctions use absolute paths and need no symlink privilege on Windows.
     'junction'
   )
   execFileSync(

@@ -2,32 +2,8 @@ import type { components } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
-/**
- * 200 result of `POST /v1/sends/{sendId}/pause` — the paused send
- * (`{ sendId, status: 'paused' }`).
- */
 export type SendPauseResponse = components['schemas']['SendPauseResponse']
 
-/**
- * `POST /v1/sends/{sendId}/pause` (scope: `sends`) — pause an IN-FLIGHT
- * gradual send, halting the ramp without discarding it.
- *
- * This is the reversible stop: recipients already mailed stay mailed, the
- * remaining chunks simply stop going out until you call `sends.resume(...)`.
- * Reach for `sends.cancel(...)` instead when you want to end the send for
- * good.
- *
- * A send its operator already paused resolves `200` with the same body and
- * changes nothing. Any other send that is not a running gradual send
- * surfaces as `409 SEND_NOT_PAUSABLE`: one already `completed` or
- * `canceled`, one that was never a gradual send, or one held at the plan
- * limit or for its domain.
- * Brand-scoped, so an unknown or cross-brand `sendId` is
- * `404 SEND_NOT_FOUND`.
- *
- * Pass `{ raw: true }` in `options` to receive the full
- * `BrewRawResponse<SendPauseResponse>` instead of the unwrapped payload.
- */
 export function createPause(client: HttpClient) {
   function pause(
     sendId: string,

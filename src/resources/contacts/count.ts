@@ -4,37 +4,15 @@ import type { BrewRawResponse, RequestOptions } from '../../types'
 
 import type { ContactsFilter } from './types'
 
-/**
- * Input to `brew.contacts.count`. Same predicate knobs as `search`
- * (`search`, `filters`, `logic`, the `audienceId` scope) minus the
- * pagination/sort fields, which are meaningless when you only want a
- * count. For counts per field value or per period, use
- * `brew.contacts.countBy`.
- */
 export type CountContactsInput = {
   readonly search?: string
   readonly filters?: ReadonlyArray<ContactsFilter>
   readonly logic?: components['schemas']['ContactsSearchRequest']['logic']
-  /** Count only the members of a saved audience. */
   readonly audienceId?: components['schemas']['ContactsSearchRequest']['audienceId']
 }
 
 type ContactsCountResponse = components['schemas']['ContactsCountResponse']
 
-/**
- * `POST /v1/contacts/search` with `count: true` (scope: `contacts`) —
- * count contacts matching an optional set of filters.
- *
- * Count moved off `GET /v1/contacts` onto the search endpoint, which
- * returns `{ count }` instead of a page when `count: true`. Returns the
- * count as a bare number — the `{ count }` envelope carries no useful
- * metadata beyond the number itself, and forcing callers to write
- * `.count` would hurt DX with zero upside.
- *
- * Pass `{ raw: true }` in `options` to receive the full
- * `BrewRawResponse<{ count: number }>` (the raw wire envelope plus
- * status/headers) instead of the unwrapped number.
- */
 export function createCountContacts(client: HttpClient) {
   function count(
     input: CountContactsInput | undefined,

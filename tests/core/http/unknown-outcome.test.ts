@@ -14,13 +14,6 @@ import {
 } from '../../helpers/loopback-server'
 import { server } from '../../msw/server'
 
-/**
- * A timeout or dropped connection leaves a write's outcome unknown. The
- * error must carry the idempotency key the request was sent with, and a
- * retry that finds the first attempt still running must report the
- * timeout — not a conflict.
- */
-
 const servers = useLoopbackServers()
 
 describe('http.request — the idempotency key survives an unknown outcome', () => {
@@ -70,7 +63,7 @@ describe('http.request — the idempotency key survives an unknown outcome', () 
     async () => {
       const { baseUrl, requests } = await servers.start({
         route: ({ res, attempt }) => {
-          if (attempt === 1) return // still "working" on it
+          if (attempt === 1) return
           sendJson({
             res,
             status: 409,
@@ -105,8 +98,6 @@ describe('http.request — the idempotency key survives an unknown outcome', () 
       const timeout = error as BrewTimeoutError
       expect(timeout.inProgress).toBe(true)
       expect(timeout.message).toMatch(/still (running|processing)/i)
-      // The call ended at the 409, before its retry budget ran out. (Usually
-      // on attempt 2; a loaded machine can time a later attempt out first.)
       expect(timeout.attempts).toBeGreaterThanOrEqual(2)
       expect(timeout.attempts).toBeLessThan(4)
       expect(sentKeys).toHaveLength(timeout.attempts)
@@ -138,7 +129,6 @@ describe('http.request — the idempotency key survives an unknown outcome', () 
       }),
     })
 
-    // No earlier attempt of THIS call is in flight, so the 409 is real news.
     expect(error).toBeInstanceOf(BrewApiError)
     expect((error as BrewApiError).code).toBe('IDEMPOTENCY_IN_PROGRESS')
     expect((error as BrewApiError).idempotencyKey).toEqual(expect.any(String))

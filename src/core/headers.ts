@@ -1,6 +1,5 @@
 export type BuildHeadersInput = {
   readonly apiKey: string
-  /** Pins the brand for this request (`X-Brand-Id`). */
   readonly brandId?: string
   readonly userAgent: string
   readonly idempotencyKey?: string
@@ -8,30 +7,6 @@ export type BuildHeadersInput = {
   readonly extras?: Readonly<Record<string, string>>
 }
 
-/**
- * Build the outbound header set for a Brew API request.
- *
- * Invariants:
- *   - `Authorization: Bearer <apiKey>` is always set. The Brew API also
- *     accepts `X-API-Key` but Bearer is the standard and the SDK does not
- *     expose the alternative to keep the public surface small.
- *   - `Accept: application/json` is always set — we only ever want JSON.
- *   - `User-Agent` is always set from the resolved client config so every
- *     request is attributable.
- *   - `Content-Type: application/json` is only set when the request has a
- *     body; setting it on a GET would be misleading.
- *   - `X-Brand-Id` is only set when the client pinned a brand. Required by
- *     organization-scoped keys; ignored (or rejected, if it names a different
- *     brand) by brand-scoped ones.
- *   - `Idempotency-Key` is only set when one was resolved upstream
- *     (auto-generated for POST, explicitly passed, or omitted for other
- *     methods — that decision lives in `core/idempotency.ts`).
- *   - `extras` are merged last so callers can override defaults per-request
- *     if they really need to (e.g. tracing headers from a host app).
- *
- * Always returns a fresh `Headers` instance so callers can mutate the
- * result without leaking state across requests.
- */
 export function buildHeaders(input: BuildHeadersInput): Headers {
   const headers = new Headers()
 
@@ -47,7 +22,6 @@ export function buildHeaders(input: BuildHeadersInput): Headers {
     headers.set('idempotency-key', input.idempotencyKey)
   }
 
-  // Set BEFORE `extras` so a caller can still override it per-request.
   if (input.brandId !== undefined) {
     headers.set('x-brand-id', input.brandId)
   }
@@ -63,20 +37,9 @@ export function buildHeaders(input: BuildHeadersInput): Headers {
 
 export type BuildUploadHeadersInput = {
   readonly userAgent: string
-  /** The body's media type, e.g. `image/png`. */
   readonly contentType: string
 }
 
-/**
- * The outbound header set for a request to a URL that carries its own
- * credential — an image upload's `uploadUrl` (see `HttpClient.sendBytes`).
- *
- * `User-Agent`, `Accept: application/json` and the body's `Content-Type`,
- * and deliberately nothing else: no `Authorization` (the API key never
- * travels to a URL the API handed back), no `X-Brand-Id` (the URL names
- * its upload, and with it the brand) and no `Idempotency-Key` (the URL
- * names the one write it makes).
- */
 export function buildUploadHeaders(input: BuildUploadHeadersInput): Headers {
   const headers = new Headers()
   headers.set('user-agent', input.userAgent)

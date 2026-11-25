@@ -17,15 +17,6 @@ import {
 } from '../../helpers/loopback-server'
 import { server } from '../../msw/server'
 
-/**
- * What happens when the response body itself goes wrong: the connection
- * drops after the headers, the error envelope is cut off, or a 2xx body is
- * not JSON. Before this suite a mid-body drop on a 2xx escaped the retry loop
- * as a raw `TypeError` (never retried, even with `maxRetries: 2`), a truncated
- * error envelope silently became `unknown_error`, and a malformed 2xx threw a
- * bare `SyntaxError`.
- */
-
 const BODY_TEST = { timeout: 4000 }
 const CONTACTS = { contacts: [{ email: 'jane@example.com' }] }
 
@@ -36,7 +27,6 @@ afterEach(async () => {
   loopback = undefined
 })
 
-/** Drop the connection after writing the headers and part of the body. */
 async function droppingServer({
   status = 200,
   dropUntilAttempt = Number.POSITIVE_INFINITY,
@@ -122,8 +112,6 @@ describe('http.request — the connection drops mid-body', () => {
 
       expect(error).toBeInstanceOf(BrewConnectionError)
       expect(error).toBeInstanceOf(BrewTransportError)
-      // A transport failure has no HTTP answer, so it must stay out of the
-      // `BrewApiError` branch the public docs route API errors through.
       expect(error).not.toBeInstanceOf(BrewApiError)
       const connection = error as BrewConnectionError
       expect(connection.attempts).toBe(3)
@@ -222,8 +210,6 @@ describe('http.request — the error envelope is cut off', () => {
       promise: client.request({ method: 'GET', path: '/v1/contacts' }),
     })
 
-    // The status is the news: a 400 is a 400 even if its envelope never
-    // finished arriving. The deadline shows up as the reason it is partial.
     expect(error).toBeInstanceOf(BrewApiError)
     expect((error as BrewApiError).status).toBe(400)
     expect((error as BrewApiError).bodyError).toBeInstanceOf(Error)
@@ -279,8 +265,6 @@ describe('http.request — a 2xx body that is not JSON', () => {
     })
 
     expect(error).toBeInstanceOf(BrewParseError)
-    // The request DID reach the server and got a 200 — this is not a
-    // transport failure, and retrying would return the same bytes.
     expect(error).not.toBeInstanceOf(BrewTransportError)
     expect(error).not.toBeInstanceOf(BrewApiError)
     const parse = error as BrewParseError
@@ -310,8 +294,6 @@ describe('http.request — a 2xx body that is not JSON', () => {
   })
 
   it('decodes a multi-byte body split across chunks', BODY_TEST, async () => {
-    // "é" is two bytes in UTF-8; split them across two writes so a decoder
-    // that does not stream would corrupt the character.
     const bytes = Buffer.from(JSON.stringify({ name: 'Zoë Ångström' }))
     const splitAt = bytes.indexOf(0xc3) + 1
     loopback = await startLoopback({

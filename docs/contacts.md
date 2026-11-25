@@ -34,8 +34,8 @@ The brand's contacts, newest first, under `{ data, pagination }`.
 
 ```ts
 type ListContactsInput = {
-  readonly search?: string // case-insensitive across email/first/last
-  readonly audienceId?: string // scope to a saved audience
+  readonly search?: string
+  readonly audienceId?: string
   readonly sort?: string
   readonly order?: 'asc' | 'desc'
   readonly limit?: number
@@ -70,7 +70,7 @@ profile. New in 11.6.0.
 const contact = await brew.contacts.get('jane@example.com', {
   include: 'openProfile',
 })
-const profile = contact.openProfile // ContactOpenProfile | null | undefined
+const profile = contact.openProfile
 if (profile?.bestSendMinuteUtc !== undefined) {
   const hour = Math.floor(profile.bestSendMinuteUtc / 60)
   console.log(`Best send hour: ${hour}:00 UTC`)
@@ -80,12 +80,11 @@ if (profile?.bestSendMinuteUtc !== undefined) {
 ```ts
 type ContactOpenProfile = {
   readonly totalOpens: number
-  readonly lastOpenedAt: string // ISO-8601
-  readonly histogram: ReadonlyArray<number> // 48 UTC half-hour open counts
-  // Once there is enough history:
-  readonly bestOpenMinuteUtc?: number // minutes after UTC midnight, 0–1439
+  readonly lastOpenedAt: string
+  readonly histogram: ReadonlyArray<number>
+  readonly bestOpenMinuteUtc?: number
   readonly bestSendMinuteUtc?: number
-  readonly confidence?: number // 0–1
+  readonly confidence?: number
 }
 ```
 
@@ -105,7 +104,7 @@ type Contact = {
   readonly email: string
   readonly firstName?: string
   readonly lastName?: string
-  readonly subscribed: boolean // default true
+  readonly subscribed: boolean
   readonly validationStatus?: 'valid' | 'risky' | 'invalid'
   readonly validationDetails?: {
     readonly provider: 'brew'
@@ -115,11 +114,11 @@ type Contact = {
     readonly isDisposable?: boolean
     readonly isRole?: boolean
   }
-  readonly lastValidatedAt?: string // ISO-8601 date-time (last provider check)
-  readonly suppressed: boolean // default false
+  readonly lastValidatedAt?: string
+  readonly suppressed: boolean
   readonly suppressedReason?: string | null
-  readonly createdAt: number // UNIX millis, NOT a string
-  readonly updatedAt: number // UNIX millis, NOT a string
+  readonly createdAt: number
+  readonly updatedAt: number
   readonly importId?: string | null
   readonly customFields: Readonly<Record<string, unknown>>
 }
@@ -136,7 +135,7 @@ array of clauses combined by the top-level `logic`:
 
 ```ts
 type ContactsFilterClause = {
-  readonly field: string // e.g. 'email' or 'customFields.plan'
+  readonly field: string
   readonly operator: string
   readonly value?: string | number | boolean | ReadonlyArray<unknown>
 }
@@ -163,13 +162,10 @@ The `operator` is one of the operator names the Brew API recognizes:
 | `not_exists`       | Field does not exist on the contact |
 
 ```ts
-// Single clause
 ;[{ field: 'subscribed', operator: 'equals', value: true }]
 
-// Explicit operator on a custom field
 ;[{ field: 'customFields.plan', operator: 'equals', value: 'enterprise' }]
 
-// Multi-clause, combined by the top-level `logic`
 {
   logic: 'and',
   filters: [
@@ -197,15 +193,15 @@ newest-first.
 
 ```ts
 type SearchContactsInput = Readonly<{
-  audienceId?: string // scope to a saved audience's members; 'all' (or omitted) searches every contact
-  search?: string // case-insensitive search across email/first/last
+  audienceId?: string
+  search?: string
   filters?: ReadonlyArray<ContactsFilterClause>
-  logic?: 'and' | 'or' // default 'and'
-  sort?: string // default 'createdAt'
-  order?: 'asc' | 'desc' // default 'desc'
-  limit?: number // 1–100, default 50
-  cursor?: string // opaque, from previous response
-  include?: ReadonlyArray<'openProfile'> // per-row open-time profile
+  logic?: 'and' | 'or'
+  sort?: string
+  order?: 'asc' | 'desc'
+  limit?: number
+  cursor?: string
+  include?: ReadonlyArray<'openProfile'>
 }>
 
 type SearchContactsResponse = {
@@ -354,7 +350,6 @@ for (const group of groups ?? []) {
   console.log(group.key.emailDomain, group.count)
 }
 
-// Signups per month in a saved audience:
 const perMonth = await brew.contacts.countBy({ audienceId, bucket: 'month' })
 ```
 
@@ -372,35 +367,33 @@ type UpsertContactInput = {
   readonly lastName?: string
   readonly subscribed?: boolean
   readonly customFields?: { readonly [key: string]: unknown }
-  readonly consent?: ContactConsentInput // marketing consent provenance
-  readonly validate?: boolean // deliverability check, 2 credits
+  readonly consent?: ContactConsentInput
+  readonly validate?: boolean
 }
 
 type ContactConsentInput = {
   readonly source: 'api' | 'form' | 'import'
-  readonly capturedAt?: string // ISO 8601; defaults to now
+  readonly capturedAt?: string
   readonly policyVersion?: string
   readonly evidence?: string
 }
 
-// A non-fatal note on a write. upsert, upsertMany and patch share this shape:
-// UpsertContactResponse['warnings'][number] (or PatchContactResponse's).
 type UpsertWarning = {
-  readonly code: string // e.g. FIELD_TYPE_COERCED, DATE_ORDER_ASSUMED
+  readonly code: string
   readonly message: string
   readonly email?: string
-  readonly row?: number // 1-based; batch and import rows only
+  readonly row?: number
   readonly field?: string
-  readonly from?: string // FIELD_TYPE_COERCED: the type sent
-  readonly to?: string //   FIELD_TYPE_COERCED: the type stored
+  readonly from?: string
+  readonly to?: string
   readonly original?: string
   readonly normalized?: string
 }
 
 type UpsertContactResponse = {
   readonly contact: Contact
-  readonly created: boolean        // true if newly inserted, false if updated
-  readonly fieldsCreated: string[] // custom fields this request auto-defined
+  readonly created: boolean
+  readonly fieldsCreated: string[]
   readonly warnings: ReadonlyArray<UpsertWarning>
 }
 
@@ -418,8 +411,8 @@ const result = await brew.contacts.upsert({
 })
 
 console.log(result.contact.email)
-console.log(result.created) // true if this was an insert
-console.log(result.fieldsCreated) // ['plan'] if 'plan' was a new custom field
+console.log(result.created)
+console.log(result.fieldsCreated)
 ```
 
 A new custom field is typed from the values that create it. Later values are
@@ -490,7 +483,7 @@ const result = await brew.contacts.upsertMany({
   ],
 })
 
-console.log(result.summary) // { inserted: 1, updated: 1, failed: 0 }
+console.log(result.summary)
 
 if (result.errors.length > 0) {
   for (const err of result.errors) {
@@ -518,14 +511,14 @@ Partial update by email. The email travels in the path; the body is
 ```ts
 type PatchContactInput = {
   readonly email: string
-  readonly fields?: { readonly [key: string]: unknown } // at least one of
-  readonly consent?: ContactConsentInput //                fields / consent
+  readonly fields?: { readonly [key: string]: unknown }
+  readonly consent?: ContactConsentInput
 }
 
 type PatchContactResponse = {
   readonly contact: Contact
-  readonly updated: ReadonlyArray<string>  // fields whose stored value changed; [] = nothing written
-  readonly warnings: ReadonlyArray<UpsertWarning> // see upsert; DATE_ORDER_ASSUMED, FIELD_TYPE_COERCED
+  readonly updated: ReadonlyArray<string>
+  readonly warnings: ReadonlyArray<UpsertWarning>
 }
 
 patch(
@@ -543,7 +536,7 @@ const result = await brew.contacts.patch({
   },
 })
 
-console.log(result.updated) // ['firstName', 'customFields.plan']
+console.log(result.updated)
 ```
 
 `fields` is an open object: include any combination of writable core
@@ -587,7 +580,6 @@ delete(
 const { deleted } = await brew.contacts.delete({
   email: 'jane@example.com',
 })
-// deleted === false when the email had no contact
 ```
 
 ---
@@ -621,7 +613,7 @@ const result = await brew.contacts.deleteMany({
   emails: ['a@example.com', 'b@example.com', 'c@example.com'],
 })
 
-console.log(result.deletedCount) // e.g. 2
+console.log(result.deletedCount)
 if (result.notFound.length > 0) {
   console.warn('No contact found for:', result.notFound)
 }
@@ -684,7 +676,7 @@ const result = await brew.contacts.import({
 })
 
 console.log(result.importId)
-console.log(result.summary.total) // 2 submitted contacts
+console.log(result.summary.total)
 for (const error of result.errors) {
   console.error(error.row, error.email, error.code, error.message)
 }
@@ -723,13 +715,13 @@ History batch. The input is the spec's request body:
 ```ts
 type ImportCsvContactsInput = {
   csv: string
-  mapping?: { [csvColumn: string]: string } // overrides header inference
-  validate?: boolean // inline checks: 2 credits per submitted data row
-  consent?: ContactConsentInput // stamped on every imported row
+  mapping?: { [csvColumn: string]: string }
+  validate?: boolean
+  consent?: ContactConsentInput
   dateOrder?: 'month_first' | 'day_first'
-  fileName?: string // batch name in Import History
-  dryRun?: boolean // preview the response, write nothing
-  onConflict?: 'upsert' | 'skip' // skip leaves existing contacts unchanged
+  fileName?: string
+  dryRun?: boolean
+  onConflict?: 'upsert' | 'skip'
 }
 ```
 
@@ -748,7 +740,7 @@ const result = await brew.contacts.importCsv({
 })
 
 console.log(result.importId)
-console.log(result.summary) // { inserted, updated, failed, skipped, total }
+console.log(result.summary)
 for (const warning of result.warnings) {
   console.warn(warning.row, warning.code, warning.field, warning.message)
 }

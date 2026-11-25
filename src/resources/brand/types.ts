@@ -1,44 +1,22 @@
 import type { components, paths } from '../../generated/openapi-types'
 
-/**
- * Body returned by `GET /v1/brand` and `PATCH /v1/brand` — the brand row
- * itself, FLAT. There is no `{ brand: … }` wrapper in v1.
- *
- * `identity` (the saved brand name, tagline, description, contact details
- * and links) is always present. The optional `emailDesign` / `imageStyle` /
- * `logos` fields are populated on a `GET` only for the sub-resources named
- * in `?include=`, and on a `PATCH` only for the markdown that was written.
- */
 export type BrandGetResponse = components['schemas']['BrandGetResponse']
 
-/** Echoed by `PATCH /v1/brand` — same envelope: `identity` plus the markdown the call wrote. */
 export type BrandPatchResponse = BrandGetResponse
 
-/**
- * The brand bound to the API key, plus its extraction readiness.
- *
- * `ready` is `true` only when `status === 'completed'`. Check it before
- * `brew.emails.generate(...)`, which 422s `BRAND_NOT_READY` until
- * extraction finishes.
- */
 export type Brand = Omit<
   BrandGetResponse,
   'identity' | 'emailDesign' | 'imageStyle' | 'logos'
 >
 
-/** Lifecycle status of the bound brand's extraction. */
 export type BrandStatus = Brand['status']
 
-/** Structured brand identity: saved name, tagline, description, links. `GET` and `PATCH /v1/brand` always return it. */
 export type BrandIdentity = NonNullable<BrandGetResponse['identity']>
 
-/** A single CDN-hosted logo variant (embedded via `?include=logos`). */
 export type BrandLogo = NonNullable<BrandGetResponse['logos']>[number]
 
-/** Body for `PATCH /v1/brand`. At least one of the keys must be present. */
 export type UpdateBrandInput = components['schemas']['BrandPatchRequest']
 
-/** The sub-resource tokens `GET /v1/brand`'s `?include=` accepts. */
 export const BRAND_INCLUDE_TOKENS = [
   'identity',
   'emailDesign',
@@ -47,21 +25,11 @@ export const BRAND_INCLUDE_TOKENS = [
 ] as const
 export type BrandIncludeToken = (typeof BRAND_INCLUDE_TOKENS)[number]
 
-/** `{ data, pagination }` returned by `GET /v1/brand/images`. */
 export type BrandImagesResponse = components['schemas']['BrandImagesResponse']
 
-/**
- * Query parameters for `brew.brand.getImages`. Sourced from the generated
- * query type so a new pagination knob upstream surfaces as a compile error
- * in the SDK.
- */
 export type ListBrandImagesInput = Readonly<
   NonNullable<paths['/v1/brand/images']['get']['parameters']['query']>
 >
 
-/**
- * `{ assetId, deleted }` returned by `DELETE /v1/brand/images/{assetId}`.
- * `deleted` is `false` when the id was not in the library (nothing changed).
- */
 export type BrandImageDeleteResponse =
   components['schemas']['BrandImageDeleteResponse']

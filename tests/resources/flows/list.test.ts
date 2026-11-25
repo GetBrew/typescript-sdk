@@ -89,7 +89,6 @@ describe('flows.list', () => {
       code: 'SERVICE_UNAVAILABLE',
       retryAfter: 300,
     })
-    // Over the 60 s ceiling: thrown at once, not slept out and retried.
     expect(attempts).toBe(1)
     expect(sleepCalls).toEqual([])
   })

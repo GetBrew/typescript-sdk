@@ -3,33 +3,8 @@ import type { BrewRawResponse, RequestOptions } from '../../../types'
 
 import type { AudienceRunActionResponse } from './types'
 
-/**
- * 200 result of a resume — `{ audienceRunId, status: 'running' }`, plus
- * `resumedFrom` naming the state it came back from (`paused` | `failed`).
- */
 export type ResumeAudienceRunResponse = AudienceRunActionResponse
 
-/**
- * `POST /v1/automations/audience-runs/{audienceRunId}/resume` (scope:
- * `automations`) — pick a paused (or failed) manual-audience run back up
- * where it left off. The response's `resumedFrom` says which state it
- * came back from.
- *
- * This is one of the three action sub-paths that replaced the old
- * `control({ action })` body verb.
- *
- * A run that is neither paused nor failed surfaces as
- * `409 RUN_NOT_PAUSED`; one that cannot pick up (held at the plan limit,
- * or a failed run with nothing left to deliver) as `409 RUN_NOT_RESUMABLE`;
- * a send step still to go that can no longer send, such as a sender domain
- * that lost verification, as `422 AUTOMATION_NOT_READY` (the message names
- * the step). An exhausted send quota is `402 SEND_QUOTA_EXCEEDED`; an
- * unknown or cross-brand id is `404 AUDIENCE_RUN_NOT_FOUND`.
- *
- * Pass `{ raw: true }` in `options` to receive the full
- * `BrewRawResponse<ResumeAudienceRunResponse>` instead of the unwrapped
- * payload.
- */
 export function createResumeAudienceRun(client: HttpClient) {
   function resumeAudienceRun(
     audienceRunId: string,

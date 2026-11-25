@@ -21,14 +21,6 @@ import {
 } from '../../helpers/loopback-server'
 import { server } from '../../msw/server'
 
-/**
- * `sendBytes` POSTs raw bytes to a URL the API handed back that carries its
- * own credential (an image upload's `uploadUrl`). It is the same transport
- * as `request` — the client's `fetch`, deadline, cancellation and retry
- * loop — minus the client's credentials: the URL is the credential, so the
- * API key must never travel to it.
- */
-
 const UPLOAD_ORIGIN = 'https://uploads.brew.test'
 const UPLOAD_PATH = `${UPLOAD_ORIGIN}/brand-image-upload`
 const UPLOAD_URL = `${UPLOAD_PATH}?uploadId=imgup_abcdefghijklmnopqrstu&token=s3cr3t-upload-token`
@@ -47,7 +39,6 @@ function pngBlob(): Blob {
   return new Blob([PNG_BYTES])
 }
 
-/** The URL a `fetch` call names (the SDK always passes a string). */
 function urlOf(input: Parameters<typeof globalThis.fetch>[0]): string {
   if (typeof input === 'string') return input
   if (input instanceof URL) return input.href
@@ -65,7 +56,6 @@ describe('http.sendBytes', () => {
         return HttpResponse.json(RECEIPT)
       })
     )
-    // A pinned brand and an API key: neither may reach the upload URL.
     const { client } = makeTestHttpClient({
       configOverrides: { brandId: 'brand_123' },
     })
@@ -77,7 +67,6 @@ describe('http.sendBytes', () => {
     })
 
     expect(captured?.method).toBe('POST')
-    // Sent to the URL as given, query (its credential) included.
     expect(captured?.url).toBe(UPLOAD_URL)
     expect(captured?.headers.get('authorization')).toBeNull()
     expect(captured?.headers.get('x-api-key')).toBeNull()
@@ -175,8 +164,6 @@ describe('http.sendBytes', () => {
       contentType: 'image/png',
     })
 
-    // A repeat POST is safe: the URL names the one upload it fills, and the
-    // server keeps the first file it receives.
     expect(bodies).toEqual([PNG_BYTES, PNG_BYTES, PNG_BYTES])
     expect(response.data).toEqual(RECEIPT)
   })
@@ -204,11 +191,9 @@ describe('http.sendBytes', () => {
   })
 
   describe('a fetch that puts the upload URL in its rejection', () => {
-    // The real shape: 64 hex characters, `?uploadId=…&token=…`.
     const TOKEN = 'f'.repeat(32) + '0123456789abcdef'.repeat(2)
     const REAL_URL = `${UPLOAD_PATH}?uploadId=imgup_abcdefghijklmnopqrstu&token=${TOKEN}`
 
-    /** A `fetch` whose error names the URL at every level, as wrappers do. */
     function leakyFetch({ code }: { code: string }): typeof globalThis.fetch {
       return (input) => {
         const url = urlOf(input)
@@ -226,7 +211,6 @@ describe('http.sendBytes', () => {
       }
     }
 
-    /** Everything a logger could print for `error`. */
     function everyRendering(error: unknown): Array<string> {
       const transport = error as BrewConnectionError
       return [
@@ -259,8 +243,6 @@ describe('http.sendBytes', () => {
       for (const rendering of everyRendering(error)) {
         expect(rendering).not.toContain(TOKEN)
       }
-      // Still useful: the cause chain survives, with the URL's path and the
-      // runtime's code, minus the credential.
       const cause = (error as BrewConnectionError).cause as Error
       expect(cause.name).toBe('TypeError')
       expect(cause.message).toContain(`POST ${UPLOAD_PATH}?[redacted]`)
@@ -288,7 +270,6 @@ describe('http.sendBytes', () => {
         }),
       })
 
-      // The runtime code still reaches the classification and the message.
       expect(error).toBeInstanceOf(BrewTimeoutError)
       expect((error as BrewTimeoutError).message).toContain(
         'UND_ERR_HEADERS_TIMEOUT'
@@ -311,7 +292,6 @@ describe('http.sendBytes', () => {
         promise: client.request({ method: 'GET', path: '/v1/contacts' }),
       })
 
-      // Only a credential-bearing URL is redacted; API errors keep their cause.
       expect((error as BrewConnectionError).cause).toBe(original)
     })
   })

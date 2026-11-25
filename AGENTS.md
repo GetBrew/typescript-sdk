@@ -8,9 +8,8 @@ for the Brew public API.
 A thin, ergonomic, open source TypeScript client on top of the Brew public
 API. The API is the source of truth — this SDK is a consumer of it.
 
-See `README.md` for the product-level overview and the external design doc
-(`public-api-sdk-oss-plan.md`) for historical rationale. Current contracts
-live in `src/`, the OpenAPI mirror, and `docs/`.
+See `README.md` for the product overview. Current contracts live in `src/`
+and the OpenAPI mirror; `docs/` explains supported use.
 
 For shipping a new version (iterate loop, validation, npm publish, the
 tag-driven release workflow, and token rotation), read [`RELEASING.md`](./RELEASING.md)
@@ -46,19 +45,11 @@ API integration coverage.
 
 ## Function signatures
 
-Prefer object parameters for internal functions when they clarify related inputs.
-Preserve public resource signatures and their URL identity contract.
-
-Public SDK methods take `(input, options?)` where `input` is the domain
-object and `options` is `RequestOptions`, with one deliberate exception: a
-method that acts on ONE resource by identity takes that identifier
-positionally, then `options?` — `emails.get(emailId, { include })`,
-`sends.cancel(sendId)`, `automations.runs.cancel(automationRunId, { reason })`,
-`emails.inboxPlacementTests.get(emailId, testId)`. The identity rides the URL
-path on the wire, so there is no domain object to name it in; wrapping a single
-string in `{ emailId }` would make every detail read read worse than the REST
-call it stands for. Anything with a request body or a query still takes the
-object.
+Prefer object parameters for related internal inputs. Preserve existing public
+signatures: most methods take `(input, options?)`, while many detail methods
+take positional identifiers, such as `emails.get(emailId, options?)` and
+`sends.cancel(sendId, options?)`. `brands.get({ brandId }, options?)` retains
+its object input. The exported signature owns the argument shape.
 
 ## Async patterns
 
@@ -66,7 +57,7 @@ object.
   or `Promise.allSettled` when partial failure is acceptable. Do not await
   independent promises sequentially.
 - `no-await-in-loop` is enforced by lint. If you need to iterate with a side
-  effect that has to be awaited, do it deliberately and comment why.
+  effect that has to be awaited, use a narrowly scoped lint directive.
 - All promises must be `await`ed or explicitly consumed. No dangling
   promises.
 
@@ -161,11 +152,11 @@ lint and relevant tests; run the typecheck for types, contracts, dependencies,
 or uncertain compiler impact. Report checks run and anything deferred to CI.
 
 ```bash
-bun install              # only if dependencies changed
-bun run tsc              # typecheck
-bun run lint             # lint
-bun run format:check     # read-only formatting check
-bun run test -- tests/<file>.test.ts  # relevant tests
+bun install
+bun run tsc
+bun run lint
+bun run format:check
+bun run test -- tests/<file>.test.ts
 ```
 
 Use `bun run format` only as an intentional formatting write. Generated types
@@ -183,3 +174,12 @@ are regenerated from the vendored spec, never edited by hand.
 and deliberate loopback tests. The [development guide](docs/development.md)
 explains generation and the contribution workflow. Never hand-edit
 `src/generated/`; regenerate it from the vendored OpenAPI spec.
+
+## Comments and documentation
+
+Do not add source comments. Code owns behavior.
+Preserve legal notices and compiler, lint, coverage and type directives.
+Keep necessary Markdown verified against code and link to generated references.
+Delete completed plans; Git retains their history. `bun run comments:check`
+checks owned TypeScript, JavaScript and JSONC; generated artifacts and fixture
+data retain their owners. Change generators before regenerating their output.

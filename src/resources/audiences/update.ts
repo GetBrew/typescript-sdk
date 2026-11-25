@@ -4,45 +4,14 @@ import type { BrewRawResponse, RequestOptions } from '../../types'
 
 import type { AudienceWriteResult } from './types'
 
-/**
- * PATCH body — at least one of `name`, `filters`, `addEmails` or
- * `removeEmails`. `addEmails` / `removeEmails` edit membership by address
- * instead of rewriting `filters` (pass one or the other, not both); an
- * edit the filters cannot express exactly is refused with
- * `409 AUDIENCE_MEMBERSHIP_NOT_EXPRESSIBLE`.
- */
 export type UpdateAudienceBody = components['schemas']['AudiencesPatchRequest']
 
-/** Update input — the `audienceId` (path) plus the fields to change. */
 export type UpdateAudienceInput = {
-  /** The id of the audience to update (path parameter). */
   readonly audienceId: string
 } & UpdateAudienceBody
 
-/**
- * Update returns the updated row, plus the `membership` report of an
- * address edit (what happened to each address) and
- * `emailListMaterializations` when a long list was stamped.
- */
 export type UpdateAudienceResponse = AudienceWriteResult
 
-/**
- * `PATCH /v1/audiences/{audienceId}` — update an audience's `name`,
- * its `filters`, or its members by address (`addEmails` /
- * `removeEmails`). Requires the `audiences` scope. Returns the updated
- * row, with a `membership` report for an address edit.
- *
- * Omitted filter types are resolved from the brand's field registry before
- * counting and saving. A registered numeric tier uses numeric comparisons;
- * unknown fields retain string comparisons. Explicit types are supported.
- * Date range operands require `type: 'date'` for request validation.
- * List operators (`in`, `not_in`, `contains_any`, `not_contains_any`) take
- * an array: a comma-joined string such as `'pro,enterprise'` is a `400`
- * (`email in` still splits on commas).
- *
- * Pass `{ raw: true }` in `options` to receive the full
- * `BrewRawResponse<UpdateAudienceResponse>` instead of the unwrapped row.
- */
 export function createUpdateAudience(client: HttpClient) {
   function updateAudience(
     input: UpdateAudienceInput,

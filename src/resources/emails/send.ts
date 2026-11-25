@@ -2,62 +2,10 @@ import { type HttpClient, unwrapResponse } from '../../core/http'
 import type { components } from '../../generated/openapi-types'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
-/**
- * Body for `POST /v1/sends` — the single, polymorphic send endpoint.
- * It is a union discriminated by `test`:
- *
- * - `{ test: true, emailId, subject, to, ... }` — a one-off TEST
- *   delivery to a single address. No verified domain or audience
- *   required; never creates a send row. Resolves synchronously (HTTP
- *   200) with `{ status: 'completed', recipient }`. Takes `variables`
- *   (merge-tag example values) and `payload` — nested JSON template
- *   data rendered via Liquid as `trigger.*` (scalar keys also resolve
- *   `{{ tag | fallback }}` merge tags), matching live-fire semantics.
- * - `{ emailId, subject, domainId, audienceId | to, ... }` — a real
- *   campaign send. Provide a recipient target (`audienceId`, or `'all'`
- *   for every contact in the brand, or inline `to`) and the verified
- *   `domainId` to send from. Accepted for queueing / scheduling (HTTP
- *   202) with `{ status, sendId }`.
- *
- * The sender is the nested `from: { email, name? }` object in v1 (the
- * flat `fromEmail` + `senderName` pair is gone) and `replyTo` is a
- * top-level string. The 202 no longer carries a `runId` — `sendId` is
- * the only handle, and it is what `brew.sends.get(sendId)`,
- * `sends.cancel`, `sends.pause`, and `sends.resume` take.
- *
- * Event-triggered (transactional) mail is NOT sent here: wire the
- * design into a published automation on a transactional-purpose domain
- * and fire it with `brew.automations.triggers.fire<Payload>()`.
- */
-/**
- * Distributes over the request union: variants that carry a `payload`
- * (test sends) get the typed payload; the rest are untouched. Pin a
- * trigger contract type (hand-written or from `brew-cli types`):
- *
- * ```ts
- * import type { OrderCompletedPayload } from './brew-contracts'
- * await brew.emails.send<OrderCompletedPayload>({
- *   test: true,
- *   emailId: 'eml_receipt',
- *   subject: 'Your receipt',
- *   to: 'a@b.co',
- *   payload: { total: 42 }, // type-checked against the contract
- * })
- * // live fire of the same payload shape:
- * // await brew.automations.triggers.fire<OrderCompletedPayload>({
- * //   triggerEventId: 'tri_…', payload: { total: 42 } })
- * ```
- */
 type WithTypedPayload<T, TPayload> = T extends { payload?: unknown }
   ? Omit<T, 'payload'> & { payload?: TPayload }
   : T
 
-/**
- * Un-pinned calls keep the exact wire value type (JSON-serializable only)
- * — the generic default must not loosen what the pre-generic input
- * rejected (functions, undefined values silently dropped by
- * JSON.stringify).
- */
 type DefaultSendPayload = {
   [key: string]: components['schemas']['SendPayloadValue']
 }
@@ -66,60 +14,18 @@ export type SendEmailInput<
   TPayload extends Record<string, unknown> = DefaultSendPayload,
 > = WithTypedPayload<components['schemas']['SendEmailRequest'], TPayload>
 
-/** 200 result of a TEST send (`test: true`) — `{ status: 'completed', recipient }`. */
 export type SendEmailTestResponse =
   components['schemas']['SendEmailTestResponse']
 
-/** 202 result of a queued / scheduled campaign send — `{ status, sendId }`, no `runId`. */
 export type SendEmailCampaignResponse =
   components['schemas']['SendsPostResponse']
 
-/**
- * Union returned by `POST /v1/sends`: the TEST shape
- * (`{ status: 'completed', recipient }`) when `test: true`, otherwise
- * the campaign shape
- * (`{ status: 'queued' | 'scheduled' | 'pending_approval', sendId }`).
- */
 export type SendEmailResponse =
   | SendEmailTestResponse
   | SendEmailCampaignResponse
 
 export type SendEmailStatus = SendEmailResponse['status']
 
-/**
- * `POST /v1/sends` (scope: `sends`) — send a saved email design. This is
- * the single polymorphic send endpoint, discriminated by `test`:
- *
- * - Pass `{ test: true, ... }` for a one-off TEST delivery to a single
- *   `to` address. A test reaches only a teammate with access to the
- *   brand, an address on a verified sending domain of the brand, or, for a
- *   signed-in person (not an API key), their own address or one on their
- *   company domain. An API key has no person behind it, so with a key only
- *   teammates and verified sending domains qualify; any other address is
- *   `422 TEST_RECIPIENT_NOT_ALLOWED` (`details.recipients` lists the
- *   refused addresses). Omit `domainId` for the Brew default sender, or
- *   supply a verified, org-owned sending domain. Invalid domains are
- *   rejected. No audience is required, and it never creates a send row.
- *   Test deliveries never count toward the plan's email sends, and a plan
- *   at its limit still sends tests. Resolves synchronously (HTTP 200) with
- *   `{ status: 'completed', recipient }`.
- * - Otherwise it is a real campaign send: provide a recipient target
- *   (`audienceId` or inline `to`) and the verified `domainId`. A design
- *   can be sent unlimited times; every call mints a new send. This
- *   resolves when the API accepts the job (HTTP 202) with `{ status,
- *   sendId }` — it does not wait for delivery. Poll
- *   `brew.sends.get(sendId)` for lifecycle + stats.
- *
- * A campaign that would exceed the plan's monthly email volume is
- * `402 SEND_QUOTA_EXCEEDED` (which absorbed the old
- * `INSUFFICIENT_EMAIL_SENDS`).
- *
- * Supply `options.idempotencyKey` to make campaign retries safe.
- *
- * Pass `{ raw: true }` in `options` to receive the full
- * `BrewRawResponse<SendEmailResponse>` instead of the unwrapped
- * payload.
- */
 export function createSendEmail(client: HttpClient) {
   function sendEmail<
     TPayload extends Record<string, unknown> = DefaultSendPayload,

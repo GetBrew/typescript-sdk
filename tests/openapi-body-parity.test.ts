@@ -4,22 +4,6 @@ import { extname, join } from 'node:path'
 import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 
-/**
- * Every request-body property the spec documents is one the SDK can send.
- *
- * `openapi-surface-parity.test.ts` proves every route has a method and every
- * query parameter is forwarded; bodies were unchecked, so `consent`
- * (contacts) and `dateOrder` (CSV import) shipped in the API long before the
- * SDK could send them. This walks the generated `paths` types for each
- * route's JSON body, then the TypeScript type of the `body:` each SDK
- * `client.request({ method, path, body })` call sends, and requires every
- * spec property to appear in at least one call for that route. One route
- * may be split across methods (`search` / `count` / `countBy`, `upsert` /
- * `upsertMany`, `patch` / `publish` / `unpublish`); their union must cover
- * it. Properties are walked one level into array rows, so a batch row's
- * fields count too (`contacts[].consent`).
- */
-
 const ROOT = process.cwd()
 const METHODS = ['get', 'post', 'put', 'patch', 'delete'] as const
 
@@ -50,7 +34,6 @@ function propertyNames(checker: ts.TypeChecker, type: ts.Type): Set<string> {
   return names
 }
 
-/** An array's rows are objects (not strings or numbers) whose fields to walk. */
 function isObjectRow(type: ts.Type): boolean {
   const parts = type.isUnion() ? type.types : [type]
   return parts.every(
@@ -59,10 +42,6 @@ function isObjectRow(type: ts.Type): boolean {
   )
 }
 
-/**
- * Top-level property names, plus `name[].field` for every field of an
- * array-of-objects property (a batch's rows, a graph's nodes).
- */
 function propertyPaths(
   checker: ts.TypeChecker,
   type: ts.Type,
@@ -92,7 +71,6 @@ function propertyPaths(
   return paths
 }
 
-/** `"POST /v1/contacts/import-csv"` → the JSON body's property paths. */
 function readSpecBodies(
   program: ts.Program,
   checker: ts.TypeChecker
@@ -132,7 +110,6 @@ function readSpecBodies(
   return bodies
 }
 
-/** The `body` of a request literal, including `...(cond ? { body } : {})`. */
 function findBody(
   request: ts.ObjectLiteralExpression
 ): ts.ObjectLiteralElementLike | undefined {
@@ -173,7 +150,6 @@ function findBody(
   return undefined
 }
 
-/** `"POST /v1/contacts/import-csv"` → every key the SDK's calls can send. */
 function readSdkBodies(
   program: ts.Program,
   checker: ts.TypeChecker
@@ -226,7 +202,6 @@ function readSdkBodies(
   return sent
 }
 
-/** The webhook factory returns the same typed request literal it passes to client.request. */
 function requestLiteral(node: ts.Node): ts.Expression | undefined {
   if (
     ts.isCallExpression(node) &&
@@ -266,7 +241,6 @@ describe('request body parity', () => {
     const spec = readSpecBodies(program, checker)
     const sdk = readSdkBodies(program, checker)
 
-    // The walk found the bodies (a broken walk would pass vacuously).
     expect(spec.size).toBeGreaterThan(40)
     expect(spec.get('POST /v1/contacts/import-csv')).toContain('csv')
     expect(spec.get('POST /v1/contacts')).toContain('contacts[].consent')

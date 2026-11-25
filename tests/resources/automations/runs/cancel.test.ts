@@ -33,7 +33,6 @@ describe('automations.runs.cancel', () => {
     expect(new URL(capturedRequest!.url).pathname).toBe(
       '/api/v1/automations/runs/run_1/cancel'
     )
-    // The id rides the URL now; it is no longer a body field.
     expect(capturedBody).toEqual({ reason: 'wrong audience' })
     expect(result).toEqual({
       automationRunId: 'run_1',

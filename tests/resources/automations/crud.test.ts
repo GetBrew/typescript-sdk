@@ -31,7 +31,6 @@ describe('automations resource — POST/GET/PATCH/DELETE wiring', () => {
     server.use(
       http.post('https://brew.new/api/v1/automations', async ({ request }) => {
         body = await request.json()
-        // 201 returns the BARE created row (no { automations: [...] } wrapper).
         return HttpResponse.json(ROW, { status: 201 })
       })
     )
@@ -58,10 +57,6 @@ describe('automations resource — POST/GET/PATCH/DELETE wiring', () => {
   })
 
   it('AutomationNodeInput narrows config by `type` (sendEmail requires emailId + emailVersionId + domainId + subject + previewText)', () => {
-    // This is a TS-level assertion — the test runs purely to keep the
-    // discriminated union typing wired into the test suite. If the
-    // SDK ever loses per-kind narrowing the test file will fail to
-    // compile because the wrong-config branches below would compile.
     const sendNode = {
       id: 'send_welcome',
       label: 'Welcome',
@@ -127,7 +122,6 @@ describe('automations resource — POST/GET/PATCH/DELETE wiring', () => {
       name: 'Welcome v2',
       description: 'Renamed',
     })
-    // automationId lives on the URL — only editable fields hit the body.
     expect(body).toEqual({ name: 'Welcome v2', description: 'Renamed' })
     expect('automations' in (result as object)).toBe(false)
     expect(result.name).toBe('Welcome v2')
@@ -149,7 +143,6 @@ describe('automations resource — POST/GET/PATCH/DELETE wiring', () => {
     const { client } = makeTestHttpClient()
     const automations = createAutomationsResource(client)
     const result = await automations.publish({ automationId: 'auto_abc' })
-    // The old POST …/publish sub-route is gone — publishing is a PATCH.
     expect(captured?.method).toBe('PATCH')
     expect(new URL(captured!.url).pathname).toBe('/api/v1/automations/auto_abc')
     expect(body).toEqual({ published: true })
@@ -178,7 +171,6 @@ describe('automations resource — POST/GET/PATCH/DELETE wiring', () => {
     const { client } = makeTestHttpClient()
     const automations = createAutomationsResource(client)
     const result = await automations.publish({ automationId: 'auto_abc' })
-    // Publishing still succeeds; the warning is advisory.
     expect(result.published).toBe(true)
     expect(result.warnings?.[0]?.code).toBe('TRIGGER_EVENT_NOT_RECEIVED')
     expect(result.warnings?.[0]?.field).toBe('triggerEventId')
@@ -331,7 +323,6 @@ describe('automations resource — POST/GET/PATCH/DELETE wiring', () => {
     const automations = createAutomationsResource(client)
     const result = await automations.delete({ automationId: 'auto_abc' })
     expect(captured?.method).toBe('DELETE')
-    // id is on the PATH — no JSON body.
     expect((await captured!.text()).length).toBe(0)
     expect(result.deleted).toBe(true)
   })

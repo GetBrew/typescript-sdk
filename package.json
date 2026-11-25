@@ -73,7 +73,7 @@
     "build": "tsup",
     "dev": "tsup --watch",
     "tsc": "tsc --noEmit",
-    "lint": "eslint .",
+    "lint": "eslint . && node --test scripts/source-comments.test.mjs && node scripts/check-comments.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
@@ -83,7 +83,8 @@
     "prepare": "bun install --frozen-lockfile --ignore-scripts 1>&2 && node scripts/build-source-package.mjs 1>&2",
     "prepublishOnly": "bun run clean && bun run generate:types && bun tsc && bun lint && bun run test && bun run build",
     "sync:embed": "node scripts/sync-embed-contracts.mjs",
-    "sync:embed:check": "node scripts/sync-embed-contracts.mjs --check"
+    "sync:embed:check": "node scripts/sync-embed-contracts.mjs --check",
+    "comments:check": "node --test scripts/source-comments.test.mjs && node scripts/check-comments.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

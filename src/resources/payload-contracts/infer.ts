@@ -3,9 +3,7 @@ import type { components } from '../../generated/openapi-types'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
 export type InferPayloadContractInput = {
-  /** A real example payload — the JSON your system sends. */
   example: Record<string, unknown>
-  /** What the contract is for. `trigger` (a trigger's payload) is the only kind today. */
   subjectKind?: NonNullable<
     components['schemas']['PayloadContractInferRequest']['subjectKind']
   >
@@ -14,17 +12,6 @@ export type InferPayloadContractInput = {
 export type PayloadContractInferResponse =
   components['schemas']['PayloadContractInferResponse']
 
-/**
- * `POST /v1/payload-contracts/infer` (scope: `automations`) — draft a
- * contract from a real example payload. Integers/floats split
- * automatically, full ISO timestamps become `date`, object/array shapes
- * are walked recursively; un-inferable spots (nulls, empty arrays) are
- * listed in `issues`. Nothing is saved — review the draft, then
- * `putContract` it on a trigger (`automations.triggers.putContract`).
- *
- * Pass `{ raw: true }` in `options` for the full
- * `BrewRawResponse<PayloadContractInferResponse>`.
- */
 export function createInferPayloadContract(client: HttpClient) {
   function infer(
     input: InferPayloadContractInput,

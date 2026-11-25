@@ -7,16 +7,8 @@ export type VerifyDomainInput = {
   domainId: string
 }
 
-/** Returns the bare `Domain` row with the refreshed status. */
 export type VerifyDomainResponse = Domain
 
-/**
- * `POST /v1/domains/{domainId}/verify` — re-check the DNS records with
- * the sending provider and refresh the row (empty body). Safe to poll —
- * keep calling until `sendable: true` (DNS propagation can take minutes
- * to hours). Returns the bare refreshed `Domain` row. Requires the
- * `domains` scope.
- */
 export function createVerifyDomain(client: HttpClient) {
   function verifyDomain(
     input: VerifyDomainInput,

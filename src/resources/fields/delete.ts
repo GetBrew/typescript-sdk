@@ -5,24 +5,8 @@ import type { FieldsDeleteResponse } from './types'
 
 export type { FieldsDeleteResponse }
 
-/** Input for `brew.fields.delete(...)` — the field name to drop. */
 export type DeleteFieldInput = { readonly fieldName: string }
 
-/**
- * `DELETE /v1/fields/{fieldName}` — remove a custom field from the
- * contacts schema. Requires the `contacts` scope. **Destructive**: this
- * drops the column from every existing contact.
- *
- * DELETE retries on transient failures by default. Idempotent:
- * re-deleting a field that no longer exists resolves with
- * `{ deleted: false }` rather than throwing. The hidden field of an
- * event-derived audience that is still building answers
- * `409 AUDIENCE_BUILD_ACTIVE`; retry once the build finishes.
- *
- * Pass `{ raw: true }` in `options` to receive the full
- * `BrewRawResponse<FieldsDeleteResponse>` instead of the unwrapped
- * payload.
- */
 export function createDeleteField(client: HttpClient) {
   function deleteField(
     input: DeleteFieldInput,

@@ -47,7 +47,6 @@ describe('contacts.patch', () => {
     expect(new URL(capturedRequest!.url).pathname).toBe(
       '/api/v1/contacts/jane%40example.com'
     )
-    // email travels on the URL; only { fields } is sent in the body.
     expect(capturedBody).toEqual({
       fields: {
         firstName: 'Jane',

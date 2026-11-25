@@ -16,8 +16,6 @@ const INTEGRATION_EVENTS_URL =
 
 const EVENT_ID = 'k5714pq3vm8x2n6c9d0b7f1h4j6g2r8t'
 
-// Typed as the SDK row, so a fixture that leaves out a required field (or
-// grows one the row does not have) stops compiling.
 const SAVED_ROW: Omit<EnsureIntegrationEventTriggerResponse, 'created'> = {
   triggerEventId: 'posthog:org_2abc:brand_9xyz:ev_3f1c9b2e7a4d8c06b5e1f2a3',
   title: 'created_project',
@@ -60,7 +58,6 @@ describe('automations.triggers.ensureIntegrationEvent', () => {
     })
 
     expect(capturedBody).toEqual({ eventId: EVENT_ID })
-    // A POST carries a key so a retry after a lost answer replays.
     expect(capturedKey).toEqual(expect.any(String))
     expect(result).toMatchObject({
       triggerEventId: SAVED_ROW.triggerEventId,
@@ -159,8 +156,6 @@ describe('automations.triggers.ensureIntegrationEvent', () => {
       eventId: EVENT_ID,
     })
 
-    // The trigger is saved either way; the status says its payload schema
-    // may lack the event's properties until the provider can be read.
     expect(result.created).toBe(true)
     expect(result.propertiesStatus).toBe('rate_limited')
     expect(result.retryAfterSeconds).toBe(120)
