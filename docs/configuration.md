@@ -68,9 +68,9 @@ build with a real key.**
 
 Default: `https://brew.new/api`.
 
-Override for staging or self-hosted environments. The SDK strips a
-trailing slash automatically — `https://brew.new/api/` and
-`https://brew.new/api` resolve identically.
+Override for staging or self-hosted environments. Remote URLs require HTTPS.
+Loopback HTTP is available for local development. URLs must omit embedded credentials.
+The SDK strips any trailing slash.
 
 ### `timeoutMs`
 
@@ -183,7 +183,9 @@ Setting this to `0` disables retries entirely. Setting it higher than
 `5` is generally pointless — by then the upstream is genuinely down and
 you should escalate to the caller.
 
-You can override per-request via `RequestOptions.maxRetries`.
+You can override retry limits per request via `RequestOptions.maxRetries`.
+Canvas session creation and refresh and image upload ticket creation each
+make one attempt.
 
 ### `userAgent`
 

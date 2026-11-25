@@ -203,7 +203,7 @@ export function createHttpClient(
       defaultMaxRetries: input.defaultMaxRetries,
       idempotencyKey,
       uploadId: input.uploadId,
-      mayRetryPost: idempotencyKey !== undefined || isNeverReplayed,
+      mayRetryPost: idempotencyKey !== undefined,
       redact: undefined,
     })
   }
@@ -409,9 +409,7 @@ type Exchange = {
   readonly uploadId: string | undefined
   /**
    * Gates retrying a POST: a repeat cannot write twice (the request carries
-   * an idempotency key, or its URL names the one write it makes), or the
-   * route never replays and `maxRetries` alone decides (`idempotency:
-   * 'none'`, which defaults it to `defaultMaxRetries`).
+   * an idempotency key, or its URL names the one write it makes).
    */
   readonly mayRetryPost: boolean
   /**

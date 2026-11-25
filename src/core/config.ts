@@ -71,6 +71,28 @@ export const shouldRetryOnTimeoutByDefault = true
  */
 export const DEFAULT_USER_AGENT = `${SDK_NAME}/${SDK_VERSION}`
 
+function validateApiBaseUrl(baseUrl: string): void {
+  let url: URL
+  try {
+    url = new URL(baseUrl)
+  } catch {
+    throw new TypeError('`baseUrl` must be an absolute HTTP or HTTPS URL.')
+  }
+  const isLoopback =
+    url.hostname === 'localhost' ||
+    url.hostname === '[::1]' ||
+    /^127(?:\.\d{1,3}){3}$/.test(url.hostname)
+  if (
+    url.username ||
+    url.password ||
+    (url.protocol !== 'https:' && !(url.protocol === 'http:' && isLoopback))
+  ) {
+    throw new TypeError(
+      '`baseUrl` must use HTTPS or loopback HTTP without URL credentials.'
+    )
+  }
+}
+
 export type ResolveConfigInput = {
   readonly userConfig: BrewClientConfig
 }
@@ -118,10 +140,13 @@ export function resolveConfig(
     assertRetryCount({ value: userConfig.maxRetries, name: 'maxRetries' })
   }
 
+  const baseUrl = userConfig.baseUrl ?? DEFAULT_BASE_URL
+  validateApiBaseUrl(baseUrl)
+
   return {
     apiKey: userConfig.apiKey,
     brandId: userConfig.brandId,
-    baseUrl: userConfig.baseUrl ?? DEFAULT_BASE_URL,
+    baseUrl,
     fetch: userConfig.fetch ?? defaultFetch,
     timeoutMs: userConfig.timeoutMs ?? DEFAULT_TIMEOUT_MS,
     maxRetries: userConfig.maxRetries ?? DEFAULT_MAX_RETRIES,

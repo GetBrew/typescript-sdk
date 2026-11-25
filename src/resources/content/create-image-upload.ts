@@ -28,12 +28,10 @@ export type {
  *
  * `brew.content.uploadImage({ file, fileName })` does all three steps.
  *
- * NOT retried by default, and sent without an `Idempotency-Key`. The API
- * never replays this answer (it carries a bearer URL), so a retry after a
- * lost answer would open a second upload, and the unused one would hold one
- * of the brand's 20 upload slots until it expires (15 minutes). The
- * client-wide `maxRetries` does not apply; pass `maxRetries` on this
- * request to opt in. After a failure, open a new upload.
+ * Each call makes one attempt and omits the `Idempotency-Key`. The API
+ * issues a new bearer URL on each attempt. An unused upload holds one of the
+ * brand's 20 upload slots until it expires after 15 minutes.
+ * After a failure, open a new upload.
  *
  * `400 INVALID_REQUEST` for an unsupported `contentType` or a `size` over
  * the cap; `429 RATE_LIMITED` when the brand already has 20 uploads open

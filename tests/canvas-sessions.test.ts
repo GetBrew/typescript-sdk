@@ -50,12 +50,15 @@ describe('canvas session resource', () => {
       })
       const call =
         method === 'create'
-          ? brew.canvas.sessions.create({
-              target: { type: 'email', emailId: 'email_a' },
-              user: { externalId: 'u', name: 'Ada' },
-              parentOrigin: 'https://customer.example',
-            })
-          : brew.canvas.sessions.refresh('session_a')
+          ? brew.canvas.sessions.create(
+              {
+                target: { type: 'email', emailId: 'email_a' },
+                user: { externalId: 'u', name: 'Ada' },
+                parentOrigin: 'https://customer.example',
+              },
+              { maxRetries: 2 }
+            )
+          : brew.canvas.sessions.refresh('session_a', { maxRetries: 2 })
       await expect(call).rejects.toMatchObject({ status: 503 })
       expect(fetch).toHaveBeenCalledTimes(1)
       expect(
