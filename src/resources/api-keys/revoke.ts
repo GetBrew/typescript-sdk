@@ -6,20 +6,7 @@ import type { RevokeApiKeyInput, RevokeApiKeyResponse } from './types'
 export type { RevokeApiKeyInput, RevokeApiKeyResponse }
 
 /**
- * @deprecated Since the platform restricted `/v1/api-keys*` to an exact
- * `org:admin` Clerk dashboard session (spec `sessionAuth`), this method
- * returns `403` for every API-key or OAuth actor the SDK can authenticate
- * as. Manage keys at https://brew.new/settings/api. Removed in the next
- * major.
- *
- * `DELETE /v1/api-keys/{keyId}` — revoke an API key. No permission
- * scope, but an organization-wide key requires an org-admin dashboard
- * session or an organization-scoped credential. A brand credential
- * cannot see or revoke another brand's keys (`404`).
- *
- * Pass `{ raw: true }` in `options` to receive the full
- * `BrewRawResponse<RevokeApiKeyResponse>` instead of the unwrapped
- * payload.
+ * @deprecated
  */
 export function createRevokeApiKey(client: HttpClient) {
   function revokeApiKey(

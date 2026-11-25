@@ -6,19 +6,7 @@ import type { ApiKeysListResponse } from './types'
 export type { ApiKeysListResponse }
 
 /**
- * @deprecated Since the platform restricted `/v1/api-keys*` to an exact
- * `org:admin` Clerk dashboard session (spec `sessionAuth`), this method
- * returns `403` for every API-key or OAuth actor the SDK can authenticate
- * as. Manage keys at https://brew.new/settings/api. Removed in the next
- * major.
- *
- * `GET /v1/api-keys` — list API keys in the organization. A brand-scoped
- * credential only sees keys bound to its own brand. Organization-level
- * — takes no `X-Brand-Id`. No permission scope.
- *
- * Pass `{ raw: true }` in `options` to receive the full
- * `BrewRawResponse<ApiKeysListResponse>` instead of the unwrapped
- * payload.
+ * @deprecated
  */
 export function createListApiKeys(client: HttpClient) {
   function listApiKeys(
