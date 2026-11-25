@@ -177,9 +177,12 @@ explains generation and the contribution workflow. Never hand-edit
 
 ## Comments and documentation
 
-Do not add source comments. Code owns behavior.
-Preserve legal notices and compiler, lint, coverage and type directives.
+Do not add source comments. Preserve legal notices and compiler, lint, coverage and type directives.
 Keep necessary Markdown verified against code and link to generated references.
 Delete completed plans; Git retains their history. `bun run comments:check`
-checks owned TypeScript, JavaScript and JSONC; generated artifacts and fixture
-data retain their owners. Change generators before regenerating their output.
+checks owned source languages and Markdown examples. Change generators before
+regenerating output.
+
+Python 3.10+: run `bun run comments:setup` after installing dependencies.
+Checks run offline; `scripts/comment-ownership.json` owns fixture, generated,
+upstream and managed-marker exclusions.

@@ -167,8 +167,9 @@ accident), rotate immediately:
   `bun run test`.
 - **`bun publish` skips `prepublishOnly`.** Use `npm publish` so the
   validation pipeline runs.
-- **OpenAPI YAML lives in three places.** Never hand-edit any of them.
-  `pnpm openapi:generate` rewrites all three from the Zod source.
+- **OpenAPI mirrors are generated.** Never hand-edit them. In `brew-v2`,
+  `scripts/openapi-targets.ts` owns the destinations and `pnpm openapi:generate`
+  rewrites them from the contracts.
 - **`SDK_VERSION` is auto-injected.** Bumping `package.json#version` is
   the only edit. The `0.0.0-dev` you see in source is the dev fallback
   — it's replaced at build time.
@@ -183,5 +184,5 @@ accident), rotate immediately:
 
 - npm package page: <https://www.npmjs.com/package/@brew.new/sdk>
 - GitHub repo: <https://github.com/GetBrew/typescript-sdk>
-- Public API docs (Mintlify): <https://docs.getbrew.io>
+- Public API docs (Mintlify): <https://docs.brew.new>
 - App package (where the OpenAPI source lives): `brew-v2/`

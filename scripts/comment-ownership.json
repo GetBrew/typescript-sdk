@@ -1,0 +1,11 @@
+{
+  "fixtures": [],
+  "generated": [
+    "bun.lock",
+    "openapi/public-api-v1.yaml",
+    "src/embed/contracts.ts",
+    "src/embed/is-record.ts",
+    "src/generated/"
+  ],
+  "markers": {}
+}

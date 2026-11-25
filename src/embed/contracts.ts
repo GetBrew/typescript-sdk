@@ -1,6 +1,9 @@
 import { isRecord } from './is-record'
+
 export const CANVAS_PROTOCOL = 'brew.canvas.v1' as const
+
 export const CANVAS_CLIENT_ID_PATTERN = /^brew_client_[0-9a-f]{32}$/
+
 export const CANVAS_RECOVERY_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
 export type CanvasTarget =
@@ -28,6 +31,7 @@ export type CanvasSavedEvent = Readonly<{
   emailVersionId: string | null
   updatedAt: string
 }>
+
 export type CanvasSelectedEmail = Readonly<{
   emailId: string
   emailVersion: number | 'latest'
@@ -48,6 +52,7 @@ export class BrewEmbedError extends Error {
     this.code = code
   }
 }
+
 export function validateCanvasAuthentication(
   options: Readonly<{
     clientId?: unknown

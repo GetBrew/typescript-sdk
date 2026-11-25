@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import openapiTS, { astToString } from 'openapi-typescript'
 import ts from 'typescript'
+import { withoutComments } from './lib/source-comments.mjs'
 
 const RECURSIVE_PAYLOAD_SCHEMA = '#/components/schemas/SendPayloadValue'
 
@@ -28,6 +29,16 @@ const ast = await openapiTS(specUrl, {
 
 fs.writeFileSync(
   outUrl,
-  astToString(ast, { formatOptions: { removeComments: true } })
+  ts
+    .createPrinter()
+    .printFile(
+      ts.createSourceFile(
+        'openapi-types.ts',
+        withoutComments('openapi-types.ts', astToString(ast)),
+        ts.ScriptTarget.Latest,
+        true,
+        ts.ScriptKind.TS
+      )
+    )
 )
 console.log(`wrote ${outUrl.pathname}`)

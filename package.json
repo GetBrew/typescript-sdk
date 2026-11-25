@@ -73,7 +73,7 @@
     "build": "tsup",
     "dev": "tsup --watch",
     "tsc": "tsc --noEmit",
-    "lint": "eslint . && node --test scripts/source-comments.test.mjs && node scripts/check-comments.mjs",
+    "lint": "eslint . && bun run comments:check",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
@@ -84,7 +84,8 @@
     "prepublishOnly": "bun run clean && bun run generate:types && bun tsc && bun lint && bun run test && bun run build",
     "sync:embed": "node scripts/sync-embed-contracts.mjs",
     "sync:embed:check": "node scripts/sync-embed-contracts.mjs --check",
-    "comments:check": "node --test scripts/source-comments.test.mjs && node scripts/check-comments.mjs"
+    "comments:check": "node --test scripts/source-comments.test.mjs scripts/comments-check.test.mjs && node scripts/check-comments.mjs",
+    "comments:setup": "python3 -m pip install --require-hashes --only-binary=:all: --no-deps --upgrade --target node_modules/.comment-parsers -r scripts/comment-parsers.txt"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -104,7 +105,12 @@
     "tsup": "^8.5.0",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.58.0",
-    "vitest": "^4.1.2"
+    "vitest": "^4.1.2",
+    "unified": "11.0.5",
+    "remark-parse": "11.0.0",
+    "remark-mdx": "3.1.1",
+    "remark-gfm": "4.0.1",
+    "remark-math": "6.0.0"
   },
   "peerDependencies": {
     "react": ">=18.2.0 <20"

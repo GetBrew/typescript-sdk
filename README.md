@@ -45,9 +45,9 @@ const { data } = await brew.contacts.search({
 })
 ```
 
-That's the whole shape. Every other method follows the same pattern:
-`list(query)` for a page, `get(id)` for the bare row, and a `404` — not
-an empty page — when the id is unknown.
+Collection reads generally use `list(query)` for a page and `get(id)` for a
+bare row. Some resources take an options object instead; use each method's
+typed signature. Unknown identifiers return a `404`.
 
 > **Upgrading from 10.x?** 11.0.0 turns `emails.previewClients` into a
 > rendering job you poll with `emails.getClientPreview`, and drops the
