@@ -5,6 +5,13 @@ version to npm. Read [`AGENTS.md`](./AGENTS.md) for code conventions and
 [`docs/development.md`](./docs/development.md) for the deeper end-to-end
 "add a new endpoint" walkthrough.
 
+## Release protection
+
+Configure the `npm-release` GitHub environment with approval and a deployment
+rule for release tags. Keep publish credentials in that environment. Protect
+`main` and release tags, grant tag creation to the release operators, and
+verify the release commit is on `main` before tagging.
+
 ## Source of truth
 
 ```mermaid
@@ -69,23 +76,27 @@ is wired up with the `NPM_TOKEN` secret (one-time setup, see below),
 shipping a new version is just:
 
 ```bash
-# from typescript-sdk/, on a clean main, after iterate loop is done
+# From a clean main after the iterate loop.
+git pull --ff-only
+git switch -c release/vX.Y.Z
 npm version <patch|minor|major|x.y.z> --no-git-tag-version
 git add package.json && git commit -m "Release vX.Y.Z"
-git push origin main
+# Merge the release commit through a reviewed pull request.
+git switch main
+git pull --ff-only
 git tag vX.Y.Z
 git push origin vX.Y.Z          # <-- this triggers the workflow
 ```
 
-The workflow then:
+The build job verifies the version, runs typecheck, lint, format, tests, build,
+and generated-type freshness checks, and packs the npm archive with read-only
+repository access. The protected publish job verifies the packaged name and
+version, submits that archive to npm with provenance and lifecycle scripts
+disabled, and creates the GitHub Release notes.
 
-1. Asserts `package.json#version` matches the tag (no silent drift).
-2. Runs the full validation pipeline (tsc + lint + format:check + test +
-   build + generated-types freshness).
-3. `npm publish --provenance --access public` so the npmjs.com listing
-   shows the verified provenance badge linking back to the workflow run.
-4. Creates a GitHub Release page with auto-generated notes from the
-   commits since the previous tag.
+On a partial failure, rerun the publish job to reuse its original build
+artifact. The job accepts an existing npm version only when the registry's
+SHA-512 integrity matches the archive.
 
 `SDK_VERSION` is build-time-derived from `package.json` via the
 `__SDK_VERSION__` define in [`tsup.config.ts`](./tsup.config.ts), so
@@ -93,14 +104,13 @@ The workflow then:
 
 ## Release recipe (fallback: manual publish)
 
-Only use this if the GitHub Action is unavailable. From `typescript-sdk/`:
+Use the manual procedure only if the GitHub Action is unavailable. Merge the
+version bump through the reviewed release PR, then work from the release
+commit on `main`.
 
 ```bash
-npm version <bump> --no-git-tag-version
 npm publish --dry-run                     # smoke check (runs prepublishOnly)
 npm publish                               # prompts for OTP if 2FA on
-git add package.json && git commit -m "Release vX.Y.Z"
-git push origin main && git tag vX.Y.Z && git push origin vX.Y.Z
 ```
 
 `prepublishOnly` (in `package.json`) runs the validation pipeline before
@@ -127,29 +137,22 @@ the long-term knob.
 
 ## One-time setup
 
-### npm Automation token (for the GitHub Action)
+### npm token for the GitHub Action
 
-1. Create an Automation token at
-   [npmjs.com/settings/&lt;user&gt;/tokens](https://www.npmjs.com/settings/thomas-brew/tokens) →
-   "Generate New Token" → **Automation** (bypasses 2FA so CI never
-   gets stuck on an OTP prompt). Scope: at minimum the `@brew.new`
-   org with publish access.
-2. Add it as a repository secret:
-   [github.com/GetBrew/typescript-sdk/settings/secrets/actions](https://github.com/GetBrew/typescript-sdk/settings/secrets/actions) →
-   "New repository secret" → name `NPM_TOKEN`, value the new token.
-3. Sanity check: push any tag matching `v*.*.*` (e.g. retag the current
-   release as `v1.0.0-test` on a fork) and confirm the workflow runs
-   green up to the publish step.
+1. Create a granular access token in npm with read and write access to
+   `@brew.new/sdk` and the shortest practical expiry. Enable bypass 2FA for
+   this CI token so the protected workflow can publish without an interactive
+   OTP. [npm access-token settings](https://www.npmjs.com/settings/thomas-brew/tokens)
+2. Store the token as `NPM_TOKEN` in the `npm-release` GitHub environment.
+   Remove repository-level copies after checking their workflow consumers.
+3. Build and run `npm pack --ignore-scripts --dry-run` to verify the
+   package contents. The release workflow runs its checks and build before
+   publishing with npm lifecycle scripts disabled.
 
 ### Local maintainer auth (for the manual fallback)
 
-1. Generate a **Publish** token (separate from the CI Automation token)
-   at the same npm tokens page.
-2. Store it locally:
-   ```bash
-   npm config set //registry.npmjs.org/:_authToken=npm_xxx
-   ```
-3. Verify: `npm whoami` should print your username; `npm access list packages @brew.new` should show `@brew.new/sdk: read-write`.
+1. Sign in with `npm login` using a maintainer account with publish access.
+2. Confirm with `npm whoami` and `npm access list packages @brew.new`.
 
 ### Token rotation
 
@@ -157,8 +160,8 @@ If a token is ever exposed (chat, screenshot, log file, repo by
 accident), rotate immediately:
 
 1. Revoke at [npmjs.com/settings/&lt;user&gt;/tokens](https://www.npmjs.com/settings/thomas-brew/tokens).
-2. Generate a fresh one of the same type (Automation or Publish).
-3. Update the consumer (GitHub secret or local `~/.npmrc`).
+2. Generate a fresh granular token with the required package access.
+3. Update the `npm-release` environment secret.
 
 ## Common gotchas
 
@@ -166,8 +169,8 @@ accident), rotate immediately:
   runner which ignores `vitest.config.ts` and `tests/setup.ts`. MSW
   never starts and every HTTP test silently passes. Always use
   `bun run test`.
-- **`bun publish` skips `prepublishOnly`.** Use `npm publish` so the
-  validation pipeline runs.
+- **Manual publishing.** Use `npm publish` with lifecycle scripts enabled
+  when the manual procedure relies on `prepublishOnly` for validation.
 - **OpenAPI YAML lives in three places.** Never hand-edit any of them.
   `pnpm openapi:generate` rewrites all three from the Zod source.
 - **`SDK_VERSION` is auto-injected.** Bumping `package.json#version` is

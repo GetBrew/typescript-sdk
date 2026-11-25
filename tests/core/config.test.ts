@@ -51,6 +51,26 @@ describe('resolveConfig', () => {
       expect(config.baseUrl).toBe('https://staging.brew.new/api')
     })
 
+    it.each([
+      'http://localhost:3000/api',
+      'http://127.0.0.2/api',
+      'http://[::1]/api',
+    ])('allows loopback development URL %s', (baseUrl) => {
+      expect(
+        resolveConfig({ userConfig: { apiKey: 'brew_test_abc', baseUrl } })
+          .baseUrl
+      ).toBe(baseUrl)
+    })
+
+    it.each(['http://staging.brew.new/api', 'https://user:pass@brew.new/api'])(
+      'rejects unsafe API base URL %s',
+      (baseUrl) => {
+        expect(() =>
+          resolveConfig({ userConfig: { apiKey: 'brew_test_abc', baseUrl } })
+        ).toThrow()
+      }
+    )
+
     it('accepts a custom timeoutMs', () => {
       const config = resolveConfig({
         userConfig: { apiKey: 'brew_test_abc', timeoutMs: 5_000 },

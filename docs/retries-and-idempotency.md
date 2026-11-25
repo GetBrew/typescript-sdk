@@ -48,8 +48,7 @@ Two image-upload requests are exceptions:
   is sent **without** an idempotency key and **not retried by default**.
   The API never replays it (its answer carries a one-time upload URL), so
   a retry after a lost answer would open a second upload that holds one of
-  the brand's 20 upload slots for 15 minutes. The client-wide `maxRetries`
-  does not apply; a `maxRetries` passed on the request opts in.
+  the brand's 20 upload slots for 15 minutes. Each request makes one attempt.
 - `content.uploadImage` POSTs the file's bytes to the upload's own
   `uploadUrl`, not to the API, and without an idempotency key. That POST is
   still retried like a keyed one: the URL names the one upload it fills,

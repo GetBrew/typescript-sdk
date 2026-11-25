@@ -97,7 +97,7 @@ describe('content.createImageUpload', () => {
     expect((error as BrewApiError).retryAfter).toBe(600)
   })
 
-  describe('no replay, so no retry by default', () => {
+  describe('non-replayable upload credentials', () => {
     // The route never replays its answer (it carries a bearer URL), so a
     // retry after a lost answer opens a second upload that holds one of the
     // brand's 20 slots for 15 minutes.
@@ -167,7 +167,7 @@ describe('content.createImageUpload', () => {
       }
     )
 
-    it('retries when the caller passes maxRetries for the request', async () => {
+    it('makes one attempt even when the caller passes maxRetries for the request', async () => {
       let calls = 0
       server.use(
         http.post(UPLOADS_URL, () => {
@@ -179,12 +179,11 @@ describe('content.createImageUpload', () => {
       )
       const { client } = makeTestHttpClient()
 
-      const result = await createCreateImageUpload(client)(INPUT, {
-        maxRetries: 1,
-      })
+      await expect(
+        createCreateImageUpload(client)(INPUT, { maxRetries: 1 })
+      ).rejects.toMatchObject({ status: 503 })
 
-      expect(calls).toBe(2)
-      expect(result).toEqual(OPENED)
+      expect(calls).toBe(1)
     })
   })
 
