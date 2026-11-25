@@ -46,12 +46,18 @@ changes in the app, run `bun run sync:embed` here and verify with
 
 ## Validation
 
+Install JavaScript dependencies and the comment grammars with Python 3.10+
+and pip before running lint. Grammar installation is separate from package
+installation; subsequent checks run offline.
+
 Use the commands in `package.json`; CI owns the complete gate set. For code
 changes, run lint and the relevant tests. Run the typecheck when types,
 contracts, dependencies or generated output change. Markdown changes need
 formatting and link/example checks.
 
 ```bash
+bun install --frozen-lockfile
+bun run comments:setup
 bun run tsc
 bun run lint
 bun run format:check

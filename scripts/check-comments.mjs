@@ -4,6 +4,7 @@ import { basename, delimiter, extname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { loadCommentScope } from './lib/comment-scope.mjs'
 import { markdownComments } from './lib/markdown-comments.mjs'
+import { workflowSources } from './lib/workflow-sources.mjs'
 import { findComments, isRequiredComment } from './lib/source-comments.mjs'
 
 const toolRoot = fileURLToPath(new URL('..', import.meta.url))
@@ -68,7 +69,7 @@ for (const file of new Set(files)) {
       name
     )
   let language =
-    languages[extension] ?? (file === '.env.example' ? 'bash' : undefined)
+    languages[extension] ?? (name === '.env.example' ? 'bash' : undefined)
   if (/^(?:dockerfile|.+\.dockerfile)$/.test(name)) language = 'dockerfile'
   else if (/^(?:makefile|gnumakefile)$/.test(name)) language = 'make'
   else if (name === '.editorconfig') language = 'ini'
@@ -113,6 +114,7 @@ for (const file of new Set(files)) {
       payloads.push(...result.payloads)
     } else {
       payloads.push({ file, source, language })
+      if (language === 'yaml') payloads.push(...workflowSources(file, source))
     }
   } catch (error) {
     failures.push(`${file}: unable to inspect comments: ${error.message}`)

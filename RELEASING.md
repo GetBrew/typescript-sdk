@@ -48,8 +48,11 @@ Never hand-edit `openapi/public-api-v1.yaml` or
 
 ## Local validation (run before every commit)
 
+Use Python 3.10+ with pip to install the pinned comment-check grammars.
+
 ```bash
 bun install --frozen-lockfile
+bun run comments:setup
 bun tsc
 bun lint
 bun run format

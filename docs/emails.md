@@ -40,40 +40,19 @@ is not campaign-specific, so the send action lives here on `emails`. Send
 
 ## Shared types
 
+Use the exported types, which are derived from the vendored API contract:
+
 ```ts
-type EmailSummary = {
-  readonly emailId: string
-  readonly emailVersionId?: string
-  readonly title: string
-  readonly status: EmailStatus
-  readonly previewImage?: string
-  readonly updatedAt: string
-  readonly subjectLine?: string
-  readonly previewText?: string
-  readonly lang?: EmailLanguage
-  readonly group: { groupId: string; groupName: string } | null
-  readonly html?: string
-  readonly versions?: ReadonlyArray<{
-    version: number | 'latest'
-    emailVersionId: string
-  }>
-}
-
-type EmailStatus = 'generating' | 'ready' | 'failed'
-
-type EmailLanguage = 'en' | 'de' | 'fr' | 'es' | 'ja' | 'zh-Hans' | 'zh-Hant'
-
-type GeneratedEmailArtifact = {
-  readonly emailId: string
-  readonly emailVersionId: string
-  readonly html: string
-  readonly previewImage?: string
-}
-
-type GeneratedEmailTextResponse = {
-  readonly response: string
-}
+import type {
+  EmailSummary,
+  EmailStatus,
+  EmailLanguage,
+  GeneratedEmailArtifact,
+  GeneratedEmailTextResponse,
+} from '@brew.new/sdk'
 ```
+
+The [shared email types](../src/resources/emails/types.ts) own these definitions.
 
 ---
 
@@ -198,27 +177,17 @@ The brand is resolved from the API key. `GenerateEmailInput` does **not**
 accept a `brandId` field — sending one returns `400 INVALID_REQUEST`.
 
 ```ts
-type GenerateEmailInput = {
-  readonly prompt: string
-  readonly contentUrls?: ReadonlyArray<string>
-  readonly referenceEmailId?: string
-  readonly category?: 'welcome' | 'newsletter' | 'receipt' | 'general'
-  readonly title?: string
-  readonly subjectLine?: string
-  readonly lang?: EmailLanguage
-  readonly groupId?: string
-  readonly groupName?: string
+import type { GenerateEmailInput, GenerateEmailResponse } from '@brew.new/sdk'
+
+const input: GenerateEmailInput = {
+  prompt: 'Design a welcome email for new subscribers',
 }
-
-type GenerateEmailResponse =
-  | GeneratedEmailArtifact
-  | GeneratedEmailTextResponse
-
-generate(
-  input: GenerateEmailInput,
-  options?: RequestOptions
-): Promise<GenerateEmailResponse>
+const result: GenerateEmailResponse = await brew.emails.generate(input)
 ```
+
+Use `GenerateEmailInput['category']` and `EmailLanguage` for accepted values.
+The [generated contract](../src/generated/openapi-types.ts) owns their complete
+vocabularies.
 
 ### Long-running calls
 
@@ -228,8 +197,6 @@ The SDK applies a per-request timeout of **4 minutes** for this endpoint
 (versus the 30-second default for everything else). You can override it:
 
 ```ts
-import { AbortController } from 'node:abort-controller'
-
 const controller = new AbortController()
 const result = await brew.emails.generate(
   { prompt: 'Create a welcome email for new subscribers' },

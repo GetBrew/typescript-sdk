@@ -173,12 +173,12 @@ controller is available from `@brew.new/sdk/embed`.
 
 ## Development
 
-Use a modern Node 20 or newer runtime for SDK development. On this
-machine, Vitest worked with Node `20.19.2` and newer, but failed on the
-older system Node `20.10.0`.
+Use Node 20.19 or newer, Bun from `package.json#packageManager`, and Python
+3.10+ with pip for the comment-check grammars.
 
 ```bash
 bun install
+bun run comments:setup
 bun tsc
 bun lint
 bun run format
