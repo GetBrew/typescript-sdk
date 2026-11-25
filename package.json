@@ -22,6 +22,7 @@
     "marketing"
   ],
   "type": "module",
+  "packageManager": "bun@1.3.10",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
