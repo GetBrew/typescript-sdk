@@ -5,7 +5,7 @@ import type { FieldsGetResponse, ListFieldsInput } from './types'
 
 export type { FieldsGetResponse, ListFieldsInput }
 
-/** @deprecated Use {@link FieldsGetResponse}. */
+/** @deprecated */
 export type ListFieldsResponse = FieldsGetResponse
 
 export function createListFields(client: HttpClient) {
