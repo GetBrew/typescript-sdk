@@ -7,11 +7,8 @@ import {
 } from './list'
 
 export type TriggerInstancesResource = {
-  /** `GET /v1/automations/trigger-instances` — the audit log of every inbound fire, newest first; filter with `triggerEventId` (scope: `automations`). */
   readonly list: ReturnType<typeof createListTriggerInstances>
-  /** Auto-pager over `list` — yields every matching `TriggerInstance`. */
   readonly listAll: ReturnType<typeof createListAllTriggerInstances>
-  /** `GET /v1/automations/trigger-instances/{triggerInstanceId}` — one instance as the bare row; `404 TRIGGER_INSTANCE_NOT_FOUND` when unknown (scope: `automations`). */
   readonly get: ReturnType<typeof createGetTriggerInstance>
 }
 

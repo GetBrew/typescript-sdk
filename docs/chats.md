@@ -25,19 +25,16 @@ participants; [`get`](#get) returns a chat's recent messages.
 type ChatSummary = {
   readonly chatId: string
   readonly title: string | null
-  readonly firstUserPrompt: string | null // cut at 80 characters
-  readonly lastAssistantPreview: string | null // cut at 140 characters
-  // 'streaming' or 'background_finalizing' while a run is still going;
-  // null before the first run.
+  readonly firstUserPrompt: string | null
+  readonly lastAssistantPreview: string | null
   readonly status: ChatStatus
-  // The chat app it started in; null for the Brew web app.
   readonly origin: 'slack' | 'teams' | 'google-chat' | 'telegram' | null
-  readonly updatedAt: string // ISO-8601
-  readonly url: string // opens the chat in Brew
+  readonly updatedAt: string
+  readonly url: string
 }
 
 type ListChatsInput = {
-  readonly limit?: number // 1–100, default 100
+  readonly limit?: number
   readonly cursor?: string
 }
 ```

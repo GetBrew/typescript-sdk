@@ -31,7 +31,6 @@ describe('emails.get', () => {
     expect(new URL(url!).pathname).toBe('/api/v1/emails/email_123')
     expect(new URL(url!).search).toBe('')
     expect(email.emailId).toBe('email_123')
-    // One v1 vocabulary: generating | ready | failed.
     expect(email.status).toBe('ready')
   })
 
@@ -60,7 +59,6 @@ describe('emails.get', () => {
       'html,versions',
     ])
     expect(email.html).toContain('<body>')
-    // These emailVersionIds are what `emails.restore` takes in v1.
     expect(email.versions?.[1]?.emailVersionId).toBe('emv_123_v1')
   })
 

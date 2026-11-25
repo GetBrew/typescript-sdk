@@ -37,7 +37,7 @@ type Domain = {
   readonly region: string
   readonly status: DomainStatus
   readonly sendingEnabled: boolean
-  readonly sendable: boolean // verified + send-ready
+  readonly sendable: boolean
   readonly records: ReadonlyArray<{
     record: string
     name: string
@@ -47,9 +47,8 @@ type Domain = {
     value: string
     priority?: number
   }>
-  readonly createdAt: string // ISO-8601
-  readonly updatedAt: string // ISO-8601
-  // ...plus openTracking, clickTracking, verifiedAt
+  readonly createdAt: string
+  readonly updatedAt: string
 }
 ```
 
@@ -91,7 +90,7 @@ Only the verified, send-ready domains:
 const { data } = await brew.domains.list({ sendableOnly: true })
 
 for (const domain of data) {
-  console.log(domain.domainId, domain.domainUrl) // every row has sendable: true
+  console.log(domain.domainId, domain.domainUrl)
 }
 ```
 
@@ -175,7 +174,7 @@ await brew.domains.unsubscribes.add(
 
 const page = await brew.domains.unsubscribes.list({
   domainId: 'domain_123',
-  scope: 'domain', // 'any' | 'domain' | 'all'
+  scope: 'domain',
 })
 
 await brew.domains.unsubscribes.import({

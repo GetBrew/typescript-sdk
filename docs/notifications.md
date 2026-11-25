@@ -17,19 +17,19 @@ read-only. Reading marks nothing read.
 
 ```ts
 type NotificationRow = {
-  readonly notificationId: string // `ntf_…`, stable for the row's life
-  readonly type: NotificationType // 'email_sent', 'import_job', 'domain_score_run', …
-  readonly status: NotificationStatus // 'processing', 'completed', 'failed', …
+  readonly notificationId: string
+  readonly type: NotificationType
+  readonly status: NotificationStatus
   readonly title: string
   readonly subtitle: string
-  readonly progressPercent?: number // 0–100 while work that reports progress runs
-  readonly url?: string // where the bell opens it in Brew
+  readonly progressPercent?: number
+  readonly url?: string
   readonly chatId?: string
   readonly emailId?: string
   readonly domainId?: string
   readonly domainName?: string
   readonly isPersonal: boolean
-  readonly createdAt: string // ISO-8601
+  readonly createdAt: string
   readonly updatedAt: string
   readonly completedAt?: string
 }
@@ -65,8 +65,8 @@ One page, newest first, under `{ data, pagination }`.
 
 ```ts
 type ListNotificationsInput = {
-  readonly type?: NotificationType // one notification type
-  readonly limit?: number // 1–100, default 100
+  readonly type?: NotificationType
+  readonly limit?: number
   readonly cursor?: string
 }
 ```

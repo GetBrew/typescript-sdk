@@ -65,10 +65,6 @@ const RECEIPT = {
   next: 'Call add_image with this uploadId.',
 }
 
-/**
- * The three hops, each answering with `answers` (or the happy default), and
- * every request each one received, in order.
- */
 function useUploadFlow({
   openAnswer = () => HttpResponse.json(opened(), { status: 201 }),
   uploadAnswer = () => HttpResponse.json(RECEIPT),
@@ -126,7 +122,6 @@ function apiError({
   )
 }
 
-/** The URL a `fetch` call names (the SDK always passes a string). */
 function urlOf(input: Parameters<typeof globalThis.fetch>[0]): string {
   if (typeof input === 'string') return input
   if (input instanceof URL) return input.href
@@ -181,7 +176,6 @@ describe('content.uploadImage', () => {
     { kind: 'Uint8Array', file: () => PNG_BYTES.slice() },
     { kind: 'Buffer', file: () => Buffer.from(PNG_BYTES) },
     {
-      // A view into a larger buffer: only the view's bytes are the file.
       kind: 'Uint8Array view',
       file: () => new Uint8Array([0, 0, ...PNG_BYTES, 0]).subarray(2, 10),
     },
@@ -305,7 +299,6 @@ describe('content.uploadImage', () => {
       expect(error).toBeInstanceOf(TypeError)
       expect((error as Error).message).toContain(JSON.stringify(fileName))
       expect((error as Error).message).toContain(limit)
-      // Refused locally: no upload opened, so no slot held until it expires.
       expect(seen.order).toEqual([])
     }
   )
@@ -394,8 +387,6 @@ describe('content.uploadImage', () => {
       const seen = useUploadFlow({
         openAnswer: () => apiError({ code, status }),
       })
-      // The client retries by default (maxRetries 2); opening an upload does
-      // not, because the API never replays it and a retry holds a second slot.
       const { client } = makeTestHttpClient()
 
       const error = await rejectionOf({
@@ -484,7 +475,6 @@ describe('content.uploadImage', () => {
       const controller = new AbortController()
       const { client } = makeTestHttpClient({
         configOverrides: {
-          // Abort once the bytes are on their way, not before.
           fetch: (input, init) => {
             if (urlOf(input) === uploadUrl) {
               setTimeout(() => {

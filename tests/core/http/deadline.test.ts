@@ -19,18 +19,6 @@ import {
 } from '../../helpers/loopback-server'
 import { server } from '../../msw/server'
 
-/**
- * `timeoutMs` must bound the WHOLE request — connect, headers, and reading
- * the response body. Before this suite existed the SDK cleared its timer
- * the moment `fetch` resolved (headers), so a body that stalled afterwards
- * ran with no deadline. Cancellation lives in `cancel.test.ts`, unknown
- * outcomes in `unknown-outcome.test.ts`.
- *
- * Body-phase cases carry an explicit per-test `timeout`: on a transport that
- * regresses they HANG rather than fail, and the timeout turns that hang into
- * a red test instead of a stuck suite.
- */
-
 const servers = useLoopbackServers()
 
 describe('http.request — timeoutMs covers the whole attempt', () => {
@@ -52,7 +40,6 @@ describe('http.request — timeoutMs covers the whole attempt', () => {
     expect(timeout.timeoutMs).toBe(400)
     expect(timeout.attempts).toBe(1)
     expect(timeout.method).toBe('GET')
-    // At most one: a loaded machine may not deliver it before the deadline.
     expect(requests.length).toBeLessThanOrEqual(1)
   })
 
@@ -73,8 +60,6 @@ describe('http.request — timeoutMs covers the whole attempt', () => {
       promise: client.request({ method: 'GET', path: '/v1/contacts' }),
     })
 
-    // The headers were in hand before the deadline fired: this is the
-    // body-phase timeout the old transport could not see.
     expect(tracked.wereHeadersReceived()).toBe(true)
     expect(error).toBeInstanceOf(BrewTimeoutError)
     expect(elapsedSince({ started })).toBeLessThan(2000)
@@ -215,14 +200,12 @@ describe('http.request — timeoutMs covers the whole attempt', () => {
 })
 
 describe('http.request — a custom fetch that ignores the signal is still bounded', () => {
-  /** Hands back a body that sends a few bytes and then never ends. */
   const ignoringFetch: typeof globalThis.fetch = () =>
     Promise.resolve(
       new Response(
         new ReadableStream<Uint8Array>({
           start(controller) {
             controller.enqueue(new TextEncoder().encode('{"contacts":'))
-            // Never closes, never errors, and never looks at any signal.
           },
         }),
         { status: 200, headers: { 'content-type': 'application/json' } }
@@ -297,7 +280,6 @@ describe('http.request — timeoutMs values the platform timer would refuse', ()
 })
 
 describe('http.request — which deadline applies', () => {
-  /** Time out against a server that never answers and report the deadline used. */
   async function deadlineUsed({
     clientMs,
     methodFloorMs,

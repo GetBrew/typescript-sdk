@@ -1,14 +1,9 @@
 import type { EmailWebhookEvent } from './types'
 
-/** Why {@link verifyWebhook} refused a request. */
 export type BrewWebhookVerificationReason =
-  /** A Svix header is missing or malformed, or the secret is empty. */
   | 'headers'
-  /** The timestamp is more than five minutes from now (replay protection). */
   | 'timestamp'
-  /** No `v1` signature matches the body under this secret. */
   | 'signature'
-  /** The signed body is not a JSON event envelope. */
   | 'payload'
 
 const MESSAGES: Record<BrewWebhookVerificationReason, string> = {
@@ -28,7 +23,6 @@ export class BrewWebhookVerificationError extends Error {
 }
 
 export type VerifyWebhookInput = {
-  /** The unmodified request body: a string, or its bytes (a Node `Buffer`). */
   readonly payload: string | Uint8Array
   readonly headers: {
     readonly id: string
@@ -64,15 +58,6 @@ async function importSecret(secret: string): Promise<CryptoKey> {
   }
 }
 
-/**
- * Verify the unmodified body with Svix's HMAC protocol and five-minute
- * tolerance, then return the event.
- *
- * Only the signature is authority: after it matches, the body needs only the
- * event envelope (`type`, `created_at`, `data`). Brew adds event types and
- * fields over time, so handle an unknown `type` with a default branch instead
- * of expecting this function to refuse it.
- */
 export async function verifyWebhook(
   input: VerifyWebhookInput
 ): Promise<EmailWebhookEvent> {
@@ -93,7 +78,6 @@ export async function verifyWebhook(
       ? input.payload
       : new TextDecoder().decode(input.payload)
   const content = new TextEncoder().encode(`${id}.${timestamp}.${body}`)
-  // Several signatures during a secret rotation: any one may match.
   const checks = await Promise.all(
     signature
       .split(' ')

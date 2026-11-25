@@ -117,7 +117,6 @@ describe('contact consent records', () => {
   it('patch needs fields or consent (type-level)', () => {
     const { client } = makeTestHttpClient()
     const patch = createPatchContact(client)
-    // Type-level only: the call is never made.
     // @ts-expect-error — an empty patch names nothing to change
     const call = () => patch({ email: 'ada@example.com' })
     expect(typeof call).toBe('function')

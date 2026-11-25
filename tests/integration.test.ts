@@ -5,18 +5,6 @@ import { BrewApiError, type BrewClient, createBrewClient } from '../src/index'
 
 import { server } from './msw/server'
 
-/**
- * End-to-end tests that exercise the full SDK stack via `createBrewClient`.
- *
- * Every other test file in the repo targets a single layer (pure unit,
- * transport, or one resource method). This file proves that the layers
- * compose correctly: config resolution -> http client -> resource
- * factory -> user-facing method -> response unwrapping.
- *
- * The retry tuning override is the same fake-sleep trick the unit tests
- * use, so the entire flow runs instantly regardless of how many retries
- * the transport decides to attempt.
- */
 function makeIntegrationClient(): BrewClient {
   return createBrewClient(
     {
@@ -40,7 +28,6 @@ describe('createBrewClient — end-to-end', () => {
     expect(typeof brew.audiences.list).toBe('function')
     expect(typeof brew.audiences.fromEvents).toBe('function')
     expect(typeof brew.audiences.duplicate).toBe('function')
-    // Reads are flat: `search` is the single contacts read (list/get-by-email folded in).
     expect(typeof brew.contacts.search).toBe('function')
     expect(typeof brew.contacts.searchAll).toBe('function')
     expect(typeof brew.contacts.count).toBe('function')
@@ -50,7 +37,6 @@ describe('createBrewClient — end-to-end', () => {
     expect(typeof brew.contacts.delete).toBe('function')
     expect(typeof brew.contacts.deleteMany).toBe('function')
 
-    // One flat read per resource (`list` accepts an optional id + include).
     expect(typeof brew.domains.list).toBe('function')
     expect(typeof brew.audiences.list).toBe('function')
     expect(typeof brew.automations.list).toBe('function')
@@ -61,32 +47,23 @@ describe('createBrewClient — end-to-end', () => {
     expect(typeof brew.fields.list).toBe('function')
     expect(typeof brew.fields.create).toBe('function')
     expect(typeof brew.fields.delete).toBe('function')
-    // `POST /v1/sends` is the single polymorphic send (campaign | test).
     expect(typeof brew.emails.send).toBe('function')
-    // `POST /v1/sends/{sendId}/cancel` — the send lifecycle action.
     expect(typeof brew.sends.cancel).toBe('function')
     expect(typeof brew.templates.list).toBe('function')
-    // `GET /v1/usage` — plan, credit balance, email-send quota.
     expect(typeof brew.usage.get).toBe('function')
-    // Named email folders (`emailGroups.*`).
     expect(typeof brew.emailGroups.list).toBe('function')
     expect(typeof brew.emailGroups.create).toBe('function')
     expect(typeof brew.emailGroups.update).toBe('function')
     expect(typeof brew.emailGroups.delete).toBe('function')
-    // `GET /v1/integrations` — the product integration catalog.
     expect(typeof brew.integrations.list).toBe('function')
-    // `GET /v1/integrations/events[/{eventId}]` — live integration events.
     expect(typeof brew.integrations.events.list).toBe('function')
     expect(typeof brew.integrations.events.get).toBe('function')
-    // Organization-level API key lifecycle.
     expect(typeof brew.apiKeys.list).toBe('function')
     expect(typeof brew.apiKeys.create).toBe('function')
     expect(typeof brew.apiKeys.revoke).toBe('function')
 
-    // Sends read and write at their own root in v1.
     expect(typeof brew.sends.list).toBe('function')
     expect(typeof brew.sends.get).toBe('function')
-    // Nested automation surfaces.
     expect(typeof brew.automations.triggers.list).toBe('function')
     expect(typeof brew.automations.triggers.get).toBe('function')
     expect(typeof brew.automations.triggers.fire).toBe('function')
@@ -101,11 +78,9 @@ describe('createBrewClient — end-to-end', () => {
     expect(typeof brew.automations.audienceRuns.pause).toBe('function')
     expect(typeof brew.automations.audienceRuns.resume).toBe('function')
     expect(typeof brew.automations.audienceRuns.cancel).toBe('function')
-    // Trigger instances moved under automations.
     expect(typeof brew.automations.triggerInstances.list).toBe('function')
     expect(typeof brew.automations.triggerInstances.get).toBe('function')
 
-    // Every collection has a real detail read at /{collection}/{id}.
     expect(typeof brew.audiences.get).toBe('function')
     expect(typeof brew.automations.get).toBe('function')
     expect(typeof brew.contacts.list).toBe('function')
@@ -121,7 +96,6 @@ describe('createBrewClient — end-to-end', () => {
     expect(typeof brew.emailGroups.get).toBe('function')
     expect(typeof brew.emails.get).toBe('function')
     expect(typeof brew.emails.inboxPlacementTests.get).toBe('function')
-    // Typed reads that replaced the data command's tables.
     expect(Object.keys(brew.insights).sort()).toEqual(['get', 'list'])
     expect(Object.keys(brew.chats).sort()).toEqual(['get', 'list', 'listAll'])
     expect(Object.keys(brew.notifications).sort()).toEqual(['list', 'listAll'])
@@ -131,12 +105,6 @@ describe('createBrewClient — end-to-end', () => {
     ])
     expect(typeof brew.fields.get).toBe('function')
 
-    // Removed: no top-level me/account resources. The send ACTION still
-    // lives on `emails.send`, but the send READS moved to the `sends`
-    // root, so `analytics` keeps only reports. `integrations` was
-    // dropped in the v8 surface migration and reintroduced by a later
-    // OpenAPI resync as a real read (`GET /v1/integrations`) — asserted
-    // positively above instead of negatively here.
     expect('me' in brew).toBe(false)
     expect('account' in brew).toBe(false)
     expect('send' in brew.sends).toBe(false)
@@ -144,7 +112,6 @@ describe('createBrewClient — end-to-end', () => {
     const removedAuditMethod = ['audit', 'Access', 'ibility'].join('')
     expect(removedAuditMethod in brew.emails).toBe(false)
     expect('versions' in brew.automations).toBe(false)
-    // v1 cleanup: analytics keeps only reports.
     expect(Object.keys(brew.analytics).sort()).toEqual([
       'automations',
       'eventCounts',
@@ -155,7 +122,6 @@ describe('createBrewClient — end-to-end', () => {
     expect('campaigns' in brew.analytics).toBe(false)
     expect('sends' in brew.analytics).toBe(false)
     expect('triggerInstances' in brew.analytics).toBe(false)
-    // v1 cleanup: the retargeted lifecycle verbs are gone.
     expect('ready' in brew.automations.triggers).toBe(false)
     expect('control' in brew.automations.audienceRuns).toBe(false)
   })
@@ -214,7 +180,6 @@ describe('createBrewClient — end-to-end', () => {
     expect(upserted.contact.customFields).toEqual({ plan: 'enterprise' })
     expect(upserted.created).toBe(true)
 
-    // Reads are flat: look one contact up via the single search read.
     const found = await brew.contacts.search({
       filters: [
         { field: 'email', operator: 'equals', value: 'jane@example.com' },

@@ -8,45 +8,13 @@ import type { EventRow, EventsAnalyticsResponse } from './types'
 
 export type { EventsAnalyticsResponse }
 
-/**
- * Query params accepted by `brew.analytics.events(...)`. The route's
- * `groupBy` and `bucket` return counts instead of rows; they belong to
- * `brew.analytics.eventCounts`.
- */
 export type EventsAnalyticsInput = Omit<
   NonNullable<operations['getEventsAnalytics']['parameters']['query']>,
   'groupBy' | 'bucket'
 >
 
-/**
- * Keys the route takes for a grouped count. This row read does not send
- * them, so it refuses them (from untyped or cast input) rather than
- * returning rows to a caller who asked for counts.
- */
 const COUNT_ONLY_KEYS = ['groupBy', 'bucket'] as const
 
-/**
- * `GET /v1/analytics/events` — the unified event explorer across email,
- * automation, trigger, and inbound domains. Requires the `emails` scope.
- *
- * Filters: `from`/`to` (ISO; default last 7d, except a `sendId` or
- * `automationRunId` read, which is bounded by that send or run),
- * `recipient` (renamed from `recipientEmail` in v1), `eventType` (one of
- * the API's event types, spelled exactly: `'opened'`, not `'open'`),
- * `domain` (a sending domain), `source`, `messageClass`, `automationId`,
- * `automationRunId`, `triggerEventId`, `audienceId`, `emailId`, `sendId`,
- * the `includeMachineClicks` / `includeMachineOpens` bot toggles, plus
- * `limit`/`cursor`. Returns `{ data, pagination, range }`.
- *
- * Per-contact engagement is just `{ recipient }`. To page through the
- * whole feed use `brew.analytics.eventsAll`. For grouped counts
- * (`groupBy` / `bucket`) use `brew.analytics.eventCounts`; passing either
- * here throws `BrewInputError` before any request.
- *
- * Pass `{ raw: true }` in `options` to receive the full
- * `BrewRawResponse<EventsAnalyticsResponse>` instead of the unwrapped
- * envelope.
- */
 export function createEventsAnalytics(client: HttpClient) {
   function eventsAnalytics(
     input: EventsAnalyticsInput | undefined,
@@ -99,19 +67,10 @@ export function createEventsAnalytics(client: HttpClient) {
   return eventsAnalytics
 }
 
-/**
- * Input to `brew.analytics.eventsAll(...)`. Same filters as `events`
- * minus `cursor` — the iterator owns cursor state.
- */
 export type EventsAnalyticsAllInput = Readonly<
   Omit<EventsAnalyticsInput, 'cursor'>
 >
 
-/**
- * Async iterator that pages through the entire event feed, yielding one
- * `EventRow` at a time. Ideal for exporting a contact's full engagement
- * timeline (`{ recipient }`).
- */
 export function createEventsAnalyticsAll(client: HttpClient) {
   const events = createEventsAnalytics(client)
 

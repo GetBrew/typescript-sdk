@@ -3,16 +3,6 @@ import { describe, expect, it } from 'vitest'
 
 import { server } from './msw/server'
 
-/**
- * Phase 0 smoke test.
- *
- * The only job of this test is to prove that the MSW + vitest + global
- * fetch plumbing actually works end-to-end. Every subsequent test in the
- * suite assumes this holds.
- *
- * If this test ever breaks, fix it before touching anything else — every
- * other test is downstream.
- */
 describe('msw smoke', () => {
   it('intercepts a fetch call via server.use() and returns the mocked body', async () => {
     server.use(

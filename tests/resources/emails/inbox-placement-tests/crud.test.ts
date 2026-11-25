@@ -48,7 +48,6 @@ describe('emails.inboxPlacementTests', () => {
       subject: 'Placement check',
       previewText: 'Seed run',
     })
-    // One v1 status vocabulary; `collecting` is a `phase`, not a status.
     expect(result).toMatchObject({ testId: 'placement_123', status: 'queued' })
     expect(result.phase).toBe('sending')
   })

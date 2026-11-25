@@ -7,7 +7,6 @@ export type AudienceFromEventsInput =
 export type AudienceFromEventsResponse =
   components['schemas']['AudiencesFromEventsResponse']
 
-/** `POST /v1/audiences/from-events` — create an async event-cohort snapshot. */
 export function createAudienceFromEvents(client: HttpClient) {
   function fromEvents(
     input: AudienceFromEventsInput,

@@ -11,41 +11,13 @@ brand, with the day each email landed.
 ## Shared types
 
 ```ts
-type Flow = {
-  readonly slug: string // the brand domain, e.g. 'brew.new'
-  readonly brand: {
-    // presentation only — the brand's DOMAIN is the flow's `slug`
-    readonly name: string
-    readonly logo?: string
-  } // the brand's domain is `slug`, not repeated here
-  readonly title: string
-  readonly type: 'newsletter' | 'signup' // how the sequence starts
-  readonly category: string // the dominant step category
-  readonly categoryLabel: string
-  readonly emailCount: number
-  readonly spanDays: number // first email → last email
-  readonly remixCount: number
-  readonly previewImages: ReadonlyArray<string> // up to three step previews
-  readonly publishedAt: string
-  readonly updatedAt: string
-  // On `get` only; a LIST card never carries these:
-  readonly anchor?: 'submittedAt' | 'signedUpAt' | 'verifiedAt' | 'firstEmail' // what day 0 means
-  readonly steps?: ReadonlyArray<FlowStep>
-}
-
-type FlowStep = {
-  readonly order: number // 1-based position
-  readonly dayOffset: number // days after `anchor`
-  readonly delayDays: number // days after the PREVIOUS step — the wait a remix reproduces
-  readonly subject: string
-  readonly previewText?: string
-  readonly category: string
-  readonly categoryLabel: string
-  readonly emailId: string // a template reference (`pt1_…`)
-  readonly previewImage?: string
-  readonly html?: string // only with `include: 'html'`, and best-effort per step
-}
+import type { Flow, FlowStep } from '@brew.new/sdk'
 ```
+
+Use each list card's `slug` unchanged when fetching its detail. A slug can
+identify a domain's primary flow or a specific `<domain>/<kind>` flow.
+The exported types own the response fields; details include the sequence's
+anchor and steps, and `include: 'html'` requests best-effort step bodies.
 
 Flows are organization-wide, like templates: the client never sends
 `X-Brand-Id` here. A step's `emailId` is the same reference
@@ -60,10 +32,10 @@ List flow cards. Every card carries the `slug` that [`get`](#get) takes.
 
 ```ts
 type ListFlowsInput = {
-  readonly brand?: string // exact brand domain filter
+  readonly brand?: string
   readonly category?: string
   readonly type?: 'newsletter' | 'signup'
-  readonly semantic?: string // relevance-ranked search; `sort` is ignored
+  readonly semantic?: string
   readonly sort?: 'newest' | 'emails' | 'span' | 'remixes'
   readonly limit?: number
   readonly cursor?: string
@@ -76,8 +48,8 @@ type FlowsListResponse = {
     readonly cursor: string | null
     readonly hasMore: boolean
   }
-  readonly total: number // every flow the query matches, across all pages
-  readonly isTotalExact: boolean // false: `total` is a floor
+  readonly total: number
+  readonly isTotalExact: boolean
 }
 
 list(input?: ListFlowsInput): Promise<FlowsListResponse>
@@ -96,18 +68,17 @@ instead of answering an empty page; retry without `semantic`. Its
 rather than retried.
 
 ```ts
-// How many signup sequences are there?
 const { total, isTotalExact } = await brew.flows.list({
   type: 'signup',
   limit: 1,
 })
 console.log(isTotalExact ? `${total}` : `at least ${total}`)
 
-// Which signup sequences run the longest?
 const { data: cards } = await brew.flows.list({ type: 'signup', sort: 'span' })
 
-// One flow, every step, with the rendered HTML
-const flow = await brew.flows.get('brew.new', { include: 'html' })
+const first = cards[0]
+if (!first) throw new Error('No matching flows')
+const flow = await brew.flows.get(first.slug, { include: 'html' })
 
 for (const step of flow.steps ?? []) {
   console.log(step.order, `+${step.delayDays}d`, step.subject, step.emailId)
@@ -116,11 +87,15 @@ for (const step of flow.steps ?? []) {
 
 ## `get`
 
-One flow as the bare row, with `anchor` and every step.
+One flow as the bare row, with `anchor` and every step. A bare domain selects
+its primary flow. Pass `kind` or the composite slug returned by `list` to
+select a particular sequence; the SDK sends the domain in the URL and the
+kind as a query parameter.
 
 ```ts
 const flow = await brew.flows.get('brew.new')
 const withBodies = await brew.flows.get('brew.new', { include: 'html' })
+const signup = await brew.flows.get('brew.new', { kind: 'onboarding' })
 ```
 
 `include: 'html'` (a token, an array, or a comma string) attaches each step's

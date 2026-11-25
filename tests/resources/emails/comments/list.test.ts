@@ -98,7 +98,6 @@ describe('emails.comments.list', () => {
       'Grace Hopper',
       'Ada Lovelace',
     ])
-    // Without include=messages a row carries no messages.
     expect(row?.messages).toBeUndefined()
   })
 
@@ -275,13 +274,11 @@ describe('emails.comments.list', () => {
       commentId: string
       messagesCursor: string
     }>().toExtend<ListEmailCommentsInput>()
-    // `cursor` with `commentId`.
     expectTypeOf<{
       emailId: string
       commentId: string
       cursor: string
     }>().not.toExtend<ListEmailCommentsInput>()
-    // `messagesCursor` without its `commentId`.
     expectTypeOf<{
       emailId: string
       messagesCursor: string
@@ -308,7 +305,6 @@ describe('emails.comments.listAllMessages', () => {
         const params = new URL(request.url).searchParams
         seen.push(Object.fromEntries(params))
         if (!params.has('messagesCursor')) {
-          // The newest slice, oldest first.
           return HttpResponse.json(
             page([
               thread({

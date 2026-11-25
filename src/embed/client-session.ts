@@ -14,7 +14,6 @@ type Options = Readonly<{
   fetch?: typeof fetch
 }>
 
-/** Internal lifecycle for publishable client IDs; ownership secrets stay in memory. */
 export function createClientCanvasSessionProvider(options: Options) {
   if (!CANVAS_CLIENT_ID_PATTERN.test(options.clientId)) {
     throw new BrewEmbedError(
@@ -59,7 +58,6 @@ export function createClientCanvasSessionProvider(options: Options) {
     request: CanvasSessionRequest
   ): Promise<CanvasSession> {
     try {
-      // Drain issuance on unmount before revoking: cancelling fetch could lose a created grant.
       const response = await fetcher(endpoint, {
         method: 'POST',
         credentials: 'omit',

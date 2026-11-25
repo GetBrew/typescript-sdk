@@ -4,7 +4,6 @@ import globals from 'globals'
 import tseslint from 'typescript-eslint'
 
 export default defineConfig([
-  // The generated customer example has its own Biome config and CI checks.
   globalIgnores([
     'dist',
     'node_modules',

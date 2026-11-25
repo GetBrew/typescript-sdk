@@ -41,7 +41,6 @@ describe('emails.edit', () => {
     expect(capturedRequest?.url).toBe(
       'https://brew.new/api/v1/emails/email_existing'
     )
-    // emailId must NOT be in the body — it lives on the URL.
     expect(capturedBody).toEqual({
       prompt: 'Tighten the headline.',
       contentUrls: ['https://vercel.com/blog/post'],
@@ -68,9 +67,6 @@ describe('emails.edit', () => {
     const { client } = makeTestHttpClient()
     const edit = createEditEmail(client)
     await edit({ emailId: 'odd id', prompt: 'Edit' })
-    // MSW decodes the captured param, so the captured value should
-    // round-trip back to the original even though the path encodes
-    // the space as %20.
     expect(captured).toBe('odd id')
   })
 

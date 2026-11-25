@@ -16,8 +16,6 @@ import { server } from '../../msw/server'
 
 const EVENTS_URL = 'https://brew.new/api/v1/integrations/events'
 
-// Typed as the SDK rows, so a fixture that leaves out a required field (or
-// keeps one the API dropped) stops compiling.
 const EVENT: IntegrationEvent = {
   eventId: 'k5714pq3vm8x2n6c9d0b7f1h4j6g2r8t',
   provider: 'posthog',
@@ -198,7 +196,6 @@ describe('integrations.events.get', () => {
       EVENT.eventId
     )
 
-    // A spent provider budget is a 200 with what Brew stored, not a 429.
     expect(event.propertiesStatus).toBe('rate_limited')
     expect(event.retryAfterSeconds).toBe(120)
     expect(event.properties).toEqual([])

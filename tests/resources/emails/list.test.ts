@@ -59,13 +59,11 @@ describe('emails.list', () => {
     })
 
     const url = new URL(capturedRequest!.url)
-    // One v1 vocabulary: generating | ready | failed.
     expect(url.searchParams.get('status')).toBe('ready')
     expect(url.searchParams.get('groupId')).toBe('grp_1')
     expect(url.searchParams.get('sortBy')).toBe('createdAt')
     expect(url.searchParams.get('from')).toBe('2026-04-10T00:00:00.000Z')
     expect(url.searchParams.get('to')).toBe('2026-04-14T00:00:00.000Z')
-    // The old createdAt*/updatedAt* window params collapsed into from/to.
     expect(url.searchParams.get('createdAtFrom')).toBeNull()
     expect(url.searchParams.get('updatedAtTo')).toBeNull()
   })

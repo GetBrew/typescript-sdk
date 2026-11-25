@@ -36,8 +36,6 @@ describe('automations.runs resource — read-only list/get wiring', () => {
 
     const params = new URL(url!).searchParams
     expect(params.get('automationId')).toBe('auto_abc')
-    // One contact's run history; the server matches case-insensitively, so
-    // the address goes over verbatim.
     expect(params.get('recipientEmail')).toBe('Jane@Example.com')
     expect(params.get('status')).toBe('completed')
     expect(params.get('limit')).toBe('25')
@@ -87,7 +85,6 @@ describe('automations.runs resource — read-only list/get wiring', () => {
     expect(run.automationRunId).toBe('run_a')
     expect(run.logs).toHaveLength(1)
     expect(run.logs?.[0]?.nodeType).toBe('trigger')
-    // A node reports running | completed | failed | skipped.
     expect(run.logs?.[0]?.status).toBe('completed')
   })
 

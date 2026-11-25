@@ -34,20 +34,20 @@ import {
 } from '@brew.new/sdk'
 
 class BrewApiError extends Error {
-  readonly status: number // HTTP status (404, 500, …)
-  readonly code: string // API code, e.g. 'CONTACT_NOT_FOUND'
-  readonly type: BrewErrorType // Closed enum, see below
-  readonly message: string // Human-readable explanation
-  readonly param: string | undefined // Which input field caused the error, when applicable
-  readonly suggestion: string // Remediation hint (always present per the API contract)
-  readonly docs: string // URL to the relevant docs section
-  readonly requestId: string | undefined // From the x-request-id response header
-  readonly retryAfter: number | undefined // Delta-seconds: from body envelope or Retry-After header
-  readonly details: Record<string, unknown> | undefined // The envelope's `details` object, when sent
-  readonly body: unknown // The parsed response body exactly as received
-  readonly bodyError: Error | undefined // Set when the body was cut off mid-read (see below)
-  readonly idempotencyKey: string | undefined // The Idempotency-Key the request carried
-  readonly uploadId: string | undefined // The upload being finalized by addImage, when applicable
+  readonly status: number
+  readonly code: string
+  readonly type: BrewErrorType
+  readonly message: string
+  readonly param: string | undefined
+  readonly suggestion: string
+  readonly docs: string
+  readonly requestId: string | undefined
+  readonly retryAfter: number | undefined
+  readonly details: Record<string, unknown> | undefined
+  readonly body: unknown
+  readonly bodyError: Error | undefined
+  readonly idempotencyKey: string | undefined
+  readonly uploadId: string | undefined
 }
 ```
 
@@ -119,9 +119,7 @@ deliberately distinct, so branch on the code rather than on the status.
 
 ```ts
 if (error.code === 'ORG_SCOPE_REQUIRED') {
-  // The credential is brand-bound. Use an organization-scoped key.
 } else if (error.code === 'INSUFFICIENT_ROLE') {
-  // The human lacks the role. Ask an org admin.
 }
 ```
 
@@ -248,18 +246,18 @@ see [retries-and-idempotency](./retries-and-idempotency.md)).
 
 ```ts
 class BrewTransportError extends Error {
-  readonly method: string // 'GET', 'POST', …
-  readonly url: string // Full URL. The message leaves the query string out. For an upload URL, the query (its token) is left out of `url`, `message` and `cause`.
-  readonly attempts: number // HTTP attempts made, retries included
-  readonly idempotencyKey: string | undefined // Replay a write with this key
-  readonly uploadId: string | undefined // Replay image finalization with this upload ID
-  readonly inProgress: boolean // A retry found the first attempt still running
-  readonly cause: unknown // What the runtime threw, when there was something
+  readonly method: string
+  readonly url: string
+  readonly attempts: number
+  readonly idempotencyKey: string | undefined
+  readonly uploadId: string | undefined
+  readonly inProgress: boolean
+  readonly cause: unknown
 }
 class BrewTimeoutError extends BrewTransportError {
-  readonly timeoutMs: number // The per-attempt deadline that applied
-} // name: 'TimeoutError'
-class BrewConnectionError extends BrewTransportError {} // name: 'BrewConnectionError'
+  readonly timeoutMs: number
+}
+class BrewConnectionError extends BrewTransportError {}
 ```
 
 `BrewTimeoutError`'s `name` is `'TimeoutError'` — the platform's name
@@ -281,9 +279,7 @@ try {
   await brew.contacts.search()
 } catch (error) {
   if (error instanceof BrewApiError) {
-    // API responded with a non-2xx
   } else if (error instanceof Error) {
-    // Transport failure, parse failure, or your own abort
   }
   throw error
 }
@@ -303,14 +299,9 @@ try {
   await brew.emails.generate({ prompt })
 } catch (error) {
   if (error instanceof BrewApiError) {
-    // The server said no: branch on error.code.
   } else if (error instanceof BrewTimeoutError) {
-    // Too slow. The server may still finish: replay with
-    // error.idempotencyKey rather than generating twice.
   } else if (error instanceof BrewTransportError) {
-    // Connection failed or dropped. Same advice for a write.
   } else if (error instanceof BrewParseError) {
-    // A 2xx that was not JSON: report error.requestId.
   }
   throw error
 }
@@ -327,8 +318,7 @@ not retried: the same bytes would come back. It carries `status`,
 
 ## Image upload recovery metadata
 
-The recovery fields below are part of the next SDK release. SDK 13.3.0
-does not expose the original upload ID from `uploadImage()`.
+The recovery fields below are available in SDK 13.4.0 and later.
 
 When `content.addImage({ uploadId })` fails, `BrewApiError`,
 `BrewTransportError` (including timeout and connection errors), and
@@ -396,7 +386,6 @@ import { BrewPaginationError } from '@brew.new/sdk'
 
 try {
   for await (const contact of brew.contacts.searchAll()) {
-    // Consume each contact.
   }
 } catch (error) {
   if (error instanceof BrewPaginationError) {

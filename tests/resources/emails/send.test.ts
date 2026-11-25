@@ -106,7 +106,6 @@ describe('emails.send', () => {
     let captured: Request | undefined
     let body: unknown
     server.use(
-      // `POST /v1/sends` is polymorphic: `test: true` is a one-off TEST send.
       http.post('https://brew.new/api/v1/sends', async ({ request }) => {
         captured = request.clone()
         body = await request.json()
@@ -134,7 +133,6 @@ describe('emails.send', () => {
       subject: 'Preview',
       to: 'qa@example.com',
     })
-    // v1 says `completed`, not `sent`.
     expect(result.status).toBe('completed')
     if (result.status === 'completed') {
       expect(result.recipient).toBe('qa@example.com')

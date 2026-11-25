@@ -152,8 +152,6 @@ describe('contacts.search — include openProfile', () => {
               { ...CONTACT, openProfile: OPEN_PROFILE },
               { ...CONTACT, email: 'bo@example.com', openProfile: null },
             ],
-            // A page with openProfile holds at most 10 contacts, and
-            // pagination.limit reports the size read.
             pagination: { limit: 10, cursor: 'c2', hasMore: true },
           })
         }
@@ -259,7 +257,6 @@ describe('contacts.search — include openProfile', () => {
       include: ['openProfile']
     }>().toExtend<SearchContactsInput>()
     expectTypeOf<{ include: ['other'] }>().not.toExtend<SearchContactsInput>()
-    // The API refuses include with count: true, so the count input has no include.
     expectTypeOf<CountContactsInput>().not.toHaveProperty('include')
     expectTypeOf<ContactOpenProfile['histogram']>().toEqualTypeOf<
       Array<number>
@@ -271,7 +268,6 @@ describe('contacts.search — include openProfile', () => {
     expectTypeOf<GetContactResponse['openProfile']>().toEqualTypeOf<
       ContactOpenProfile | null | undefined
     >()
-    // The page arm with profiles types every row, with or without include.
     expectTypeOf<
       SearchContactsResponse['data'][number]
     >().toEqualTypeOf<ContactSearchRow>()

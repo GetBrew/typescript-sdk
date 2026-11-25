@@ -8,11 +8,6 @@ export type DeleteDomainInput = {
 export type DeleteDomainResponse =
   components['schemas']['DomainsDeleteResponse']
 
-/**
- * `DELETE /v1/domains/{domainId}` — remove a domain from the provider +
- * local store. Idempotent: an unknown id resolves with
- * `{ deleted: false }`. Requires the `domains` scope.
- */
 export function createDeleteDomain(client: HttpClient) {
   function deleteDomain(
     input: DeleteDomainInput,

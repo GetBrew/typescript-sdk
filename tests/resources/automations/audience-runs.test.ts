@@ -158,7 +158,6 @@ describe('manual-audience automation runs', () => {
       expect(new URL(captured!.url).pathname).toBe(
         `/api/v1/automations/audience-runs/arun_1/${action}`
       )
-      // The `{ action }` body verb is gone — the path IS the verb.
       expect(rawBody).toBe('')
       expect(result.status).toBe(status)
     }

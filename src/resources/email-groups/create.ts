@@ -5,21 +5,6 @@ import type { CreateEmailGroupInput, CreateEmailGroupResponse } from './types'
 
 export type { CreateEmailGroupInput, CreateEmailGroupResponse }
 
-/**
- * `POST /v1/email-groups` (scope: `emails`) — create a named email
- * folder, optionally moving up to 50 designs into it (`emailIds`). Returns
- * `201` with the row; when designs were sent, `moved` counts those that
- * landed and `notMoved` names each one left behind, with its reason.
- *
- * Reserved names (`Ungrouped` / `ungrouped` / `__ungrouped__`) are
- * `400`. Duplicate names are `409 EMAIL_GROUP_NAME_CONFLICT`. Pass the
- * returned `groupId` on `emails.generate` / `emails.import` /
- * `emails.clone` to file a design into this folder.
- *
- * Pass `{ raw: true }` in `options` to receive the full
- * `BrewRawResponse<CreateEmailGroupResponse>` instead of the unwrapped
- * row.
- */
 export function createCreateEmailGroup(client: HttpClient) {
   function createEmailGroup(
     input: CreateEmailGroupInput,

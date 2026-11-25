@@ -4,16 +4,9 @@ import type { BrewRawResponse, RequestOptions } from '../../../types'
 
 export type DeleteTriggerInput = { triggerEventId: string }
 
-/** Delete result — carries `deleted: boolean` alongside `deletedAt`/`deletedRows`. */
 export type DeleteTriggerResponse =
   components['schemas']['TriggersDeleteResponse']
 
-/**
- * `DELETE /v1/automations/triggers/{triggerEventId}` — destructive.
- * Refuses with HTTP 409 + `TRIGGER_HAS_DEPENDENT_AUTOMATIONS` when any
- * non-archived automation still references the trigger. Detach
- * automations first, then retry.
- */
 export function createDeleteTrigger(client: HttpClient) {
   function deleteTrigger(
     input: DeleteTriggerInput,

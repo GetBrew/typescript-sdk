@@ -47,16 +47,6 @@ import {
 } from '../../src/resources/emails/import'
 import * as sdk from '../../src/index'
 
-/**
- * Every method whose server work routinely outlasts the 30 s client default
- * carries its own per-call `timeoutMs`, and a caller-supplied one still
- * wins. Without it the call times out while the server keeps working; the
- * retry then finds the first attempt still holding its idempotency key and
- * the caller is left with a conflict for work that completes — and, for
- * credit-metered content, bills.
- */
-
-/** An `HttpClient` that records each transport request into `calls`. */
 function recordingClient({
   calls,
 }: {
@@ -72,7 +62,6 @@ function recordingClient({
         requestId: undefined,
       })
     },
-    // None of these methods sends raw bytes.
     sendBytes: () => Promise.reject(new Error('unexpected sendBytes call')),
   }
 }
@@ -217,8 +206,6 @@ describe('long-running methods — per-call timeout defaults', () => {
     await testCase.call({ client, timeoutMs: undefined })
 
     expect(testCase.defaultMs).toBe(testCase.expectedMs)
-    // Declared as a floor for the transport, not forced onto the request:
-    // a longer client-wide timeoutMs must survive it.
     expect(calls[0]?.defaultTimeoutMs).toBe(testCase.expectedMs)
     expect(calls[0]?.options?.timeoutMs).toBeUndefined()
   })

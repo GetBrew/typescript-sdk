@@ -30,9 +30,7 @@ describe('sends.cancel', () => {
       '/api/v1/sends/snd_123/cancel'
     )
     expect(capturedRequest?.method).toBe('POST')
-    // No request body — cancel is identified entirely by the URL.
     expect(await capturedRequest!.text()).toBe('')
-    // POSTs auto-attach an idempotency key for safe retries.
     expect(capturedRequest?.headers.get('idempotency-key')).toBeTruthy()
     expect(result).toEqual({ sendId: 'snd_123', status: 'canceled' })
   })

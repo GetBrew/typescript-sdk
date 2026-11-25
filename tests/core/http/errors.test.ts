@@ -64,8 +64,6 @@ describe('http.request — error mapping', () => {
       })
     )
 
-    // maxRetries: 0 so the test asserts on the very first response rather
-    // than waiting for the retry loop to exhaust itself.
     const { client } = makeTestHttpClient({
       configOverrides: { maxRetries: 0 },
     })

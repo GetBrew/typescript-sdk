@@ -6,11 +6,6 @@ import { createUpdateEmailGroup } from '../../../src/resources/email-groups/upda
 import { makeTestHttpClient } from '../../helpers/http-client'
 import { server } from '../../msw/server'
 
-/**
- * Group writes move designs in (GetBrew/brew-v2#1814): `emailIds` (up to 50)
- * on create and update, answered with what moved — `moved` and `notMoved`
- * with a reason per design.
- */
 describe('emailGroups writes', () => {
   it('creates a folder and moves designs into it in one call', async () => {
     let body: unknown
@@ -71,7 +66,6 @@ describe('emailGroups writes', () => {
     })
 
     expect(path).toBe('/api/v1/email-groups/grp_1')
-    // `name` is optional now: a move alone sends only the ids.
     expect(body).toEqual({ emailIds: ['eml_1', 'eml_2'] })
     expect(group.moved).toBe(2)
     expect(group.notMoved).toEqual([])
@@ -80,8 +74,6 @@ describe('emailGroups writes', () => {
   it('refuses an empty update at compile time: name, emailIds, or both', () => {
     const { client } = makeTestHttpClient()
     const update = createUpdateEmailGroup(client)
-    // Type-level only: the API rejects a PATCH with neither field, so the
-    // input type must not accept one. Never called.
     const empty = () =>
       // @ts-expect-error -- an update needs `name`, `emailIds`, or both
       update({ groupId: 'grp_1' })

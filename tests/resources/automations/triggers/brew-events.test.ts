@@ -57,7 +57,6 @@ describe('automations.triggers.ensureBrewEvent', () => {
       scope: 'domain',
       domainId: 'dom_news',
     })
-    // A POST carries a key so a retry after a lost answer replays.
     expect(capturedKey).toEqual(expect.any(String))
     expect(result).toMatchObject({
       triggerEventId: 'trg_news',

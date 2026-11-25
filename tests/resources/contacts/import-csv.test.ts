@@ -133,7 +133,6 @@ describe('contacts.importCsv', () => {
   it('types dateOrder as the two orders the API reads', () => {
     const { client } = makeTestHttpClient()
     const importCsv = createImportCsvContacts(client)
-    // Type-level only: the call is never awaited against a server.
     const call = () =>
       // @ts-expect-error — `year_first` is not an order the API reads
       importCsv({ csv: CSV, dateOrder: 'year_first' })

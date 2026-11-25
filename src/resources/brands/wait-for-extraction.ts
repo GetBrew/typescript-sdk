@@ -7,15 +7,11 @@ import {
 import { createGetBrand, type GetBrandStatusResponse } from './get'
 
 export type WaitForExtractionOptions = {
-  /** Total deadline, including HTTP attempts, retries and polling sleeps. Default 300_000. */
   readonly maxWaitMs?: number
-  /** Delay between completed reads while extraction is running. Default 5_000. */
   readonly pollIntervalMs?: number
-  /** Cancel the wait with this signal's original reason. */
   readonly signal?: AbortSignal
 }
 
-/** The wait ended; brand extraction may still be running on the server. */
 export class BrewBrandExtractionTimeoutError extends Error {
   readonly brandId: string
   readonly maxWaitMs: number
@@ -46,13 +42,6 @@ function assertDuration(value: number, name: string): void {
   }
 }
 
-/**
- * Read lifecycle status immediately, then every five seconds until extraction
- * ends. Returns the server's terminal row, including failed/deleting or
- * completed-but-not-ready rows; callers must inspect `ready` before generating.
- * The five-minute total deadline cancels in-flight reads, retries and sleeps.
- * Client-wide cancellation and ordinary HTTP error/retry settings are preserved.
- */
 export function createWaitForExtraction(
   client: HttpClient,
   clientSignal?: AbortSignal

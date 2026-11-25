@@ -5,7 +5,6 @@ import type {
 } from '../types'
 import { SDK_NAME, SDK_VERSION } from '../version'
 
-/** `timeoutMs` must be a number >= 0; `Infinity` means no deadline. */
 export function assertTimeoutMs({
   value,
   name,
@@ -20,7 +19,6 @@ export function assertTimeoutMs({
   }
 }
 
-/** `maxRetries` must be a whole number >= 0. */
 export function assertRetryCount({
   value,
   name,
@@ -35,56 +33,20 @@ export function assertRetryCount({
   }
 }
 
-/**
- * Production base URL for the Brew public API. Exposed as a constant so
- * tests and downstream consumers can reference the same value without
- * hardcoding strings.
- */
 export const DEFAULT_BASE_URL = 'https://brew.new/api'
 
-/**
- * Default per-request timeout. Long enough to cover legitimate batch
- * operations but short enough that a hung request surfaces as a client
- * error well inside typical caller SLAs.
- */
 export const DEFAULT_TIMEOUT_MS = 30_000
 
-/**
- * Default retry cap. Two retries on top of the initial attempt means a
- * given request will make at most three HTTP attempts before giving up —
- * enough to absorb a single transient upstream hiccup plus one more for
- * safety, without amplifying thundering-herd pressure.
- */
 export const DEFAULT_MAX_RETRIES = 2
 
-/**
- * Whether an attempt that hit `timeoutMs` is retried. `true`: a timeout is a
- * transient failure like any other, and `(maxRetries + 1) * timeoutMs` is the
- * documented worst case. Callers who need a hard deadline set it `false`.
- */
 export const shouldRetryOnTimeoutByDefault = true
 
-/**
- * Default `User-Agent` value. Identifies the SDK and its version so
- * incoming requests are attributable in server logs. Sourced from
- * `src/version.ts` so bumping the version in one place propagates here.
- */
 export const DEFAULT_USER_AGENT = `${SDK_NAME}/${SDK_VERSION}`
 
 export type ResolveConfigInput = {
   readonly userConfig: BrewClientConfig
 }
 
-/**
- * Merge the caller's `BrewClientConfig` with our defaults and return a
- * fully-resolved config object. Every internal code path should consume
- * this, never the raw user config, so defaults are always honored and
- * callers never have to remember which fields are optional.
- *
- * Validates `apiKey` and `brandId` at the boundary: empty or whitespace-only
- * values throw a `TypeError` immediately rather than failing later with a
- * confusing 401/400 from the server.
- */
 export function resolveConfig(
   input: ResolveConfigInput
 ): ResolvedBrewClientConfig {
@@ -99,9 +61,6 @@ export function resolveConfig(
     )
   }
 
-  // Reject an empty brandId at the boundary rather than letting it reach the
-  // server as an omitted header — an org-scoped key would then fail with
-  // BRAND_ID_REQUIRED, which reads like a server problem, not a config typo.
   if (
     userConfig.brandId !== undefined &&
     (typeof userConfig.brandId !== 'string' || userConfig.brandId.trim() === '')
@@ -131,20 +90,4 @@ export function resolveConfig(
   }
 }
 
-/**
- * Default fetch implementation: a thin closure that resolves
- * `globalThis.fetch` at CALL TIME, not at module-import time.
- *
- * This matters for two reasons:
- *   1. Some runtimes throw "Illegal invocation" if the native fetch is
- *      called with the wrong `this`. Calling it off of `globalThis`
- *      directly avoids the issue without needing `.bind(globalThis)`.
- *   2. Testing tools like MSW v2 replace `globalThis.fetch` inside their
- *      `beforeAll` hook, which runs AFTER this module is imported. If we
- *      captured the reference at import time (e.g. via `.bind`), we would
- *      keep pointing at the ORIGINAL, unpatched fetch forever and MSW
- *      would silently fail to intercept anything the SDK sends.
- *
- * Resolving at call time keeps both use cases correct.
- */
 const defaultFetch: BrewFetch = (input, init) => globalThis.fetch(input, init)

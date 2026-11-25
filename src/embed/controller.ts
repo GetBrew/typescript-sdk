@@ -35,14 +35,12 @@ export type CanvasAuthentication =
     }>
 export type EmailCanvasOptions = CanvasTargetProps &
   CanvasAuthentication & {
-    /** Trusted Brew hosting origin. Override only for your development/preview deployment. */
     readonly embedOrigin?: string
     readonly title?: string
     readonly commandTimeoutMs?: number
     readonly onReady?: () => void
     readonly onSaved?: (event: CanvasSavedEvent) => void
     readonly onSelectionChange?: (emailIds: ReadonlyArray<string>) => void
-    /** Resolved displayed rows; empty while deselected or switching versions. */
     readonly onEmailSelectionChange?: (
       emails: ReadonlyArray<CanvasSelectedEmail>
     ) => void
@@ -53,7 +51,6 @@ export type EmailCanvasController = Readonly<{
   fitView: () => Promise<void>
   focusEmail: (emailId: string) => Promise<void>
   flush: () => Promise<void>
-  /** Flush and release the active editor lease without unmounting the canvas. */
   clearSelection: () => Promise<void>
   destroy: () => void
 }>
@@ -63,7 +60,6 @@ type PendingCommand = {
   timer: ReturnType<typeof setTimeout>
 }
 
-/** Creates one isolated iframe. No browser globals are accessed until this function is called. */
 export function createEmailCanvas(
   container: HTMLElement,
   options: EmailCanvasOptions
@@ -142,8 +138,6 @@ export function createEmailCanvas(
     iframe?.contentWindow?.postMessage(message, origin)
   }
   function authenticate(): void {
-    // Cold app compilation or a slow network can outlive the one-minute
-    // bootstrap grant. Renew it before transferring an expired credential.
     if (session && Date.now() - acquiredAt >= 45_000) {
       void getSession(true)
       return
@@ -339,7 +333,6 @@ export function createEmailCanvas(
       clearTimeout(connectionTimer)
       ownerWindow.removeEventListener('message', handleMessage)
       iframe?.remove()
-      // Network loss can prevent revocation; every grant also expires server-side.
       void clientProvider?.close().catch(() => undefined)
       session = null
       for (const entry of pending.values()) {

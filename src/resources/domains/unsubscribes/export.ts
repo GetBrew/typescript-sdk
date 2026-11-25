@@ -2,7 +2,6 @@ import type { components, operations } from '../../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../../types'
 
-/** Input to `brew.domains.unsubscribes.export(...)`. */
 export type ExportDomainUnsubscribesInput = {
   readonly domainId: string
 } & NonNullable<operations['exportDomainUnsubscribes']['parameters']['query']>
@@ -10,11 +9,6 @@ export type ExportDomainUnsubscribesInput = {
 export type ExportDomainUnsubscribesResponse =
   components['schemas']['DomainUnsubscribesExportResponse']
 
-/**
- * `GET /v1/domains/{domainId}/unsubscribes/export` (scope: `domains`) — the
- * list as CSV text in one response (`csv`, `rowCount`), narrowed by `scope`
- * like `list`; `truncated: true` when the export hit its row cap.
- */
 export function createExportDomainUnsubscribes(client: HttpClient) {
   function exportDomainUnsubscribes(
     input: ExportDomainUnsubscribesInput,

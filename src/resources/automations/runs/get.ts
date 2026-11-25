@@ -4,39 +4,16 @@ import type { BrewRawResponse, RequestOptions } from '../../../types'
 
 import type { AutomationRun } from './types'
 
-/** The one expansion `GET /v1/automations/runs/{automationRunId}` accepts. */
 export const AUTOMATION_RUNS_INCLUDE_TOKENS = ['logs'] as const
 export type AutomationRunsIncludeToken =
   (typeof AUTOMATION_RUNS_INCLUDE_TOKENS)[number]
 
-/**
- * Per-request options for `brew.automations.runs.get(...)` — the
- * standard `RequestOptions` plus the detail-only `include` expansion.
- */
 export type GetAutomationRunOptions = RequestOptions & {
-  /**
-   * `'logs'` attaches the per-node execution `logs[]`. Accepts an array of
-   * tokens or a comma string.
-   */
   readonly include?: ReadonlyArray<AutomationRunsIncludeToken> | string
 }
 
-/** `GET /v1/automations/runs/{automationRunId}` returns the BARE row. */
 export type GetAutomationRunResponse = AutomationRun
 
-/**
- * `GET /v1/automations/runs/{automationRunId}` (scope: `automations`) —
- * one automation run, returned as the BARE row. Pass `include: 'logs'`
- * for the per-node execution `logs[]` (each node reports `running |
- * completed | failed | skipped`).
- *
- * An unknown or cross-brand id is `404 AUTOMATION_RUN_NOT_FOUND` — it is
- * no longer an empty page you have to test for.
- *
- * Pass `{ raw: true }` in `options` to receive the full
- * `BrewRawResponse<GetAutomationRunResponse>` instead of the unwrapped
- * row.
- */
 export function createGetAutomationRun(client: HttpClient) {
   function getAutomationRun(
     automationRunId: string,

@@ -2,20 +2,13 @@ import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { operations } from '../../generated/openapi-types'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
-/** Composable filters accepted by `GET /v1/analytics/overview`. */
 export type AnalyticsOverviewInput = NonNullable<
   operations['getAnalyticsOverview']['parameters']['query']
 >
 
-/** Brand-wide totals, rates, and zero-filled timeseries for the window. */
 export type AnalyticsOverviewResponse =
   operations['getAnalyticsOverview']['responses'][200]['content']['application/json']
 
-/**
- * `GET /v1/analytics/overview` — the exact totals, rates, and timeseries read
- * behind Brew's analytics overview. Filters compose; wide raw-event windows
- * can return `truncated: true`, in which case narrow the requested range.
- */
 export function createAnalyticsOverview(client: HttpClient) {
   function analyticsOverview(
     input: AnalyticsOverviewInput,

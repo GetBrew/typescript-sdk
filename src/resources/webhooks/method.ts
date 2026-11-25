@@ -5,7 +5,6 @@ import {
 } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
-/** Keep URL/body projection in resource methods and transport/raw-response behavior here. */
 export function webhookMethod<Input, Output>(
   client: HttpClient,
   request: (input: Input) => Omit<HttpRequestInput, 'options'>

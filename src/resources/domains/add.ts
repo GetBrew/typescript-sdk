@@ -4,18 +4,10 @@ import type { BrewRawResponse, RequestOptions } from '../../types'
 
 import type { Domain } from './types'
 
-/** Add body — `{ name, region?, customReturnPath? }`. */
 export type AddDomainInput = components['schemas']['DomainsPostRequest']
 
-/** Returns the bare `Domain` row (status `pending` + DNS records). */
 export type AddDomainResponse = Domain
 
-/**
- * `POST /v1/domains` — register a sending domain. The returned bare
- * `Domain` row has `status: 'pending'` and the DNS `records` to publish;
- * once published, call `brew.domains.verify({ domainId })`.
- * Requires the `domains` scope.
- */
 export function createAddDomain(client: HttpClient) {
   function addDomain(
     input: AddDomainInput,

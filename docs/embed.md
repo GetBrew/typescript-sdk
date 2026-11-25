@@ -55,8 +55,8 @@ const canvas = createEmailCanvas(container, {
   onError: (error) => console.error(error.code, error.message),
 })
 
-await canvas.flush() // before navigating away
-canvas.destroy() // unmount and close access
+await canvas.flush()
+canvas.destroy()
 ```
 
 Give the container a nonzero height. `fitView()`, `focusEmail(emailId)` and `flush()` return promises. The React component exposes the same methods through an `EmailCanvasHandle` ref. Await `flush()` before navigation; if saving fails, keep the canvas mounted so the user can retry. `onDirtyChange` can drive a navigation warning, and `onSelectionChange` reports selected email IDs.
@@ -68,14 +68,11 @@ Authentication, ownership-bound renewal and revocation are handled by the SDK. R
 Use a server-side Brew client for API operations, and the browser component for the editing surface:
 
 ```ts
-// Your backend only
 import { createBrewClient } from '@brew.new/sdk'
 const brew = createBrewClient({
   apiKey: process.env.BREW_API_KEY!,
   brandId: process.env.BREW_BRAND_ID!,
 })
-// Generate and manage emails with brew.emails and brew.emailGroups.
-// Return the authorized groupId or emailId to your frontend.
 ```
 
 Keep a group canvas mounted while your backend generates emails in that group: the new emails and generation chunks appear live. Pass an email ID when embedding a focused editing step. Client IDs cannot authorize API generation, management or sending.
@@ -138,9 +135,7 @@ const canvas = createEmailCanvas(container, {
   clientId: configuredClientId,
   groupId: ownedGroupId,
   onEmailSelectionChange: (emails) => {
-    // [] on deselection, removal, or while a version is unresolved.
     const selected = emails[0]
-    // { emailId, emailVersion: number | 'latest', emailVersionId: string | null }
     retainSelection(selected)
   },
 })

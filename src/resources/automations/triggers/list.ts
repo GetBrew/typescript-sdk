@@ -6,20 +6,8 @@ import type { TriggersListResponse } from './types'
 
 export type ListTriggersResponse = TriggersListResponse
 
-/** Pagination knobs accepted by `brew.automations.triggers.list(...)`. */
 export type ListTriggersInput = PaginationInput
 
-/**
- * `GET /v1/automations/triggers` (scope: `automations`) — every trigger
- * in the API key's brand, under the uniform `{ data, pagination }`
- * envelope. Includes both API-created customs (`provider: 'brew_api'`)
- * and integration-provisioned rows (`provider: 'clerk' | 'stripe' | …`).
- * Page with `limit` / `cursor`.
- *
- * A single trigger is
- * `brew.automations.triggers.get(triggerEventId)` — there is no
- * `triggerEventId` filter here any more.
- */
 export function createListTriggers(client: HttpClient) {
   function listTriggers(
     input: ListTriggersInput | undefined,

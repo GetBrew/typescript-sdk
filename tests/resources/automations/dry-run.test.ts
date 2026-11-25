@@ -37,7 +37,6 @@ describe('automation dry runs', () => {
     server.use(
       http.post('https://brew.new/api/v1/automations', async ({ request }) => {
         sent = await request.json()
-        // A dry run answers 200 with the report; nothing is created.
         return HttpResponse.json(REPORT, { status: 200 })
       })
     )
@@ -86,7 +85,6 @@ describe('automation dry runs', () => {
   it('types a plain create and patch as the automation row', () => {
     const { client } = makeTestHttpClient()
     const automations = createAutomationsResource(client)
-    // Type-level only: the calls are never made.
     const create = () =>
       automations.create({
         name: 'Welcome',

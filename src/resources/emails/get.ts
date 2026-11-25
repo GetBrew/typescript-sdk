@@ -3,7 +3,6 @@ import { unwrapResponse, type HttpClient } from '../../core/http'
 import { serializeInclude } from '../../core/url'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
-/** Expansions `GET /v1/emails/{emailId}` accepts. */
 export const EMAILS_INCLUDE_TOKENS = [
   'html',
   'versions',
@@ -12,60 +11,14 @@ export const EMAILS_INCLUDE_TOKENS = [
 ] as const
 export type EmailsIncludeToken = (typeof EMAILS_INCLUDE_TOKENS)[number]
 
-/**
- * Per-request options for `brew.emails.get(...)` — the standard
- * `RequestOptions` plus the detail-only `include` expansions.
- */
 export type GetEmailOptions = RequestOptions & {
-  /**
-   * `'html'` inlines the rendered HTML of the current version;
-   * `'versions'` inlines the `{ version, emailVersionId }` history;
-   * `'text'` inlines the visible body text a reader sees (merge tags
-   * kept, `textTruncated` past 20,000 characters); `'links'` inlines each
-   * link destination once with its visible text and `count`
-   * (`linksTruncated` past 200).
-   * Accepts a token, an array of tokens, or a comma string.
-   */
   readonly include?: ReadonlyArray<EmailsIncludeToken> | string
-  /**
-   * Read this saved version instead of the current head (an
-   * `emailVersionId` from `include: 'versions'`). Mutually exclusive with
-   * `runId`.
-   */
   readonly emailVersionId?: string
-  /**
-   * Read the version one generation run produced, using a `runId` from
-   * an asynchronous surface such as MCP. SDK generate/edit wait for the final
-   * result. A failed run answers `status: 'failed'` with `errorMessage`. Mutually
-   * exclusive with `emailVersionId`.
-   */
   readonly runId?: string
 }
 
-/**
- * `GET /v1/emails/{emailId}` returns the BARE design row plus what the read
- * selected: `version`, `runId`, `previewStatus` (`available`, `unavailable`,
- * `not_ready`), and on a failed run `errorMessage` / `errorCause`.
- */
 export type GetEmailResponse = components['schemas']['EmailDetail']
 
-/**
- * `GET /v1/emails/{emailId}` (scope: `emails`) — one email design,
- * returned as the BARE row. Pass `include: 'html'` for the rendered HTML
- * of the current version and/or `include: 'versions'` for the
- * `{ version, emailVersionId }` history — the ids
- * `brew.emails.restore(...)` takes.
- *
- * Pin a saved version with `emailVersionId`, or read a generation started on
- * another surface by `runId` (a failed run reads `status: 'failed'`). An
- * unknown version or run is `404 EMAIL_VERSION_NOT_FOUND`.
- *
- * An unknown or cross-brand id is `404 EMAIL_NOT_FOUND` — it is no
- * longer an empty page you have to test for.
- *
- * Pass `{ raw: true }` in `options` to receive the full
- * `BrewRawResponse<GetEmailResponse>` instead of the unwrapped row.
- */
 export function createGetEmail(client: HttpClient) {
   function getEmail(
     emailId: string,

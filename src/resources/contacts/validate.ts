@@ -2,11 +2,6 @@ import type { components } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
-/**
- * Caller-facing input for a batch email validation. Matches the spec's
- * `ContactsValidateRequest` (`{ emails: string[] }`) but with a
- * `readonly` array so callers cannot mutate the input after passing it.
- */
 export type ValidateContactsInput = {
   readonly emails: ReadonlyArray<string>
 }
@@ -14,47 +9,8 @@ export type ValidateContactsInput = {
 export type ValidateContactsResponse =
   components['schemas']['ContactsValidateResponse']
 
-/**
- * One per-email validation result in `ValidateContactsResponse.data`,
- * discriminated by `checkOutcome`: `'completed'` rows carry the provider's
- * `didYouMean` / `risk` / `isDisposable` / `isRole`; `'unavailable'` rows
- * (the provider could not score the address) carry only `email`, `valid`,
- * `status` and `reason`. Narrow on `checkOutcome` before reading those.
- */
 export type ContactValidationResult = ValidateContactsResponse['data'][number]
 
-/**
- * Run a real deliverability check on a batch of email addresses (up to
- * 100).
- *
- * The wire format is `{ emails: [...] }`. Each address comes back in
- * `data` with a `valid` boolean, a `status` of `valid` | `risky` |
- * `invalid`, a `checkOutcome` of `completed` | `unavailable`,
- * an optional machine-readable `reason`, a `didYouMean` typo
- * correction when the address looks mistyped, and — when the provider
- * supplies them — a `risk` band (`low` | `medium` | `high` | `unknown`),
- * an `isDisposable` flag, and an `isRole` flag. Order is not guaranteed to
- * match the input — match on `email`.
- *
- * This endpoint no longer runs read-only: the verdicts are PERSISTED
- * (written back) onto any already-existing contacts whose email matches an
- * address in the batch, updating their `validationStatus` /
- * `validationDetails` / `lastValidatedAt`. Addresses that do not match an
- * existing contact are scored and returned but create no contact.
- *
- * Metered 2 credits per submitted address when any address has a scored
- * verdict. Completed checks with no scored verdict waive the charge; a
- * total-outage batch returns a retryable `503` and is not billed.
- *
- * Returns the full `ContactsValidateResponse` envelope (`{ data, persistence }`).
- * `persistence` reports matched, modified and failed update-only writes. A
- * partial provider outage returns unavailable rows without changing their
- * stored verdict; a total outage returns 503.
- *
- * Pass `{ raw: true }` in `options` to receive the full
- * `BrewRawResponse<ValidateContactsResponse>` instead of the unwrapped
- * payload.
- */
 export function createValidateContacts(client: HttpClient) {
   function validate(
     input: ValidateContactsInput,

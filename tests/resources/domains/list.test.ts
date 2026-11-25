@@ -55,7 +55,6 @@ describe('domains.list', () => {
     const url = new URL(listUrl!)
     expect(url.searchParams.get('sendableOnly')).toBe('true')
     expect(url.searchParams.get('sendingPurpose')).toBe('transactional')
-    // The detail read is domains.get(domainId) now.
     expect(url.searchParams.get('domainId')).toBeNull()
   })
 })

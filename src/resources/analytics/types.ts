@@ -6,5 +6,4 @@ export type AutomationAnalyticsRow = AutomationAnalyticsResponse['data'][number]
 
 export type EventsAnalyticsResponse =
   components['schemas']['EventsAnalyticsResponse']
-/** One row in the unified event explorer feed. */
 export type EventRow = EventsAnalyticsResponse['data'][number]

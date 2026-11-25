@@ -67,7 +67,6 @@ describe('brand.patch', () => {
     const brand = createBrandResource(client)
     expect(typeof brand.patch).toBe('function')
     expect(brand.update).toBe(brand.patch)
-    // The removed sub-resource methods are gone.
     expect('getIdentity' in brand).toBe(false)
     expect('getEmailDesign' in brand).toBe(false)
     expect('getImageStyle' in brand).toBe(false)

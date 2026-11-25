@@ -7,13 +7,6 @@ import { describe, expect, it } from 'vitest'
 import { type BrewClient, createBrewClient } from '../../src/index'
 import { server } from '../msw/server'
 
-/**
- * Every auto-pager reads its pages with the method it wraps. A caller's
- * `{ raw: true }` must not reach those reads: the page would come back as a
- * `BrewRawResponse` and the iterator would walk the wrong object (or throw).
- * Each iterator is driven with `raw: true` through two pages here.
- */
-
 const BASE = 'https://brew.new/api'
 
 function client(): BrewClient {
@@ -23,7 +16,6 @@ function client(): BrewClient {
   )
 }
 
-/** Two pages of `{ marker }` rows, keyed by whether a cursor was sent. */
 function pageFor(cursor: string | null | undefined) {
   return cursor === null || cursor === undefined
     ? {
@@ -159,7 +151,6 @@ describe('every auto-pager reads its pages unwrapped', () => {
     const files = sources(join(process.cwd(), 'src/resources')).filter((file) =>
       readFileSync(file, 'utf8').includes('autoPaginate<')
     )
-    // One file per iterator above (comments' listAllMessages included).
     expect(files).toHaveLength(ITERATORS.length + 1)
     const unguarded = files.filter(
       (file) => !readFileSync(file, 'utf8').includes('pageReadOptions(')

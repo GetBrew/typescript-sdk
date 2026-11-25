@@ -101,7 +101,6 @@ describe('payload contract methods', () => {
       triggerEventId: 'tri_signup',
       fields: [{ key: 'email', type: 'string', required: true }],
     })
-    // The path id never leaks into the body.
     expect(sent).toEqual({
       fields: [{ key: 'email', type: 'string', required: true }],
     })
@@ -166,7 +165,6 @@ describe('payload contract methods', () => {
       triggerEventId: 'tri_signup',
       enforcement: 'strict',
     })
-    // No `fields` — arming a contract is a one-field patch.
     expect(sent).toEqual({ enforcement: 'strict' })
     expect(body.enforcement).toBe('strict')
   })

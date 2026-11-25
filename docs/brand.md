@@ -26,7 +26,7 @@ type Brand = {
   readonly brandId: string
   readonly domain: string
   readonly status: 'extracting' | 'completed' | 'failed' | 'deleting'
-  readonly ready: boolean // true ⇔ status === 'completed'
+  readonly ready: boolean
   readonly createdAt?: string
   readonly updatedAt?: string
 }
@@ -83,13 +83,11 @@ brand images and images made with Brew, under `{ data, pagination }`. Each
 row carries its `assetId`, `kind`, `url`, dimensions and `addedAt`.
 
 ```ts
-// Browse (free): newest first by default, or sort: 'oldest'.
 const { data, pagination } = await brew.brand.getImages({
   kind: 'generated',
   limit: 50,
 })
 
-// Semantic search (free, relevance order).
 const hits = await brew.brand.getImages({ q: 'team photo', kind: 'brand' })
 ```
 

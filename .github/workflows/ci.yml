@@ -6,8 +6,6 @@ on:
   pull_request:
     branches: [main]
 
-# Cancel in-progress runs for the same PR/branch when a new push lands.
-# Saves CI minutes and surfaces the latest result faster.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -23,7 +21,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
 
@@ -41,44 +39,26 @@ jobs:
           PYCODE
 
       - name: Install dependencies
-        # --frozen-lockfile makes CI fail if bun.lock is out of sync with
-        # package.json — catches the "I forgot to commit the lockfile bump"
-        # mistake before it lands on main.
         run: bun install --frozen-lockfile
+      - name: Install comment parsers
+        run: bun run comments:setup
 
       - name: Typecheck
-        # Most important check for this SDK. Resource methods derive their
-        # types from src/generated/openapi-types.ts; tsc surfaces drift
-        # between the generated types and any consumer code immediately.
         run: bun tsc
 
       - name: Lint
         run: bun lint
 
       - name: Prettier (check only)
-        # NOT `bun run format` — that would write changes. format:check is
-        # the read-only version that fails the build if anything is
-        # unformatted.
         run: bun run format:check
 
       - name: Test
-        # NEVER `bun test` — that invokes Bun's built-in runner and
-        # bypasses vitest setupFiles, so MSW never starts and HTTP tests
-        # silently fail. Always `bun run test`.
         run: bun run test
 
       - name: Build
-        # Proves tsup still emits ESM + CJS + .d.ts + .d.cts cleanly.
-        # Catches dts generation failures, tsup config breakage, and any
-        # import that doesn't survive bundling.
         run: bun run build
 
       - name: Generated types are up to date
-        # If someone updated openapi/public-api-v1.yaml without
-        # re-running `bun run generate:types`, this step regenerates and
-        # fails the build via `git diff --exit-code` if the regenerated
-        # file would differ from the committed one. Belt-and-braces for
-        # the OpenAPI sync ritual documented in docs/development.md.
         run: |
           bun run generate:types
           git diff --exit-code src/generated/openapi-types.ts

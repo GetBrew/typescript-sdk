@@ -82,13 +82,10 @@ stricter guard and requires `expectedBaseVersionId`.
 ## Reading one automation
 
 ```ts
-// Lean list — no graph on the rows.
 const { data } = await brew.automations.list({ limit: 50 })
 
-// Find one by name: full-text, best match first instead of newest first.
 const { data: matches } = await brew.automations.list({ search: 'welcome' })
 
-// The bare row, with the graph and the version history attached.
 const automation = await brew.automations.get('auto_abc', {
   include: ['graph', 'versions'],
 })
@@ -129,8 +126,8 @@ const result = await brew.automations.triggers.fire<OrderCompletedPayload>(
   { idempotencyKey: 'ord_1042' }
 )
 
-console.log(result.automationRunIds) // the runs this fire started
-console.log(result.notStarted) // [{ automationId, reason }] that could not start
+console.log(result.automationRunIds)
+console.log(result.notStarted)
 console.log(result.triggerInstanceId)
 ```
 
@@ -155,7 +152,6 @@ returns `422 NO_PUBLISHED_AUTOMATION`.
 const readiness = await brew.automations.triggers.readiness('tri_8fK2mQ4pLx')
 
 if (!readiness.ready) {
-  // e.g. [{ code: 'NO_PUBLISHED_AUTOMATION', message: '…' }]
   console.log(readiness.blockers)
 }
 ```
@@ -173,9 +169,7 @@ const { delivery } = await brew.automations.triggers.readiness(
   'shopify:customers/update'
 )
 
-// status: received | never_received | none_recent | waiting_for_test_event
 if (delivery && delivery.status !== 'received') {
-  // e.g. 'In Shopify, add a webhook for Customer update.'
   console.log(delivery.sourceEvent, delivery.message)
 }
 ```
@@ -199,21 +193,19 @@ or API edit). `triggers.ensureBrewEvent` returns the brand's trigger for one
 scope, creating it the first time:
 
 ```ts
-// Unsubscribes from one marketing domain's list (ids from brew.domains.list())
 const news = await brew.automations.triggers.ensureBrewEvent({
   event: 'contact.unsubscribed',
   scope: 'domain',
   domainId: 'jd7f0c2a8w1x9m4n6p3q5r8s2t',
 })
 
-// Unsubscribes from every email the brand sends
 const all = await brew.automations.triggers.ensureBrewEvent({
   event: 'contact.unsubscribed',
   scope: 'all',
 })
 
-all.created // true the first time, false on every later call
-all.brewEvent // { event: 'contact.unsubscribed', scope: 'all' }
+all.created
+all.brewEvent
 ```
 
 An unsubscribe from all clicked in one of a domain's emails also starts that
@@ -248,12 +240,12 @@ time:
 
 ```ts
 const trigger = await brew.automations.triggers.ensureIntegrationEvent({
-  eventId: 'k5714pq3vm8x2n6c9d0b7f1h4j6g2r8t', // from integrations.events.list()
+  eventId: 'k5714pq3vm8x2n6c9d0b7f1h4j6g2r8t',
 })
 
-trigger.created // true the first time, false on every later call
-trigger.provider // e.g. 'posthog'
-trigger.providerEventKey // the provider's event name, e.g. 'created_project'
+trigger.created
+trigger.provider
+trigger.providerEventKey
 ```
 
 The same event always returns the same trigger, across reconnects of the
@@ -290,10 +282,6 @@ const { data } = await brew.automations.triggerInstances.list({
 
 const instance = await brew.automations.triggerInstances.get('tin_123')
 
-// `state`: received | verified | matched | partially_fired | fired |
-// rejected | dead_letter. Branch on it rather than on automationRunIds:
-// `fired` means every matched automation started, `partially_fired`
-// means some starts are still being retried.
 if (instance.state === 'rejected') console.log(instance.rejectionReason)
 
 for await (const row of brew.automations.triggerInstances.listAll()) {
@@ -315,7 +303,7 @@ to inspect, pause, resume, or permanently cancel it.
 ```ts
 const preview = await brew.automations.run({
   automationId: 'auto_abc',
-  dryRun: true, // was `dry_run`
+  dryRun: true,
 })
 
 const started = await brew.automations.run(
@@ -370,7 +358,7 @@ optional operator note.
 
 ```ts
 type CancelAutomationRunOptions = RequestOptions & {
-  readonly reason?: string // stored on the run
+  readonly reason?: string
 }
 
 type AutomationRunCancelResponse = {
@@ -409,7 +397,6 @@ Manual-audience launches use `audienceRuns.cancel(audienceRunId)` instead.
 const run = await brew.automations.runs.get('run_abc', { include: 'logs' })
 
 for (const log of run.logs ?? []) {
-  // A node reports: running | completed | failed | skipped.
   console.log(log.nodeName, log.status, log.durationMs)
 }
 ```
@@ -417,10 +404,8 @@ for (const log of run.logs ?? []) {
 ## Unpublishing
 
 ```ts
-// In-flight contacts drain to completion by default.
 await brew.automations.unpublish({ automationId: 'auto_abc' })
 
-// Or stop them where they stand (was `stop_in_flight`).
 await brew.automations.unpublish({
   automationId: 'auto_abc',
   stopInFlight: true,

@@ -44,7 +44,6 @@ describe('analytics.eventCounts', () => {
     expect(url?.searchParams.get('bucket')).toBe('day')
     expect(url?.searchParams.get('eventType')).toBe('clicked')
     expect(url?.searchParams.get('sendId')).toBe('snd_1')
-    // A grouped count refuses a cursor and ignores a page size.
     expect(url?.searchParams.get('cursor')).toBeNull()
     expect(url?.searchParams.get('limit')).toBeNull()
     expect(counts.count).toBe(42)
@@ -87,7 +86,6 @@ describe('analytics.eventCounts', () => {
     expect(counts).toEqual(body)
     expect(raw.data).toEqual(body)
     expect(raw.requestId).toBe('req_event_counts')
-    // A measured zero stays zero; an unmeasured group stays without the key.
     expect(counts.groups[1]?.recipients).toBe(0)
     expect(counts.groups[2]).not.toHaveProperty('recipients')
   })

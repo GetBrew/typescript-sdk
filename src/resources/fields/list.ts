@@ -8,23 +8,6 @@ export type { FieldsGetResponse, ListFieldsInput }
 /** @deprecated Use {@link FieldsGetResponse}. */
 export type ListFieldsResponse = FieldsGetResponse
 
-/**
- * `GET /v1/fields` — list every contact field definition (both core
- * fields and organization-specific custom fields). Requires the
- * `contacts` scope.
- *
- * Returns the uniform `{ data, pagination }` envelope. Pass
- * `include: 'coverage'` for per-field fill rates and `audienceId` to
- * compute that coverage over one audience instead of every contact.
- * Page with `limit` (1–100, default 100) and the opaque `cursor` echoed
- * from the previous page's `pagination.cursor`.
- *
- * A single definition is `brew.fields.get(fieldName)`.
- *
- * Pass `{ raw: true }` in the second argument to receive the full
- * `BrewRawResponse<FieldsGetResponse>` instead of the unwrapped
- * envelope.
- */
 export function createListFields(client: HttpClient) {
   function listFields(
     input: ListFieldsInput | undefined,

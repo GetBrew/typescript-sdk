@@ -2,7 +2,6 @@ import type { components } from '../../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../../types'
 
-/** Input to `brew.domains.unsubscribes.import(...)`. */
 export type ImportDomainUnsubscribesInput = {
   readonly domainId: string
 } & components['schemas']['DomainUnsubscribesImportRequest']
@@ -10,12 +9,6 @@ export type ImportDomainUnsubscribesInput = {
 export type ImportDomainUnsubscribesResponse =
   components['schemas']['DomainUnsubscribesImportResponse']
 
-/**
- * `POST /v1/domains/{domainId}/unsubscribes/import` (scope: `domains`) —
- * add every address in a CSV body (`csv`) to this domain's list, reading
- * the email column (`column` picks it by header). Same outcomes as `add`.
- * Idempotent: pass `options.idempotencyKey` to retry safely.
- */
 export function createImportDomainUnsubscribes(client: HttpClient) {
   function importDomainUnsubscribes(
     input: ImportDomainUnsubscribesInput,

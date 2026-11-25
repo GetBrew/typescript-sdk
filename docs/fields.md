@@ -55,9 +55,9 @@ List every contact field definition (both core and custom).
 
 ```ts
 type ListFieldsInput = {
-  readonly include?: 'coverage' // per-field fill rates
-  readonly audienceId?: string // compute coverage over one audience
-  readonly limit?: number // 1–100, default 100
+  readonly include?: 'coverage'
+  readonly audienceId?: string
+  readonly limit?: number
   readonly cursor?: string
 }
 

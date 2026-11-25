@@ -59,7 +59,6 @@ describe('audiences.list', () => {
     const result = await list()
 
     expect(Array.isArray(result.data)).toBe(true)
-    // Default mode does not surface raw transport metadata.
     expect(
       (result as unknown as BrewRawResponse<ListAudiencesResponse>).status
     ).toBeUndefined()

@@ -2,53 +2,16 @@ import type { components } from '../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../types'
 
-/**
- * Body of `POST /v1/emails/{emailId}/export`, plus the `emailId` that goes on
- * the URL.
- *
- * Set `dryRun: true` (renamed from `dry_run` in v1) to validate the design,
- * brand ownership, and the ESP connection without creating a template.
- */
 export type ExportEmailInput = {
-  /** The design to export. Cross-brand or unknown ids surface as `404`. */
   readonly emailId: string
 } & components['schemas']['EmailExportRequest']
 
-/**
- * Result of `POST /v1/emails/{emailId}/export` — HTTP 201 when exported, or
- * HTTP 200 for a dry run. Describes what was written to the
- * ESP (`{ emailId, provider, providerName, templateName, templateId?,
- * dryRun }`). On a dry run `dryRun` is `true` and no `templateId` is issued.
- */
 export type ExportEmailResponse = components['schemas']['EmailExportResponse']
 
-/** The ESPs a design can be exported to. */
 export type ExportProvider = ExportEmailResponse['provider']
 
-/**
- * Exports may upload multiple assets before creating content in the ESP.
- * Match Brew's 800s route budget so the default 30s client timeout does not
- * abandon a draft still being created. Explicit request timeouts still win;
- * a longer client-wide timeout is preserved by the transport's default floor.
- */
 export const EXPORT_EMAIL_DEFAULT_TIMEOUT_MS = 800_000
 
-/**
- * `POST /v1/emails/{emailId}/export` (scope: `emails`) — export a design to a
- * connected ESP as a template, so you can send it from a stack you already
- * run.
- *
- * The ESP must be connected for the brand: exporting to one that is not
- * surfaces as `400 INTEGRATION_NOT_CONNECTED`. If the provider rejects the
- * template or is temporarily unavailable, the response includes a typed
- * provider error; inspect `BrewApiError.code`, `status` and `retryAfter`.
- *
- * Supply `options.idempotencyKey` to make retries safe; one is generated
- * automatically otherwise.
- *
- * Pass `{ raw: true }` in `options` to receive the full
- * `BrewRawResponse<ExportEmailResponse>` instead of the unwrapped payload.
- */
 export function createExportEmail(client: HttpClient) {
   function exportEmail(
     input: ExportEmailInput,

@@ -34,7 +34,6 @@ describe('sends.get', () => {
 
     expect(new URL(url!).pathname).toBe('/api/v1/sends/snd_promo')
     expect(new URL(url!).searchParams.get('include')).toBeNull()
-    // Bare row, not `{ data: [row] }`.
     expect(send.sendId).toBe('snd_promo')
     expect(send.automationRunId).toBe('run_1')
     expect(send.triggerInstanceId).toBe('tin_1')

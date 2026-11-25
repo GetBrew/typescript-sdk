@@ -195,8 +195,6 @@ describe('BrewApiError', () => {
     })
 
     it('parses a 402 payment_required envelope into its real code/type (not unknown_error)', () => {
-      // Regression pin: payment_required was missing from VALID_ERROR_TYPES,
-      // so real INSUFFICIENT_CREDITS envelopes degraded to unknown_error.
       const error = BrewApiError.fromResponse({
         status: 402,
         headers: new Headers(),
@@ -217,7 +215,6 @@ describe('BrewApiError', () => {
     })
 
     it('parses a 503 service_unavailable envelope into its real code/type (not unknown_error)', () => {
-      // Regression pin: service_unavailable was missing from VALID_ERROR_TYPES.
       const error = BrewApiError.fromResponse({
         status: 503,
         headers: new Headers({ 'retry-after': '5' }),
@@ -275,9 +272,6 @@ describe('BrewApiError', () => {
     })
 
     it('keeps the code when only the advisory fields are missing', () => {
-      // This used to assert `unknown_error`. Throwing away a usable
-      // `INTERNAL_ERROR` because a cosmetic `suggestion` was absent cost the
-      // caller the one field it branches on, to protect two it only prints.
       const error = BrewApiError.fromResponse({
         status: 500,
         headers: new Headers(),
@@ -307,9 +301,6 @@ describe('BrewApiError', () => {
     })
 
     it('keeps the code and derives the type from the status when the envelope names a type this SDK does not know', () => {
-      // A newer server vocabulary must not cost the caller the `code` the
-      // contract tells them to branch on, nor mislabel a 404 as a server
-      // fault.
       const error = BrewApiError.fromResponse({
         status: 404,
         headers: new Headers(),
@@ -331,12 +322,6 @@ describe('BrewApiError', () => {
   })
 
   describe('fromResponse — the legacy fire envelope', () => {
-    // The ONE endpoint outside the `{ error }` convention: trigger fire
-    // (`POST`/`GET /v1/automations/triggers/{id}/fire`) answers failure with
-    // `{ success: false, status, code, message, receivedAt, details? }`.
-    // Regression pin: this body used to fall through to `unknown_error` /
-    // `internal_error` / "Request failed with status 400" + retry advice, and
-    // `details.errors[]` (which fields were wrong) was unreachable.
     const payloadMismatch = {
       success: false,
       status: 'payload_mismatch',
@@ -381,7 +366,6 @@ describe('BrewApiError', () => {
       expect(error.requestId).toBe('req_0ee060a1c22345d49734cbea819620c3')
       expect(error.details).toEqual(payloadMismatch.details)
       expect(error.body).toBe(payloadMismatch)
-      // The same body fails the same way on retry — never advise one.
       expect(error.suggestion).not.toMatch(/retry/i)
       expect(error.docs).toBe(
         'https://docs.brew.new/api-reference/public-v1/automations/fire-a-trigger'
@@ -413,7 +397,6 @@ describe('BrewApiError', () => {
         expect(error.type).toBe(expectedType)
         expect(error.message).toBe(`${code} happened`)
         expect(error.details).toBeUndefined()
-        // The envelope's own discriminator stays reachable through `body`.
         expect((error.body as { status: string }).status).toBe(legacyStatus)
       }
     )
@@ -426,12 +409,9 @@ describe('BrewApiError', () => {
           body: { success: false, status: 'failed', code: 'X', message: 'x' },
         })
 
-      // The retry policy's own set (408, 429, 5xx): after the automatic
-      // retries a retry is still the honest remedy.
       expect(legacy({ status: 500 }).suggestion).toMatch(/retry/i)
       expect(legacy({ status: 429 }).suggestion).toMatch(/retry/i)
       expect(legacy({ status: 408 }).suggestion).toMatch(/retry/i)
-      // Not in the policy — 425 included — so no retry advice.
       expect(legacy({ status: 425 }).suggestion).not.toMatch(/retry/i)
       expect(legacy({ status: 404 }).suggestion).not.toMatch(/retry/i)
       expect(legacy({ status: 400 }).suggestion).not.toMatch(/retry/i)
@@ -468,9 +448,6 @@ describe('BrewApiError', () => {
     })
 
     it('requires `success: false` — a bare { code, message } is not a fire refusal', () => {
-      // A proxy or an unrelated endpoint answering `{ code, message }` must
-      // not be labelled with the fire reference; the contract says a fire
-      // refusal carries `success: false`.
       const error = BrewApiError.fromResponse({
         status: 400,
         headers: new Headers(),
@@ -596,8 +573,6 @@ describe('transport errors', () => {
     expect(error).toBeInstanceOf(BrewTransportError)
     expect(error).toBeInstanceOf(BrewTimeoutError)
     expect(error).not.toBeInstanceOf(BrewApiError)
-    // The platform's name for this event (`AbortSignal.timeout`), so
-    // `error.name === 'TimeoutError'` checks written for fetch keep working.
     expect(error.name).toBe('TimeoutError')
     expect(error.constructor.name).toBe('BrewTimeoutError')
     expect(error.timeoutMs).toBe(30_000)

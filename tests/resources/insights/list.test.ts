@@ -114,7 +114,6 @@ describe('insights.list', () => {
     expect(params?.get('limit')).toBe('20')
     expect(params?.get('cursor')).toBe('b2Zmc2V0OjIw')
     expect(page.pulse?.openDirection).toBe('up')
-    // An expansion that does not exist yet answers null.
     expect(page.memo).toBeNull()
   })
 
@@ -277,7 +276,6 @@ describe('insights.list', () => {
 
     const { client } = makeTestHttpClient()
     const insights = createInsightsResource(client)
-    // The walk's filters, kept for the restart: only `cursor` is dropped.
     const filters: ListInsightsInput = { state: 'all', severity: 'warning' }
     const nextPage = async ({ cursor }: { cursor: string }) => {
       try {

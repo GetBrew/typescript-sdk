@@ -1,46 +1,21 @@
 import type { RequestOptions } from '../types'
 
-/**
- * Shared cursor-pagination primitives.
- *
- * Every `/v1/*` list endpoint returns a uniform envelope alongside its
- * resource array:
- *
- *   { "<resource>": [ ... ], "pagination": { limit, cursor, hasMore } }
- *
- * `cursor` is an opaque base64url token — never construct it by hand.
- * It is `null` on the last page, so the loop condition is
- * `while (pagination.cursor !== null)`.
- */
-
 export type Pagination = {
   readonly limit: number
   readonly cursor: string | null
   readonly hasMore: boolean
 }
 
-/**
- * The cursor knobs every list method accepts. `limit` is the per-page
- * size (1–100, default 100); `cursor` echoes back the prior page's
- * `pagination.cursor`.
- */
 export type PaginationInput = {
   readonly limit?: number
   readonly cursor?: string
 }
 
-/**
- * One page handed to {@link autoPaginate}: the rows plus the pagination
- * envelope. `pagination` is `undefined` for single-fetch responses (an
- * id lookup returns a one-element array without an envelope) — those
- * terminate the iterator after the first page.
- */
 export type Page<TItem> = {
   readonly items: ReadonlyArray<TItem>
   readonly pagination: Pagination | undefined
 }
 
-/** The server returned a cursor already fetched by this iterator. */
 export class BrewPaginationError extends Error {
   readonly code = 'PAGINATION_CURSOR_CYCLE'
   readonly cursor: string
@@ -60,24 +35,6 @@ export class BrewPaginationError extends Error {
   }
 }
 
-/**
- * Generic async-iterator that walks every page of a cursor-paginated
- * list, yielding one row at a time. Resources build a thin `listAll`
- * wrapper around this so callers never juggle cursor state:
- *
- * ```ts
- * for await (const send of brew.sends.listAll({ kind: 'campaign' })) {
- *   console.log(send.emailId)
- * }
- * ```
- *
- * `fetchPage` is called once per page with the cursor for that page
- * (`null` for the first). It must return `{ items, pagination }`.
- * Iteration stops when `pagination` is absent, `hasMore` is `false`, or
- * `cursor` is `null`. The optional `signal` is checked between pages, so
- * an abort halts further fetches (rows already returned from the last
- * `fetchPage` are still yielded by the loop body).
- */
 export async function* autoPaginate<TItem>(
   fetchPage: (cursor: string | null) => Promise<Page<TItem>>,
   options?: { readonly signal?: AbortSignal }
@@ -106,8 +63,6 @@ export async function* autoPaginate<TItem>(
       yield item
     }
 
-    // A caller may abort while consuming the page. Preserve quiet termination
-    // between pages even if the server also returned a cyclic next cursor.
     if (isAborted()) {
       return
     }
@@ -130,14 +85,6 @@ export async function* autoPaginate<TItem>(
   /* eslint-enable no-await-in-loop */
 }
 
-/**
- * The options an auto-pager passes to each page read: the caller's options
- * with `raw` forced to `false`. A caller's `{ raw: true }` would otherwise
- * reach the wrapped `list` / `search`, which would then return a
- * `BrewRawResponse` the iterator cannot read as a page. The iterator yields
- * rows, so `raw` has nothing to apply to; every other option (`signal`,
- * `timeoutMs`, `maxRetries`, …) still applies to every page.
- */
 export function pageReadOptions({
   options,
 }: {

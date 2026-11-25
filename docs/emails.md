@@ -40,47 +40,19 @@ is not campaign-specific, so the send action lives here on `emails`. Send
 
 ## Shared types
 
+Use the exported types, which are derived from the vendored API contract:
+
 ```ts
-type EmailSummary = {
-  readonly emailId: string
-  readonly emailVersionId?: string
-  readonly title: string
-  readonly status: EmailStatus
-  readonly previewImage?: string
-  readonly updatedAt: string
-  readonly subjectLine?: string
-  readonly previewText?: string
-  // Detail rows only (`get`): the copy's language, once Brew has read it.
-  readonly lang?: EmailLanguage
-  readonly group: { groupId: string; groupName: string } | null
-  // With `get(emailId, { include })`: `html` and/or `versions`.
-  readonly html?: string
-  readonly versions?: ReadonlyArray<{
-    version: number | 'latest'
-    emailVersionId: string
-  }>
-}
-
-// The one v1 vocabulary. The old `streaming` / `complete` / `error`
-// spellings are gone and now 400 as a status FILTER.
-type EmailStatus = 'generating' | 'ready' | 'failed'
-
-// ISO 639-1, plus zh-Hans / zh-Hant. Rendered as the HTML document's
-// `lang` (and `dir` for right-to-left languages) on every send and export.
-// Exported as `EmailLanguage` from '@brew.new/sdk'; derived from the API enum.
-type EmailLanguage = 'en' | 'de' | 'fr' | 'es' | 'ja' | 'zh-Hans' | 'zh-Hant' // …45 codes, see the OpenAPI enum
-
-type GeneratedEmailArtifact = {
-  readonly emailId: string
-  readonly emailVersionId: string
-  readonly html: string
-  readonly previewImage?: string // rendered screenshot URL
-}
-
-type GeneratedEmailTextResponse = {
-  readonly response: string
-}
+import type {
+  EmailSummary,
+  EmailStatus,
+  EmailLanguage,
+  GeneratedEmailArtifact,
+  GeneratedEmailTextResponse,
+} from '@brew.new/sdk'
 ```
+
+The [shared email types](../src/resources/emails/types.ts) own these definitions.
 
 ---
 
@@ -92,11 +64,11 @@ The latest version of each design, under the uniform
 
 ```ts
 type ListEmailsInput = {
-  readonly status?: EmailStatus // generating | ready | failed
+  readonly status?: EmailStatus
   readonly groupId?: string
-  readonly sortBy?: 'createdAt' | 'updatedAt' // default updatedAt
-  readonly from?: string // ISO-8601
-  readonly to?: string // ISO-8601
+  readonly sortBy?: 'createdAt' | 'updatedAt'
+  readonly from?: string
+  readonly to?: string
   readonly limit?: number
   readonly cursor?: string
 }
@@ -150,7 +122,6 @@ One design, as the bare row. An unknown or cross-brand id is
 const email = await brew.emails.get('email_123')
 console.log(email.title, email.status)
 
-// Opt into the rendered HTML and the version history:
 const full = await brew.emails.get('email_123', {
   include: ['html', 'versions'],
 })
@@ -190,7 +161,7 @@ const run = await brew.emails.get('email_123', { runId: 'run_abc' })
 if (run.status === 'failed') {
   console.log(run.errorMessage)
 }
-console.log(run.previewStatus) // 'available' | 'unavailable' | 'not_ready'
+console.log(run.previewStatus)
 ```
 
 `emailVersionId` and `runId` are mutually exclusive. An unknown version or
@@ -206,36 +177,17 @@ The brand is resolved from the API key. `GenerateEmailInput` does **not**
 accept a `brandId` field — sending one returns `400 INVALID_REQUEST`.
 
 ```ts
-type GenerateEmailInput = {
-  readonly prompt: string
-  readonly contentUrls?: ReadonlyArray<string>
-  readonly referenceEmailId?: string
-  // Steers the design treatment; omit for a general treatment.
-  readonly category?: 'welcome' | 'newsletter' | 'receipt' | 'general' // …30 values, see the OpenAPI enum
-  // Canvas name, 2-4 words (e.g. 'Newsletter Welcome'), 1-200 characters.
-  // Omit and Brew derives one from `subjectLine`, else from the prompt.
-  readonly title?: string
-  // Inbox subject line saved on the design (distinct from `title`, the
-  // canvas name); a send still takes its own `subject`.
-  readonly subjectLine?: string
-  // Omit and Brew detects it from the finished body; a value you set is
-  // kept and never re-detected.
-  readonly lang?: EmailLanguage
-  // File the design under a group: `groupId` (`grp_…` or 'ungrouped') or
-  // `groupName` (resolved or created), not both. Omit to land Ungrouped.
-  readonly groupId?: string
-  readonly groupName?: string
+import type { GenerateEmailInput, GenerateEmailResponse } from '@brew.new/sdk'
+
+const input: GenerateEmailInput = {
+  prompt: 'Design a welcome email for new subscribers',
 }
-
-type GenerateEmailResponse =
-  | GeneratedEmailArtifact
-  | GeneratedEmailTextResponse
-
-generate(
-  input: GenerateEmailInput,
-  options?: RequestOptions
-): Promise<GenerateEmailResponse>
+const result: GenerateEmailResponse = await brew.emails.generate(input)
 ```
+
+Use `GenerateEmailInput['category']` and `EmailLanguage` for accepted values.
+The [generated contract](../src/generated/openapi-types.ts) owns their complete
+vocabularies.
 
 ### Long-running calls
 
@@ -245,13 +197,11 @@ The SDK applies a per-request timeout of **4 minutes** for this endpoint
 (versus the 30-second default for everything else). You can override it:
 
 ```ts
-import { AbortController } from 'node:abort-controller' // Node < 18
-
 const controller = new AbortController()
 const result = await brew.emails.generate(
   { prompt: 'Create a welcome email for new subscribers' },
   {
-    timeoutMs: 300_000, // 5 minutes
+    timeoutMs: 300_000,
     signal: controller.signal,
   }
 )
@@ -270,11 +220,7 @@ const result = await brew.emails.generate({
 if ('emailId' in result) {
   console.log(result.emailId)
   console.log(result.html)
-  // result.previewImage is the storage URL of the rendered screenshot
 } else {
-  // The agent answered with prose instead of an artifact (rare —
-  // happens when the prompt asks a question rather than asking for
-  // an email). Surface `result.response` to the user.
   console.log(result.response)
 }
 ```
@@ -293,9 +239,9 @@ also supply your own via `RequestOptions.idempotencyKey`.
 ```ts
 type ImportEmailInput = {
   readonly format: 'html' | 'mjml' | 'jsx'
-  readonly content: string // the raw markup as a string
+  readonly content: string
   readonly title?: string
-  readonly baseUrl?: string // base for resolving relative asset URLs
+  readonly baseUrl?: string
 }
 
 import(
@@ -313,7 +259,6 @@ const imported = await brew.emails.import({
 
 console.log(imported.emailId, imported.emailVersionId)
 console.log(imported.html)
-// imported.previewImage is the storage URL of the rendered screenshot
 ```
 
 ---
@@ -338,12 +283,12 @@ to clear it, and Brew reads the language from the email again.
 
 ```ts
 type EditEmailInput = {
-  readonly emailId: string // path parameter
-  readonly prompt?: string // omit for a metadata-only edit
+  readonly emailId: string
+  readonly prompt?: string
   readonly contentUrls?: ReadonlyArray<string>
   readonly title?: string
   readonly subjectLine?: string
-  readonly lang?: EmailLanguage | null // null clears it; Brew reads it again
+  readonly lang?: EmailLanguage | null
   readonly groupId?: string | null
 }
 
@@ -371,7 +316,6 @@ if ('emailId' in generated) {
   })
 
   if ('emailId' in edited) {
-    // Same emailId, new latest version stored in Convex.
     console.log(edited.emailId, edited.html)
   }
 }
@@ -471,7 +415,7 @@ expired or unknown id is `404 AUDIT_NOT_FOUND`.
 ```ts
 getAudit(
   auditId: string,
-  options?: RequestOptions & { cursor?: string; limit?: number } // limit 1-50, default 10
+  options?: RequestOptions & { cursor?: string; limit?: number }
 ): Promise<GetEmailAuditResponse>
 ```
 
@@ -502,9 +446,9 @@ default spread.
 
 ```ts
 type PreviewEmailClientsInput = {
-  readonly emailId: string // path parameter
+  readonly emailId: string
   readonly emailVersionId?: string
-  readonly clients?: ReadonlyArray<string> // omit → default spread
+  readonly clients?: ReadonlyArray<string>
 }
 
 type EmailClientPreviewResponse = {
@@ -519,16 +463,16 @@ type EmailClientPreviewResponse = {
     | 'failed'
   readonly previews: ReadonlyArray<{
     readonly id: string
-    readonly label: string // e.g. "Apple Mail (iOS, Dark)"
+    readonly label: string
     readonly category: 'gmail' | 'outlook' | 'apple' | 'yahoo' | 'other'
     readonly os: string
     readonly dark: boolean
     readonly status: 'running' | 'completed' | 'failed'
-    readonly imageUrl: string | null // cdn.brew.new screenshot when completed
-    readonly reason?: string // why a client is pending or failed
+    readonly imageUrl: string | null
+    readonly reason?: string
     readonly retryable: boolean
   }>
-  readonly pending: ReadonlyArray<string> // client ids still rendering
+  readonly pending: ReadonlyArray<string>
   readonly createdAt: string
   readonly expiresAt: string
   readonly nextPollAfterMs: number
@@ -603,7 +547,7 @@ unknown id is `404 PREVIEW_NOT_FOUND`.
 getClientPreview(
   previewId: string,
   options?: RequestOptions
-): Promise<GetEmailClientPreviewResponse> // same shape as the job above
+): Promise<GetEmailClientPreviewResponse>
 ```
 
 ---
@@ -634,7 +578,7 @@ const restored = await brew.emails.restore({
   emailId: 'email_123',
   emailVersionId: previous!.emailVersionId,
 })
-restored.emailVersionId // the new head's version id
+restored.emailVersionId
 ```
 
 It answers the restored design, the same shape as `clone` and `import`.
@@ -651,9 +595,8 @@ const result = await brew.emails.export({
   emailId: 'email_123',
   provider: 'klaviyo',
   templateName: 'Launch email',
-  dryRun: true, // was `dry_run`
+  dryRun: true,
 })
-// { emailId, provider, providerName, templateName, templateId?, dryRun }
 ```
 
 Set `dryRun: true` to validate the design, brand ownership, and the ESP
@@ -671,14 +614,12 @@ replaced the flat `emails.createInboxPlacementTest` and
 `emails.getInboxPlacementResults`.
 
 ```ts
-// Start a test on a VERIFIED sending domain — 202, fixed 10 credits.
 const test = await brew.emails.inboxPlacementTests.create({
   emailId: 'email_123',
   domainId: 'domain_123',
   subject: 'Placement check',
 })
 
-// Poll ONE test by id — its own route now, FREE.
 const result = await brew.emails.inboxPlacementTests.get(
   'email_123',
   test.testId
@@ -688,7 +629,6 @@ if (result.status === 'completed') {
   console.log(result.diagnosis)
 }
 
-// The design's recent tests as lean rows, FREE.
 const { data } = await brew.emails.inboxPlacementTests.list({
   emailId: 'email_123',
 })
@@ -712,27 +652,26 @@ free. New in 11.6.0: the typed replacement for reading comments through
 
 ```ts
 type EmailCommentThread = {
-  readonly commentId: string // `cmt_…`
+  readonly commentId: string
   readonly emailId: string
-  readonly status: 'open' // resolving a thread deletes it
+  readonly status: 'open'
   readonly target:
     | { kind: 'email' }
     | { kind: 'element'; elementId?: string; nodeType?: string }
-  readonly participants: ReadonlyArray<{ userId: string; name: string }> // the 12 most recent
+  readonly participants: ReadonlyArray<{ userId: string; name: string }>
   readonly participantCount: number
   readonly messageCount: number
-  readonly lastMessageAt: string // ISO-8601
-  readonly lastMessagePreview: string // shortened to 140 characters
-  readonly url: string // the thread on the design in Brew
-  // Only with include: 'messages':
-  readonly messages?: ReadonlyArray<EmailCommentMessage> // oldest first
-  readonly messagesCursor?: string | null // older messages; null when none remain
+  readonly lastMessageAt: string
+  readonly lastMessagePreview: string
+  readonly url: string
+  readonly messages?: ReadonlyArray<EmailCommentMessage>
+  readonly messagesCursor?: string | null
 }
 
 type EmailCommentMessage = {
-  readonly messageId: string // `cmm_…`
+  readonly messageId: string
   readonly author: { userId: string; name: string }
-  readonly body: string // each mention reads `@Name`, the name `mentions` gives
+  readonly body: string
   readonly mentions: ReadonlyArray<{ userId: string; name: string }>
   readonly createdAt: string
   readonly updatedAt: string
@@ -743,17 +682,13 @@ type EmailCommentMessage = {
 `{ data, pagination }`:
 
 ```ts
-// The threads, without messages (up to 100 a page).
 const { data: threads } = await brew.emails.comments.list({ emailId })
 
-// With each thread's newest messages: the page caps at 3 threads, which
-// share a fixed size budget.
 const { data } = await brew.emails.comments.list({
   emailId,
   include: 'messages',
 })
 
-// One thread by id; send back its messagesCursor for older messages.
 const commentId = 'cmt_V1StGXR8_Z5jdHi6B-myT'
 const thread = await brew.emails.comments.list({
   emailId,
@@ -765,7 +700,7 @@ if (messagesCursor) {
   const older = await brew.emails.comments.list({
     emailId,
     commentId,
-    messagesCursor, // implies include: 'messages'
+    messagesCursor,
   })
 }
 ```
@@ -809,7 +744,7 @@ An email with no open threads returns an empty page.
 type SendAcceptedResponse = {
   readonly status: 'queued' | 'scheduled' | 'pending_approval'
   readonly sendId: string
-  readonly scheduledAt?: string // ISO-8601
+  readonly scheduledAt?: string
 }
 
 type SendTestResponse = {
@@ -868,11 +803,10 @@ const result = await brew.emails.send({
   emailId: 'email_123',
   domainId: 'domain_123',
   subject: 'Welcome to Brew',
-  audienceId: 'aud_123', // or 'all' for every contact in the brand
+  audienceId: 'aud_123',
   from: { email: 'hello@acme.com', name: 'Acme' },
   replyTo: 'support@acme.com',
 })
-// { status: 'queued' | 'scheduled', sendId }
 ```
 
 Test send — discriminate on `test: true`:
@@ -884,7 +818,6 @@ const result = await brew.emails.send({
   subject: 'Preview: Welcome to Brew',
   to: 'qa@example.com',
 })
-// { status: 'completed', recipient: 'qa@example.com' }
 ```
 
 Poll a campaign send for lifecycle + stats:
@@ -893,6 +826,5 @@ Poll a campaign send for lifecycle + stats:
 const send = await brew.sends.get(result.sendId)
 console.log(send.status, send.stats?.delivered)
 
-// Or every send made from one design:
 const { data } = await brew.sends.list({ emailId: 'email_123' })
 ```

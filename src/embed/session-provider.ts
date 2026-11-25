@@ -20,19 +20,16 @@ async function readSessionHeaders({
     signal.addEventListener('abort', onAbort, { once: true })
   })
   try {
-    // Observe the lookup even after cancellation so a late rejection is consumed.
     return await Promise.race([Promise.resolve().then(read), interrupted])
   } finally {
     signal.removeEventListener('abort', onAbort)
   }
 }
 
-/** Connects the browser component to an authenticated endpoint in your own app. */
 export function createCanvasSessionProvider(
   endpoint: string,
   options: Readonly<{
     fetch?: typeof fetch
-    /** Read fresh host authentication or CSRF headers for each session request. */
     headers?: HeadersInit | (() => HeadersInit | Promise<HeadersInit>)
   }> = {}
 ): CanvasSessionProvider {

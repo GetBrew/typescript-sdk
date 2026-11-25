@@ -4,51 +4,16 @@ import type { BrewRawResponse, RequestOptions } from '../../types'
 
 import type { Flow } from './types'
 
-/** The only expansion `GET /v1/flows/{slug}` accepts: each step's rendered HTML. */
 export const FLOWS_INCLUDE_TOKENS = ['html'] as const
 export type FlowsIncludeToken = (typeof FLOWS_INCLUDE_TOKENS)[number]
 
-/**
- * Per-request options for `brew.flows.get(...)` — the standard
- * `RequestOptions` plus the detail-only `include` expansion.
- */
 export type GetFlowOptions = RequestOptions & {
-  /**
-   * `'html'` attaches each step's rendered HTML — up to 12 emails,
-   * best-effort per step: a step whose body is no longer servable comes
-   * back without `html` rather than failing the flow. Accepts a token, an
-   * array of tokens, or a comma string.
-   */
   readonly include?: ReadonlyArray<FlowsIncludeToken> | string
-  /**
-   * The flow's kind for a bare-domain `slug`, hyphenated (`onboarding`,
-   * `trial`, `events`, `product-updates`, `promotions`, optionally followed
-   * by `-2`, `-3`… for a brand's later flow of that kind). A
-   * `<domain>/<kind>` slug from `brew.flows.list()` already names it.
-   */
   readonly kind?: string
 }
 
-/** `GET /v1/flows/{slug}` returns the BARE flow, with `anchor` and `steps[]`. */
 export type GetFlowResponse = Flow
 
-/**
- * `GET /v1/flows/{slug}` — one public flow, returned as the BARE row. The
- * slug is what every `brew.flows.list()` card carries: a brand domain
- * (`brew.new`, its primary flow) or `<domain>/<kind>` for one kind's flow
- * (`brew.new/onboarding`), case-insensitive. The row adds `anchor` (what day 0 means)
- * and `steps[]` (`order`, `dayOffset`, `delayDays`, `subject`,
- * `previewText`, `category`, `previewImage`, `emailId`) to the card fields.
- *
- * A step's `emailId` is a template reference: pass it as `referenceEmailId`
- * on `brew.emails.generate(...)`; for the body itself pass
- * `include: 'html'` here. Organization-wide, like templates: the client
- * never sends `X-Brand-Id`. An unknown or private slug is
- * `404 FLOW_NOT_FOUND`.
- *
- * Pass `{ raw: true }` in `options` to receive the full
- * `BrewRawResponse<GetFlowResponse>` instead of the unwrapped row.
- */
 export function createGetFlow(client: HttpClient) {
   function getFlow(
     slug: string,
@@ -63,8 +28,6 @@ export function createGetFlow(client: HttpClient) {
     options?: GetFlowOptions
   ): Promise<GetFlowResponse | BrewRawResponse<GetFlowResponse>> {
     const include = serializeInclude({ include: options?.include })
-    // `<domain>/<kind>` is the domain path plus `?kind=`: an encoded `/`
-    // would name no flow.
     const slash = slug.indexOf('/')
     const domain = slash === -1 ? slug : slug.slice(0, slash)
     const kind = slash === -1 ? options?.kind : slug.slice(slash + 1)

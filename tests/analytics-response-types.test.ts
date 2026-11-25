@@ -12,8 +12,6 @@ import { fileURLToPath } from 'node:url'
 import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 
-// Compiled as both module formats against the built package, so it checks
-// the shipped `.d.ts` and `.d.cts`, not `src/`. Nothing here runs.
 const consumer = `
 import type { BrewClient, EventCountsResponse } from '@brew.new/sdk';
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends (<T>() => T extends B ? 1 : 2) ? true : false;

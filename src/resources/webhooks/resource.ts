@@ -27,7 +27,6 @@ export function createWebhooksResource(client: HttpClient) {
       options
     )
   }
-  /** Delivers a retained event again; never resends the email. */
   function replay(
     webhookId: string,
     eventId: string,

@@ -2,7 +2,6 @@ import type { components } from '../../../generated/openapi-types'
 import { unwrapResponse, type HttpClient } from '../../../core/http'
 import type { BrewRawResponse, RequestOptions } from '../../../types'
 
-/** Input to `brew.domains.unsubscribes.remove(...)`. */
 export type RemoveDomainUnsubscribeInput = {
   readonly domainId: string
   readonly email: string
@@ -11,11 +10,6 @@ export type RemoveDomainUnsubscribeInput = {
 export type RemoveDomainUnsubscribeResponse =
   components['schemas']['DomainUnsubscribeRemoveResponse']
 
-/**
- * `DELETE /v1/domains/{domainId}/unsubscribes/{email}` (scope: `domains`) —
- * take one address off this domain's list. It never re-subscribes a
- * brand-wide opt-out.
- */
 export function createRemoveDomainUnsubscribe(client: HttpClient) {
   function removeDomainUnsubscribe(
     input: RemoveDomainUnsubscribeInput,

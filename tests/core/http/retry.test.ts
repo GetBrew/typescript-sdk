@@ -138,7 +138,6 @@ describe('http.request — retry behavior', () => {
       client.request({ method: 'GET', path: '/v1/contacts' })
     ).rejects.toBeInstanceOf(BrewApiError)
 
-    // 1 initial attempt + 2 retries = 3 total calls.
     expect(callCount).toBe(3)
   })
 

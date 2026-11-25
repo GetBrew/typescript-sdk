@@ -22,7 +22,6 @@ exists.
 ## Shared types
 
 ```ts
-// The one v1 status vocabulary.
 type SendStatus =
   | 'scheduled'
   | 'queued'
@@ -39,7 +38,7 @@ type SendStats = {
   readonly opened: number
   readonly clicked: number
   readonly bounced: number
-  readonly hardBounced?: number // permanent bounces, a subset of `bounced`; absent on older sends
+  readonly hardBounced?: number
   readonly complained: number
   readonly unsubscribed: number
 }
@@ -50,13 +49,11 @@ type Send = {
   readonly messageClass?: 'marketing' | 'transactional'
   readonly emailId: string
   readonly status: SendStatus
-  // While `paused`: why it is held (see `resume`).
   readonly pauseReason?:
     | 'manual'
     | 'plan_limit'
     | 'domain_unsendable'
     | 'bounce_rate'
-  // Provenance for an automation send — trace a row back to the fire.
   readonly automationId?: string
   readonly nodeId?: string
   readonly automationRunId?: string
@@ -72,9 +69,6 @@ type Send = {
   readonly stats?: SendStats
   readonly createdAt: string
   readonly updatedAt: string
-  // ...plus emailVersionId, subject, previewText, domainId, delivery,
-  // gradualSend, startedAt, failedAt, error. With `include: 'events'` on
-  // `get`, a bounded first page of per-recipient `events[]` is inlined.
 }
 ```
 
@@ -126,7 +120,6 @@ One send, returned as the **bare row** (no `{ data }` envelope).
 const send = await brew.sends.get('snd_8fK2mQ4p')
 console.log(send.status, send.stats?.opened)
 
-// With the per-recipient event page inlined:
 const withEvents = await brew.sends.get('snd_8fK2mQ4p', {
   include: 'events',
 })
@@ -143,7 +136,6 @@ Cancel a scheduled or queued send before it goes out. Requires the
 
 ```ts
 const result = await brew.sends.cancel('snd_8fK2mQ4p')
-// { sendId: 'snd_8fK2mQ4p', status: 'canceled' }
 ```
 
 The action is **idempotent** — a send that is already `canceled` resolves
@@ -171,7 +163,6 @@ mailed stay mailed; the remaining chunks stop going out.
 
 ```ts
 await brew.sends.pause('snd_8fK2mQ4p')
-// { sendId: 'snd_8fK2mQ4p', status: 'paused' }
 ```
 
 Pausing a send you already paused returns the same `200` and changes
@@ -189,7 +180,6 @@ that rate again.
 
 ```ts
 await brew.sends.resume('snd_8fK2mQ4p')
-// { sendId: 'snd_8fK2mQ4p', status: 'running' }
 ```
 
 `409 SEND_NOT_RESUMABLE` when the send is canceled, finished, or was

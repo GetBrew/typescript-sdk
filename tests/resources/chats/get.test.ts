@@ -88,7 +88,6 @@ describe('chats.get', () => {
     const result = await get('a/b c')
 
     expect(capturedUrl?.pathname).toBe('/api/v1/chats/a%2Fb%20c')
-    // Nullable fields round-trip as null, not undefined.
     expect(result.title).toBeNull()
     expect(result.modelId).toBeNull()
     expect(result.updatedAt).toBeNull()

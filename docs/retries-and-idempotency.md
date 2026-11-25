@@ -161,7 +161,6 @@ its `Idempotency-Key`:
 
 ```ts
 await brew.contacts.upsert({ email: 'jane@example.com' })
-// Sends: Idempotency-Key: a3f2e1c4-…-…-…-…
 ```
 
 This is what makes POST safe to retry — the server deduplicates by
@@ -210,15 +209,12 @@ try {
   await brew.emails.generate({ prompt })
 } catch (error) {
   if (error instanceof BrewTransportError && error.idempotencyKey) {
-    // Keep the key with the job and retry it later.
     await jobs.retryLater({ prompt, idempotencyKey: error.idempotencyKey })
     return
   }
   throw error
 }
 
-// Later: the same body and the same key. The server replays the result of
-// the first attempt instead of generating a second email.
 await brew.emails.generate({ prompt }, { idempotencyKey })
 ```
 
@@ -246,8 +242,8 @@ before you retry it yourself.
 
 ### Recovering an image upload
 
-The recovery fields below are part of the next SDK release. With SDK
-13.3.0, use the explicit upload steps and retain the upload ID yourself.
+The recovery fields below are available in SDK 13.4.0 and later. Older
+clients must retain the upload ID when using the explicit upload steps.
 
 `content.uploadImage()` opens an upload, sends the file's bytes, then
 calls `content.addImage({ uploadId })`. If that final call loses its

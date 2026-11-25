@@ -6,12 +6,6 @@ import { createSendEmail } from '../../src/resources/emails/send'
 import { makeTestHttpClient } from '../helpers/http-client'
 import { server } from '../msw/server'
 
-/**
- * The payload generics are TYPE-LEVEL contracts (pin a type from your
- * codebase — hand-written or `brew-cli types` output — and the compiler
- * checks every fire/send call site). Runtime behavior is unchanged.
- */
-
 type SignupPayload = {
   email: string
   seats?: number

@@ -46,8 +46,8 @@ type Audience = {
     readonly logicalOperator: 'and' | 'or'
   }
   readonly count: number
-  readonly createdAt: string // ISO-8601
-  readonly updatedAt: string // ISO-8601
+  readonly createdAt: string
+  readonly updatedAt: string
 }
 ```
 
@@ -63,7 +63,7 @@ Every saved audience for the brand, under `{ data, pagination }`. Accepts
 
 ```ts
 type ListAudiencesInput = {
-  readonly search?: string // name contains, case-insensitive
+  readonly search?: string
   readonly limit?: number
   readonly cursor?: string
 }
@@ -100,7 +100,7 @@ send would target. Without it, `count` reflects the cached value, which reads
 
 ```ts
 const audience = await brew.audiences.get(audienceId, { include: 'count' })
-console.log(audience.count) // live member total
+console.log(audience.count)
 ```
 
 Add `'build'` for an audience made by `brew.audiences.fromEvents(...)`: the
@@ -110,7 +110,7 @@ row gains `build`, its latest cohort build (`jobId`, `status`, `cohort`).
 const audience = await brew.audiences.get(audienceId, {
   include: ['count', 'build'],
 })
-console.log(audience.build?.status) // queued | running | completed | ...
+console.log(audience.build?.status)
 ```
 
 ## `create`

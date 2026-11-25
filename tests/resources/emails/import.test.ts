@@ -68,7 +68,6 @@ describe('emails.import', () => {
       content: '<html><body>Welcome to Brew.</body></html>',
       title: 'Imported welcome',
     })
-    // POST auto-attaches an idempotency key so the import is retry-safe.
     expect(captured?.headers.get('idempotency-key')).toBeTruthy()
     expect(result.emailId).toBe('eml_imported')
     expect(result.emailVersionId).toBe('emv_imported_v1')

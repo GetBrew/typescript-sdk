@@ -16,10 +16,10 @@ Official TypeScript SDK for the [Brew](https://brew.new) public API.
 ## Install
 
 ```bash
-bun add @brew.new/sdk
-# or
 npm install @brew.new/sdk
 ```
+
+With Bun, run `bun add @brew.new/sdk`.
 
 ## Quick start
 
@@ -45,9 +45,9 @@ const { data } = await brew.contacts.search({
 })
 ```
 
-That's the whole shape. Every other method follows the same pattern:
-`list(query)` for a page, `get(id)` for the bare row, and a `404` — not
-an empty page — when the id is unknown.
+Collection reads generally use `list(query)` for a page and `get(id)` for a
+bare row. Some resources take an options object instead; use each method's
+typed signature. Unknown identifiers return a `404`.
 
 > **Upgrading from 10.x?** 11.0.0 turns `emails.previewClients` into a
 > rendering job you poll with `emails.getClientPreview`, and drops the
@@ -63,20 +63,16 @@ Adding and deleting images is free.
 ```ts
 import { openAsBlob } from 'node:fs'
 
-// A local file, in one call: opens an upload, sends the bytes, adds it.
 const logo = await brew.content.uploadImage({
-  file: await openAsBlob('./assets/logo.png'), // or a Buffer / ArrayBuffer
-  fileName: 'logo.png', // contentType inferred from the extension
+  file: await openAsBlob('./assets/logo.png'),
+  fileName: 'logo.png',
 })
-// → { url: 'https://cdn.brew.new/…', width, height, aspectRatio, assetId }
 
-// A public URL (or up to 100 with `imageUrls`, imported in the background).
 const hero = await brew.content.addImage({
   imageUrl: 'https://acme.com/hero.jpg',
 })
 
-// Remove one from the library. Emails already using it keep rendering.
-await brew.brand.deleteImage(hero.assetId) // → { assetId, deleted: true }
+await brew.brand.deleteImage(hero.assetId)
 ```
 
 `uploadImage` takes a `Blob`/`File`, an `ArrayBuffer` or a `Uint8Array`
@@ -100,8 +96,8 @@ opens a new upload, so reusing the original key there causes
 [Recovering an image upload](./docs/retries-and-idempotency.md#recovering-an-image-upload)
 for a typed recovery example and the replay limits.
 
-These recovery fields are part of the next SDK release. SDK 13.3.0 callers
-must use the explicit steps above and retain the upload ID themselves.
+Recovery metadata is available in SDK 13.4.0 and later. Older clients must
+retain the upload ID when using the explicit upload steps.
 
 ## Pointing at a different environment
 
@@ -177,17 +173,17 @@ controller is available from `@brew.new/sdk/embed`.
 
 ## Development
 
-Use a modern Node 20 or newer runtime for SDK development. On this
-machine, Vitest worked with Node `20.19.2` and newer, but failed on the
-older system Node `20.10.0`.
+Use Node 20.19 or newer, Bun from `package.json#packageManager`, and Python
+3.10+ with pip for the comment-check grammars.
 
 ```bash
 bun install
-bun tsc         # typecheck
-bun lint        # eslint
-bun run format  # prettier
-bun run test    # vitest — NOT `bun test`, that hits Bun's built-in runner and bypasses MSW setup
-bun run build   # tsup: dist/ with esm + cjs + .d.ts
+bun run comments:setup
+bun tsc
+bun lint
+bun run format
+bun run test
+bun run build
 ```
 
 Full contribution + testing conventions live in [`AGENTS.md`](./AGENTS.md).

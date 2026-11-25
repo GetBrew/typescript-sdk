@@ -1,18 +1,5 @@
-/**
- * @brew.new/sdk — Official TypeScript SDK for the Brew public API.
- *
- * This is the only file consumers should import from. Anything not
- * re-exported here is private and may change without a major version
- * bump.
- */
-
-// ---------- Client ----------
 export { type BrewClient, createBrewClient } from './client'
 
-// ---------- Errors ----------
-// `BrewApiError`: the server answered non-2xx. The transport family —
-// `BrewTransportError` and its `BrewTimeoutError` / `BrewConnectionError` —
-// means no usable answer arrived. `BrewParseError`: a 2xx body was not JSON.
 export {
   BrewApiError,
   BrewConnectionError,
@@ -22,10 +9,7 @@ export {
   BrewTransportError,
 } from './core/errors'
 export type { Pagination, PaginationInput } from './core/pagination'
-// ---------- Pagination ----------
 export { autoPaginate, BrewPaginationError } from './core/pagination'
-// Recursive JSON payload value for `emails.send` / `automations.triggers.fire`
-// (replaces the removed `TransactionalPayloadValue`).
 export type { SendPayloadValue } from './generated/openapi-types'
 export type { AutomationAnalyticsInput } from './resources/analytics/automations'
 export {
@@ -41,11 +25,7 @@ export type {
   AnalyticsOverviewInput,
   AnalyticsOverviewResponse,
 } from './resources/analytics/overview'
-// ---------- Resource shapes ----------
 export type { AnalyticsResource } from './resources/analytics/resource'
-// ---------- Analytics: domain types + method outputs ----------
-// (`analytics` keeps only reports in v1. Send rows moved to `sends.*`
-// and fired-trigger history to `automations.triggerInstances.*`.)
 export type {
   AutomationAnalyticsResponse,
   AutomationAnalyticsRow,
@@ -70,7 +50,6 @@ export type {
   AudienceFromEventsInput,
   AudienceFromEventsResponse,
 } from './resources/audiences/from-events'
-// ---------- Audiences: method inputs + outputs ----------
 export type {
   AudiencesIncludeToken,
   GetAudienceOptions,
@@ -81,7 +60,6 @@ export type {
   ListAudiencesResponse,
 } from './resources/audiences/list'
 export type { AudiencesResource } from './resources/audiences/resource'
-// ---------- Audiences: domain types ----------
 export type { Audience, AudienceWriteResult } from './resources/audiences/types'
 export type {
   UpdateAudienceInput,
@@ -154,8 +132,6 @@ export type {
   ListAutomationRunsResponse,
 } from './resources/automations/runs/list'
 export type { AutomationRunsResource } from './resources/automations/runs/resource'
-// ---------- Automations › runs: run history + one run by id ----------
-// (Exposed as `client.automations.runs.*` against /v1/automations/runs.)
 export type {
   AutomationRun,
   AutomationRunCancelRequest,
@@ -167,8 +143,6 @@ export type {
   TestAutomationInput,
   TestAutomationResponse,
 } from './resources/automations/test'
-// ---------- Automations › trigger-instances: fired-trigger history ----------
-// (Moved off `analytics` in v1 — it is trigger history, not a report.)
 export type { GetTriggerInstanceResponse } from './resources/automations/trigger-instances/get'
 export type { ListAllTriggerInstancesInput } from './resources/automations/trigger-instances/list'
 export type { TriggerInstancesResource } from './resources/automations/trigger-instances/resource'
@@ -227,15 +201,12 @@ export type {
   TriggerReadinessDelivery,
   TriggerReadinessResponse,
 } from './resources/automations/triggers/readiness'
-// ---------- Nested resource shapes ----------
 export type { TriggersResource } from './resources/automations/triggers/resource'
-// ---------- Automations › triggers: domain types ----------
 export type {
   BrewEventTriggerConfig,
   Trigger,
   TriggersListResponse,
 } from './resources/automations/triggers/types'
-// ---------- Automations: domain types ----------
 export type {
   Automation,
   AutomationDryRunReport,
@@ -243,7 +214,6 @@ export type {
 } from './resources/automations/types'
 export type { GetBrandInput } from './resources/brand/get'
 export type { BrandResource } from './resources/brand/resource'
-// ---------- Brand: domain types + method outputs ----------
 export type {
   Brand,
   BrandGetResponse,
@@ -257,7 +227,6 @@ export type {
   ListBrandImagesInput,
   UpdateBrandInput,
 } from './resources/brand/types'
-// ---------- Brand lifecycle: organization discovery + creation ----------
 export type {
   CreateBrandInput,
   CreateBrandResponse,
@@ -277,9 +246,6 @@ export {
 } from './resources/brands/wait-for-extraction'
 export type { ListAllChatsInput } from './resources/chats/list'
 export type { ChatsResource } from './resources/chats/resource'
-// ---------- Chats: domain types ----------
-// (Exposed as `client.chats.list()` / `.listAll()` against /v1/chats and
-// `client.chats.get(chatId)` against /v1/chats/{chatId}.)
 export type {
   ChatArtifact,
   ChatContextResponse,
@@ -289,7 +255,6 @@ export type {
   ChatSummary,
   ListChatsInput,
 } from './resources/chats/types'
-// ---------- Contacts: method inputs + outputs ----------
 export type { CountContactsInput } from './resources/contacts/count'
 export type {
   CountContactsByInput,
@@ -337,7 +302,6 @@ export type {
   SearchContactsResponse,
 } from './resources/contacts/search'
 export type { SearchAllContactsInput } from './resources/contacts/search-all'
-// ---------- Contacts: domain types ----------
 export type {
   Contact,
   ContactConsentInput,
@@ -367,7 +331,6 @@ export {
   IMAGE_UPLOAD_BYTES_DEFAULT_TIMEOUT_MS,
   type UploadImageInput,
 } from './resources/content/upload-image'
-// ---------- New v1 resource domain types ----------
 export type * from './resources/content/types'
 export type { AddDomainInput, AddDomainResponse } from './resources/domains/add'
 export type {
@@ -382,7 +345,6 @@ export type {
   GetDomainHealthResponse,
 } from './resources/domains/health'
 export type { GetDomainResponse } from './resources/domains/get'
-// ---------- Domains: method inputs + outputs ----------
 export type {
   ListDomainsInput,
   ListDomainsResponse,
@@ -436,8 +398,6 @@ export type {
   CloneEmailInput,
   CloneEmailResponse,
 } from './resources/emails/clone'
-// ---------- Emails › comments: a design's comment threads ----------
-// (`client.emails.comments.*` against /v1/emails/{emailId}/comments.)
 export type {
   EmailCommentsIncludeToken,
   ListAllEmailCommentMessagesInput,
@@ -518,8 +478,6 @@ export type {
   RestoreEmailInput,
   RestoreEmailResponse,
 } from './resources/emails/restore'
-// `POST /v1/sends` is the single polymorphic send (`emails.send`):
-// campaign by default, or a one-off TEST delivery via `test: true`.
 export type {
   SendEmailCampaignResponse,
   SendEmailInput,
@@ -543,13 +501,11 @@ export type {
 } from './resources/fields/create'
 export type { DeleteFieldInput } from './resources/fields/delete'
 export type { GetFieldResponse } from './resources/fields/get'
-// ---------- Fields: method inputs + outputs ----------
 export type {
   ListFieldsInput,
   ListFieldsResponse,
 } from './resources/fields/list'
 export type { FieldsResource } from './resources/fields/resource'
-// ---------- Fields: domain types ----------
 export type {
   ContactField,
   ContactFieldType,
@@ -557,13 +513,10 @@ export type {
   FieldsGetResponse,
   FieldsPagination,
 } from './resources/fields/types'
-// ---------- Health + Help: domain types ----------
 export type { GetHealthResponse, HealthResponse } from './resources/health/get'
 export type { HealthResource } from './resources/health/resource'
 export type { GetHelpResponse, HelpResponse } from './resources/help/get'
 export type { HelpResource } from './resources/help/resource'
-// ---------- Insights: Brew Insights findings + intelligence ----------
-// (`client.insights.list` / `.get` against /v1/insights.)
 export type { GetInsightResponse } from './resources/insights/get'
 export type {
   InsightsIncludeToken,
@@ -585,8 +538,6 @@ export type {
   InsightSuggestion,
   InsightSummary,
 } from './resources/insights/types'
-// ---------- Integrations: the catalog and live integration events ----------
-// (`client.integrations.list`, `.events.list` / `.events.get`.)
 export type { GetIntegrationEventResponse } from './resources/integrations/events/get'
 export type {
   ListIntegrationEventsInput,
@@ -606,8 +557,6 @@ export type {
 } from './resources/integrations/events/types'
 export type { IntegrationsResource } from './resources/integrations/resource'
 export type * from './resources/integrations/types'
-// ---------- Notifications: the app's bell, as a read ----------
-// (`client.notifications.list` / `.listAll` against /v1/notifications.)
 export type { ListAllNotificationsInput } from './resources/notifications/list'
 export type { NotificationsResource } from './resources/notifications/resource'
 export type {
@@ -622,9 +571,6 @@ export type {
   PayloadContractInferResponse,
 } from './resources/payload-contracts/infer'
 export type { PayloadContractsResource } from './resources/payload-contracts/resource'
-// ---------- Sends: the send reads + the lifecycle actions ----------
-// (`sends.list` / `sends.get` replaced `analytics.campaigns` and
-// `analytics.sends.*`; sends are still CREATED with `emails.send`.)
 export type {
   SendCancelResponse,
   SendCancelStatus,
@@ -661,18 +607,12 @@ export type {
   TemplateSummaryListResponse,
 } from './resources/templates/list'
 export type { TemplatesResource } from './resources/templates/resource'
-// Send domain reads (`Send`, `SendStats`, `SendsListResponse`, …) are
-// exported from the `sends` block above; the polymorphic send ACTION
-// lives on `emails` (`emails.send` — campaign | test), so its request +
-// response shapes are exported from the `emails` block.
 export type {
   Template,
   TemplateSummary,
   TemplatesListResponse,
   TemplatesCountResponse,
 } from './resources/templates/types'
-// Public email flows (`client.flows.*` against /v1/flows): organization-wide,
-// the sequence view of the same gallery `templates` lists.
 export type {
   FlowsIncludeToken,
   GetFlowOptions,
@@ -683,7 +623,6 @@ export type { FlowsResource } from './resources/flows/resource'
 export type { Flow, FlowStep, FlowsListResponse } from './resources/flows/types'
 export type { UsageResource } from './resources/usage/resource'
 export type * from './resources/usage/types'
-// ---------- Public config + request types ----------
 export type {
   BrewClientConfig,
   BrewErrorCode,
@@ -695,7 +634,6 @@ export type {
   RequestOptions,
 } from './types'
 
-// ---------- Metadata ----------
 export { SDK_NAME, SDK_VERSION } from './version'
 export type {
   CanvasSession,

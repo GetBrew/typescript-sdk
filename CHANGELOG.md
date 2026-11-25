@@ -1112,13 +1112,10 @@ became `TriggerReadinessResponse` (+ `TriggerReadinessBlocker`);
 or `include`. Pass them to the new `get` instead:
 
 ```ts
-// Before
 const { data } = await brew.emails.list({ emailId, include: 'html' })
-const email = data[0] // may be undefined
+const email = data[0]
 
-// After
 const email = await brew.emails.get(emailId, { include: 'html' })
-// 404 EMAIL_NOT_FOUND instead of an empty page
 ```
 
 `emails.list` also swapped its four window params — `createdAtFrom`,
@@ -1177,11 +1174,9 @@ Status **filters** accept only those values, so anything typed against
 `error` must be updated:
 
 ```ts
-// Before
 await brew.analytics.sends.list({ status: 'sent' })
 await brew.emails.list({ status: 'complete' })
 
-// After
 await brew.sends.list({ status: 'completed' })
 await brew.emails.list({ status: 'ready' })
 ```
@@ -1447,7 +1442,7 @@ screenshot per client, rehosted on the Brew CDN:
 ```ts
 const batch = await brew.emails.previewClients({
   emailId: 'email_123',
-  clients: ['outlook2021_win11_dm_dt'], // omit for a default spread
+  clients: ['outlook2021_win11_dm_dt'],
 })
 ```
 
@@ -1513,7 +1508,6 @@ Cancel a scheduled or queued send before it goes out:
 
 ```ts
 const result = await brew.sends.cancel('snd_8fK2mQ4p')
-// { sendId: 'snd_8fK2mQ4p', status: 'canceled' }
 ```
 
 Wraps `POST /v1/sends/{sendId}/cancel` (scope: `sends`). The action is
@@ -1530,8 +1524,8 @@ this lifecycle action, not `send` or `list`. New exported types:
 Two operations were renamed to match the API:
 
 ```ts
-brew.account.get()       →  brew.usage.get()        // GET /v1/account → GET /v1/usage
-brew.content.hostImage() →  brew.content.addImage() // POST /v1/content/host-image → /add-image
+brew.account.get()       →  brew.usage.get()
+brew.content.hostImage() →  brew.content.addImage()
 ```
 
 The request/response shapes are unchanged. The exported types moved
@@ -1548,8 +1542,8 @@ campaign-specific — so the two send actions now live with emails, and the
 top-level `brew.sends` namespace is removed entirely.
 
 ```ts
-brew.sends.create(...)  →  brew.emails.send(...)      // still POST /v1/sends
-brew.sends.test(...)    →  brew.emails.sendTest(...)  // still POST /v1/sends/test
+brew.sends.create(...)  →  brew.emails.send(...)
+brew.sends.test(...)    →  brew.emails.sendTest(...)
 ```
 
 The HTTP URLs (`/v1/sends`, `/v1/sends/test`) and the request/response
@@ -1589,26 +1583,22 @@ Trigger and automation-run management moved under `automations`; send reads and
 fired-trigger history moved under `analytics`:
 
 ```ts
-// Triggers — now under automations (RESTful, id-on-path)
 brew.triggers.list()        →  brew.automations.triggers.list()
 brew.triggers.get(...)      →  brew.automations.triggers.get(...)
-brew.triggers.create(...)   →  brew.automations.triggers.create(...)   // returns the bare row (201)
-brew.triggers.patch(...)    →  brew.automations.triggers.patch(...)     // { triggerEventId, …fields }
+brew.triggers.create(...)   →  brew.automations.triggers.create(...)
+brew.triggers.patch(...)    →  brew.automations.triggers.patch(...)
 brew.triggers.delete(...)   →  brew.automations.triggers.delete(...)
 brew.triggers.fire(...)     →  brew.automations.triggers.fire(...)
 
-// Automation runs — now under automations
 brew.automationRuns.list()  →  brew.automations.runs.list()
 brew.automationRuns.get(...) →  brew.automations.runs.get(...)
 
-// Send reads — now under analytics (create + test stay on `sends`)
 brew.sends.list()           →  brew.analytics.sends.list()
 brew.sends.listAll()        →  brew.analytics.sends.listAll()
 brew.sends.get(...)         →  brew.analytics.sends.get(...)
 brew.sends.listEvents(...)  →  brew.analytics.sends.listEvents(...)
 brew.sends.listForEmail(...) → brew.analytics.sends.listForEmail(...)
 
-// Trigger instances (the old `events` reads) — now under analytics
 brew.events.list()          →  brew.analytics.triggerInstances.list()
 brew.events.get(...)        →  brew.analytics.triggerInstances.get(...)
 ```
@@ -1660,9 +1650,9 @@ Generated types refreshed from the complete v1 OpenAPI spec (19 → 63 routes).
 ### NEW — resources
 
 ```ts
-await brew.account.get() // GET /v1/account — plan, credits, send quota
-await brew.me.get() // GET /v1/me — key identity, brand, scopes
-await brew.content.generateImage({ prompt }) // POST /v1/content/generate-image (+ 7 more media ops)
+await brew.account.get()
+await brew.me.get()
+await brew.content.generateImage({ prompt })
 ```
 
 `brew.content.*`: `generateImage`, `generateGif`, `imageToGif`, `videoToGif`,
@@ -1672,22 +1662,18 @@ await brew.content.generateImage({ prompt }) // POST /v1/content/generate-image 
 ### NEW — methods
 
 ```ts
-// Brand design-context (read + write)
 brew.brand.getEmailDesign() / updateEmailDesign({ markdown })
 brew.brand.getImageStyle()  / updateImageStyle({ markdown })
 brew.brand.getIdentity()    / updateIdentity({ … })
 brew.brand.getLogos() / brew.brand.getImages({ limit?, cursor? })
-// Contacts
-brew.contacts.validate({ emails })               // POST /v1/contacts/validate (free deliverability check)
-brew.contacts.importCsv({ csv, mapping? })       // POST /v1/contacts/import-csv
-brew.contacts.search(input) / searchAll(input)   // POST /v1/contacts/search (filtering moved off list)
-// Emails
-brew.emails.preview({ emailId, device? })        // POST /v1/emails/{id}/preview (credit-metered)
-brew.emails.auditEmail({ emailHtml })            // POST /v1/emails/audit (5 credits complete, 0 partial)
-// Audiences / triggers / automations
-brew.audiences.getCount({ audienceId })          // GET /v1/audiences/{id}/count
-brew.triggers.fire({ triggerEventId, payload })  // POST /v1/triggers/{id}/fire
-brew.automations.test({ automationId, payload }) // POST /v1/automations/{id}/test
+brew.contacts.validate({ emails })
+brew.contacts.importCsv({ csv, mapping? })
+brew.contacts.search(input) / searchAll(input)
+brew.emails.preview({ emailId, device? })
+brew.emails.auditEmail({ emailHtml })
+brew.audiences.getCount({ audienceId })
+brew.triggers.fire({ triggerEventId, payload })
+brew.automations.test({ automationId, payload })
 ```
 
 ### BREAKING
@@ -1729,18 +1715,18 @@ as `6.0.0`.
 ### NEW — resources
 
 ```ts
-await brew.brand.get() // GET /v1/brand — the key's brand + readiness (scope: emails)
-await brew.usage.get() // GET /v1/usage — request volume + trend (scope: emails)
-await brew.integrations.list({ provider }) // GET /v1/integrations (scope: automations)
+await brew.brand.get()
+await brew.usage.get()
+await brew.integrations.list({ provider })
 ```
 
 ### NEW — methods
 
 ```ts
-await brew.sends.list({ status, from, to, limit, cursor }) // GET /v1/sends
-await brew.sends.get({ emailId }) // GET /v1/sends?emailId= (404 SEND_NOT_FOUND on miss)
-await brew.sends.test({ emailId, subject, to }) // POST /v1/sends { mode: 'test' } → { status: 'sent', recipient }
-await brew.analytics.events({ recipientEmail }) // GET /v1/analytics/events — unified event explorer
+await brew.sends.list({ status, from, to, limit, cursor })
+await brew.sends.get({ emailId })
+await brew.sends.test({ emailId, subject, to })
+await brew.analytics.events({ recipientEmail })
 ```
 
 ### NEW — auto-pagination
@@ -1845,8 +1831,8 @@ from the fire input (the API rejects it).
 ### NEW — analytics resource
 
 ```ts
-await brew.analytics.campaigns() // lifetime per-campaign KPIs (scope: emails)
-await brew.analytics.automations({ from, to, limit }) // windowed per-automation perf (scope: automations)
+await brew.analytics.campaigns()
+await brew.analytics.automations({ from, to, limit })
 ```
 
 ### NEW — audiences full CRUD
@@ -2239,7 +2225,6 @@ now type-safe without a cast.
 ### Migration guide — `2.x → 3.0`
 
 ```ts
-// 2.x — AI generate (REMOVED)
 const { trigger } = await brew.triggers.generate({ prompt: 'on checkout' })
 const { automation } = await brew.automations.generate({
   prompt: 'welcome flow',
@@ -2247,7 +2232,6 @@ const { automation } = await brew.automations.generate({
   autoCreateEmails: true,
 })
 
-// 3.0 — deterministic chain
 const { trigger } = await brew.triggers.create({
   title: 'Checkout Completed',
   provider: 'brew_api',

@@ -16,13 +16,6 @@ import {
 } from '../../helpers/loopback-server'
 import { server } from '../../msw/server'
 
-/**
- * The caller's `AbortSignal` — per request or client-wide — stops a request
- * wherever it is (connecting, reading the body, backing off), rejects with
- * the signal's own reason, and is never retried. Before this suite existed
- * the SDK detached the caller's signal the moment the headers arrived.
- */
-
 const servers = useLoopbackServers()
 
 describe('http.request — the caller can cancel at any point', () => {
@@ -45,11 +38,8 @@ describe('http.request — the caller can cancel at any point', () => {
         }),
       })
 
-      // The caller's own reason, not a copy: `fetch` rejects with it verbatim
-      // and consumers compare against it.
       expect(error).toBe(controller.signal.reason)
       expect((error as Error).name).toBe('AbortError')
-      // At most one: a loaded machine may not deliver it before the abort.
       expect(requests.length).toBeLessThanOrEqual(1)
     }
   )
@@ -136,8 +126,6 @@ describe('http.request — the caller can cancel at any point', () => {
 
   it('never retries a caller abort, whatever a custom fetch rejects with', async () => {
     let calls = 0
-    // A wrapper that turns an abort into its own error, as proxies and
-    // instrumentation layers often do. The SDK must still see a CALLER abort.
     const wrappingFetch: typeof globalThis.fetch = (_input, init) => {
       calls++
       return new Promise((_resolve, reject) => {
@@ -187,7 +175,6 @@ describe('http.request — the caller can cancel at any point', () => {
           )
         )
       )
-      // The real, timer-backed sleep: this is the one test that must wait.
       const { client } = makeTestHttpClient({
         configOverrides: { maxRetries: 2 },
         useRealSleep: true,
@@ -279,7 +266,6 @@ describe('http.request — client-level signal', () => {
     })
 
     expect(error).toBe(controller.signal.reason)
-    // At most one: a loaded machine may not deliver it before the abort.
     expect(requests.length).toBeLessThanOrEqual(1)
   })
 })

@@ -5,7 +5,6 @@ import type { BrewRawResponse, RequestOptions } from '../../types'
 export type DuplicateAudienceInput = { readonly audienceId: string }
 export type DuplicateAudienceResponse = components['schemas']['Audience']
 
-/** `POST /v1/audiences/{audienceId}/duplicate` — exact saved-segment copy. */
 export function createDuplicateAudience(client: HttpClient) {
   function duplicateAudience(
     input: DuplicateAudienceInput,

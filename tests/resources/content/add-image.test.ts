@@ -70,7 +70,6 @@ describe('content.addImage', () => {
     const result = await createAddImage(client)({ uploadId: UPLOAD_ID })
 
     expect(await captured!.json()).toEqual({ uploadId: UPLOAD_ID })
-    // Still a keyed POST: a retry after a lost answer replays it.
     expect(captured?.headers.get('idempotency-key')).toBeTruthy()
     expect(result.assetId).toBe('5bc912f9')
     expectTypeOf(result).toEqualTypeOf<ContentAddImageResponse>()

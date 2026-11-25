@@ -139,11 +139,9 @@ describe('automations.triggers resource — POST/GET/PATCH/DELETE wiring', () =>
     const triggers = createTriggersResource(client)
     const readiness = await triggers.readiness('tri_abc')
 
-    // The preflight is its own route now, not `GET …/fire`.
     expect(new URL(captured!.url).pathname).toBe(
       '/api/v1/automations/triggers/tri_abc/readiness'
     )
-    // Bare body — no `{ success, code, message, details }` fire envelope.
     expect(readiness.ready).toBe(false)
     expect(readiness.blockers[0]?.code).toBe('NO_PUBLISHED_AUTOMATION')
     expect(readiness.counts.automations).toBe(0)
@@ -186,7 +184,6 @@ describe('automations.triggers resource — POST/GET/PATCH/DELETE wiring', () =>
     const triggers = createTriggersResource(client)
     expect('enable' in triggers).toBe(false)
     expect('disable' in triggers).toBe(false)
-    // `ready` was renamed to `readiness` and retargeted off GET …/fire.
     expect('ready' in triggers).toBe(false)
   })
 
@@ -210,7 +207,6 @@ describe('automations.triggers resource — POST/GET/PATCH/DELETE wiring', () =>
       description: 'Renamed',
     })
 
-    // triggerEventId lives on the URL — only editable fields hit the body.
     expect(captured).toEqual({
       title: 'New title',
       description: 'Renamed',

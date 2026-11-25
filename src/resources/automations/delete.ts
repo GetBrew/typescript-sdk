@@ -4,25 +4,9 @@ import type { BrewRawResponse, RequestOptions } from '../../types'
 
 export type DeleteAutomationInput = { automationId: string }
 
-/**
- * Cascade-delete result. `deleted` is `true` when a row was removed and
- * `false` for an idempotent no-op (already deleted), alongside the
- * per-table counts.
- */
 export type DeleteAutomationResponse =
   components['schemas']['AutomationsDeleteResponse']
 
-/**
- * `DELETE /v1/automations/{automationId}` — cascade-delete. The id
- * travels in the PATH (no body). Idempotent (deleting an
- * already-deleted automation returns all zeros, not 404).
- *
- * Event and test runs go with it. Manual-audience runs that have not
- * finished are canceled and kept as history, so
- * `automations.audienceRuns.list` still returns them. An automation the
- * agent is still generating is `409 AUTOMATION_IN_PROGRESS`; retry once it
- * finishes.
- */
 export function createDeleteAutomation(client: HttpClient) {
   function deleteAutomation(
     input: DeleteAutomationInput,

@@ -89,10 +89,6 @@ describe('OpenAPI to SDK surface parity', () => {
   })
 
   it('has no SDK request for a route the spec no longer documents', () => {
-    // The inverse direction: a resource left behind after the platform
-    // deletes its routes (e.g. the retired transactional-email object)
-    // ships methods that can only 404. Any intentionally out-of-spec
-    // path must be listed here with a reason.
     const KNOWN_UNSPECED: ReadonlySet<string> = new Set([])
     const openApiOperations = readOpenApiOperations()
     const phantom = [...readSdkOperations()].filter(
@@ -102,9 +98,6 @@ describe('OpenAPI to SDK surface parity', () => {
 
     expect(phantom).toEqual([])
 
-    // Staleness guard: the moment the spec documents a listed route, its
-    // entry must be deleted so the allowlist can never mask a real
-    // phantom.
     const stale = [...KNOWN_UNSPECED].filter((operation) =>
       openApiOperations.has(operation)
     )
@@ -112,18 +105,10 @@ describe('OpenAPI to SDK surface parity', () => {
   })
 })
 
-/**
- * `operationId` → the `x-brew-include-tokens` the spec publishes: the tokens
- * each `include` accepts, generated from the tuples the API parses with.
- */
 function readIncludeTokens(): Map<string, Array<string>> {
   return readPublishedTokens('x-brew-include-tokens')
 }
 
-/**
- * `operationId` → the tokens a comma-separated query parameter publishes
- * under `extension` (`x-brew-include-tokens`, `x-brew-group-by-tokens`).
- */
 function readPublishedTokens(
   extensionName: string
 ): Map<string, Array<string>> {
@@ -159,11 +144,6 @@ function readPublishedTokens(
 const byName = (a: string, b: string) => a.localeCompare(b)
 
 describe('typed include tokens', () => {
-  /**
-   * Every typed `include` against the spec. 11.0.0 typed
-   * `automations.triggers.get` with `automations`, which the API refuses
-   * (it takes `skill`), and `audiences.get` without `build`.
-   */
   const TYPED: Readonly<Record<string, ReadonlyArray<string> | 'generated'>> = {
     getAudience: AUDIENCES_INCLUDE_TOKENS,
     getAutomation: AUTOMATIONS_INCLUDE_TOKENS,
@@ -178,7 +158,6 @@ describe('typed include tokens', () => {
     getTrigger: TRIGGERS_INCLUDE_TOKENS,
     listEmailComments: EMAIL_COMMENTS_INCLUDE_TOKENS,
     listInsights: INSIGHTS_INCLUDE_TOKENS,
-    // `ListFieldsInput` is the generated query type, `include` enum and all.
     listContactFields: 'generated',
   }
 
@@ -216,12 +195,6 @@ describe('typed groupBy fields', () => {
   })
 })
 
-/**
- * `METHOD path` → the query parameters the spec documents for it. List
- * inputs are typed from the generated query, so a new knob type-checks at
- * every call site; a request that builds its query key by key must still
- * forward it, or the value is silently dropped on the wire.
- */
 function readSpecQueryParameters(): Map<string, Set<string>> {
   const lines = readFileSync(
     join(ROOT, 'openapi/public-api-v1.yaml'),
@@ -282,7 +255,6 @@ function readSpecQueryParameters(): Map<string, Set<string>> {
   return byOperation
 }
 
-/** The text of the `{ … }` block opening at `start`, braces balanced. */
 function balancedBlock(source: string, start: number): string {
   let depth = 0
   for (let index = start; index < source.length; index += 1) {
@@ -298,14 +270,11 @@ function balancedBlock(source: string, start: number): string {
   return source.slice(start)
 }
 
-/** The query keys forwarded in one stretch of source (`'*'` = all). */
 function forwardedQueryKeys(scope: string): Set<string> {
   const keys = new Set<string>()
   if (/\bquery:\s*input\b/.test(scope)) {
     keys.add('*')
   }
-  // `query: { … }` inline, or `const query = { … }` passed on; the
-  // literal may nest (`...(cond ? { include } : {})`).
   for (const opening of scope.matchAll(
     /\bquery(?::\s*|(?::[^=\n]+)?\s*=\s*)\{/g
   )) {
@@ -321,19 +290,12 @@ function forwardedQueryKeys(scope: string): Set<string> {
   )) {
     keys.add((assignment[1] ?? assignment[2])!)
   }
-  // `query[key] = …` over the input's entries forwards every key.
   if (/\bquery\[[a-z]\w*\]\s*=/.test(scope)) {
     keys.add('*')
   }
   return keys
 }
 
-/**
- * `METHOD path` → the query keys its SDK request forwards. Each request is
- * credited only with the keys in its own stretch of the file: from the end
- * of the previous request up to the end of its own call, so a key one
- * request forwards never masks its omission from another in the same file.
- */
 function readSdkQueryKeys(): Map<string, Set<string>> {
   const requestPattern =
     /method:\s*'(GET|POST|PUT|PATCH|DELETE)',[\s\S]{0,400}?path:\s*(['`])([^'`\n]+)\2/g
@@ -357,18 +319,9 @@ function readSdkQueryKeys(): Map<string, Set<string>> {
 }
 
 describe('query parameter forwarding', () => {
-  /**
-   * Reviewed: a documented query parameter the SDK deliberately does not
-   * send. Each entry names why; a stale entry fails below.
-   */
   const KNOWN_UNFORWARDED: Readonly<Record<string, string>> = {
-    // `apiKeys.list` is deprecated: the route answers 403 to every actor
-    // the SDK can authenticate as (dashboard session only).
     'GET /v1/api-keys ?cursor': 'deprecated, session-only route',
     'GET /v1/api-keys ?limit': 'deprecated, session-only route',
-    // `integrations.list(options?)` takes no input, so adding one is a
-    // breaking signature change; one default page (100) holds every
-    // connected provider.
     'GET /v1/integrations ?cursor': 'list(options?) takes no input',
     'GET /v1/integrations ?limit': 'list(options?) takes no input',
   }
@@ -389,8 +342,6 @@ describe('query parameter forwarding', () => {
     expect(
       dropped.filter((entry) => !(entry in KNOWN_UNFORWARDED)).sort(byName)
     ).toEqual([])
-    // Staleness: an entry the spec no longer documents, or that the SDK
-    // now forwards, must be deleted so the list never masks a real drop.
     expect(
       Object.keys(KNOWN_UNFORWARDED)
         .filter((entry) => !dropped.includes(entry))
