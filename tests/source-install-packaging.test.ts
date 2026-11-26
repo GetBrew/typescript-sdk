@@ -41,19 +41,26 @@ describe('Git source package boundary', () => {
         { cwd: sdk, stdio: 'pipe' }
       )
       const consumer = `
-        import { createBrewClient, BrewApiError, type CreateApiKeyInput, type CanvasSessionRevokeResponse } from '@brew.new/sdk';
+        import { createBrewClient, BrewApiError, type CreateApiKeyInput, type CanvasSessionRevokeResponse, type EmailMigration, type StartEmailMigrationInput } from '@brew.new/sdk';
         import { createEmailCanvas } from '@brew.new/sdk/embed';
         import { EmailCanvas } from '@brew.new/sdk/react';
         const client = createBrewClient({ apiKey: 'brew_test' });
         async function revoke(): Promise<CanvasSessionRevokeResponse> {
           return client.canvas.sessions.revoke('session_test');
         }
+        async function migration(): Promise<EmailMigration> {
+          const input: StartEmailMigrationInput = { items: [{ sourceId: '123' }] };
+          const started = await client.emailMigrations.start(input);
+          await client.emailMigrations.resume(started.migrationId);
+          await client.emailMigrations.cancel(started.migrationId);
+          return client.emailMigrations.get(started.migrationId);
+        }
         function handle(error: unknown) {
           if (error instanceof BrewApiError) return error.status;
           return 0;
         }
         type KeyName = CreateApiKeyInput['name'];
-        void revoke; void handle; void createEmailCanvas; void EmailCanvas;
+        void revoke; void migration; void handle; void createEmailCanvas; void EmailCanvas;
         export type { KeyName };
       `
       writeFileSync(join(root, 'consumer.mts'), consumer)
