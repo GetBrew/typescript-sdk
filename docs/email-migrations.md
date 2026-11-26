@@ -32,7 +32,8 @@ console.log(progress.status, progress.outcomes, progress.nextAction)
 
 Poll `get` while `nextAction` is `wait`. A running response can include
 `leaseExpiresAt`; use the server's current `status` and `nextAction` to decide
-what to do. An expired worker lease is not proof that an import failed.
+what to do. Public `leaseExpiresAt` and `hold.retryAt` values are ISO 8601
+date-time strings. An expired worker lease is not proof that an import failed.
 
 Dry-run outcomes identify sources that are `ready-to-import`, already imported,
 unsupported, or failed. Missing full HTML is an explicit source refusal. Hosted

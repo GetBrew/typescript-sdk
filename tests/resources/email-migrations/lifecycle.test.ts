@@ -79,7 +79,7 @@ describe('emailMigrations lifecycle', () => {
             dryRun: false,
             status: 'running',
             nextAction: 'wait',
-            leaseExpiresAt: 1_800_000_000_000,
+            leaseExpiresAt: '2026-11-27T12:00:00.000Z',
           })
         }
       )
@@ -96,10 +96,10 @@ describe('emailMigrations lifecycle', () => {
       dryRun: false,
       status: 'running',
       nextAction: 'wait',
-      leaseExpiresAt: 1_800_000_000_000,
+      leaseExpiresAt: '2026-11-27T12:00:00.000Z',
     })
-    const leaseExpiresAt: number | undefined = response.leaseExpiresAt
-    expect(leaseExpiresAt).toBe(1_800_000_000_000)
+    expectTypeOf(response.leaseExpiresAt).toEqualTypeOf<string | undefined>()
+    expect(response.leaseExpiresAt).toBe('2026-11-27T12:00:00.000Z')
   })
 
   it('reads an encoded identity without a body and retains held outcomes and retry timing', async () => {
@@ -112,7 +112,7 @@ describe('emailMigrations lifecycle', () => {
       hold: {
         sourceId: '123',
         reason: 'rate-limited',
-        retryAt: 1_800_000_000_000,
+        retryAt: '2026-11-27T12:05:00.000Z',
       },
       nextAction: 'resume',
     }
@@ -125,9 +125,10 @@ describe('emailMigrations lifecycle', () => {
         }
       )
     )
-    await expect(brew().emailMigrations.get('mig/shared')).resolves.toEqual(
-      held
-    )
+    const response = await brew().emailMigrations.get('mig/shared')
+    expect(response).toEqual(held)
+    expectTypeOf(response.hold?.retryAt).toEqualTypeOf<string | undefined>()
+    expect(response.hold?.retryAt).toBe('2026-11-27T12:05:00.000Z')
     expect(captured?.method).toBe('GET')
     expect(captured?.headers.get('x-brand-id')).toBe('brand_selected')
     expect(await captured?.text()).toBe('')
