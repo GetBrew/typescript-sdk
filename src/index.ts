@@ -383,6 +383,15 @@ export type { DomainUnsubscribesResource } from './resources/domains/unsubscribe
 export type { GetEmailGroupResponse } from './resources/email-groups/get'
 export type { EmailGroupsResource } from './resources/email-groups/resource'
 export type * from './resources/email-groups/types'
+export type { EmailMigrationsResource } from './resources/email-migrations/resource'
+export type {
+  CancelEmailMigrationResponse,
+  EmailMigration,
+  GetEmailMigrationResponse,
+  ResumeEmailMigrationResponse,
+  StartEmailMigrationInput,
+  StartEmailMigrationResponse,
+} from './resources/email-migrations/types'
 export type {
   AuditEmailInput,
   EmailAuditRequest,

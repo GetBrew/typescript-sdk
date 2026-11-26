@@ -49,6 +49,10 @@ import {
   type EmailGroupsResource,
 } from './resources/email-groups/resource'
 import {
+  createEmailMigrationsResource,
+  type EmailMigrationsResource,
+} from './resources/email-migrations/resource'
+import {
   createEmailsResource,
   type EmailsResource,
 } from './resources/emails/resource'
@@ -117,6 +121,7 @@ export type BrewClient = {
   readonly content: ContentResource
   readonly domains: DomainsResource
   readonly emailGroups: EmailGroupsResource
+  readonly emailMigrations: EmailMigrationsResource
   readonly emails: EmailsResource
   readonly fields: FieldsResource
   readonly health: HealthResource
@@ -167,6 +172,7 @@ function buildClient(
     content: createContentResource(httpClient),
     domains: createDomainsResource(httpClient),
     emailGroups: createEmailGroupsResource(httpClient),
+    emailMigrations: createEmailMigrationsResource(httpClient),
     emails: createEmailsResource(httpClient),
     fields: createFieldsResource(httpClient),
     health: createHealthResource(organizationHttpClient),

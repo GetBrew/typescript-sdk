@@ -142,6 +142,7 @@ controller is available from `@brew.new/sdk/embed`.
 | Domains resource                   | [`docs/domains.md`](./docs/domains.md)                                 |
 | Webhooks resource                  | [`docs/webhooks.md`](./docs/webhooks.md)                               |
 | Emails resource (+ send)           | [`docs/emails.md`](./docs/emails.md)                                   |
+| Email migrations                   | [`docs/email-migrations.md`](./docs/email-migrations.md)               |
 | Fields resource                    | [`docs/fields.md`](./docs/fields.md)                                   |
 | Insights resource                  | [`docs/insights.md`](./docs/insights.md)                               |
 | Integrations resource              | [`docs/integrations.md`](./docs/integrations.md)                       |
