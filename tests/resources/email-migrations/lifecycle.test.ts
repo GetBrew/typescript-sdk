@@ -4,6 +4,7 @@ import { describe, expect, expectTypeOf, it, vi } from 'vitest'
 import {
   BrewApiError,
   createBrewClient,
+  type BrewErrorEnvelope,
   type EmailMigration,
   type StartEmailMigrationInput,
 } from '../../../src/index'
@@ -198,19 +199,18 @@ describe('emailMigrations lifecycle', () => {
     )
   })
 
-  it('surfaces a canceled migration refusal through the shared typed error transport', async () => {
+  it('surfaces an active-worker migration conflict through the shared typed error transport', async () => {
+    const error: BrewErrorEnvelope = {
+      code: 'EMAIL_MIGRATION_CONFLICT',
+      type: 'conflict',
+      message: 'The migration already has an active worker.',
+      suggestion: 'Read the migration status before retrying.',
+      docs: 'https://docs.brew.new/api-reference/api/errors',
+    }
     const handler = vi.fn(() =>
       HttpResponse.json(
-        {
-          error: {
-            code: 'INVALID_STATE',
-            type: 'invalid_request_error',
-            message: 'A canceled migration cannot resume.',
-            suggestion: 'Start a new inventory.',
-            docs: 'https://docs.brew.new/api-reference/api/errors',
-          },
-        },
-        { status: 409, headers: { 'x-request-id': 'req_canceled' } }
+        { error },
+        { status: 409, headers: { 'x-request-id': 'req_conflict' } }
       )
     )
     server.use(
@@ -223,8 +223,10 @@ describe('emailMigrations lifecycle', () => {
     await expect(request).rejects.toBeInstanceOf(BrewApiError)
     await expect(request).rejects.toMatchObject({
       status: 409,
-      code: 'INVALID_STATE',
-      requestId: 'req_canceled',
+      code: 'EMAIL_MIGRATION_CONFLICT',
+      type: 'conflict',
+      message: 'The migration already has an active worker.',
+      requestId: 'req_conflict',
     })
     expect(handler).toHaveBeenCalledOnce()
   })
